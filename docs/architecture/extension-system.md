@@ -43,8 +43,8 @@ assembly; the pack reports the embedded copy in process through `IExtension.Mani
   "version": "{version}",
   "assembly": "DemoViewer.NET.Extensions.StratBook.dll",
   "entryType": "DemoViewer.NET.Extensions.StratBook.StratBookPack",
-  "requiresHost": "^1.0",
-  "requiresCs2DemoKit": "0.14.0"
+  "requiresHost": "^2.1",
+  "requiresCs2DemoKit": "0.14.1"
 }
 ```
 
@@ -159,7 +159,7 @@ no `ContractVersion` bump.
 
 A contract bump (section 1's major/minor rule) must update `requiresHost` in `extension.json`, or
 `RequiresHost_IsSatisfiedByTheCurrentContract_AndWouldBeViolatedByTheNextMajor` fails. A CS2DemoKit bump
-must move all three `CS2DemoKit.*` pins in `Directory.Packages.props` and `requiresCs2DemoKit` in one
+must move both `CS2DemoKit.*` pins in `Directory.Packages.props` and `requiresCs2DemoKit` in one
 commit, or `RequiresCs2DemoKit_EqualsTheDirectoryPackagesPropsPin_Exactly` fails.
 
 **The pinning rule.** A staged extension compiles against the app assembly, Avalonia, CS2DemoKit, Playback2D

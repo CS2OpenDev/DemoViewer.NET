@@ -22,7 +22,7 @@ layer contract, floors, places and the world-to-screen transform, over SkiaSharp
     <Version>1.0.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="DemoViewer.NET.Extensions.Sdk" Version="2.0.*" />
+    <PackageReference Include="DemoViewer.NET.Extensions.Sdk" Version="2.1.*" />
     <PackageReference Include="Avalonia" Version="12.1.4" />
   </ItemGroup>
 </Project>
@@ -38,7 +38,7 @@ package version, embed the result in the assembly and copy it beside the DLL:
   "version": "{version}",
   "assembly": "MyExtension.dll",
   "entryType": "MyExtension.MyExtension",
-  "requiresHost": "^2.0",
+  "requiresHost": "^2.1",
   "requiresCs2DemoKit": "*"
 }
 ```
@@ -602,10 +602,10 @@ meaning evaluators, rulesets, clip models or `AnalysisRun`, needs `CS2DemoKit.An
 reference that yourself:
 
 ```xml
-<PackageReference Include="CS2DemoKit.Analysis" Version="0.14.0" />
+<PackageReference Include="CS2DemoKit.Analysis" Version="0.14.1" />
 ```
 
-Pin the version the host loads, which is 0.14.0 for a 2.x SDK, and keep it equal to the
+Pin the version the host loads, which is 0.14.1 for this release of the SDK, and keep it equal to the
 `CS2DemoKit.Parser` version in this package's own dependencies: the two are exact-pinned to each other
 before 1.0. Because the app supplies both assemblies at runtime, as the paragraph above says, a different
 pin compiles and then fails to load.
