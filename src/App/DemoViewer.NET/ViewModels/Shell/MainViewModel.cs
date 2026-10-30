@@ -2191,7 +2191,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         LiveSync = liveSync;
         _liveSyncStatus = new LiveSyncStatusViewModel(liveSync, _moduleContext, Playback, OpenSettings,
-            LoadDemoFromPathAsync, () => IsLiveSyncEnabled);
+            LoadDemoFromPathAsync, () => IsLiveSyncEnabled,
+            () => _settings is not null && Cs2LaunchNotice.IsAcknowledged(_settings.CurrentValue.LiveSync),
+            () => _settingsService?.Write(s => s.LiveSync.LaunchNoticeAcknowledged = true));
 
         // Wire the 2D-tab CS2 indicator: the status VM IS the ILiveSyncHudState projection. Set once
         // (never cleared): the projection folds the chrome.livesync gate into its own IsActive, so a gate

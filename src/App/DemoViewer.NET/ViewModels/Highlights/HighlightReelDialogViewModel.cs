@@ -79,6 +79,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     // composition root passes FfmpegDependency.Locate.
     private readonly Func<FfmpegStatus>? _ffmpegLocator;
     private readonly Func<string, bool> _fileExists;
+    private readonly Func<bool>? _isLaunchNoticeAcknowledged;
     private readonly Func<bool>? _isLiveSyncSessionActive;
     private readonly Action<Action<AppSettings>>? _persistDefaults;
     private readonly IReelJobService? _reelJob;
@@ -123,6 +124,16 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     private int _fps;
 
     private bool _interlockConfirmed;
+
+    /// <summary>The launch-notice strip's "don't show again" box.</summary>
+    [ObservableProperty]
+    private bool _dontShowLaunchNoticeAgain;
+
+    private bool _launchNoticeConfirmed;
+
+    /// <summary>The <c>-insecure</c> / install-modification confirm strip is showing (Generate pressed, not yet acknowledged).</summary>
+    [ObservableProperty]
+    private bool _showLaunchNotice;
 
     /// <summary>
     ///     Whether the ENCODING section is offered. The <c>highlights.encoding</c> SubFeature
@@ -223,6 +234,10 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     ///     ffmpeg presence probe for the pre-flight (the App passes <c>FfmpegDependency.Locate</c>).
     ///     Null (pure-VM tests) = assume present, so the reel-plan tests stay machine-independent.
     /// </param>
+    /// <param name="isLaunchNoticeAcknowledged">
+    ///     True when the <see cref="Cs2LaunchNotice" /> strip can be skipped. Null = never acknowledged, so a host
+    ///     that forgets to wire it asks every time rather than launching CS2 unannounced.
+    /// </param>
     public HighlightReelDialogViewModel(
         IReadOnlyList<HighlightSelection> selections,
         HighlightsSettings defaults,
@@ -231,7 +246,8 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
         Func<bool>? isLiveSyncSessionActive = null,
         bool dryRunOnly = false,
         Func<string, bool>? fileExists = null,
-        Func<FfmpegStatus>? ffmpegLocator = null)
+        Func<FfmpegStatus>? ffmpegLocator = null,
+        Func<bool>? isLaunchNoticeAcknowledged = null)
     {
         ArgumentNullException.ThrowIfNull(selections);
         ArgumentNullException.ThrowIfNull(defaults);
@@ -242,6 +258,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
         _isLiveSyncSessionActive = isLiveSyncSessionActive;
         _fileExists = fileExists ?? File.Exists;
         _ffmpegLocator = ffmpegLocator;
+        _isLaunchNoticeAcknowledged = isLaunchNoticeAcknowledged;
         IsDryRunOnly = dryRunOnly;
 
         // Never unsubscribed: the job service and this pane are both app-lifetime singletons now (the pane is
@@ -364,6 +381,12 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
         "Generating a reel restarts CS2 with recording and pauses Live Sync (up to ~2 min). Live Sync " +
         "stays paused until the reel finishes, then you can reconnect.";
 
+    /// <summary>The launch-notice confirm-strip copy.</summary>
+    public string LaunchNoticeMessage { get; } = Cs2LaunchNotice.Message;
+
+    /// <summary>The standing caption beside Generate. A dry run never launches CS2, so it has none.</summary>
+    public string? LaunchNoticeCaption => IsDryRunOnly ? null : Cs2LaunchNotice.Caption;
+
     // ── Platform primary action ───────────────────────────────────────────────
 
     /// <summary>macOS: only a mock dry run is possible (real capture needs Windows: the CS2 present hook is DXGI).</summary>
@@ -484,13 +507,19 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     }
 
     /// <summary>
-    ///     Primary action. If a live-sync session owns CS2 and it has not yet been confirmed,
-    ///     surfaces the interlock confirm strip instead of starting. Otherwise persists the edited defaults,
-    ///     hands the plan to the background job, and closes.
+    ///     Primary action. Asks first if the user has not acknowledged the launch notice, then if a live-sync
+    ///     session owns CS2 and it has not yet been confirmed. Otherwise persists the edited defaults, hands
+    ///     the plan to the background job, and closes.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanGenerate))]
     private void Generate()
     {
+        if (!_launchNoticeConfirmed && !IsDryRunOnly && !(_isLaunchNoticeAcknowledged?.Invoke() ?? false))
+        {
+            ShowLaunchNotice = true;
+            return;
+        }
+
         if (!_interlockConfirmed && (_isLiveSyncSessionActive?.Invoke() ?? false))
         {
             ShowInterlockConfirm = true;
@@ -511,7 +540,30 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
 
     /// <summary>Interlock confirm-strip "Back": dismiss the strip without starting.</summary>
     [RelayCommand]
-    private void CancelInterlock() => ShowInterlockConfirm = false;
+    private void CancelInterlock()
+    {
+        ShowInterlockConfirm = false;
+        _launchNoticeConfirmed = false;
+    }
+
+    /// <summary>Launch-notice "Continue": records "don't show again" if ticked, then carries on into Generate.</summary>
+    [RelayCommand]
+    private void ConfirmLaunchNotice()
+    {
+        ShowLaunchNotice = false;
+        _launchNoticeConfirmed = true;
+        if (DontShowLaunchNoticeAgain)
+        {
+            _persistDefaults?.Invoke(s => s.LiveSync.LaunchNoticeAcknowledged = true);
+        }
+
+        // Through Generate, not StartAndClose: the single-CS2 interlock still has to get its say.
+        Generate();
+    }
+
+    /// <summary>Launch-notice "Back": dismiss the strip without starting.</summary>
+    [RelayCommand]
+    private void CancelLaunchNotice() => ShowLaunchNotice = false;
 
     /// <summary>Cancels the dialog (no job started).</summary>
     [RelayCommand]
@@ -817,6 +869,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
         // line the user confirms "yes, restart CS2" ONCE and every subsequent reel starts silently, which is
         // precisely the destructive-action guard rail this strip exists to be.
         _interlockConfirmed = false;
+        _launchNoticeConfirmed = false;
 
         Closed?.Invoke(this, EventArgs.Empty);
     }

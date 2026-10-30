@@ -956,7 +956,7 @@
                             <Border Classes="card" Margin="12,10">
                                 <StackPanel Spacing="12">
                                     <TextBlock Foreground="{DynamicResource TextDim}" FontSize="11" TextWrapping="Wrap"
-                                               Text="Live Sync watches your demo in a real CS2 game via CSVG. It launches CS2 (~2 min) and temporarily modifies your install." />
+                                               Text="Live Sync watches your demo in a real CS2 game via CSVG. It launches CS2 (~2 min) with -insecure, so VAC is off for that session, and temporarily modifies your install." />
 
                                     <!-- Enable Live Sync — the chrome.livesync opt-in (makes the chip available; does not start a session) -->
                                     <Grid ColumnDefinitions="*,Auto">

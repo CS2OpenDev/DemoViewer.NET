@@ -38,7 +38,7 @@
         <!-- ══ OFF (Disconnected) ══════════════════════════════════════════════════════ -->
         <StackPanel Spacing="10" IsVisible="{Binding IsOff}">
             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource TextMid}"
-                       Text="Enabling Live Sync launches a full CS2 game (up to ~2 min to connect) and temporarily modifies your CS2 install. It is restored when you disable sync or quit." />
+                       Text="Enabling Live Sync launches a full CS2 game (up to ~2 min to connect) and temporarily modifies your CS2 install. It is restored when you disable sync or quit. CS2 runs with -insecure, so VAC is off for that session." />
 
             <StackPanel Spacing="2">
                 <TextBlock Text="Demo" Classes="col-label" />
@@ -74,7 +74,26 @@
                            IsVisible="{Binding RestoreFailureText, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
 
-            <StackPanel Spacing="6">
+            <!-- Launch notice: asked on Enable until the user ticks "don't show again"
+                 (LiveSync.LaunchNoticeAcknowledged, shared with Reels). -->
+            <StackPanel Spacing="8" IsVisible="{Binding ShowLaunchNotice}">
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Grid.Column="0" Text="⚠" Foreground="{DynamicResource AccentCaution}"
+                               FontSize="12" VerticalAlignment="Top" Margin="0 0 6 0" />
+                    <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource TextValue}"
+                               TextWrapping="Wrap" Text="{Binding LaunchNoticeMessage}" />
+                </Grid>
+                <CheckBox Content="Don't show this again" IsChecked="{Binding DontShowLaunchNoticeAgain}"
+                          Foreground="{DynamicResource TextMid}" FontSize="11" />
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button Content="Back" Classes="ghost" Padding="12 5"
+                            Command="{Binding CancelLaunchNoticeCommand}" />
+                    <Button Content="Continue" Classes="primary" Padding="12 5"
+                            Command="{Binding ConfirmLaunchNoticeCommand}" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Spacing="6" IsVisible="{Binding !ShowLaunchNotice}">
                 <Button Content="Enable Live Sync…" Classes="primary" Padding="12 5"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         Command="{Binding EnableCommand}"

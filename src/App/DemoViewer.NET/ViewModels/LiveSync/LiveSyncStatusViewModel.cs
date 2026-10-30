@@ -34,6 +34,8 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     // The chrome.livesync gate, folded into the 2D HUD projection's IsActive. Null (tests / capture)
     // ⇒ the gate is treated as enabled, so the HUD shows whenever the session state is non-Disconnected.
     private readonly Func<bool>? _isHudGateEnabled;
+    private readonly Action? _acknowledgeLaunchNotice;
+    private readonly Func<bool>? _isLaunchNoticeAcknowledged;
     private readonly ILiveSyncService _liveSync;
     private readonly IModuleContext? _moduleContext;
     private readonly Func<string, Task>? _openDemoInDv;
@@ -51,6 +53,10 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     private ILogger? _diagLog;
 
     private bool _disposed;
+
+    /// <summary>The launch-notice strip's "don't show again" box.</summary>
+    [ObservableProperty]
+    private bool _dontShowLaunchNoticeAgain;
 
     [ObservableProperty]
     private string? _enableDisabledReason;
@@ -110,6 +116,10 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _showLeftoverRestoreOffer;
 
+    /// <summary>The <c>-insecure</c> / install-modification confirm strip is showing (Enable pressed, not yet acknowledged).</summary>
+    [ObservableProperty]
+    private bool _showLaunchNotice;
+
     // ── Demo-path guard ──
     [ObservableProperty]
     private bool _showNoPathWarning;
@@ -137,10 +147,13 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     ///     Constructs the mapper over the live engine. Seeds the chip from the CURRENT
     ///     <see cref="ILiveSyncService.State" /> (not the first transition, so the chip is never blank), then
     ///     tracks <see cref="ILiveSyncService.StateChanged" /> and the host's demo-reset signal.
+    ///     <paramref name="isLaunchNoticeAcknowledged" /> null means never acknowledged, so Enable always asks
+    ///     first; <paramref name="acknowledgeLaunchNotice" /> persists "don't show again".
     /// </summary>
     public LiveSyncStatusViewModel(
         ILiveSyncService liveSync, IModuleContext? moduleContext, PlaybackController playback, Action openSettings,
-        Func<string, Task>? openDemoInDv = null, Func<bool>? isHudGateEnabled = null)
+        Func<string, Task>? openDemoInDv = null, Func<bool>? isHudGateEnabled = null,
+        Func<bool>? isLaunchNoticeAcknowledged = null, Action? acknowledgeLaunchNotice = null)
     {
         ArgumentNullException.ThrowIfNull(liveSync);
         ArgumentNullException.ThrowIfNull(playback);
@@ -151,6 +164,8 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         _openSettings = openSettings;
         _openDemoInDv = openDemoInDv;
         _isHudGateEnabled = isHudGateEnabled;
+        _isLaunchNoticeAcknowledged = isLaunchNoticeAcknowledged;
+        _acknowledgeLaunchNotice = acknowledgeLaunchNotice;
 
         Chip = new StatusChipViewModel
         {
@@ -285,9 +300,43 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
 
     // ── Commands (per-state action sets) ────────────────────────────────────────────────────────────
 
-    /// <summary>Informed launch (Off state): the copy above the button is the consent; this starts a session.</summary>
+    /// <summary>The launch-notice confirm-strip copy.</summary>
+    public string LaunchNoticeMessage { get; } = Cs2LaunchNotice.Message;
+
+    /// <summary>
+    ///     Informed launch (Off state). Until the user has acknowledged the launch notice, this only shows the
+    ///     confirm strip; <see cref="ConfirmLaunchNotice" /> starts the session.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(CanEnable))]
-    private async Task Enable()
+    private Task Enable()
+    {
+        if (!(_isLaunchNoticeAcknowledged?.Invoke() ?? false))
+        {
+            ShowLaunchNotice = true;
+            return Task.CompletedTask;
+        }
+
+        return StartSession();
+    }
+
+    /// <summary>Launch-notice "Continue": records "don't show again" if ticked, then starts the session.</summary>
+    [RelayCommand]
+    private Task ConfirmLaunchNotice()
+    {
+        ShowLaunchNotice = false;
+        if (DontShowLaunchNoticeAgain)
+        {
+            _acknowledgeLaunchNotice?.Invoke();
+        }
+
+        return StartSession();
+    }
+
+    /// <summary>Launch-notice "Back": dismiss the strip without starting.</summary>
+    [RelayCommand]
+    private void CancelLaunchNotice() => ShowLaunchNotice = false;
+
+    private async Task StartSession()
     {
         try
         {

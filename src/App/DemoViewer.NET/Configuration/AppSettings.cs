@@ -317,6 +317,12 @@ public sealed class LiveSyncSettings
     ///     <see cref="MinimumLogLevel" />; live-adjustable like it.
     /// </summary>
     public bool CaptureFrameworkLogs { get; set; }
+
+    /// <summary>
+    ///     The user ticked "don't show again" on the <c>-insecure</c> / install-modification notice. Shared by
+    ///     Live Sync and Reels: both launch CS2 through CSVG with the same consequences, so one consent covers both.
+    /// </summary>
+    public bool LaunchNoticeAcknowledged { get; set; }
 }
 
 /// <summary>

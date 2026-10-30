@@ -169,6 +169,32 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Launch notice: CSVG starts CS2 with -insecure and patches the install. Asked before the
+                 interlock, and skipped once the user ticks "don't show again" (LiveSync.LaunchNoticeAcknowledged). -->
+                <Border IsVisible="{Binding ReelConfig.ShowLaunchNotice}" Background="{DynamicResource CardBg}"
+                        BorderBrush="{DynamicResource AccentCaution}" BorderThickness="1" CornerRadius="6"
+                        Padding="12 10">
+                    <StackPanel Spacing="10">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <TextBlock Grid.Column="0" Text="⚠" Foreground="{DynamicResource AccentCaution}"
+                                       FontSize="13" VerticalAlignment="Top" Margin="0 1 0 0" />
+                            <TextBlock Grid.Column="1" Text="{Binding ReelConfig.LaunchNoticeMessage}"
+                                       Foreground="{DynamicResource TextValue}" FontSize="12" TextWrapping="Wrap" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <CheckBox Grid.Column="0" Content="Don't show this again"
+                                      IsChecked="{Binding ReelConfig.DontShowLaunchNoticeAgain}"
+                                      Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <Button Content="Back" Classes="ghost" Padding="14 5"
+                                        Command="{Binding ReelConfig.CancelLaunchNoticeCommand}" />
+                                <Button Content="Continue" Classes="primary" Padding="14 5"
+                                        Command="{Binding ReelConfig.ConfirmLaunchNoticeCommand}" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <!-- Single-CS2 interlock confirm strip — TRANSPLANTED UNCHANGED from the modal. -->
                 <Border IsVisible="{Binding ReelConfig.ShowInterlockConfirm}" Background="{DynamicResource CardBg}"
                         BorderBrush="{DynamicResource AccentCaution}" BorderThickness="1" CornerRadius="6"
@@ -276,6 +302,11 @@
                                    Foreground="{DynamicResource TextMid}" FontSize="11" TextWrapping="Wrap"
                                    VerticalAlignment="Center" />
                     </Grid>
+                    <!-- Standing -insecure caption, so the notice stays visible after "don't show again". -->
+                    <TextBlock Grid.Column="0" Text="{Binding ReelConfig.LaunchNoticeCaption}"
+                               IsVisible="{Binding !ReelConfig.IsDryRunOnly}"
+                               Foreground="{DynamicResource TextMid}" FontSize="11" TextWrapping="Wrap"
+                               VerticalAlignment="Center" Margin="0 0 12 0" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
                         <Button Content="Clear tray" Classes="ghost" Padding="16 6"
                                 Command="{Binding ClearTrayCommand}"
