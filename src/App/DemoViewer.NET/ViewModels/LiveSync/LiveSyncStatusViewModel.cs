@@ -1,5 +1,6 @@
 #region
 
+using System.ComponentModel;
 using System.Globalization;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -31,6 +32,10 @@ namespace DemoViewer.NET.ViewModels.LiveSync;
 /// </summary>
 public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable, ILiveSyncHudState
 {
+    // The shell's app-wide recovery banner. When set, the Off-flyout offer mirrors it instead of probing on
+    // its own, so the two can never disagree about whether the install still needs restoring.
+    private readonly Cs2InstallRecoveryViewModel? _installRecovery;
+
     // The chrome.livesync gate, folded into the 2D HUD projection's IsActive. Null (tests / capture)
     // ⇒ the gate is treated as enabled, so the HUD shows whenever the session state is non-Disconnected.
     private readonly Func<bool>? _isHudGateEnabled;
@@ -153,7 +158,8 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     public LiveSyncStatusViewModel(
         ILiveSyncService liveSync, IModuleContext? moduleContext, PlaybackController playback, Action openSettings,
         Func<string, Task>? openDemoInDv = null, Func<bool>? isHudGateEnabled = null,
-        Func<bool>? isLaunchNoticeAcknowledged = null, Action? acknowledgeLaunchNotice = null)
+        Func<bool>? isLaunchNoticeAcknowledged = null, Action? acknowledgeLaunchNotice = null,
+        Cs2InstallRecoveryViewModel? installRecovery = null)
     {
         ArgumentNullException.ThrowIfNull(liveSync);
         ArgumentNullException.ThrowIfNull(playback);
@@ -166,6 +172,7 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         _isHudGateEnabled = isHudGateEnabled;
         _isLaunchNoticeAcknowledged = isLaunchNoticeAcknowledged;
         _acknowledgeLaunchNotice = acknowledgeLaunchNotice;
+        _installRecovery = installRecovery;
 
         Chip = new StatusChipViewModel
         {
@@ -184,7 +191,15 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         // Probe the CS2 install for a crashed prior session's leftovers exactly once, at
         // host start (this VM is constructed when the engine attaches): the offer surfaces in
         // the Off flyout BEFORE any session start. Detection never errors (null → no offer).
-        _ = ProbeLeftoverModificationsAsync();
+        if (_installRecovery is null)
+        {
+            _ = ProbeLeftoverModificationsAsync();
+        }
+        else
+        {
+            _installRecovery.PropertyChanged += OnInstallRecoveryChanged;
+            MirrorInstallRecovery();
+        }
     }
 
     private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.LiveSync");
@@ -240,6 +255,11 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         {
             _moduleContext.DemoReset -= OnDemoReset;
         }
+
+        if (_installRecovery is not null)
+        {
+            _installRecovery.PropertyChanged -= OnInstallRecoveryChanged;
+        }
     }
 
     // ── ILiveSyncHudState (the 2D indicator's read-only view) ────────────────────────────────────────
@@ -253,6 +273,20 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     {
         add => _hudChanged += value;
         remove => _hudChanged -= value;
+    }
+
+    private void OnInstallRecoveryChanged(object? sender, PropertyChangedEventArgs e) => MirrorInstallRecovery();
+
+    private void MirrorInstallRecovery()
+    {
+        if (_installRecovery is not { } recovery)
+        {
+            return;
+        }
+
+        ShowLeftoverRestoreOffer = recovery.NeedsRestore;
+        IsRestoringInstall = recovery.IsRestoring;
+        RestoreFailureText = recovery.NeedsRestore ? recovery.FailureText : null;
     }
 
     private async Task ProbeLeftoverModificationsAsync()
@@ -278,6 +312,12 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task RestoreInstall()
     {
+        if (_installRecovery is not null)
+        {
+            await _installRecovery.RestoreCommand.ExecuteAsync(null).ConfigureAwait(true);
+            return;
+        }
+
         IsRestoringInstall = true;
         RestoreFailureText = null;
         try

@@ -186,6 +186,12 @@ public sealed class ReelJobService(
                 }
                 : baseSettings;
 
+            // Same pre-launch guard as Live Sync: a reel launches CS2 through the same CSVG install path.
+            if (!request.DryRun)
+            {
+                InstallRecovery.EnsureRestoredBeforeLaunch(baseSettings, log);
+            }
+
             host = await CsvgWebHost.StartAsync(effective,
                 log is null
                     ? null

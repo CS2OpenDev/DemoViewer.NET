@@ -98,8 +98,10 @@ public class ReelJobServiceMockTests
             reel.Start(request);
 
             // While the job runs, the gate's reel session refuses interactive loads.
+            // StartingSession publishes BEFORE the job enters the gate, so a warm JIT can see IsRunning in
+            // that gap: wait for the session itself rather than asserting on the first running status.
             await WaitForAsync(() => reel.Status.IsRunning, "job running", 15_000);
-            await Assert.That(gate.IsReelActive).IsTrue();
+            await WaitForAsync(() => gate.IsReelActive, "reel session held", 15_000);
             await Assert.ThrowsAsync<ReelInProgressException>(async () =>
                 await gate.AcquireInteractiveAsync(cancellationToken));
 

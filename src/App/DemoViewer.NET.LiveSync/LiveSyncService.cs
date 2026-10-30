@@ -202,6 +202,22 @@ public sealed class LiveSyncService : ILiveSyncService
                 }
             }
 
+            try
+            {
+                await Task.Run(() => InstallRecovery.EnsureRestoredBeforeLaunch(settings, PostRecoveryLine), ct);
+            }
+            catch (OperationCanceledException)
+            {
+                await StopSessionCoreAsync();
+                SetState(LiveSyncState.Disconnected);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                SetState(new LiveSyncState(LiveSyncStateKind.Faulted, ex.Message));
+                return;
+            }
+
             Subscribe(session);
             ResetSessionSurface();
 
@@ -341,14 +357,19 @@ public sealed class LiveSyncService : ILiveSyncService
         Task.Run(() => InstallRecovery.Detect(CurrentSettings())?.Any == true, cancellationToken);
 
     /// <inheritdoc />
+    public Task<Cs2InstallProbe> ProbeInstallAsync(CancellationToken cancellationToken = default) =>
+        Task.Run(() => InstallRecovery.Detect(CurrentSettings())?.ToProbe() ?? new Cs2InstallProbe(false, false, false),
+            cancellationToken);
+
+    /// <inheritdoc />
     public Task RestoreInstallAsync(CancellationToken cancellationToken = default) =>
-        Task.Run(() => InstallRecovery.Restore(
-            CurrentSettings(),
-            line => Dispatcher.UIThread.Post(() =>
-            {
-                OutputChannelViewModel channel = _shell.Output.GetOrAddChannel("Live Sync", OutputSeverity.Live);
-                channel.Append(new OutputRow(-1, "CSVG", "INFO", line));
-            })), cancellationToken);
+        Task.Run(() => InstallRecovery.Restore(CurrentSettings(), PostRecoveryLine), cancellationToken);
+
+    private void PostRecoveryLine(string line) => Dispatcher.UIThread.Post(() =>
+    {
+        OutputChannelViewModel channel = _shell.Output.GetOrAddChannel("Live Sync", OutputSeverity.Live);
+        channel.Append(new OutputRow(-1, "CSVG", "INFO", line));
+    });
 
     /// <inheritdoc />
     public Task ResyncAsync(CancellationToken cancellationToken = default)

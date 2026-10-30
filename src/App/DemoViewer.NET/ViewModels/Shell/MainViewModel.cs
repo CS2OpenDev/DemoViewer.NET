@@ -1137,6 +1137,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public ILiveSyncService? LiveSync { get; private set; }
 
     /// <summary>
+    ///     The leftover-CS2-install banner, for every profile. Null until an engine attaches (desktop only).
+    /// </summary>
+    public Cs2InstallRecoveryViewModel? Cs2InstallRecovery { get; private set; }
+
+    /// <summary>
     ///     Status-strip chips: the Live Sync chip (and the Reel-job
     ///     chip). Bound by <c>StatusStrip.Chips</c>. Empty when no chip is active, so the strip reads exactly
     ///     as before. The Live Sync chip is present only while <see cref="IsLiveSyncEnabled" /> and an engine
@@ -1753,6 +1758,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         _liveSyncStatus?.Dispose();
+        Cs2InstallRecovery?.Dispose();
 
         if (ReelJob is not null)
         {
@@ -2190,10 +2196,18 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     internal void AttachLiveSync(ILiveSyncService liveSync)
     {
         LiveSync = liveSync;
+
+        // Built before the chip so the chip's offer can mirror it, and probed now so leftovers from a crash
+        // surface at startup whichever profile is active (the chip is hidden for most of them).
+        Cs2InstallRecovery = new Cs2InstallRecoveryViewModel(liveSync,
+            () => liveSync.State.Kind != LiveSyncStateKind.Disconnected || ReelJob?.Status.IsRunning == true);
+        _ = Cs2InstallRecovery.CheckAsync();
+
         _liveSyncStatus = new LiveSyncStatusViewModel(liveSync, _moduleContext, Playback, OpenSettings,
             LoadDemoFromPathAsync, () => IsLiveSyncEnabled,
             () => _settings is not null && Cs2LaunchNotice.IsAcknowledged(_settings.CurrentValue.LiveSync),
-            () => _settingsService?.Write(s => s.LiveSync.LaunchNoticeAcknowledged = true));
+            () => _settingsService?.Write(s => s.LiveSync.LaunchNoticeAcknowledged = true),
+            Cs2InstallRecovery);
 
         // Wire the 2D-tab CS2 indicator: the status VM IS the ILiveSyncHudState projection. Set once
         // (never cleared): the projection folds the chrome.livesync gate into its own IsActive, so a gate
@@ -2252,6 +2266,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         ReconcileReelChip();
+        Cs2InstallRecovery?.Reevaluate();
     }
 
     private void OnReelDismissRequested(object? sender, EventArgs e)

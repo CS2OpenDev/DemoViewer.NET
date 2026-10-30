@@ -82,6 +82,14 @@ public interface ILiveSyncService : IAsyncDisposable
     Task<bool> HasLeftoverInstallModificationsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    ///     The same probe with what the app-level recovery banner needs on top: whether CS2 is
+    ///     running, and whether the leftovers can be undone unattended. An engine that cannot prove
+    ///     the latter never claims it, which is what this default does.
+    /// </summary>
+    async Task<Cs2InstallProbe> ProbeInstallAsync(CancellationToken cancellationToken = default) =>
+        new(await HasLeftoverInstallModificationsAsync(cancellationToken).ConfigureAwait(false), false, false);
+
+    /// <summary>
     ///     Crash recovery: restores the CS2 install: un-patches <c>gameinfo.gi</c> from
     ///     CSVG's own backup and removes the plugin files. Also the permanent-disable uninstall
     ///     path. Throws with manual-fallback copy (<c>csvg restore</c>) when the install remains
@@ -89,6 +97,14 @@ public interface ILiveSyncService : IAsyncDisposable
     /// </summary>
     Task RestoreInstallAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>What <see cref="ILiveSyncService.ProbeInstallAsync" /> found in the CS2 install.</summary>
+/// <param name="HasLeftovers">A crashed Live Sync or Reels session left CSVG's changes behind.</param>
+/// <param name="Cs2Running">CS2 is running, so nothing can be restored until it closes.</param>
+/// <param name="SafeToAutoRestore">
+///     CS2 is closed and the restore would change only what CSVG added, so the app may run it unasked.
+/// </param>
+public sealed record Cs2InstallProbe(bool HasLeftovers, bool Cs2Running, bool SafeToAutoRestore);
 
 /// <summary>The CSVG version handshake pair, as reported by the plugin (either may be unknown).</summary>
 /// <param name="PluginVersion">CSVG plugin version (e.g. "1.1.0"), null if not reported.</param>
