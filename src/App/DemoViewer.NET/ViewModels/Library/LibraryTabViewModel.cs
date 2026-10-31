@@ -824,6 +824,9 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
 
     private void OnFoldersChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // Every folder change the service makes is followed by its own rescan (the wizard's folders arrive
+        // this way after launch), so a later first activation must not cancel and restart it.
+        _scannedOnce = true;
         OnPropertyChanged(nameof(HasNoFolders));
         OnPropertyChanged(nameof(ShowDemoChrome));
         OnPropertyChanged(nameof(ShowHeaderRecents));

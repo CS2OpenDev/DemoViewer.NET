@@ -16,6 +16,7 @@ using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 
 #endregion
 
@@ -113,6 +114,9 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     private CancellationTokenSource? _scanCts;
     private volatile bool _disposed;
 
+    // Follows AppSettings.Library.Folders after construction. Null on the legacy path.
+    private IDisposable? _settingsFolderWatch;
+
     /// <param name="post">
     ///     Marshals an action onto the UI thread. Defaults to <c>Dispatcher.UIThread.Post</c> in the app;
     ///     tests pass an inline invoker for deterministic, single-threaded assertions.
@@ -156,6 +160,48 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         // Keep the worker-readable snapshot in step with Folders, updated on the mutating thread.
         _folderSnapshot = Folders.ToArray();
         Folders.CollectionChanged += (_, _) => _folderSnapshot = Folders.ToArray();
+
+        // This singleton is built with the shell, before the first-run wizard can answer, so a seed alone
+        // never sees the wizard's folders, nor the Settings screen's. Subscribed after the seed so the
+        // migration write above is not echoed back.
+        if (SettingsBacking is { } backing)
+        {
+            _settingsFolderWatch = ChangeToken.OnChange(
+                backing.Configuration.GetReloadToken,
+                () => _post(FollowSettingsFolders));
+        }
+    }
+
+    // Mirrors a folder list written by anyone else into Folders and rescans, the same as AddFoldersAsync /
+    // RemoveFolderAsync would. Reads Current when it runs, not when the change fired, so a late file-watcher
+    // echo of an older write cannot roll the list back. Our own writes compare equal and do nothing.
+    private void FollowSettingsFolders()
+    {
+        if (_disposed || SettingsBacking is null)
+        {
+            return;
+        }
+
+        string[] wanted = [.. SettingsBacking.Current.Library.Folders.Distinct(StringComparer.Ordinal)];
+        if (new HashSet<string>(Folders, StringComparer.Ordinal).SetEquals(wanted))
+        {
+            return;
+        }
+
+        foreach (string stale in Folders.Except(wanted, StringComparer.Ordinal).ToList())
+        {
+            Folders.Remove(stale);
+        }
+
+        foreach (string added in wanted.Except(Folders, StringComparer.Ordinal).ToList())
+        {
+            Folders.Add(added);
+        }
+
+        // SeedFolders lifts library.json's list when settings has none, so a stale copy there would bring
+        // back a folder just removed here.
+        Save();
+        _ = RescanAsync();
     }
 
     private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger(AppLog.LibraryCategory);
@@ -307,6 +353,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     {
         // The coordinator owns the CapacityAvailable subscription now: nothing queue-side to detach here.
         _disposed = true;
+        _settingsFolderWatch?.Dispose();
         _scanCts?.Cancel();
         _scanCts?.Dispose();
         _scanCts = null;
