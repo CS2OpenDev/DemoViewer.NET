@@ -87,6 +87,8 @@ public class PackThroughTheSdkTests
     ///     the user can never reach.
     /// </summary>
     [Test]
+    [SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance",
+        Justification = "A host reads these lists off IExtension and nothing narrower; that read is the point.")]
     public async Task Features_DeclareOneMasterSwitch_AndEveryParentIsDeclared()
     {
         IExtension pack = new StratBookPack();
