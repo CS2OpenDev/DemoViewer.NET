@@ -1064,7 +1064,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             TutorialSteps.Default, SelectTabById, () => HasFile, () => { }, () => _library.Entries.Count > 0,
             // The sample CTA is only spotlightable while it is ON SCREEN: a sample resolved AND the hero
             // (empty-library) state showing, with folders configured the hero (and the CTA) is hidden.
-            () => LibraryTab.HasSampleDemo && LibraryTab.HasNoFolders);
+            () => LibraryTab.HasSampleDemo && LibraryTab.HasNoFolders,
+            // The same gate that filters the tab strip, so no step points at a tab this profile hides.
+            new TutorialAudienceFilter(_gate, OperatingSystem.IsBrowser()));
 
         // Session restore used to run HERE, and must never come back. It selects the persisted
         // tab, and activating a tab builds that tab's view-model, which may legitimately need the shell,

@@ -262,6 +262,7 @@
                          them takes Space and Escape away from play/pause and clear-follow with no
                          visible cause. -->
                     <tl:AnnotationToolbar x:Name="AnnotationToolbarHost"
+                                          controls:TutorialAnchor.Target="AnnotationTools"
                                           HorizontalAlignment="Stretch"
                                           DataContext="{Binding Annotations}"
                                           IsVisible="{Binding IsEnabled}" />

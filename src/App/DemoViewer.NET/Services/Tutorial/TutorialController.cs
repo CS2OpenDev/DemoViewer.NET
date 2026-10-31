@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.ViewModels.Tutorial;
 
 #endregion
@@ -13,7 +14,8 @@ namespace DemoViewer.NET.Services.Tutorial;
 ///     parser or entity state, and it performs no visual-tree work (the overlay view resolves the spotlight
 ///     rect from the anchor registry).
 ///     <para>
-///         <b>Two segments, one indicator.</b> The tour is authored as one 8-step script but plays in two runs:
+///         <b>Two segments, one indicator.</b> The tour is authored as one script, filtered per user by
+///         <see cref="TutorialAudienceFilter" />, but plays in two runs:
 ///         the <see cref="TutorialSegment.FirstRun" /> steps (welcome, tabs, library, open-a-demo) play right
 ///         after setup with no demo; the <see cref="TutorialSegment.DemoLoaded" /> steps (stats, playback,
 ///         controls, outro) need an open demo. The hand-off is the <see cref="TutorialStep.WaitsForDemo" />
@@ -25,20 +27,20 @@ namespace DemoViewer.NET.Services.Tutorial;
 ///         (spotlight on the Open-Demo affordance, advance disabled, a hint shown) and
 ///         auto-advances into the demo run the instant a demo loads (<see cref="NotifyDemoLoaded" />). If a demo
 ///         is already open at the gateway (replay-from-Settings), it is a normal Next-able step. The step
-///         indicator ("2 of 8") counts across the whole script so the two runs read as one tour.
+///         indicator ("2 of 9") counts across the whole filtered script so the two runs read as one tour.
 ///     </para>
 /// </summary>
 public sealed class TutorialController
 {
     // Hints shown while a gateway step waits, tailored to what the spotlight points at.
     private const string CardWaitingHint =
-        "Double-click a demo below to open it — the tour will pick back up automatically.";
+        "Double-click a demo below to open it. The tour picks back up automatically.";
 
     private const string ButtonWaitingHint =
-        "Click the highlighted Open Demo button — the tour will pick back up automatically.";
+        "Click the highlighted Open Demo button. The tour picks back up automatically.";
 
     private const string SampleWaitingHint =
-        "Click “Try a sample match” to open the bundled demo — the tour will pick back up automatically.";
+        "Click “Try a sample match” to open the bundled demo. The tour picks back up automatically.";
 
     // Global indices (into _steps) of each run, so the indicator can show the whole-script position.
     private readonly List<int> _demoRun = [];
@@ -49,7 +51,12 @@ public sealed class TutorialController
     private readonly Func<bool> _isDemoLoaded;
     private readonly Action _markSeen;
     private readonly Action<string?> _selectTab;
-    private readonly IReadOnlyList<TutorialStep> _steps;
+    private readonly IReadOnlyList<TutorialStep> _script;
+    private readonly TutorialAudienceFilter _audience;
+
+    // The script as this user sees it, recomposed at every Start so a category or feature change made in
+    // Settings shows on the next replay. The indicator counts these, never the hidden steps.
+    private IReadOnlyList<TutorialStep> _steps = [];
 
     private int _pos; // position within the current run
     private IReadOnlyList<int> _run = []; // global indices of the run currently playing
@@ -80,9 +87,10 @@ public sealed class TutorialController
     ///     the hero is hidden (folders configured): the CTA control is invisible then, so spotlighting it
     ///     would frame nothing.
     /// </param>
+    /// <param name="audience">Which steps and notes this user sees. Null admits all of them.</param>
     public TutorialController(
         IReadOnlyList<TutorialStep> steps, Action<string?> selectTab, Func<bool> isDemoLoaded, Action markSeen,
-        Func<bool> hasDemoAvailable, Func<bool> hasSampleCta)
+        Func<bool> hasDemoAvailable, Func<bool> hasSampleCta, TutorialAudienceFilter? audience = null)
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(selectTab);
@@ -90,19 +98,28 @@ public sealed class TutorialController
         ArgumentNullException.ThrowIfNull(markSeen);
         ArgumentNullException.ThrowIfNull(hasDemoAvailable);
         ArgumentNullException.ThrowIfNull(hasSampleCta);
-        _steps = steps;
+        _script = steps;
+        _audience = audience ?? TutorialAudienceFilter.Everyone;
         _selectTab = selectTab;
         _isDemoLoaded = isDemoLoaded;
         _markSeen = markSeen;
         _hasDemoAvailable = hasDemoAvailable;
         _hasSampleCta = hasSampleCta;
+        Compose();
 
+        ViewModel = new TutorialViewModel(Back, Next, Skip);
+    }
+
+    // Filters the script for the current user and splits it into its two runs.
+    private void Compose()
+    {
+        _steps = _audience.Apply(_script);
+        _firstRun.Clear();
+        _demoRun.Clear();
         for (int i = 0; i < _steps.Count; i++)
         {
             (_steps[i].Segment == TutorialSegment.FirstRun ? _firstRun : _demoRun).Add(i);
         }
-
-        ViewModel = new TutorialViewModel(Back, Next, Skip);
     }
 
     /// <summary>The overlay's bound view-model (the shell binds the tutorial overlay to this).</summary>
@@ -118,6 +135,7 @@ public sealed class TutorialController
     /// </summary>
     public void Start()
     {
+        Compose();
         if (_firstRun.Count > 0)
         {
             BeginRun(_firstRun);
@@ -252,6 +270,11 @@ public sealed class TutorialController
         TutorialTarget.StatsContent => "builtin.stats",
         TutorialTarget.PlaybackTab => "playback2d.viewport",
         TutorialTarget.PlaybackTransport => "playback2d.viewport",
+        TutorialTarget.PlayerOverviewTab => HostIds.PlayerOverviewTab,
+        TutorialTarget.ReportError => "builtin.stats",
+        TutorialTarget.AnnotationTools => "playback2d.viewport",
+        TutorialTarget.RuleWorkbenchTab => "ruleworkbench.editor",
+        TutorialTarget.StratBookHub => HostIds.StratBookHub,
         _ => null // None (welcome / outro): no switch; play over the current tab.
     };
 }
