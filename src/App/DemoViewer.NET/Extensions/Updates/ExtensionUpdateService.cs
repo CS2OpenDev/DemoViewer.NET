@@ -1,5 +1,6 @@
 #region
 
+using System.Net;
 using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
@@ -307,14 +308,25 @@ public sealed class ExtensionUpdateService
                 Error: "the extension's own manifest could not be read", CheckedAt: DateTimeOffset.UtcNow);
         }
 
+        Uri url = _feedUrl(packId);
         string text;
         try
         {
-            text = await _client.GetFeedAsync(_feedUrl(packId), ct).ConfigureAwait(false);
+            text = await _client.GetFeedAsync(url, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            // The rolling release does not exist until the first extension release creates it, so a 404 is
+            // "nothing published", not a fault to show the user.
+            AppLog.ExtensionFeedNotPublished(Log, packId, url);
+            SemVersion? staged = PendingVersion(packId);
+            return new ExtensionUpdateState(packId, manifest.Name, manifest.Version, status.Source,
+                staged is null ? ExtensionUpdateStatus.UpToDate : ExtensionUpdateStatus.PendingRestart, Pending: staged,
+                CheckedAt: DateTimeOffset.UtcNow);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

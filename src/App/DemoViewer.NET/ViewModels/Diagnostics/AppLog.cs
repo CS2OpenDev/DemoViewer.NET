@@ -48,6 +48,12 @@ internal static partial class AppLog
         Message = "Extension {packId} update check failed ({status}): {detail}")]
     public static partial void ExtensionFeedCheckFailed(ILogger logger, string packId, string status, string detail);
 
+    // Information, not a warning: a feed that was never published is the normal state until the first
+    // extension release, and the check reads it as "nothing newer".
+    [LoggerMessage(EventId = 41, Level = LogLevel.Information,
+        Message = "Extension {packId} has no update feed at '{url}' yet; nothing newer is published")]
+    public static partial void ExtensionFeedNotPublished(ILogger logger, string packId, Uri url);
+
     [LoggerMessage(EventId = 19, Level = LogLevel.Information,
         Message = "Extension {name} {version} staged at '{directory}'; it loads at the next start")]
     public static partial void ExtensionUpdateStaged(ILogger logger, string name, string version, string directory);
