@@ -401,6 +401,47 @@ public class SettingsViewModelTests
         }
     }
 
+    // Automatic checks: on by default, a toggle persists, an external write reaches the toggle, and the
+    // toggle shows on every desktop build (installed or not) but not on the browser.
+    [Test]
+    public async Task CheckForUpdatesAutomatically_DefaultsOn_PersistsAndFollowsExternalWrites()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            await HeadlessSession.RunOnUi(async () =>
+            {
+                (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, isBrowser: () => false);
+                using (sp)
+                {
+                    await Assert.That(vm.CheckForUpdatesAutomatically).IsTrue();
+                    await Assert.That(svc.Current.Updates.CheckAutomatically).IsTrue();
+                    await Assert.That(vm.ShowAutomaticUpdateChecks).IsTrue();
+
+                    vm.CheckForUpdatesAutomatically = false;
+                    await Assert.That(svc.Current.Updates.CheckAutomatically).IsFalse();
+                    await Assert.That(new SettingsService(dir).Current.Updates.CheckAutomatically).IsFalse();
+
+                    svc.Write(s => s.Updates.CheckAutomatically = true);
+                    await Assert.That(vm.CheckForUpdatesAutomatically).IsTrue();
+
+                    vm.Dispose();
+                }
+
+                (SettingsViewModel browser, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir, isBrowser: () => true);
+                using (sp2)
+                {
+                    await Assert.That(browser.ShowAutomaticUpdateChecks).IsFalse();
+                    browser.Dispose();
+                }
+            });
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     // Render smoke: the real SettingsView bound to a real VM draws far more than an empty background.
     [Test]
     public async Task SettingsView_Renders_NonBlank()
@@ -1787,6 +1828,50 @@ public class SettingsViewModelTests
                 await Assert.That(SettingsViewModel.ShouldAutoCheckExtensionUpdates(now.AddMinutes(-30), now)).IsFalse();
                 await Assert.That(SettingsViewModel.ShouldAutoCheckExtensionUpdates(now.AddMinutes(-60), now)).IsTrue();
                 await Assert.That(SettingsViewModel.ShouldAutoCheckExtensionUpdates(now.AddMinutes(5), now)).IsTrue().Because("a clock that went backwards is due");
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // Automatic checks off: opening Settings with no check on record asks nothing, and the row's button still asks.
+    [Test]
+    public async Task ExtensionUpdateLine_WithAutomaticChecksOff_SkipsTheOpenCheck_ButTheButtonStillChecks()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            SemVersion running = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId).Manifest!.Version;
+            UpdateFixtures.FakeFeedClient client = new();
+            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(running.ToString()));
+            ExtensionUpdateService updater = NewUpdater(dir, client);
+
+            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, extensionUpdates: updater,
+                seed: s => s.Updates.CheckAutomatically = false);
+            using (sp)
+            {
+                await Task.Delay(100);
+                ExtensionUpdateRow line = Row(vm, StratBookPack.PackFeatureId).Update!;
+                using (Assert.Multiple())
+                {
+                    await Assert.That(vm.CheckForUpdatesAutomatically).IsFalse();
+                    await Assert.That(client.FeedFetches).IsEqualTo(0);
+                    await Assert.That(svc.Current.Extensions.LastUpdateCheckUtc).IsNull();
+                    await Assert.That(line.IsChecking).IsFalse();
+                    await Assert.That(line.CanCheck).IsTrue();
+                }
+
+                await line.CheckCommand.ExecuteAsync(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(client.FeedFetches).IsEqualTo(1);
+                    await Assert.That(line.Message).IsEqualTo("Up to date.");
+                }
+
+                vm.Dispose();
             }
         }
         finally

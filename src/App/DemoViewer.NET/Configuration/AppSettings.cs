@@ -364,6 +364,14 @@ public sealed class UpdateSettings
     ///     and latest beta is newer, so a stable release still reaches them.
     /// </summary>
     public bool SubscribeToBeta { get; set; }
+
+    /// <summary>
+    ///     Let the app reach the network on its own. Default ON. Covers the launch update check, the
+    ///     release notes that check and the post-update What's New would fetch, and the extension feed
+    ///     check when Settings opens. OFF leaves every Check button working; it only stops the calls
+    ///     nobody asked for.
+    /// </summary>
+    public bool CheckAutomatically { get; set; } = true;
 }
 
 /// <summary>

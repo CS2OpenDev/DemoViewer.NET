@@ -469,7 +469,7 @@
 
                         <!-- Updates — in GENERAL (v0.6.x): support-critical and tiny; it was 9th of 10 behind
                      ~3,400px of scroll before the findability passes. The launch check is automatic and
-                     silent; this pane exists so a user can ask on demand and get an answer either way. -->
+                     silent, and the toggle below turns it off; this pane exists so a user can ask on demand and get an answer either way. -->
                         <StackPanel Spacing="0" IsVisible="{Binding ShowSectionUpdates}">
                             <Border Classes="sectionHeader" x:Name="SectionUpdates">
                                 <TextBlock Classes="sectionLabel" Text="UPDATES" />
@@ -499,6 +499,20 @@
                                         IsVisible="{Binding !Update.IsSupported}"
                                         Text="This is not an installed build, so updates don't apply. Installed copies check for a new version at launch."
                                         Foreground="{DynamicResource TextDim}" FontSize="10" TextWrapping="Wrap" />
+
+                                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowAutomaticUpdateChecks}">
+                                        <StackPanel Grid.Column="0" Spacing="1">
+                                            <TextBlock Text="Check for updates automatically"
+                                                       Foreground="{DynamicResource TextValue}" FontSize="12" />
+                                            <TextBlock
+                                                Text="When this is off, the app only checks for app and extension updates when you click Check."
+                                                Foreground="{DynamicResource TextDim}" FontSize="10"
+                                                TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                                      OnContent="" OffContent=""
+                                                      IsChecked="{Binding CheckForUpdatesAutomatically, Mode=TwoWay}" />
+                                    </Grid>
 
                                     <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding Update.IsSupported}">
                                         <StackPanel Grid.Column="0" Spacing="1">

@@ -63,7 +63,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         ("UserCategory", "user category consumer power-user developer tier show hide"),
         ("Theme", "theme dark light high contrast egirl colors appearance reload drop-in"),
         ("Identity", "identity me my accounts steam steamid steamid64 profile who am i active account smurf suggestion"),
-        ("Updates", "updates version check release notes update restart beta prerelease subscribe channel"),
+        ("Updates", "updates version check release notes update restart beta prerelease subscribe channel automatic network offline"),
         ("Folders", "library folders scan demos dem watch add remove folder"),
         ("Processing", "background processing queue max demos concurrency parse ram"),
         ("Idle", "idle timeout auto close memory ram resume inactivity"),
@@ -200,6 +200,13 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     /// <summary>Beta release opt-in → <c>AppSettings.Updates.SubscribeToBeta</c> (default OFF).</summary>
     [ObservableProperty]
     private bool _subscribeToBeta;
+
+    /// <summary>
+    ///     Automatic update checks → <c>AppSettings.Updates.CheckAutomatically</c> (default ON). Off stops the
+    ///     launch check, the What's New fetch, and the extension check on open; the buttons still work.
+    /// </summary>
+    [ObservableProperty]
+    private bool _checkForUpdatesAutomatically = true;
 
     // ── Idle mode: desktop only; suppressed on WASM like Background processing. ──
 
@@ -559,6 +566,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         _idleTimeoutMinutes = current.Idle.IdleTimeoutWait.TotalMinutes;
         _idleKeepBackgroundProcessing = current.Idle.KeepBackgroundProcessing;
         _subscribeToBeta = current.Updates.SubscribeToBeta;
+        _checkForUpdatesAutomatically = current.Updates.CheckAutomatically;
         foreach (string folder in current.Library.Folders)
         {
             LibraryFolders.Add(folder);
@@ -581,8 +589,9 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         RefreshFeatureRows();
         _gate.Changed += OnGateChanged;
 
-        // The feeds are asked on open, at most once an hour; the per-row button always asks.
-        if (ShouldAutoCheckExtensionUpdates(current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
+        // The feeds are asked on open, at most once an hour, unless automatic checks are off; the per-row
+        // button always asks.
+        if (current.Updates.CheckAutomatically && ShouldAutoCheckExtensionUpdates(current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
         {
             _ = CheckExtensionUpdatesAsync();
         }
@@ -777,6 +786,12 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     /// </summary>
     public bool CanViewReleaseNotes { get; } =
         UpdateSvc.AppVersionInfo.CurrentReleaseVersion is not null && !OperatingSystem.IsBrowser();
+
+    /// <summary>
+    ///     Gates the automatic-checks toggle: every desktop build, installed or not, because the extension
+    ///     check on open runs in both. The browser head makes no automatic calls, so it has nothing to turn off.
+    /// </summary>
+    public bool ShowAutomaticUpdateChecks => !_isBrowser();
 
     // ── 2D playback controls: the keybinding surface ──────────────────────────
     // The shipped table is the row list; the RESOLVED profile is what each row displays. Every write is
@@ -1634,6 +1649,16 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         Persist(s => s.Updates.SubscribeToBeta = value);
+    }
+
+    partial void OnCheckForUpdatesAutomaticallyChanged(bool value)
+    {
+        if (_applyingExternal)
+        {
+            return;
+        }
+
+        Persist(s => s.Updates.CheckAutomatically = value);
     }
 
     // ── Idle mode handlers ────────────────────────────────────────────────────
@@ -2522,6 +2547,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
             IdleTimeoutMinutes = settings.Idle.IdleTimeoutWait.TotalMinutes;
             IdleKeepBackgroundProcessing = settings.Idle.KeepBackgroundProcessing;
             SubscribeToBeta = settings.Updates.SubscribeToBeta;
+            CheckForUpdatesAutomatically = settings.Updates.CheckAutomatically;
         }
         finally
         {

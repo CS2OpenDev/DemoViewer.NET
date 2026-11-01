@@ -173,6 +173,90 @@ public class WhatsNewGateTests
         }
     }
 
+    // ── Automatic checks off ──────────────────────────────────────────────────
+
+    /// <summary>
+    ///     The launch check honours <c>Updates.CheckAutomatically</c>: on (the default) it asks the updater
+    ///     and opens the notice for what it finds, off it asks nothing and opens nothing, and the Settings
+    ///     button still asks either way.
+    /// </summary>
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task StartUpdateCheck_FollowsCheckAutomatically_AndTheButtonAlwaysChecks(bool automatic)
+    {
+        UpdateViewModel shared = UpdateViewModel.Shared;
+        string dir = NewTempDir();
+        try
+        {
+            CountingUpdateService updater = new();
+            UpdateViewModel.Shared = new UpdateViewModel(updater);
+            File.WriteAllText(Path.Combine(dir, "settings.json"),
+                $$"""{ "FirstRunCompleted": true, "Updates": { "CheckAutomatically": {{(automatic ? "true" : "false")}} } }""");
+            await HeadlessSession.RunOnUi(async () =>
+            {
+                RecordingWindowService windows = new();
+                MainViewModel vm = NewShell(windows, new SettingsService(dir));
+
+                vm.StartUpdateCheck();
+                await Task.Yield();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(updater.Checks).IsEqualTo(automatic ? 1 : 0);
+                    await Assert.That(windows.UpdateNotices).Count().IsEqualTo(automatic ? 1 : 0);
+                    await Assert.That(vm.Update.IsUpdateAvailable).IsEqualTo(automatic);
+                }
+
+                await vm.Update.CheckNowCommand.ExecuteAsync(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(updater.Checks).IsEqualTo(automatic ? 2 : 1);
+                    await Assert.That(vm.Update.IsUpdateAvailable).IsTrue();
+                    await Assert.That(vm.Update.StatusMessage).IsEqualTo("Version 9.9.9 is available.");
+                }
+            });
+        }
+        finally
+        {
+            UpdateViewModel.Shared = shared;
+            Directory.Delete(dir, true);
+        }
+    }
+
+    /// <summary>
+    ///     With automatic checks off, the first launch after an update records the version but opens no
+    ///     What's New, since that window fetches its notes as it opens. The user installed the update, so
+    ///     Settings' "View release notes" is where they read them.
+    /// </summary>
+    [Test]
+    public async Task VersionChange_WithAutomaticChecksOff_RecordsVersion_ShowsNothing()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "settings.json"),
+                """{ "FirstRunCompleted": true, "LastSeenVersion": "0.0.1", "Updates": { "CheckAutomatically": false } }""");
+            await HeadlessSession.RunOnUi(async () =>
+            {
+                RecordingWindowService windows = new();
+                SettingsService settings = new(dir);
+                MainViewModel vm = NewShell(windows, settings);
+
+                vm.StartWhatsNewCheck();
+
+                await Assert.That(windows.WhatsNews).Count().IsEqualTo(0);
+                await Assert.That(settings.Current.LastSeenVersion)
+                    .IsEqualTo(AppVersionInfo.CurrentReleaseVersion);
+            });
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
     // ── Version normalization ─────────────────────────────────────────────────
 
     /// <summary>Every version shape the app encounters reduces to the release tag's x.y.z.</summary>
@@ -193,6 +277,23 @@ public class WhatsNewGateTests
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion("")).IsNull();
     }
     // ── Fixtures ──────────────────────────────────────────────────────────────
+
+    /// <summary>An updater that always offers 9.9.9 and counts the times it was asked.</summary>
+    private sealed class CountingUpdateService : IUpdateService
+    {
+        public int Checks { get; private set; }
+
+        public string? CurrentVersion => "0.5.1";
+
+        public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default)
+        {
+            Checks++;
+            return Task.FromResult(UpdateCheckResult.UpdateAvailable("9.9.9"));
+        }
+
+        public Task<bool> DownloadAndApplyAsync(IProgress<int>? progress = null, CancellationToken ct = default) =>
+            Task.FromResult(false);
+    }
 
     /// <summary>An <see cref="IWindowService" /> that records instead of opening OS windows.</summary>
     private sealed class RecordingWindowService : IWindowService

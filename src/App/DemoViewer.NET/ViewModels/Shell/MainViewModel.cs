@@ -1819,17 +1819,21 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     Fires the launch update check. Called from the desktop lifetime branch once the shell
     ///     exists, deliberately fire-and-forget: a slow or offline feed request must never delay the
     ///     window appearing. When the check finds an update, the notice pop-up opens (v0.6.0) and
-    ///     the banner appears as its persistent re-entry point.
+    ///     the banner appears as its persistent re-entry point. Skipped when the user turned off
+    ///     <c>AppSettings.Updates.CheckAutomatically</c>; the Settings button still checks.
     /// </summary>
     public void StartUpdateCheck()
     {
-        if (!Update.IsSupported)
+        if (!Update.IsSupported || !AutomaticChecksAllowed)
         {
             return;
         }
 
         _ = RunStartupUpdateCheckAsync();
     }
+
+    // No settings service (designer, most tests) keeps the shipped default.
+    private bool AutomaticChecksAllowed => _settingsService?.Current.Updates.CheckAutomatically ?? true;
 
     private async Task RunStartupUpdateCheckAsync()
     {
@@ -1863,7 +1867,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     <c>AppSettings.LastSeenVersion</c> and, when they differ on an already-set-up install,
     ///     shows the What's New window once. The stored version is advanced BEFORE the window opens
     ///     so a crash can never re-show it in a loop. A fresh install (first-run wizard pending)
-    ///     just records the version silently. The wizard is enough for one launch.
+    ///     just records the version silently. The wizard is enough for one launch. So does an install
+    ///     with automatic checks off: the window fetches its notes as it opens, and Settings' "View
+    ///     release notes" is there for anyone who wants them.
     /// </summary>
     public void StartWhatsNewCheck()
     {
@@ -1886,7 +1892,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         bool firstRun = _settingsService.NeedsFirstRun;
         _settingsService.Write(s => s.LastSeenVersion = version);
-        if (firstRun)
+        if (firstRun || !AutomaticChecksAllowed)
         {
             return;
         }
