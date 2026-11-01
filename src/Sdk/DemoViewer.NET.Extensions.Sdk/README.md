@@ -667,3 +667,18 @@ namespace, these shapes changed:
 - `MapAssets.TryLoad` is `MapAssets.Acquire`, and it hands back an `IMapAssetLease` you dispose. One
   decode is shared by every holder, so the images it carries are the host's: draw them, do not dispose
   them.
+
+2.1 only adds. A 2.0 pack runs on a 2.1 host unchanged, and nothing in it needs a recompile. A pack that
+uses one of the additions below states `^2.1`, since a 2.0 host has no such member. It pairs with
+CS2DemoKit 0.14.1, which is the version a pack that reads `CS2DemoKit.Analysis` types pins. The additions:
+
+- `IExtensionFolder.DirectoryExists` and `IExtensionFolder.SetLastWriteTimeUtc`, both with default bodies.
+  A host or a test double written before them answers no folder and ignores the touch. The second is for a
+  cache that evicts by recency.
+- `ILaneHandle.OwnsLabelPresses`, with a default body that answers `IsEditable`, so a lane that was
+  already editable keeps the behaviour it had.
+- `SceneView.PanesArranged` in the Ui kit, raised once the panes are laid out and again when that layout
+  changes. `SceneView.Fit` does nothing useful before it.
+- `IMapToolContext.CurrentTick`, `IMapToolContext.ScreenToWorld` and `IMapToolContext.Tokens`, with default
+  bodies, `MapToolModifiers.Space` for the hold-to-pan key, and `MapToolAdapter`, which wraps an
+  `IMapTool` as a scene tool. These are in `DemoViewer.NET.Playback2D.Scene`.
