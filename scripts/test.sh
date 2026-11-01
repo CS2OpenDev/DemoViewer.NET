@@ -206,6 +206,12 @@ for entry in "${SELECTED[@]}"; do
   fi
   MS=$(( ( $(date +%s%N) - START ) / 1000000 ))
 
+  # DV_TEST_LOG_DIR: keep the whole output, named by project since a key can cover several. CI
+  # uploads the directory when a lane fails; the excerpt printed below is 20 lines.
+  if [ -n "${DV_TEST_LOG_DIR:-}" ]; then
+    mkdir -p "$DV_TEST_LOG_DIR" && printf '%s\n' "$OUT" > "$DV_TEST_LOG_DIR/$(basename "$PATH_").log"
+  fi
+
   if [ "$LIST_ONLY" -eq 1 ]; then
     N=$(echo "$OUT" | grep -oE 'found [0-9]+ test' | grep -oE '[0-9]+' | head -1)
     printf '  %-14s %6sms  discovered=%s\n' "$KEY" "$MS" "${N:-?}"

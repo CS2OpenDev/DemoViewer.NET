@@ -128,6 +128,11 @@ for ((b = 1; b <= BATCHES; b++)); do
   echo "[batch-runner] batch $b/$BATCHES: ${#MEMBERS[@]} classes"
   OUT=$(dotnet run --project "$PROJ" -c "$CONFIG" --no-build -- --treenode-filter "$FILTER" 2>&1)
   EX=$?
+  # DV_TEST_LOG_DIR: keep each batch's whole output. The excerpt printed below is 60 lines, which is
+  # rarely the stack trace; CI uploads this directory when a lane fails.
+  if [ -n "${DV_TEST_LOG_DIR:-}" ]; then
+    mkdir -p "$DV_TEST_LOG_DIR" && printf '%s\n' "$OUT" > "$DV_TEST_LOG_DIR/app-batch-$b.log"
+  fi
   SUMMARY=$(echo "$OUT" | grep -E "total:|failed:|succeeded:|skipped:" | tr -d ' ' | paste -sd' ' -)
   BATCH_TOTAL=$(echo "$SUMMARY" | grep -oE 'total:[0-9]+' | grep -oE '[0-9]+')
   TOTAL_RUN=$((TOTAL_RUN + ${BATCH_TOTAL:-0}))
