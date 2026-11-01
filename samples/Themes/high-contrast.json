@@ -1,0 +1,288 @@
+// High Contrast, written out in full.
+//
+// A complete user theme: every colour token the app reads, with the value this theme
+// resolves to. Copy it, change the id and name, and edit what you like. Delete a line and
+// that token falls back to the base palette instead. Lines marked "base" are the
+// dark palette's own value, which the built-in theme inherits rather than sets.
+//
+// Colours are "#RRGGBB" (opaque) or "#AARRGGBB", where AA is the alpha. Several overlay
+// and canvas tokens are translucent on purpose. Token meanings are listed in
+// docs/ui/theme-token-catalog.md.
+//
+// Install: put this file in the themes folder (Windows %APPDATA%\DemoViewer.NET\themes\,
+// macOS ~/Library/Application Support/DemoViewer.NET/themes/, Linux ~/.config/DemoViewer.NET/themes/)
+// and press Settings > Theme > Reload themes. An id that matches a built-in theme is ignored.
+{
+  "id": "high-contrast-json",
+  "name": "High Contrast (JSON)",
+  // "dark" or "light": the palette any token left out comes from, and the look of the
+  // stock controls (scroll bars, list selection) that no token covers.
+  "base": "dark",
+  "tokens": {
+    // Surfaces and shell backgrounds
+    "ShellBg":                     "#000000",
+    "DebuggerBg":                  "#000000",
+    "FrameHeaderStripBg":          "#000000",
+    "PanelBg":                     "#000000",
+    "PanelHeaderBg":               "#0A0A0A",
+    "PanelHeaderHover":            "#1F1F1F",
+    "HexBannerBg":                 "#0A0A0A",
+    "PanelHeaderHoverDeep":        "#2A2A2A",
+    "HdrActionHoverBg":            "#2A2A2A",
+    "CardBg":                      "#0A0A0A",
+    "PrimaryButtonBg":             "#1A1A1A",
+    "ChainSummaryBadgeBg":         "#141414",
+    "FrameRowSelectedBg":          "#0A3A6E",
+    "FrameRowHoverBg":             "#1A1A1A",
+    "FrameMsgBadgeBg":             "#1A1A1A",
+
+    // Borders and dividers
+    "BorderSubtle":                "#6E6E6E",
+    "BorderStrong":                "#FFFFFF",
+    "HexBannerBorder":             "#FFFFFF",
+    "BorderAccent":                "#FFEB3B",
+    "HexRowSeparator":             "#6E6E6E",
+    "PrimaryButtonBorder":         "#FFFFFF",
+    "BorderTranslucent":           "#B0FFFFFF",
+
+    // Text ramp, dimmest first. TextOnAccent is text drawn on an accent fill
+    "TextHexGutter":               "#909090",
+    "TextLabel":                   "#B4B4B4",
+    "TextLabelAlt":                "#B4B4B4",
+    "TextDim":                     "#C4C4C4",
+    "TextDimAlt":                  "#C4C4C4",
+    "TextDimGray":                 "#C4C4C4",
+    "TextDimTeal":                 "#C4C4C4",
+    "TextEntityStatus":            "#CCCCCC",
+    "TextStatusBar":               "#CCCCCC",
+    "TextHeaderField":             "#D6D6D6",
+    "TextCardSize":                "#D6D6D6",
+    "TextChainSummary":            "#DCDCDC",
+    "TextChainBadge":              "#FFEB3B",
+    "TextMid":                     "#E4E4E4",
+    "TextHexBanner":               "#E4E4E4",
+    "TextFrameInfo":               "#E4E4E4",
+    "TextHeaderHex":               "#F2F2F2",
+    "TextFrameType":               "#F2F2F2",
+    "TextEntityFieldVal":          "#F2F2F2",
+    "TextBright":                  "#FFFFFF",
+    "TextFieldName":               "#FFFFFF",
+    "TextValue":                   "#FFFFFF",
+    "TextHexCell":                 "#FFFFFF",
+    "TextCardHeader":              "#FFFFFF",
+    "TextOnAccent":                "#000000",
+
+    // Accents
+    "AccentInteractive":           "#00E5FF",
+    "AccentHighlight":             "#FFEB3B",
+    "AccentAmber":                 "#FFEB3B",
+    "AccentAmberOpaque":           "#FFFFEB3B",
+    "AccentError":                 "#FF3B30",
+    "AccentErrorSoft":             "#FF6E63",
+    "AccentCaution":               "#FFC000",
+
+    // Stats board: heat ramp, in-cell bar, composition slots. Retint a family whole or not at all
+    "StatPositive":                "#00E676",
+    "StatPositiveSoft":            "#00D9A5",
+    "StatNegativeSoft":            "#FFB000",
+    "StatNegative":                "#FF3B30",
+    "StatBarTrack":                "#1F1F1F",
+    "StatBarFill":                 "#3D3D3D",
+    "StatSlot0":                   "#00E5FF",
+    "StatSlot1":                   "#00E676",
+    "StatSlot2":                   "#FFEB3B",
+    "StatSlot3":                   "#FF3B30",
+    "StatSlot4":                   "#E040FB",
+    "StatSlot5":                   "#FF9100",
+
+    // Button hover and the changed-row wash
+    "PrimaryButtonHover":          "#333333",
+    "DeltaRowBg":                  "#25FFC107", // base
+
+    // Hex view highlight swatches (alpha matters)
+    "HexSwatchSelected":           "#CC4C9EF5", // base
+    "HexSwatchParent":             "#8855BB8A", // base
+    "HexSwatchAncestor":           "#55C07C28", // base
+    "HexSwatchAncestorDeep":       "#55A08AA0",
+
+    // Classifier accents: message, log and badge categories
+    "ClassifierBlue":              "#2196F3",
+    "ClassifierGreen":             "#4CAF50",
+    "ClassifierPurple":            "#9C27B0",
+    "ClassifierOrange":            "#FF9800",
+    "ClassifierTeal":              "#009688",
+    "ClassifierRed":               "#F44336",
+    "ClassifierRedBright":         "#FF5252",
+    "ClassifierSlate":             "#607D8B",
+    "ClassifierRedDim":            "#C0F44336",
+    "ClassifierOrangeDim":         "#C0FF9800",
+    "ClassifierBlueDim":           "#C02196F3",
+    "ClassifierPurpleDim":         "#C09C27B0",
+    "ClassifierGreenDim":          "#C04CAF50",
+    "ClassifierTealDim":           "#C0009688",
+    "ClassifierSlateDim":          "#C0607080",
+    "ClassifierSlateBlueDim":      "#C06060A0",
+
+    // Single-use accents. MapAccentRef is read for saturation and value only; its hue is ignored
+    "AccentInfo":                  "#00E5CC",
+    "SyntaxPlain":                 "#C4C4C4",
+    "BreakpointDotDisabled":       "#6E6E6E",
+    "GraphNodePerPlayerBorder":    "#00E5CC",
+    "MapAccentNeutral":            "#909090",
+    "MapAccentRef":                "#FF5555",
+
+    // Library cards, drawn over the baked radar thumbnail
+    // LibraryCardScrim is a gradient and cannot be set from a theme file.
+    "LibraryCardTextBright":       "#ECFFFFFF", // base
+    "LibraryCardTextMid":          "#C6FFFFFF", // base
+    "LibraryCardTextDim":          "#B4FFFFFF", // base
+    "LibraryCardTextFaint":        "#A0FFFFFF", // base
+    "LibraryCardBadgeBg":          "#B0000010", // base
+    "LibraryCardBusyTrack":        "#33FFC107", // base
+    "LibraryCardScoreCt":          "#5BA9F4",   // base
+    "LibraryCardScoreT":           "#F0B23C",   // base
+
+    // 2D playback HUD chrome
+    "Pb2dPanelBg":                 "#000000",
+    "Pb2dInfoBg":                  "#000000",
+    "Pb2dCardBg":                  "#0A0A0A",
+    "Pb2dGridSplitter":            "#333333",
+    "Pb2dHudDivider":              "#FFFFFF",
+    "Pb2dOverlayBg":               "#E6000000",
+    "ModalScrim":                  "#B3000008", // base
+    "Pb2dKillFeedBg":              "#F0000000",
+    "Pb2dKillFeedBorder":          "#80FFFFFF",
+    "Pb2dTextDim":                 "#C4C4C4",
+    "Pb2dTextMid":                 "#E4E4E4",
+    "Pb2dTextBright":              "#FFFFFF",
+    "Pb2dTextBrightest":           "#FFFFFF",
+    "Pb2dTextOnTeam":              "#101418",   // base
+    "Pb2dGlyphBlind":              "#E6E6E6",   // base
+
+    // 2D playback game colours: teams, kill-feed badges, status
+    "Pb2dTeamCt":                  "#00BFFF",
+    "Pb2dTeamT":                   "#FFC000",
+    "Pb2dPositive":                "#86C786",   // base
+    "Pb2dHealth":                  "#7ED07E",   // base
+    "Pb2dArmor":                   "#7FB6E6",   // base
+    "Pb2dHeadshot":                "#F44336",   // base
+    "Pb2dWallbang":                "#FF9800",   // base
+    "Pb2dNoScope":                 "#00BCD4",   // base
+    "Pb2dFlashAssist":             "#B66CD8",   // base
+    "Pb2dAssist":                  "#5BC0BE",   // base
+    "Pb2dDefuser":                 "#E0C040",   // base
+    "Pb2dBomb":                    "#E08040",   // base
+    "Pb2dAdr":                     "#E0A878",   // base
+    "Pb2dDefuseTime":              "#5AB0E0",   // base
+    "Pb2dMapApprox":               "#C0A060",   // base
+
+    // Message card header tints, per message category
+    "MsgHeaderNet":                "#00263D",
+    "MsgHeaderSvc":                "#0A2A0A",
+    "MsgHeaderDem":                "#332200",
+    "MsgHeaderCs":                 "#26003D",
+    "MsgHeaderClc":                "#00332E",
+    "MsgHeaderGameEvent":          "#3D0A0A",
+    "MsgHeaderDefault":            "#141414",
+    "MsgHeaderUnknown":            "#3D0A0A",
+    "MsgHeaderSelected":           "#0A3A6E",
+
+    // Wire-type badges on expanded message rows
+    "WtVarintBg":                  "#001A3D",
+    "WtVarintFg":                  "#5AB0FF",
+    "WtFixedBg":                   "#002A0E",
+    "WtFixedFg":                   "#5AE070",
+    "WtBytesBg":                   "#3D2000",
+    "WtBytesFg":                   "#FFB050",
+    "WtStringBg":                  "#2A003D",
+    "WtStringFg":                  "#D080F0",
+    "WtBoolBg":                    "#002A33",
+    "WtBoolFg":                    "#40D0E8",
+    "WtMessageBg":                 "#1A1A3D",
+    "WtMessageFg":                 "#9EA0F0",
+    "WtDefaultBg":                 "#1A1A1A",
+    "WtDefaultFg":                 "#C0C0C0",
+    "PropRowSelectedBg":           "#28285A",   // base
+
+    // Rule editor syntax highlighting
+    "SyntaxComment":               "#7CB342",
+    "SyntaxSection":               "#FF80FF",
+    "SyntaxKind":                  "#00E5FF",
+    "SyntaxModifier":              "#40A0FF",
+    "SyntaxLiteral":               "#40E0D0",
+    "SyntaxEvent":                 "#FFEB3B",
+    "SyntaxFacet":                 "#A6D8FF",
+    "SyntaxPath":                  "#A6D8FF",
+    "SyntaxIdentifier":            "#FFD54F",
+    "SyntaxString":                "#FFA07A",
+    "SyntaxNumber":                "#B5E8A0",
+    "SyntaxOperator":              "#FFFFFF",
+
+    // 2D radar canvas
+    "Pb2dCanvasBg":                "#000000",
+    "Pb2dCanvasMinorGrid":         "#333333",
+    "Pb2dCanvasMajorGrid":         "#666666",
+    "Pb2dCanvasLabel":             "#E4E4E4",
+    "Pb2dCanvasNeutral":           "#E4E4E4",
+    "Pb2dCanvasSightlineT":        "#70E0A030", // base
+    "Pb2dCanvasSightlineCt":       "#704A90D9", // base
+    "Pb2dCanvasConeT":             "#3CE0A030", // base
+    "Pb2dCanvasConeCt":            "#3C4A90D9", // base
+    "Pb2dCanvasConeNeutral":       "#2C888888", // base
+    "Pb2dCanvasRingShooting":      "#FFD400",   // base
+    "Pb2dCanvasRingDamage":        "#F44336",   // base
+    "Pb2dCanvasRingBlinded":       "#FFFFFFFF", // base
+    "Pb2dCanvasRingDead":          "#555B62",   // base
+    "Pb2dCanvasBomb":              "#F03A2E",   // base
+    "Pb2dCanvasBombTrack":         "#40FFFFFF", // base
+    "Pb2dCanvasBombDetonation":    "#FF5040",   // base
+    "Pb2dCanvasBombDefuse":        "#40C4FF",   // base
+    "Pb2dCanvasSmoke":             "#66AEB6BD", // base
+    "Pb2dCanvasSmokeStroke":       "#88C8CED4", // base
+    "Pb2dCanvasFire":              "#78FF6A1A", // base
+    "Pb2dCanvasTrailHe":           "#FF5252",   // base
+    "Pb2dCanvasTrailFlash":        "#FFE082",   // base
+    "Pb2dCanvasTrailSmoke":        "#B0BEC5",   // base
+    "Pb2dCanvasTrailMolotov":      "#FF7043",   // base
+    "Pb2dCanvasTrailDecoy":        "#81C784",   // base
+    "Pb2dCanvasMarkerRingT":       "#C8881F",   // base
+    "Pb2dCanvasMarkerRingCt":      "#357ABD",   // base
+    "Pb2dCanvasMarkerRingNeutral": "#666666",   // base
+    "Pb2dCanvasRouteT":            "#59E0A030", // base
+    "Pb2dCanvasRouteCt":           "#594A90D9", // base
+    "Pb2dCanvasRouteGhostT":       "#E6FFC000",
+    "Pb2dCanvasRouteGhostCt":      "#E600BFFF",
+    "Pb2dCanvasDropTarget":        "#00E5FF",
+
+    // Analysis graph
+    "GraphCanvasBg":               "#000000",
+    "GraphGroupBg":                "#0A0A0A",
+    "GraphGroupBorder":            "#FFFFFF",
+    "GraphGroupLabel":             "#E4E4E4",
+    "GraphLabelBg":                "#F0000000",
+    "GraphNodeActiveBg":           "#00305F",
+    "GraphNodeActiveBorder":       "#00E5FF",
+    "GraphNodeActiveFg":           "#FFFFFF",
+    "GraphNodeActiveSubFg":        "#00E5FF",
+    "GraphNodeInactiveBg":         "#0A0A0A",
+    "GraphNodeInactiveBorder":     "#808080",
+    "GraphNodeInactiveFg":         "#C4C4C4",
+    "GraphNodeInactiveSubFg":      "#909090",
+    "GraphNodeRootBg":             "#1A1A1A",
+    "GraphNodeRootBorder":         "#FFFFFF",
+    "GraphNodeRootFg":             "#E4E4E4",
+    "GraphEdgeActivate":           "#00E676",
+    "GraphEdgeConjunction":        "#80A0FF",
+    "GraphEdgeDeactivate":         "#FF6E00",
+    "GraphEdgeDisjunction":        "#FF80FF",
+    "GraphEdgeLabel":              "#E4E4E4",
+    "GraphEdgeSetValue":           "#FFD000",
+    "GraphTableActiveCellBg":      "#00305F",
+    "GraphTableBg":                "#0A0A0A",
+    "GraphTableCellFg":            "#E4E4E4",
+    "GraphTableDimFg":             "#A0A0A0",
+    "GraphTableGridLine":          "#808080",
+    "GraphTableHeaderBg":          "#1A1A1A",
+    "GraphTableHeaderFg":          "#00E5FF"
+  }
+}

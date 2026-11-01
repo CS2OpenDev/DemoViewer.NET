@@ -47,6 +47,10 @@ built-in id is ignored (the built-in is protected).
 (built-ins load sorted by filename); the `id`/`name` come from the JSON, not the filename.
 `01-high-contrast.json` and `02-egirl.json` are worked examples.
 
+**Complete examples.** `samples/Themes/` has both built-ins written out as drop-ins that set every token,
+with comments (ids `high-contrast-json` and `egirl-json`). Start a theme from one of those.
+`ThemeSampleFileTests` holds them equal to the built-ins token by token.
+
 ## What a theme can and cannot retint
 
 - **Can**: every token below: all app surfaces, the text ramp, borders, accents, and the code-drawn 2D
