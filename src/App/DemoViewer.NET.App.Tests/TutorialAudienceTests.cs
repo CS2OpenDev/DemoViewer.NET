@@ -71,39 +71,43 @@ public class TutorialAudienceTests
     private static string Outro(IReadOnlyList<TutorialStep> steps) => steps[^1].Body;
 
     [Test]
-    public async Task Consumer_SeesTheSharedTour_WithoutTheWorkbench_AndAPlainOutro()
+    public async Task Consumer_SeesTheSharedTour_WithoutTheWorkbench_AndTheReelsAndThemeLines()
     {
         IReadOnlyList<TutorialStep> steps = Shown(Settings(UserCategory.Consumer));
 
         await Assert.That(Titles(steps)).IsEquivalentTo([.. _everyProfile, "You're all set"],
             CollectionOrdering.Matching);
-        await Assert.That(Outro(steps)).DoesNotContain("-insecure")
+        await Assert.That(Outro(steps)).Contains("Reels start CS2 with -insecure")
+            .Because("Reels are on for a consumer and launch CS2 with VAC off, so the tour says so");
+        await Assert.That(Outro(steps)).DoesNotContain("Live Sync")
             .Because("Live Sync is off for a consumer, so its launch notice is not theirs to read");
-        await Assert.That(Outro(steps)).DoesNotContain("theme");
+        await Assert.That(Outro(steps)).Contains("Customize");
     }
 
     [Test]
-    public async Task PowerUser_AddsTheWorkbench_BeforeTheOutro_WithAPlainOutro()
+    public async Task PowerUser_AddsTheWorkbench_BeforeTheOutro_WithoutTheLiveSyncLine()
     {
         IReadOnlyList<TutorialStep> steps = Shown(Settings(UserCategory.PowerUser));
 
         await Assert.That(Titles(steps)).IsEquivalentTo(
             [.. _everyProfile, "Write your own rules", "You're all set"],
             CollectionOrdering.Matching);
-        await Assert.That(Outro(steps)).DoesNotContain("-insecure");
-        await Assert.That(Outro(steps)).DoesNotContain("theme");
+        await Assert.That(Outro(steps)).Contains("Reels start CS2 with -insecure");
+        await Assert.That(Outro(steps)).DoesNotContain("Live Sync");
+        await Assert.That(Outro(steps)).Contains("Customize");
     }
 
     [Test]
-    public async Task Developer_SeesEveryStep_AndBothOutroLines()
+    public async Task Developer_SeesEveryStep_AndEveryOutroLine()
     {
         IReadOnlyList<TutorialStep> steps = Shown(Settings(UserCategory.Developer));
 
         await Assert.That(Titles(steps)).IsEquivalentTo(
             [.. _everyProfile, "Write your own rules", "You're all set"],
             CollectionOrdering.Matching);
-        await Assert.That(Outro(steps)).Contains("-insecure");
-        await Assert.That(Outro(steps)).Contains("Reload themes");
+        await Assert.That(Outro(steps)).Contains("Reels start CS2 with -insecure");
+        await Assert.That(Outro(steps)).Contains("Live Sync starts CS2 with -insecure");
+        await Assert.That(Outro(steps)).Contains("Customize");
         await Assert.That(Outro(steps)).StartsWith(TutorialSteps.Default[^1].Body)
             .Because("notes are appended after the authored body, never in place of it");
     }
@@ -124,18 +128,21 @@ public class TutorialAudienceTests
         await Assert.That(Titles(withoutPlayerOverview)).DoesNotContain("Follow one player");
     }
 
-    // A note has its own audience: Live Sync switched on for a power user brings its line, but the themes
-    // line stays developer-only; export switched off drops the export sentence and keeps the step.
+    // A note has its own audience: Live Sync switched on for a power user brings its line, Reels switched off
+    // takes the Reels line with it; export switched off drops the export sentence and keeps the step.
     [Test]
     public async Task Notes_FollowTheirOwnAudience_AndLeaveTheStepInPlace()
     {
         IReadOnlyList<TutorialStep> liveSyncPower =
             Shown(Settings(UserCategory.PowerUser, ("chrome.livesync", true)));
+        IReadOnlyList<TutorialStep> noReels = Shown(Settings(UserCategory.Consumer, ("tab.highlights", false)));
         IReadOnlyList<TutorialStep> noExport = Shown(Settings(UserCategory.Consumer, ("playback2d.export", false)));
         IReadOnlyList<TutorialStep> withExport = Shown(Settings(UserCategory.Consumer));
 
-        await Assert.That(Outro(liveSyncPower)).Contains("-insecure");
-        await Assert.That(Outro(liveSyncPower)).DoesNotContain("Reload themes");
+        await Assert.That(Outro(liveSyncPower)).Contains("Live Sync starts CS2 with -insecure");
+        await Assert.That(Outro(noReels)).DoesNotContain("-insecure")
+            .Because("with Reels and Live Sync both off nothing in the app launches CS2");
+        await Assert.That(Outro(noReels)).Contains("Customize");
 
         TutorialStep drawWith = withExport.Single(s => s.Target == TutorialTarget.AnnotationTools);
         TutorialStep drawWithout = noExport.Single(s => s.Target == TutorialTarget.AnnotationTools);
