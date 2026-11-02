@@ -12,6 +12,9 @@
 # pack-velopack.sh refuses a tag that disagrees with version.json. main keeps stamping the beta
 # version until the next bump.
 #
+# A release that moves CS2DemoKit needs the SDK released first (release-sdk.yml, an sdk/v* tag on the
+# same pin). verify-sdk refuses the app until nuget.org serves it.
+#
 # Signing/notarization is DEFERRED:
 # the DV_SIGN_* / DV_NOTARY_PROFILE secrets are unset today → unsigned. Wire them as repo
 # secrets to flip signing on with no workflow change (empty = unsigned).
@@ -28,6 +31,10 @@ on:
         default: false
       publish:
         description: 'Publish the GitHub Release. Off means pack only, which is what a dry run wants.'
+        type: boolean
+        default: false
+      allow_sdk_drift:
+        description: 'Emergency only: release even though nuget.org''s latest SDK declares another CS2DemoKit'
         type: boolean
         default: false
 
@@ -78,8 +85,44 @@ jobs:
             *) echo "::error::'ci' did not succeed for $sha (conclusions: $runs). Refusing to publish." >&2; exit 1 ;;
           esac
 
+  # Gate: the latest SDK on nuget.org must declare the CS2DemoKit version this commit pins. The app
+  # loads one CS2DemoKit for itself and every extension, so an SDK that declares another one builds
+  # packs that compile and then fail to load. When CS2DemoKit moves, release the SDK first.
+  # scripts/check-sdk-published.sh has the matching rule.
+  #
+  # A dry run (anything the publish job would skip) reports the verdict without failing. A tag push
+  # cannot carry the override; to use it, dispatch against the tag with publish and allow_sdk_drift on.
+  verify-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # nbgv, for the SDK version the failure message names
+
+      - uses: ./.github/actions/dotnet-sdk
+
+      - name: Restore CLI tools (nbgv)
+        run: dotnet tool restore
+
+      - name: Require the published SDK to declare this CS2DemoKit pin
+        env:
+          IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || github.event.inputs.publish == 'true') }}
+          ALLOW_SDK_DRIFT: ${{ github.event.inputs.allow_sdk_drift }}
+        run: |
+          set -euo pipefail
+          if [ "$IS_RELEASE" != "true" ]; then
+            echo "Dry run: reporting SDK drift without failing."
+            bash scripts/check-sdk-published.sh --report-only
+          elif [ "$ALLOW_SDK_DRIFT" = "true" ]; then
+            echo "::warning::allow_sdk_drift is ON. This release skips the SDK lock-step gate and may ship a CS2DemoKit no published SDK declares."
+            echo "### allow_sdk_drift was used: the SDK lock-step gate did not block this release" >> "$GITHUB_STEP_SUMMARY"
+            bash scripts/check-sdk-published.sh --report-only
+          else
+            bash scripts/check-sdk-published.sh
+          fi
+
   package:
-    needs: verify-ci
+    needs: [verify-ci, verify-sdk]
     strategy:
       fail-fast: false
       # `dotnet publish -r <rid>` flattens whatever CSVG natives the referenced Cs2VideoGenerator.Core

@@ -888,6 +888,17 @@ release and updates the feed with no further action; watch its run in the Action
 publishing, dispatch the workflow by hand with `dry_run` left at its default and read the artifact it
 uploads. `dotnet nbgv get-version -p src/Extensions/StratBook` shows what the next tag would be.
 
+**Release order when CS2DemoKit moves.** The app loads one CS2DemoKit for itself and every extension, so
+the SDK on nuget.org has to declare the version the app pins. Release the SDK first: on the `main` commit
+that carries the bump (with `scripts/ship-public-api.sh` run and committed if Unshipped has entries), run
+`dotnet nbgv tag -p src/Sdk/DemoViewer.NET.Extensions.Sdk` and push the `sdk/v<version>` tag it prints.
+Tag the app (`v*`) once nuget.org serves those packages. `release.yml`'s `verify-sdk` job runs
+`scripts/check-sdk-published.sh`, which refuses the app until the newest stable SDK on nuget.org declares
+each CS2DemoKit package at the `Directory.Packages.props` pin. It does not require the SDK at the app's
+commit to be published, so an app release after an SDK-only change goes ahead. A dry run reports instead of
+failing, and a dispatch with `allow_sdk_drift` skips the gate for an emergency and says so in the run.
+`release-sdk.yml` runs the same script with `--packed` on its own packages before pushing them.
+
 **One extension per output directory.** The shipped manifest copy is the bare `extension.json`. A second
 extension shipped beside this one in the same output directory needs it renamed to `<id>.extension.json`,
 which touches `ShippedPack.BesideApp`, the app csproj and the loader and matrix tests.
