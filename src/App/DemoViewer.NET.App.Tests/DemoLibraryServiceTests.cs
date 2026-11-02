@@ -659,8 +659,11 @@ public class DemoLibraryServiceTests
                 "primary indexed once");
             await Assert.That(parses).IsEqualTo(1);
 
-            // Delete the primary; the shadow in dir2 must be promoted and (re)indexed on its own path.
-            File.Delete(primaryFile);
+            // Delete the primary; the shadow in dir2 must be promoted and (re)indexed on its own path. The scan's
+            // copy detection fingerprints both files after AddFoldersAsync returns and holds each open while it
+            // reads, which on Windows refuses the delete, so it has to finish first.
+            await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
+            TestFiles.Delete(primaryFile);
             await svc.RescanAsync();
             // The surviving copy is under dir2; compare by the unique folder-name segment (not the full path:
             // macOS temp is a symlink /var → /private/var, so the stored canonical path is prefixed).
@@ -779,7 +782,13 @@ public class DemoLibraryServiceTests
                     Interlocked.Increment(ref goodParses);
                     return SyntheticDemo();
                 });
-            using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json"));
+            // Its own listing queue: without one the service lists through QueueWork.Ambient, which any test
+            // that builds the app's services points at a queue of its own and later disposes. A listing caught
+            // there never finishes, the likeliest cause of this test's timeouts in full-suite runs (it passes
+            // alone). The wait below reports the states it saw, so a timeout that remains says what it was.
+            using DemoProcessingQueue listing = new(new HeavyJobGate(), a => a(),
+                _ => throw new InvalidOperationException("the listing queue parses nothing"));
+            using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json")) { QueueOverride = listing };
             using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
             svc.Scheduler = coord;
 
@@ -799,7 +808,10 @@ public class DemoLibraryServiceTests
             queue.Resume();
             await Task.WhenAll(first, second);
             await WaitForAsync(() => svc.Entries.All(e => e.State is DemoIndexState.Indexed or DemoIndexState.Failed),
-                "both demos indexed or failed");
+                () => "both demos indexed or failed; states were "
+                      + string.Join(", ", svc.Entries.Select(e => $"{Path.GetFileName(e.FilePath)}={e.State}"))
+                      + $", parses good={goodParses} bad={badParses}",
+                15000);
 
             await svc.RescanAsync();
             await Task.Delay(200);
