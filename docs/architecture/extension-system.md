@@ -563,9 +563,10 @@ Settings can say what a newer version needs. Pending is a version already staged
 would take at the next start: the highest `extensions/<id>/<version>/` above the running version that
 passes the section 1 check. The status, in order of precedence: `UpdateAvailable` when something is
 offered and it is newer than any pending copy; `PendingRestart` when a pending copy exists; `NeedsNewerApp`
-when the latest is newer and nothing is offered; else `UpToDate`. A feed that answers 404 is `UpToDate`
-too (or `PendingRestart` over a staged copy), logged at Information: the rolling release does not exist
-until the first extension release creates it. Any other feed that cannot be fetched is
+when the latest is newer and nothing is offered; else `UpToDate`. A feed that answers 404 is
+`NotPublished` (or `PendingRestart` over a staged copy), logged at Information with the URL: the rolling
+release does not exist until the first extension release creates it. It is not shown as an error, but it
+is not `UpToDate` either, because a wrong or stale feed address answers 404 as well. Any other feed that cannot be fetched is
 `FeedUnreachable` and one that does not parse, or is for another extension, is `FeedInvalid`, each with a
 user-terms `Error` and the exception message on `LogDetail` for the log only; a pack whose own manifest
 did not read is `Unknown`. Nothing throws. The service remembers the last state per pack for the run
@@ -625,6 +626,7 @@ one sentence per state:
 | not checked this run | (empty; the Check button is the invitation) |
 | checking | `Checking for updates…` |
 | `UpToDate` | `Up to date.` |
+| `NotPublished` | `No updates have been published yet.` |
 | `UpdateAvailable` | `1.0.1 available.` and the Update button |
 | downloading | `Downloading 1.0.1: 1.2 of 4.5 MB`, the bar and Cancel |
 | `PendingRestart` (and after a successful download) | `1.0.1 installed, restart to use it.` |

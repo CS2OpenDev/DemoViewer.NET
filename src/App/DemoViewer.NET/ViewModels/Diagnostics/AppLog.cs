@@ -49,9 +49,9 @@ internal static partial class AppLog
     public static partial void ExtensionFeedCheckFailed(ILogger logger, string packId, string status, string detail);
 
     // Information, not a warning: a feed that was never published is the normal state until the first
-    // extension release, and the check reads it as "nothing newer".
+    // extension release. The URL is here because a wrong address looks the same from the app.
     [LoggerMessage(EventId = 41, Level = LogLevel.Information,
-        Message = "Extension {packId} has no update feed at '{url}' yet; nothing newer is published")]
+        Message = "Extension {packId} has no update feed at '{url}' (404); nothing is published there yet, or the address is wrong")]
     public static partial void ExtensionFeedNotPublished(ILogger logger, string packId, Uri url);
 
     [LoggerMessage(EventId = 19, Level = LogLevel.Information,
