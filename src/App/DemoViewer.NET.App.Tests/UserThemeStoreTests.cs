@@ -83,6 +83,29 @@ public class UserThemeStoreTests
         await Assert.That(registry.Contains(theme.Id)).IsFalse();
     }
 
+    // Two files with one id load as one theme (the later file wins). Deleting that theme must take both, or the
+    // reload brings the earlier file back as the theme the user just deleted.
+    [Test]
+    public async Task Delete_RemovesEveryFileWithTheId()
+    {
+        using TempThemesFolder folder = new();
+        string first = folder.Write("a-dup.json", """{ "id": "dup", "name": "Older", "tokens": { "ShellBg": "#010203" } }""");
+        string second = folder.Write("b-dup.json", """{ "id": "dup", "name": "Newer", "tokens": { "ShellBg": "#040506" } }""");
+        string other = folder.Write("other.json", """{ "id": "other", "name": "Other", "tokens": { "ShellBg": "#070809" } }""");
+        ThemeRegistry registry = new();
+        registry.Reload();
+        UserThemeStore store = new(registry);
+        await Assert.That(registry.Find("dup")!.DisplayName).IsEqualTo("Newer");
+        await Assert.That(UserThemeStore.FilesFor("dup").Select(f => Path.GetFileName(f))).IsEquivalentTo(["a-dup.json", "b-dup.json"]);
+
+        store.Delete("dup");
+
+        await Assert.That(File.Exists(first)).IsFalse();
+        await Assert.That(File.Exists(second)).IsFalse();
+        await Assert.That(registry.Contains("dup")).IsFalse().Because("the older file does not come back");
+        await Assert.That(File.Exists(other)).IsTrue();
+    }
+
     [Test]
     public async Task Saving_KeepsUnfilledTokensMissing_AndWritesEdits()
     {

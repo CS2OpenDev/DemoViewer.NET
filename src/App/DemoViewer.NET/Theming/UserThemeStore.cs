@@ -151,12 +151,52 @@ public sealed class UserThemeStore(ThemeRegistry registry)
         return Save(id, palette, newName);
     }
 
-    /// <summary>Deletes the user theme <paramref name="id" />'s file.</summary>
+    /// <summary>
+    ///     Deletes the user theme <paramref name="id" />: its file, and any other file in the folder with the same
+    ///     id. Only one of them is loaded, but leaving the rest would bring the theme back on the next reload.
+    /// </summary>
     public void Delete(string id)
     {
         Theme theme = UserTheme(id);
-        File.Delete(theme.FilePath!);
+        foreach (string file in FilesFor(id).Append(theme.FilePath!).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            File.Delete(file);
+        }
+
         Registry.Reload();
+    }
+
+    /// <summary>
+    ///     Every file in the themes folder whose id is <paramref name="id" />, in load order. Usually one; two
+    ///     files can share an id, and the registry loads the later one and lists the earlier as a load problem.
+    /// </summary>
+    public static IReadOnlyList<string> FilesFor(string id)
+    {
+        if (AppPaths.ThemesDirectory is not { } dir || !System.IO.Directory.Exists(dir))
+        {
+            return [];
+        }
+
+        List<string> files = [];
+        foreach (string file in System.IO.Directory.GetFiles(dir, "*.json").OrderBy(f => f, StringComparer.Ordinal))
+        {
+            string json;
+            try
+            {
+                json = File.ReadAllText(file);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            if (ThemeJson.Parse(json, file).Definition is { } def && string.Equals(def.Id, id, StringComparison.OrdinalIgnoreCase))
+            {
+                files.Add(file);
+            }
+        }
+
+        return files;
     }
 
     private Theme UserTheme(string id)
