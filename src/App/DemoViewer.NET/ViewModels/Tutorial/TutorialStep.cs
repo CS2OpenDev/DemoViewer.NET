@@ -384,22 +384,31 @@ public static class TutorialSteps
                 "That's the tour. Explore at your own pace, and reopen this walkthrough any time from Settings.",
             Notes =
             [
+                // Reels are on for every profile (off by default on macOS) and Live Sync only for developers,
+                // so each launch note follows its own feature rather than sharing one gate.
+                new()
+                {
+                    FeatureId = "tab.highlights",
+                    DesktopOnly = true,
+                    Text =
+                        "Reels start CS2 with -insecure and patch your CS2 install while they record, so the app "
+                        + "asks before each launch."
+                },
                 new()
                 {
                     FeatureId = "chrome.livesync",
                     DesktopOnly = true,
                     Text =
-                        "Live Sync and Reels start CS2 with -insecure and patch your CS2 install while they run, "
-                        + "so the app asks before each launch."
+                        "Live Sync starts CS2 with -insecure and patches your CS2 install while it runs, and asks "
+                        + "before each launch as well."
                 },
                 new()
                 {
-                    // No themes folder exists on the browser head.
-                    Categories = [UserCategory.Developer],
+                    // Theme Customization is desktop-only: the browser head has no themes folder to save into.
                     DesktopOnly = true,
                     Text =
-                        "To restyle the app, drop a theme .json into the themes folder shown in Settings and "
-                        + "click Reload themes."
+                        "To restyle the app, open Settings, go to Theme and click Customize… to make your own copy "
+                        + "of any theme."
                 }
             ]
         }
