@@ -285,6 +285,34 @@ public class ThemeModelTests
     }
 
     [Test]
+    public async Task TheSyntaxHighlighter_KeepsATokensAlpha()
+    {
+        ThemeRegistry registry = new();
+        Theme theme = registry.RegisterCustom("see-through", "See-through", ThemeVariant.Dark,
+            new Dictionary<string, Color> { ["SyntaxComment"] = Color.Parse("#806A9955") }, ThemeSource.User);
+        Color? comment = null;
+        await HeadlessSession.RunOnUi(() =>
+        {
+            registry.Install(Application.Current!);
+            try
+            {
+                Views.RuleWorkbench.WorkbenchYamlHighlighting.ClearCache();
+                AvaloniaEdit.Highlighting.IHighlightingDefinition def = Views.RuleWorkbench.WorkbenchYamlHighlighting.DefinitionFor(theme.Variant);
+                comment = (def.GetNamedColor("Comment").Foreground.GetBrush(null) as ISolidColorBrush)?.Color;
+            }
+            finally
+            {
+                Views.RuleWorkbench.WorkbenchYamlHighlighting.ClearCache();
+                registry.Uninstall(Application.Current!);
+            }
+
+            return Task.CompletedTask;
+        });
+
+        await Assert.That(comment).IsEqualTo(Color.Parse("#806A9955"));
+    }
+
+    [Test]
     public async Task TheCatalogue_DescribesTheTokensTheEditorShows()
     {
         ThemeTokenInfo? shell = ThemeTokenCatalog.Find("ShellBg");

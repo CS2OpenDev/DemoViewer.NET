@@ -156,15 +156,14 @@ internal static class WorkbenchYamlHighlighting
         return sb.ToString();
     }
 
-    // Resolves the Syntax<Name> brush token for the variant → an "#RRGGBB" string; falls back to the design-time
-    // value when the app resources aren't available (tests / design surface).
+    // Resolves the Syntax<Name> brush token for the variant → "#RRGGBB", or "#AARRGGBB" when the theme gives it
+    // an alpha; falls back to the design-time value when the app resources aren't available (tests / design surface).
     private static string ResolveRole(string name, ThemeVariant variant, string fallback)
     {
         if (Application.Current?.TryGetResource("Syntax" + name, variant, out object? o) == true
             && o is ISolidColorBrush b)
         {
-            Color c = b.Color;
-            return $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+            return Theming.ThemeJson.FormatColor(b.Color);
         }
 
         return fallback;
