@@ -10,7 +10,7 @@ and the [CS2DemoKit](https://github.com/CS2OpenDev/CS2DemoKit) parsing and analy
 ## Install
 
 Grab the installer for your platform from the [latest
-release](https://github.com/sid2934/DemoViewer.NET/releases/latest):
+release](https://github.com/CS2OpenDev/DemoViewer.NET/releases/latest):
 
 | Platform | File |
 |---|---|
@@ -79,7 +79,7 @@ from `CS2DemoKit.Analysis` and are kept byte-identical to the package's copies; 
 ## Contributing
 
 Bugs and feature requests live in [GitHub
-issues](https://github.com/sid2934/DemoViewer.NET/issues). Note that the parser and analysis engine
+issues](https://github.com/CS2OpenDev/DemoViewer.NET/issues). Note that the parser and analysis engine
 are a separate project. Anything about demo parsing, entity decoding, stat correctness or the
 rules engine belongs in [CS2DemoKit's
 issues](https://github.com/CS2OpenDev/CS2DemoKit/issues) instead, since that is where the fix would

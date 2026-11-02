@@ -21,7 +21,7 @@ public sealed partial class GitHubReleaseNotesService : IReleaseNotesService
     // updater's URL is: notes are rendered into trusted UI surfaces, and a settable endpoint
     // would let ambient config point them somewhere attacker-controlled. The extension feed's
     // default URL (ExtensionFeedSource) is built from the same value.
-    internal const string Repo = "sid2934/DemoViewer.NET";
+    internal const string Repo = "CS2OpenDev/DemoViewer.NET";
 
     private static readonly HttpClient _http = CreateClient();
 

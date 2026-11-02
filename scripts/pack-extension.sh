@@ -348,7 +348,7 @@ printf '%s  %s\n' "$SHA256" "$ZIP_NAME" > "$ZIP_PATH.sha256"
 echo "[pack-extension] zip: $ZIP_PATH ($SIZE bytes, sha256 $SHA256)"
 
 # ── Feed entry fragment ───────────────────────────────────────────────────
-REPO_URL="${DV_REPO_URL:-https://github.com/sid2934/DemoViewer.NET}"
+REPO_URL="${DV_REPO_URL:-https://github.com/CS2OpenDev/DemoViewer.NET}"
 RELEASE_TAG="${ID}-v${MANIFEST_VERSION}"
 ASSET_URL="${REPO_URL}/releases/download/${RELEASE_TAG}/${ZIP_NAME}"
 PUBLISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"

@@ -6,7 +6,7 @@
 # tag with dry_run=false. The tag must equal the computed version (create it with
 # `dotnet nbgv tag -p src/Sdk/DemoViewer.NET.Extensions.Sdk` on main, after scripts/ship-public-api.sh).
 # Every other trigger, any dispatch from a branch included, is a dry run. nuget.org auth is a
-# trusted-publishing policy (owner sid2934, repo sid2934/DemoViewer.NET, workflow release-sdk.yml):
+# trusted-publishing policy (owner sid2934, repo CS2OpenDev/DemoViewer.NET, workflow release-sdk.yml):
 # the login step exchanges this workflow's OIDC token for a short-lived key, with no stored secret.
 # Same arrangement as CS2DemoKit's nuget.yml.
 #

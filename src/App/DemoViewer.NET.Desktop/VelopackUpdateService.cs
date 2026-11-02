@@ -32,7 +32,7 @@ internal sealed class VelopackUpdateService : IUpdateService
     ///         directly on the public source repo.
     ///     </para>
     /// </summary>
-    private const string RepoUrl = "https://github.com/sid2934/DemoViewer.NET";
+    private const string RepoUrl = "https://github.com/CS2OpenDev/DemoViewer.NET";
 
     /// <summary>
     ///     Appended to the OS channel (<c>win</c>, <c>osx</c>, <c>linux</c>) to name the beta feed, so a
