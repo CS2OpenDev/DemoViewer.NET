@@ -321,11 +321,11 @@ public sealed class ExtensionUpdateService
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             // The rolling release does not exist until the first extension release creates it, so a 404 is
-            // "nothing published", not a fault to show the user.
+            // not a fault to show the user. It is not "up to date" either: a wrong feed address answers 404 too.
             AppLog.ExtensionFeedNotPublished(Log, packId, url);
             SemVersion? staged = PendingVersion(packId);
             return new ExtensionUpdateState(packId, manifest.Name, manifest.Version, status.Source,
-                staged is null ? ExtensionUpdateStatus.UpToDate : ExtensionUpdateStatus.PendingRestart, Pending: staged,
+                staged is null ? ExtensionUpdateStatus.NotPublished : ExtensionUpdateStatus.PendingRestart, Pending: staged,
                 CheckedAt: DateTimeOffset.UtcNow);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)

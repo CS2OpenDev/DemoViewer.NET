@@ -168,6 +168,121 @@ public class ThemeEditorTests
         });
     }
 
+    // A picker drag is many edits but one undo step; undoing it, or editing a colour back by hand, leaves
+    // nothing to save.
+    [Test]
+    public async Task Dirty_FollowsTheValues_NotTheNumberOfEdits()
+    {
+        using TempThemesFolder folder = new();
+        folder.Write("partial.json", Partial);
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (ThemeEditorViewModel vm, _, _) = Open("partial");
+            using (vm)
+            {
+                ThemeTokenRowViewModel cardBg = vm.Sections.SelectMany(s => s.Rows).Single(r => r.Key == "CardBg");
+                cardBg.Hex = "#111111"; // a drag: several values inside a second
+                cardBg.Hex = "#222222";
+                cardBg.Hex = "#333333";
+
+                await Assert.That(vm.IsDirty).IsTrue();
+                vm.UndoCommand.Execute(null);
+                await Assert.That(cardBg.IsMissing).IsTrue();
+                await Assert.That(vm.CanUndo).IsFalse().Because("the drag was one undo step");
+                await Assert.That(vm.IsDirty).IsFalse().Because("the theme matches its file again");
+
+                ThemeTokenRowViewModel shell = vm.Sections.SelectMany(s => s.Rows).Single(r => r.Key == "ShellBg");
+                shell.Hex = "#FFFFFF";
+                await Assert.That(vm.IsDirty).IsTrue();
+                shell.Hex = "#010203";
+                await Assert.That(vm.IsDirty).IsFalse().Because("the colour is back to the saved one");
+            }
+        });
+    }
+
+    // Discard has to put the rows and the preview back, not just the name and base: Use theme and a
+    // Reveal of the same theme stay on it after the prompt, and a later Save would write the discarded colours.
+    [Test]
+    public async Task Discard_PutsTheSavedColoursBack_WhenTheEditorStaysOnTheTheme()
+    {
+        using TempThemesFolder folder = new();
+        folder.Write("partial.json", Partial);
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (ThemeEditorViewModel vm, ThemeRegistry registry, FakeHost host) = Open("partial");
+            using (vm)
+            {
+                ThemeTokenRowViewModel Shell() => vm.Sections.SelectMany(s => s.Rows).Single(r => r.Key == "ShellBg");
+
+                Shell().Hex = "#ABCDEF";
+                ThemeVariant? edited = vm.PreviewVariant;
+                vm.UseThemeCommand.Execute(null);
+                await Assert.That(vm.Prompt).IsEqualTo(ThemeEditorPrompt.UnsavedChanges);
+                vm.DiscardAndContinueCommand.Execute(null);
+                await Assert.That(host.Used).IsEquivalentTo(["partial"]);
+                await Assert.That(Shell().Value.Color).IsEqualTo(Color.Parse("#010203"));
+                await Assert.That(vm.CurrentPalette().Colors["ShellBg"]).IsEqualTo(Color.Parse("#010203"));
+                await Assert.That(vm.PreviewVariant).IsNotEqualTo(edited).Because("the preview restarts from the saved colours");
+                await Assert.That(registry.PreviewVariant).IsEqualTo(vm.PreviewVariant);
+                await Assert.That(vm.IsDirty).IsFalse();
+
+                Shell().Hex = "#FEDCBA";
+                vm.Reveal("partial", missingOnly: true);
+                await Assert.That(vm.Prompt).IsEqualTo(ThemeEditorPrompt.UnsavedChanges);
+                vm.DiscardAndContinueCommand.Execute(null);
+                await Assert.That(vm.MissingOnly).IsTrue();
+                await Assert.That(Shell().Value.Color).IsEqualTo(Color.Parse("#010203"));
+
+                vm.Name = "Partial renamed";
+                vm.SaveCommand.Execute(null);
+                await Assert.That(registry.PaletteFor("partial")!.Colors["ShellBg"]).IsEqualTo(Color.Parse("#010203"))
+                    .Because("the next save writes the file as it was, not the discarded edit");
+            }
+        });
+    }
+
+    // The editor's own prompt holds the user closing the window, never the main window closing it.
+    [Test]
+    public async Task ClosingTheOwner_DoesNotWaitForTheUnsavedPrompt_AndEndsThePreview()
+    {
+        using TempThemesFolder folder = new();
+        string file = folder.Write("partial.json", Partial);
+        string onDisk = await File.ReadAllTextAsync(file);
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (ThemeEditorViewModel vm, ThemeRegistry registry, FakeHost host) = Open("partial");
+            Window owner = new() { Width = 400, Height = 300 };
+            owner.Show();
+            ThemeEditorWindow editor = new() { DataContext = vm };
+            bool ownerClosed = false;
+            bool editorClosed = false;
+            owner.Closed += (_, _) => ownerClosed = true;
+            editor.Closed += (_, _) =>
+            {
+                editorClosed = true;
+                vm.Dispose(); // as DesktopWindowService does
+            };
+            editor.Show(owner);
+            Dispatcher.UIThread.RunJobs();
+
+            vm.ApplyToApp = true;
+            vm.Sections.SelectMany(s => s.Rows).Single(r => r.Key == "ShellBg").Hex = "#ABCDEF";
+
+            editor.Close();
+            Dispatcher.UIThread.RunJobs();
+            await Assert.That(editorClosed).IsFalse().Because("the user's own close waits for the prompt");
+            await Assert.That(vm.Prompt).IsEqualTo(ThemeEditorPrompt.UnsavedChanges);
+
+            owner.Close();
+            Dispatcher.UIThread.RunJobs();
+            await Assert.That(ownerClosed).IsTrue();
+            await Assert.That(editorClosed).IsTrue();
+            await Assert.That(registry.PreviewVariant).IsNull();
+            await Assert.That(host.AppVariant).IsNull().Because("the app goes back to its theme");
+            await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(onDisk).Because("the edits are discarded");
+        });
+    }
+
     [Test]
     public async Task LivePreview_FollowsEdits_AndRevertsOnCancel()
     {
