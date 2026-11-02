@@ -88,6 +88,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     private readonly ThemeRegistry _registry;
     private readonly UserThemeStore _store;
     private readonly List<ThemeTokenRowViewModel> _rows = [];
+    private readonly Dictionary<ThemeTokenRowViewModel, (ThemeTokenValue Value, bool IsSet)> _savedRows = [];
     private readonly Stack<(ThemeTokenRowViewModel Row, ThemeTokenValue Old, DateTime At)> _undo = new();
     private Action? _afterPrompt;
     private bool _closing;
@@ -176,6 +177,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
 
     public bool HasSelectedRow => SelectedRow is not null;
 
+    /// <summary>How many tokens differ from the saved theme.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDirty))]
     private int _editCount;
@@ -228,7 +230,19 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     public bool CanUseTheme => !IsActive;
 
     public string DeletePromptText =>
-        $"Delete \"{Theme.DisplayName}\"? This removes {Path.GetFileName(Theme.FilePath ?? "")} from your themes folder and can't be undone.";
+        $"Delete \"{Theme.DisplayName}\"? This removes {DeletedFileNames()} from your themes folder and can't be undone.";
+
+    // Delete takes every file with the theme's id, so the prompt names them all.
+    private string DeletedFileNames()
+    {
+        List<string> names = [.. UserThemeStore.FilesFor(Theme.Id).Select(f => Path.GetFileName(f))];
+        if (names.Count == 0)
+        {
+            names.Add(Path.GetFileName(Theme.FilePath ?? ""));
+        }
+
+        return names.Count == 1 ? names[0] : string.Join(", ", names[..^1]) + " and " + names[^1];
+    }
 
     public string UnsavedPromptText => $"You have unsaved changes to \"{_savedName}\".";
 
@@ -285,6 +299,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
 
         ThemePalette basePalette = BuiltInThemes.BaseFor(palette.BaseVariant);
         _rows.Clear();
+        _savedRows.Clear();
         Sections.Clear();
         foreach (ThemeSection section in ThemeExport.Sections)
         {
@@ -295,6 +310,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
                     ThemeTokenValue.From(basePalette, token), OnRowChanged);
                 rows.Add(row);
                 _rows.Add(row);
+                _savedRows[row] = (row.Value, row.IsSet);
             }
 
             Sections.Add(new ThemeEditorSection(section.Title, rows));
@@ -315,7 +331,6 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
         UpdateMissing();
         Refilter();
         StartPreview();
-        OnPropertyChanged(nameof(DeletePromptText));
     }
 
     private void StartPreview()
@@ -380,8 +395,9 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
             }
 
             CanUndo = true;
-            EditCount++;
         }
+
+        CountEdits();
 
         PushPreview(row);
         UpdateMissing();
@@ -425,6 +441,13 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
         _repaint.Stop();
         _repaint.Start();
     }
+
+    // Dirty is a comparison with the saved theme, not a tally of edits: a picker drag is many edits and one
+    // undo step, and a colour edited back by hand is no change at all. A token the file does not set follows
+    // its base, which the base comparison in IsDirty covers.
+    private void CountEdits() =>
+        EditCount = _rows.Count(r => _savedRows.TryGetValue(r, out var saved)
+                                     && (r.IsSet != saved.IsSet || (r.IsSet && !r.Value.Equals(saved.Value))));
 
     private void UpdateMissing() => MissingCount = CanEdit ? _rows.Count(r => r.IsMissing) : 0;
 
@@ -564,7 +587,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
         PushPreview(step.Row);
         UpdateMissing();
         SelectedRow = step.Row;
-        EditCount = Math.Max(0, EditCount - 1);
+        CountEdits();
         CanUndo = _undo.Count > 0;
     }
 
@@ -649,7 +672,11 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void Delete() => Prompt = ThemeEditorPrompt.ConfirmDelete;
+    private void Delete()
+    {
+        OnPropertyChanged(nameof(DeletePromptText));
+        Prompt = ThemeEditorPrompt.ConfirmDelete;
+    }
 
     [RelayCommand]
     private void ConfirmDelete()
@@ -753,18 +780,9 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void DiscardAndContinue()
     {
-        EditCount = 0;
-        _restoring = true;
-        try
-        {
-            Name = _savedName;
-            SelectedBase = _savedBase == ThemeVariant.Light ? "Light" : "Dark";
-        }
-        finally
-        {
-            _restoring = false;
-        }
-
+        // Back to the theme as saved, rows and preview included: Use theme, or a Reveal of the same theme,
+        // stays on it after the prompt, and a later Save must not write what was discarded.
+        Load(_registry.Find(Theme.Id) ?? Theme);
         Continue();
     }
 
