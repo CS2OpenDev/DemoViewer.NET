@@ -29,6 +29,19 @@ prompt.
 The other files on a release (`.nupkg`, `RELEASES*`, `releases.*.json`) are what the updater
 reads. You never need to download those by hand.
 
+### Verifying a download
+
+Releases after v0.10.0 list a SHA-256 for every file in `SHA256SUMS`, and every file carries a
+build provenance attestation, which proves it was built by this repository's release workflow and
+not changed since. With the [GitHub CLI](https://cli.github.com/):
+
+```
+gh attestation verify DemoViewer.NET-win-Setup.exe --repo CS2OpenDev/DemoViewer.NET
+```
+
+Without it, compare the file's hash against `SHA256SUMS` (`sha256sum`, or `Get-FileHash` in
+PowerShell).
+
 ## What it does
 
 **Match Overview and Stats.** Open a demo and get the scoreboard: per-player kills, deaths,

@@ -183,6 +183,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      id-token: write       # attest-build-provenance signs through Sigstore with this job's OIDC identity
+      attestations: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       EXT_ID: ${{ needs.build-and-pack.outputs.id }}
@@ -253,6 +255,7 @@ jobs:
       # Idempotent against a re-run: the release may already exist from an earlier attempt that
       # failed after this step (the url check below, or the feed publish step).
       - name: Publish the per-version release and verify its asset URL
+        id: release
         run: |
           set -euo pipefail
           OUT="artifacts/extension-release/$EXT_ID"
@@ -281,6 +284,14 @@ jobs:
             echo "::error::feed entry url '$EXPECTED_URL' does not match the uploaded asset's actual url '$ACTUAL_URL'" >&2
             exit 1
           fi
+          echo "zip=$OUT/$ZIP" >> "$GITHUB_OUTPUT"
+
+      # The zip the feed points at. extension.sig inside it is what the app checks; this is for anyone
+      # checking the download itself: `gh attestation verify <zip> --repo CS2OpenDev/DemoViewer.NET`.
+      - name: Attest the extension zip
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ steps.release.outputs.zip }}
 
       - name: Publish the rolling feed
         env:
