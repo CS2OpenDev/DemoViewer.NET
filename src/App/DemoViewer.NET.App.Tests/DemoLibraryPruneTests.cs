@@ -5,6 +5,7 @@ using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
+using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -109,9 +110,10 @@ public sealed class DemoLibraryPruneTests : IDisposable
             using DemoLibraryService svc = Library(SeedCache(dir, [demos]));
             await svc.RescanAsync();
             List<string> before = [.. svc.Entries.Select(e => e.FilePath)];
-            File.Delete(files[1]);
-            File.Delete(files[2]);
-            File.Delete(files[4]);
+            // Written moments ago, so Windows Defender may still be scanning them.
+            TestFiles.Delete(files[1]);
+            TestFiles.Delete(files[2]);
+            TestFiles.Delete(files[4]);
             List<System.Collections.Specialized.NotifyCollectionChangedAction> changes = [];
             svc.Entries.CollectionChanged += (_, e) => changes.Add(e.Action);
             await svc.RescanAsync();
@@ -165,9 +167,10 @@ public sealed class DemoLibraryPruneTests : IDisposable
             // The newer scan must start only once the older placement is parked, or it cancels the older one
             // before the hook and takes the first call itself.
             await firstReached.Task.WaitAsync(bound);
-            File.Delete(files[1]);
-            File.Delete(files[2]);
-            File.Delete(files[4]);
+            // Written moments ago, so Windows Defender may still be scanning them.
+            TestFiles.Delete(files[1]);
+            TestFiles.Delete(files[2]);
+            TestFiles.Delete(files[4]);
             await svc.RescanAsync();
             await svc.CopiesResolved.WaitAsync(bound);
 
