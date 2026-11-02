@@ -50,10 +50,13 @@ public class ThemeSampleFileTests
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, dir);
         try
         {
-            ThemeRegistry registry = new();
-            registry.Reload();
             await HeadlessSession.RunOnUi(() =>
             {
+                // Built here, not before RunOnUi: Reload creates the brushes, and Avalonia binds a brush to the
+                // thread that made it, so reading one's Color on the UI thread throws whenever the test resumed
+                // on another thread.
+                ThemeRegistry registry = new();
+                registry.Reload();
                 registry.Install(Application.Current!);
                 try
                 {
