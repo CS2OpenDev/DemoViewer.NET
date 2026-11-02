@@ -10,13 +10,18 @@
 # macOS. So run this on each platform (that's why CI is a tri-OS matrix). The RID
 # must match the host OS family; a mismatch is rejected up front.
 #
-# Signing/notarization is DEFERRED: unset identities = unsigned. Flip it on later via
-# these env vars (empty = unsigned, no re-architecture):
-#   DV_SIGN_APP_IDENTITY      subject name of the app-signing cert     (--signAppIdentity)
-#   DV_SIGN_INSTALL_IDENTITY  subject name of the installer cert       (--signInstallIdentity)
-#   DV_SIGN_ENTITLEMENTS      entitlements plist for hardened runtime  (--signEntitlements)
-#   DV_NOTARY_PROFILE         notarytool credential profile name       (--notaryProfile)
-#   DV_VPK_EXTRA_ARGS         escape hatch for anything not modeled (e.g. Windows --signParams)
+# Signing. Each platform reads only its own variables, and one set for another platform is an error,
+# so a secret can never reach the wrong vpk (Windows vpk rejects the macOS flags outright). Unset
+# means unsigned.
+#   macOS (osx-arm64), all of the first three or none:
+#     DV_MAC_SIGN_APP_IDENTITY      "Developer ID Application: ..."   (--signAppIdentity)
+#     DV_MAC_SIGN_INSTALL_IDENTITY  "Developer ID Installer: ..."     (--signInstallIdentity)
+#     DV_MAC_NOTARY_PROFILE         notarytool keychain profile name   (--notaryProfile)
+#     DV_MAC_KEYCHAIN               keychain holding both identities and the profile (--keychain)
+#     DV_MAC_SIGN_ENTITLEMENTS      entitlements plist (--signEntitlements); vpk's .NET default if unset
+#   Windows: none yet; Windows signing is deferred (docs/code-signing/plan.md).
+#   DV_REQUIRE_SIGNING=1          fail instead of packing unsigned. release.yml sets it wherever it signs.
+#   DV_VPK_EXTRA_ARGS             escape hatch for anything not modeled
 #
 # Delta updates: vpk diffs against the *.nupkg files already in --outputDir, so keep a
 # release dir warm (download the previous channel release into it in CI) to emit deltas.
@@ -93,6 +98,52 @@ if [ "${DV_BETA:-0}" = "1" ] || [[ "$VERSION" =~ -beta[0-9]+ ]]; then
     echo "beta build: channel $CHANNEL"
 fi
 
+# Signing inputs. The old shared names reached every platform's vpk; refuse them rather than ignore
+# them, so a leftover secret cannot silently produce an unsigned build.
+for old in DV_SIGN_APP_IDENTITY DV_SIGN_INSTALL_IDENTITY DV_SIGN_ENTITLEMENTS DV_NOTARY_PROFILE; do
+    if [ -n "${!old:-}" ]; then
+        echo "ERROR: $old was replaced by the DV_MAC_* variables (see the header of this script)." >&2
+        exit 2
+    fi
+done
+
+SIGN_ARGS=()
+MAC_VARS=(DV_MAC_SIGN_APP_IDENTITY DV_MAC_SIGN_INSTALL_IDENTITY DV_MAC_NOTARY_PROFILE DV_MAC_KEYCHAIN DV_MAC_SIGN_ENTITLEMENTS)
+SIGNED=0
+if [ "$RID" = "osx-arm64" ]; then
+    have=0
+    for v in DV_MAC_SIGN_APP_IDENTITY DV_MAC_SIGN_INSTALL_IDENTITY DV_MAC_NOTARY_PROFILE; do
+        if [ -n "${!v:-}" ]; then have=$((have + 1)); fi
+    done
+    # Signed but not notarized is no better than unsigned to Gatekeeper, so it is all three or none.
+    if [ "$have" -ne 0 ] && [ "$have" -ne 3 ]; then
+        echo "ERROR: macOS signing needs DV_MAC_SIGN_APP_IDENTITY, DV_MAC_SIGN_INSTALL_IDENTITY and" >&2
+        echo "       DV_MAC_NOTARY_PROFILE together; only $have of the 3 are set." >&2
+        exit 2
+    fi
+    if [ "$have" -eq 3 ]; then
+        SIGN_ARGS+=(--signAppIdentity "$DV_MAC_SIGN_APP_IDENTITY")
+        SIGN_ARGS+=(--signInstallIdentity "$DV_MAC_SIGN_INSTALL_IDENTITY")
+        SIGN_ARGS+=(--notaryProfile "$DV_MAC_NOTARY_PROFILE")
+        if [ -n "${DV_MAC_KEYCHAIN:-}" ]; then SIGN_ARGS+=(--keychain "$DV_MAC_KEYCHAIN"); fi
+        if [ -n "${DV_MAC_SIGN_ENTITLEMENTS:-}" ]; then SIGN_ARGS+=(--signEntitlements "$DV_MAC_SIGN_ENTITLEMENTS"); fi
+        SIGNED=1
+    fi
+else
+    for v in "${MAC_VARS[@]}"; do
+        if [ -n "${!v:-}" ]; then
+            echo "ERROR: $v is a macOS signing input, but this pack is $RID." >&2
+            exit 2
+        fi
+    done
+fi
+
+if [ "${DV_REQUIRE_SIGNING:-0}" = "1" ] && [ "$SIGNED" != "1" ]; then
+    echo "ERROR: DV_REQUIRE_SIGNING=1, but no signing inputs are set for $RID." >&2
+    exit 2
+fi
+echo "signing: $([ "$SIGNED" = 1 ] && echo "signed and notarized ($RID)" || echo "unsigned")"
+
 # 1. Self-contained publish (+ asset/native layout + guards).
 ./scripts/publish.sh "$RID"
 
@@ -138,11 +189,11 @@ args=(
     --runtime "$RID"
     --outputDir "$REL"
 )
-[ -n "$CHANNEL" ]                      && args+=(--channel             "$CHANNEL")
-[ -n "${DV_SIGN_APP_IDENTITY:-}" ]     && args+=(--signAppIdentity     "$DV_SIGN_APP_IDENTITY")
-[ -n "${DV_SIGN_INSTALL_IDENTITY:-}" ] && args+=(--signInstallIdentity "$DV_SIGN_INSTALL_IDENTITY")
-[ -n "${DV_SIGN_ENTITLEMENTS:-}" ]     && args+=(--signEntitlements    "$DV_SIGN_ENTITLEMENTS")
-[ -n "${DV_NOTARY_PROFILE:-}" ]        && args+=(--notaryProfile       "$DV_NOTARY_PROFILE")
+[ -n "$CHANNEL" ] && args+=(--channel "$CHANNEL")
+# The ${x[@]+...} form: macOS runs this under Apple's bash 3.2, where an empty "${x[@]}" is an
+# unbound-variable error under set -u.
+args+=(${SIGN_ARGS[@]+"${SIGN_ARGS[@]}"})
+
 # shellcheck disable=SC2206
 [ -n "${DV_VPK_EXTRA_ARGS:-}" ] && args+=($DV_VPK_EXTRA_ARGS)
 

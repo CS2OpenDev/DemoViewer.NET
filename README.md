@@ -22,9 +22,10 @@ Each installer is self-contained: it carries the .NET runtime and the map assets
 is everything. The app updates itself from this repository's releases; you are told about a new
 version and it downloads only when you say so.
 
-Builds are currently **unsigned**, so the first launch needs one extra step: on macOS, right-click
-the app and choose **Open**; on Windows, click **More info → Run anyway** at the SmartScreen
-prompt.
+macOS releases after v0.10.0 are signed with a Developer ID and notarized by Apple, so they open
+normally. Windows builds are **unsigned**, so the first launch needs one extra step: click **More
+info → Run anyway** at the SmartScreen prompt. (v0.10.0 and earlier are unsigned on macOS too: open
+**System Settings → Privacy & Security** and choose **Open Anyway**.)
 
 The other files on a release (`.nupkg`, `RELEASES*`, `releases.*.json`) are what the updater
 reads. You never need to download those by hand.
