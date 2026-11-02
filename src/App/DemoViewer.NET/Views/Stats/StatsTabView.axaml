@@ -122,6 +122,7 @@
                         <Button Classes="icon-btn"
                                 IsVisible="{Binding CanReportErrors}"
                                 Command="{Binding OpenErrorReportCommand}"
+                                controls:TutorialAnchor.Target="ReportError"
                                 Padding="7 5" CornerRadius="6"
                                 Foreground="{DynamicResource TextMid}"
                                 VerticalAlignment="Center"

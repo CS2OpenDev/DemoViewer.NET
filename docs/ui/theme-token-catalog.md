@@ -17,7 +17,12 @@ colour) inherits your chosen base.
   "tokens": {
     "ShellBg":     "#0A0008",       // any subset of the token namespace below
     "AccentAmber": "#FF4FD8",       // ARGB or RGB hex: "#RRGGBB" or "#AARRGGBB"
-    "TextBright":  "#FFC8F0"
+    "TextBright":  "#FFC8F0",
+    "LibraryCardScrim": {           // a gradient token is an object: two points and two or more stops
+      "start": "0%,0%",
+      "end": "0%,100%",
+      "stops": [ { "offset": 0, "color": "#C805050F" }, { "offset": 1, "color": "#EE05050F" } ]
+    }
     // …omitted tokens fall back to `base`
   }
 }
@@ -25,12 +30,23 @@ colour) inherits your chosen base.
 
 - **Safe**: parsed to `Color`/`SolidColorBrush` in code: no object instantiation, no code execution. Unlike
   runtime AXAML, an untrusted drop-in can never run code.
-- **Degrades gracefully**: an unparseable file is skipped; a single malformed token hex is dropped while the
-  rest of the file loads; a missing `base` defaults to `dark`; a missing `name` defaults to the `id`.
+- **Degrades gracefully**: an unparseable file is skipped, and Settings and the Theme Customization window list
+  it with the reason; a single malformed token value is dropped while the rest of the file loads; a missing
+  `base` defaults to `dark`; a missing `name` defaults to the `id`.
+- **Missing tokens fall back to the base.** A token the file leaves out (or sets to something unreadable) shows
+  the base palette's built-in value, gradients included. The app counts them: if the selected theme is missing
+  any, a notice offers to open Theme Customization filtered to just those, where "Fill missing from base" writes
+  them in. A token added to the app later shows up as missing in older theme files the same way.
+- **Unknown keys are kept, not applied.** A key this version does not know (a renamed or future token) is
+  ignored for drawing, listed in the editor, and written back unchanged when the theme is saved.
 - **Alpha is part of colour identity**: `#FFC107` and `#FFFFC107` are distinct. Many canvas/overlay tokens use
   an alpha channel deliberately (e.g. `Pb2dOverlayBg` `#CC15181C`).
 
 ## Adding a theme
+
+**In the app.** Settings > Theme > Customize opens the Theme Customization window. Customizing a built-in
+writes a copy of it, every token filled in, into the themes folder under a name you choose; edit that copy with
+a live preview, then save. Built-ins themselves can never be edited or replaced.
 
 **User drop-in.** Drop a `<id>.json` into the themes folder and click **Reload themes** in Settings (no
 restart):
@@ -40,12 +56,25 @@ restart):
 - Linux: `$XDG_CONFIG_HOME/DemoViewer.NET/themes/` (default `~/.config/DemoViewer.NET/themes/`)
 
 Then set `"Theme": "<id>"` in `settings.json` (or pick it in Settings). A user id that collides with a
-built-in id is ignored (the built-in is protected).
+built-in id is skipped and reported (the built-in is protected).
 
-**Built-in.** Add a `NN-<id>.json` under `src/App/DemoViewer.NET/Themes/` (it is an `EmbeddedResource`); the
-`ThemeRegistry` loads it at startup via the same parser. The `NN-` numeric prefix orders it in the picker
+**Built-in.** Dark and Light are the two dictionaries in `Styles/DarkPalette.axaml`. `BuiltInThemes` reads that
+same file as XML (it is embedded a second time for this), so the palette has one source. Other built-ins are a
+`NN-<id>.json` under `src/App/DemoViewer.NET/Themes/` (an `EmbeddedResource`) that sets only what differs from
+its base; `BuiltInThemes` fills it out to every token. The `NN-` numeric prefix orders it in the picker
 (built-ins load sorted by filename); the `id`/`name` come from the JSON, not the filename.
 `01-high-contrast.json` and `02-egirl.json` are worked examples.
+
+**Complete examples.** `samples/Themes/` has all four built-ins written out as drop-ins that set every token,
+with comments (ids `dark-json`, `light-json`, `high-contrast-json` and `egirl-json`). Start a theme from one of
+those. They are generated, not hand-edited:
+
+```sh
+dotnet run --project src/App/DemoViewer.NET.UiCapture -- export-themes   # rewrites samples/Themes
+```
+
+`ThemeSampleFileTests` fails when a sample differs from that export, and checks each one resolves exactly like
+its built-in.
 
 ## What a theme can and cannot retint
 

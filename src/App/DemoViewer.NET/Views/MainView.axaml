@@ -222,6 +222,56 @@
                 </DockPanel>
             </Border>
 
+            <!-- The selected theme is missing colours. They already fall back to the base, so this only
+             offers the editor; Dismiss keeps it away until the set of missing colours changes. -->
+            <Border DockPanel.Dock="Top"
+                    IsVisible="{Binding ThemeWarning.IsVisible, FallbackValue=False}"
+                    Background="{DynamicResource CardBg}"
+                    BorderBrush="{DynamicResource AccentCaution}"
+                    BorderThickness="0,0,0,2"
+                    Padding="12,8">
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+                        <Button Content="Fix in Theme Customization" Classes="primary"
+                                Command="{Binding ThemeWarning.OpenCommand, FallbackValue={x:Null}}" />
+                        <Button Content="Dismiss"
+                                Command="{Binding ThemeWarning.DismissCommand, FallbackValue={x:Null}}" />
+                    </StackPanel>
+                    <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                               Text="{Binding ThemeWarning.Message, FallbackValue=''}" />
+                </DockPanel>
+            </Border>
+
+            <!-- Leftover CS2 install changes from a crashed Live Sync or Reels session. Here and not on the
+             Live Sync chip, which most profiles never see. No Dismiss while there is something to restore. -->
+            <Border DockPanel.Dock="Top"
+                    IsVisible="{Binding Cs2InstallRecovery.IsVisible, FallbackValue=False}"
+                    Background="{DynamicResource CardBg}"
+                    BorderBrush="{DynamicResource AccentCaution}"
+                    BorderThickness="0,0,0,2"
+                    Padding="12,8">
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+                        <Button Content="Restore my CS2 install" Classes="primary"
+                                IsVisible="{Binding Cs2InstallRecovery.NeedsRestore, FallbackValue=False}"
+                                Command="{Binding Cs2InstallRecovery.RestoreCommand, FallbackValue={x:Null}}" />
+                        <Button Content="OK"
+                                IsVisible="{Binding Cs2InstallRecovery.CanDismiss, FallbackValue=False}"
+                                Command="{Binding Cs2InstallRecovery.DismissCommand, FallbackValue={x:Null}}" />
+                    </StackPanel>
+                    <StackPanel VerticalAlignment="Center" Spacing="4">
+                        <TextBlock TextWrapping="Wrap"
+                                   Text="{Binding Cs2InstallRecovery.Message, FallbackValue=''}" />
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextMid}"
+                                   IsVisible="{Binding Cs2InstallRecovery.IsRestoring, FallbackValue=False}"
+                                   Text="Restoring your CS2 install…" />
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource AccentError}"
+                                   IsVisible="{Binding Cs2InstallRecovery.FailureText, Converter={x:Static ObjectConverters.IsNotNull}, FallbackValue=False}"
+                                   Text="{Binding Cs2InstallRecovery.FailureText, FallbackValue=''}" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
             <Border DockPanel.Dock="Top"
                     IsVisible="{Binding Update.IsUpdateAvailable}"
                     Background="{DynamicResource CardBg}"

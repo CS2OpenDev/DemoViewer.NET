@@ -28,7 +28,13 @@ public enum ExtensionUpdateStatus
     FeedUnreachable,
 
     /// <summary>The feed was fetched and did not parse, or is for another extension.</summary>
-    FeedInvalid
+    FeedInvalid,
+
+    /// <summary>
+    ///     The feed address answered 404: nothing has been published there yet, or the address is wrong. Not an
+    ///     error to show, but not "up to date" either.
+    /// </summary>
+    NotPublished
 }
 
 /// <summary>

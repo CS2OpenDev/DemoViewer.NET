@@ -22,7 +22,7 @@ layer contract, floors, places and the world-to-screen transform, over SkiaSharp
     <Version>1.0.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="DemoViewer.NET.Extensions.Sdk" Version="2.0.*" />
+    <PackageReference Include="DemoViewer.NET.Extensions.Sdk" Version="2.1.*" />
     <PackageReference Include="Avalonia" Version="12.1.4" />
   </ItemGroup>
 </Project>
@@ -38,7 +38,7 @@ package version, embed the result in the assembly and copy it beside the DLL:
   "version": "{version}",
   "assembly": "MyExtension.dll",
   "entryType": "MyExtension.MyExtension",
-  "requiresHost": "^2.0",
+  "requiresHost": "^2.1",
   "requiresCs2DemoKit": "*"
 }
 ```
@@ -602,10 +602,10 @@ meaning evaluators, rulesets, clip models or `AnalysisRun`, needs `CS2DemoKit.An
 reference that yourself:
 
 ```xml
-<PackageReference Include="CS2DemoKit.Analysis" Version="0.14.0" />
+<PackageReference Include="CS2DemoKit.Analysis" Version="0.14.1" />
 ```
 
-Pin the version the host loads, which is 0.14.0 for a 2.x SDK, and keep it equal to the
+Pin the version the host loads, which is 0.14.1 for this release of the SDK, and keep it equal to the
 `CS2DemoKit.Parser` version in this package's own dependencies: the two are exact-pinned to each other
 before 1.0. Because the app supplies both assemblies at runtime, as the paragraph above says, a different
 pin compiles and then fails to load.
@@ -667,3 +667,18 @@ namespace, these shapes changed:
 - `MapAssets.TryLoad` is `MapAssets.Acquire`, and it hands back an `IMapAssetLease` you dispose. One
   decode is shared by every holder, so the images it carries are the host's: draw them, do not dispose
   them.
+
+2.1 only adds. A 2.0 pack runs on a 2.1 host unchanged, and nothing in it needs a recompile. A pack that
+uses one of the additions below states `^2.1`, since a 2.0 host has no such member. It pairs with
+CS2DemoKit 0.14.1, which is the version a pack that reads `CS2DemoKit.Analysis` types pins. The additions:
+
+- `IExtensionFolder.DirectoryExists` and `IExtensionFolder.SetLastWriteTimeUtc`, both with default bodies.
+  A host or a test double written before them answers no folder and ignores the touch. The second is for a
+  cache that evicts by recency.
+- `ILaneHandle.OwnsLabelPresses`, with a default body that answers `IsEditable`, so a lane that was
+  already editable keeps the behaviour it had.
+- `SceneView.PanesArranged` in the Ui kit, raised once the panes are laid out and again when that layout
+  changes. `SceneView.Fit` does nothing useful before it.
+- `IMapToolContext.CurrentTick`, `IMapToolContext.ScreenToWorld` and `IMapToolContext.Tokens`, with default
+  bodies, `MapToolModifiers.Space` for the hold-to-pan key, and `MapToolAdapter`, which wraps an
+  `IMapTool` as a scene tool. These are in `DemoViewer.NET.Playback2D.Scene`.

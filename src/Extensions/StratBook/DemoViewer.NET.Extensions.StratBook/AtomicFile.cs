@@ -16,6 +16,9 @@ internal static class AtomicFile
 {
     private static readonly UTF8Encoding Utf8 = new(false);
 
+    // Pauses between attempts to replace the target, about 0.4 s in all before the failure surfaces.
+    private static readonly int[] ReplaceRetryDelaysMs = [10, 25, 50, 100, 200];
+
     /// <summary>Replaces <paramref name="path" /> with <paramref name="content" />. Missing folders are created.</summary>
     public static void WriteAllBytes(string path, byte[] content)
     {
@@ -49,7 +52,7 @@ internal static class AtomicFile
                 stream.Flush(flushToDisk: true);
             }
 
-            File.Move(temp, full, overwrite: true);
+            Replace(temp, full);
         }
         finally
         {
@@ -66,4 +69,29 @@ internal static class AtomicFile
             }
         }
     }
+
+    // Windows refuses to rename over a file while another handle on it lacks FILE_SHARE_DELETE, which antivirus
+    // and the search indexer hold for a moment after a write, so that refusal is retried. Elsewhere a rename
+    // over an open file succeeds, so a failure there is not transient and surfaces at once. The host's
+    // AtomicFile does the same and its tests cover the behaviour, since this copy is internal to the pack.
+    private static void Replace(string temp, string target)
+    {
+        for (int attempt = 0;; attempt++)
+        {
+            try
+            {
+                File.Move(temp, target, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (attempt < ReplaceRetryDelaysMs.Length && OperatingSystem.IsWindows() && IsTransientOnWindows(ex))
+            {
+                Thread.Sleep(ReplaceRetryDelaysMs[attempt]);
+            }
+        }
+    }
+
+    // ERROR_ACCESS_DENIED is what a held target produces; ERROR_SHARING_VIOLATION (32) and ERROR_LOCK_VIOLATION
+    // (33) are the same contention reported another way.
+    private static bool IsTransientOnWindows(Exception ex) =>
+        ex is UnauthorizedAccessException || (ex is IOException && (ex.HResult & 0xFFFF) is 32 or 33);
 }

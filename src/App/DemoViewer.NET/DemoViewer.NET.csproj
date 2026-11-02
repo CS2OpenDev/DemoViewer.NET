@@ -12,6 +12,10 @@
          proof that a theme is pure data with no per-file changes. -->
     <ItemGroup>
         <EmbeddedResource Include="Themes\*.json"/>
+        <!-- The palette again as plain XML, so BuiltInThemes can read Dark and Light as data without a
+             running app, and the token catalogue for the descriptions the theme editor shows. -->
+        <EmbeddedResource Include="Styles\DarkPalette.axaml" LogicalName="DemoViewer.NET.Palette.DarkPalette.axaml"/>
+        <EmbeddedResource Include="..\..\..\docs\ui\theme-token-catalog.md" LogicalName="DemoViewer.NET.Palette.theme-token-catalog.md" Link="Theming\theme-token-catalog.md"/>
     </ItemGroup>
 
     <ItemGroup>

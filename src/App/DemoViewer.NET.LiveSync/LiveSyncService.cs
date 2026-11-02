@@ -188,11 +188,13 @@ public sealed class LiveSyncService : ILiveSyncService
             // restores backups, returns the session to Disconnected). This runs exactly when CSVG is
             // cleaning up a dead CS2. Failures land in Faulted per the ILiveSyncService contract,
             // never escape into the flyout command.
+            bool stoppedFaulted = false;
             if (session.State == CsvgSessionState.Faulted)
             {
                 try
                 {
                     await session.StopAsync(CancellationToken.None);
+                    stoppedFaulted = true;
                 }
                 catch (Exception ex)
                 {
@@ -202,11 +204,33 @@ public sealed class LiveSyncService : ILiveSyncService
                 }
             }
 
+            try
+            {
+                // The stop above can leave its CS2 still exiting, and the guard refuses a running CS2.
+                if (stoppedFaulted && !settings.UsesMock())
+                {
+                    await InstallRecovery.WaitForCs2ExitAsync(InstallRecovery.Cs2ExitTimeout, ct);
+                }
+
+                await Task.Run(() => InstallRecovery.EnsureRestoredBeforeLaunch(settings, PostRecoveryLine), ct);
+            }
+            catch (OperationCanceledException)
+            {
+                await StopSessionCoreAsync();
+                SetState(LiveSyncState.Disconnected);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                SetState(new LiveSyncState(LiveSyncStateKind.Faulted, ex.Message));
+                return;
+            }
+
             Subscribe(session);
             ResetSessionSurface();
 
             SetState(new LiveSyncState(LiveSyncStateKind.LaunchingCs2,
-                settings.MockMode || !string.IsNullOrWhiteSpace(settings.ExternalMockServerPath)
+                settings.UsesMock()
                     ? "Launching mock CS2"
                     : "Launching CS2 (up to ~2 min)"));
             try
@@ -341,14 +365,19 @@ public sealed class LiveSyncService : ILiveSyncService
         Task.Run(() => InstallRecovery.Detect(CurrentSettings())?.Any == true, cancellationToken);
 
     /// <inheritdoc />
+    public Task<Cs2InstallProbe> ProbeInstallAsync(CancellationToken cancellationToken = default) =>
+        Task.Run(() => InstallRecovery.Detect(CurrentSettings())?.ToProbe() ?? new Cs2InstallProbe(false, false, false),
+            cancellationToken);
+
+    /// <inheritdoc />
     public Task RestoreInstallAsync(CancellationToken cancellationToken = default) =>
-        Task.Run(() => InstallRecovery.Restore(
-            CurrentSettings(),
-            line => Dispatcher.UIThread.Post(() =>
-            {
-                OutputChannelViewModel channel = _shell.Output.GetOrAddChannel("Live Sync", OutputSeverity.Live);
-                channel.Append(new OutputRow(-1, "CSVG", "INFO", line));
-            })), cancellationToken);
+        Task.Run(() => InstallRecovery.Restore(CurrentSettings(), PostRecoveryLine), cancellationToken);
+
+    private void PostRecoveryLine(string line) => Dispatcher.UIThread.Post(() =>
+    {
+        OutputChannelViewModel channel = _shell.Output.GetOrAddChannel("Live Sync", OutputSeverity.Live);
+        channel.Append(new OutputRow(-1, "CSVG", "INFO", line));
+    });
 
     /// <inheritdoc />
     public Task ResyncAsync(CancellationToken cancellationToken = default)

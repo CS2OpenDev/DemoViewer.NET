@@ -188,21 +188,7 @@ public class StratGoldenCaptureTests
         SceneTime time = source.TimeAt(0);
         Scene2DFrame frame = source.FrameAt(0);
 
-        using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack(_layerIds, null, null,
-            new StratHudDataSource(spec.RoundSeconds), spec.Ink);
-        using CpuSurfaceProvider surfaces = new();
-        using HeadlessSceneRenderer renderer = new(surfaces, compositor)
-        {
-            AutoFitOnFirstMapBounds = true,
-            AdvanceCameras = false
-        };
-        renderer.Levels.SetAuthoritativeFloors(asset.Floors);
-        renderer.Levels.RadarBinder = new MapRadarBinder(asset);
-
-        byte[] png = renderer.RenderPng(frame, in time, size);
-        ViewportTransform camera = renderer.Panes.Panes.Count > 0
-            ? renderer.Panes.Panes[0].Camera.Current
-            : default;
+        (byte[] png, ViewportTransform camera) = Render(spec, asset, frame, time, size, true);
 
         string corpus = CorpusRoot();
         string scenePath = Path.Combine(corpus, "scenes", $"{name}.scene.json");
@@ -262,16 +248,60 @@ public class StratGoldenCaptureTests
         GoldenComparison result = GoldenImageComparer.Compare(expected, png,
             GoldenTolerance.ForLabelledFrame(size.Width, size.Height, labels));
         Console.WriteLine($"[golden] {name} labels={labels} {result.Summary}");
-
-        if (!result.Match)
+        if (result.Match)
         {
-            string artifacts = Path.Combine(AppContext.BaseDirectory, "artifacts");
-            Directory.CreateDirectory(artifacts);
-            await File.WriteAllBytesAsync(Path.Combine(artifacts, $"{name}.actual.png"), png);
+            return;
         }
 
-        await Assert.That(result.FailureReason).IsNull();
-        await Assert.That(result.Match).IsTrue();
+        string artifacts = Path.Combine(AppContext.BaseDirectory, "artifacts");
+        Directory.CreateDirectory(artifacts);
+        await File.WriteAllBytesAsync(Path.Combine(artifacts, $"{name}.actual.png"), png);
+
+        // These goldens pass on Linux inside the label budget, but Windows rasterises the same embedded
+        // Inter differently: 144 pixels of the clock's figures land over the ceiling, up to 157. The label
+        // budget above cannot absorb that because it counts marker labels only, not the HUD's text. So
+        // judge the text under its own ink instead, as the Playback2D golden suites do: nothing outside
+        // the ink may move past the strict tolerance, and the frame with the golden's pixels put back
+        // under the ink has to pass with nothing relaxed.
+        (byte[] silenced, _) = Render(spec, asset, frame, time, size, false);
+        GlyphAttribution attribution = GlyphAttribution.Measure(expected, png, silenced);
+        Console.WriteLine($"[attribution] {attribution.Describe(name, labels)}");
+        await Assert.That(attribution.InkPixels).IsGreaterThan(0L)
+            .Because("silencing the text changed nothing, so the mask is empty and nothing below means anything");
+        await Assert.That(attribution.OverCeilingOutsideInk).IsEqualTo(0L);
+        await Assert.That(attribution.WorstOutsideInk)
+            .IsLessThanOrEqualTo(GoldenTolerance.DefaultPerceptual.MaxChannelDelta);
+
+        GoldenComparison strict = GoldenImageComparer.Compare(expected, attribution.GlyphPatchedPng,
+            GoldenTolerance.DefaultPerceptual);
+        Console.WriteLine($"[attribution] {name} glyph-patched, unrelaxed: {strict.Summary}");
+        await Assert.That(strict.FailureReason).IsNull();
+    }
+
+    private static (byte[] Png, ViewportTransform Camera) Render(StratSceneSpec spec, LoadedMapAsset asset,
+        Scene2DFrame frame, SceneTime time, SKSizeI size, bool drawText)
+    {
+        using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack(_layerIds, null, null,
+            new StratHudDataSource(spec.RoundSeconds), spec.Ink);
+        if (!drawText)
+        {
+            SceneLayerCatalog.SilenceText(compositor);
+        }
+
+        using CpuSurfaceProvider surfaces = new();
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor)
+        {
+            AutoFitOnFirstMapBounds = true,
+            AdvanceCameras = false
+        };
+        renderer.Levels.SetAuthoritativeFloors(asset.Floors);
+        renderer.Levels.RadarBinder = new MapRadarBinder(asset);
+
+        byte[] png = renderer.RenderPng(frame, in time, size);
+        ViewportTransform camera = renderer.Panes.Panes.Count > 0
+            ? renderer.Panes.Panes[0].Camera.Current
+            : default;
+        return (png, camera);
     }
 
     /// <summary>The corpus root: <c>tests/fixtures/playback2d</c> beside <c>DemoViewer.NET.slnx</c>.</summary>

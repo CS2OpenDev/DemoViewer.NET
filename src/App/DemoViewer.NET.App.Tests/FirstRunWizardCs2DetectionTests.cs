@@ -135,7 +135,7 @@ public class FirstRunWizardCs2DetectionTests
 
             await Assert.That(vm.ShowNotFoundNotice).IsTrue();
             await Assert.That(vm.HasSearchedDirectories).IsFalse();
-            await Assert.That(vm.NotFoundMessage).Contains("no Steam installation");
+            await Assert.That(vm.NotFoundMessage).Contains("No Steam installation");
         }
         finally
         {

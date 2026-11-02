@@ -66,7 +66,8 @@ public class HighlightReelDialogViewModelTests
         bool dryRunOnly = false,
         bool demosExist = true,
         bool liveSyncActive = false,
-        Action<Action<AppSettings>>? persist = null)
+        Action<Action<AppSettings>>? persist = null,
+        bool noticeAcknowledged = true)
     {
         job = new FakeReelJob();
         HighlightsSettings d = defaults ?? new HighlightsSettings
@@ -76,7 +77,8 @@ public class HighlightReelDialogViewModelTests
         return new HighlightReelDialogViewModel(
             selections, d, job, persist,
             () => liveSyncActive, dryRunOnly,
-            _ => demosExist);
+            _ => demosExist,
+            isLaunchNoticeAcknowledged: () => noticeAcknowledged);
     }
 
     // (a) two overlapping highlights for the same (demo, player, round) coalesce into ONE clip whose
@@ -424,6 +426,82 @@ public class HighlightReelDialogViewModelTests
         direct.GenerateCommand.Execute(null);
         await Assert.That(direct.ShowInterlockConfirm).IsFalse();
         await Assert.That(job2.StartCount).IsEqualTo(1);
+    }
+
+    // Generate must not launch CS2 until the -insecure / install notice is confirmed. Back leaves nothing
+    // started; Continue starts, and the notice asks again next time unless "don't show again" was ticked.
+    [Test]
+    public async Task LaunchNotice_BlocksGenerate_UntilConfirmed()
+    {
+        bool closed = false;
+        HighlightReelDialogViewModel vm = New([Sel("/d/a.dem", "10", "p", 7, 5000, "A")], out FakeReelJob job,
+            noticeAcknowledged: false);
+        vm.Closed += (_, _) => closed = true;
+
+        vm.GenerateCommand.Execute(null);
+        await Assert.That(vm.ShowLaunchNotice).IsTrue();
+        await Assert.That(job.StartCount).IsEqualTo(0).Because("no CS2 launch before the user has read the notice");
+        await Assert.That(closed).IsFalse();
+
+        vm.CancelLaunchNoticeCommand.Execute(null);
+        await Assert.That(vm.ShowLaunchNotice).IsFalse();
+        await Assert.That(job.StartCount).IsEqualTo(0);
+
+        vm.GenerateCommand.Execute(null);
+        vm.ConfirmLaunchNoticeCommand.Execute(null);
+        await Assert.That(job.StartCount).IsEqualTo(1);
+        await Assert.That(closed).IsTrue();
+
+        vm.GenerateCommand.Execute(null);
+        await Assert.That(vm.ShowLaunchNotice).IsTrue().Because("one Continue is not a standing consent");
+        await Assert.That(job.StartCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task LaunchNotice_DontShowAgain_PersistsAcknowledgement()
+    {
+        AppSettings persisted = new();
+        HighlightReelDialogViewModel vm = New([Sel("/d/a.dem", "10", "p", 7, 5000, "A")], out FakeReelJob job,
+            persist: mutate => mutate(persisted), noticeAcknowledged: false);
+
+        vm.GenerateCommand.Execute(null);
+        vm.DontShowLaunchNoticeAgain = true;
+        vm.ConfirmLaunchNoticeCommand.Execute(null);
+
+        await Assert.That(job.StartCount).IsEqualTo(1);
+        await Assert.That(persisted.LiveSync.LaunchNoticeAcknowledged).IsTrue();
+    }
+
+    // The notice comes first, then the single-CS2 interlock still gets its say.
+    [Test]
+    public async Task LaunchNotice_ThenInterlock_BothRequired()
+    {
+        HighlightReelDialogViewModel vm = New([Sel("/d/a.dem", "10", "p", 7, 5000, "A")], out FakeReelJob job,
+            liveSyncActive: true, noticeAcknowledged: false);
+
+        vm.GenerateCommand.Execute(null);
+        await Assert.That(vm.ShowLaunchNotice).IsTrue();
+        await Assert.That(vm.ShowInterlockConfirm).IsFalse();
+
+        vm.ConfirmLaunchNoticeCommand.Execute(null);
+        await Assert.That(vm.ShowInterlockConfirm).IsTrue();
+        await Assert.That(job.StartCount).IsEqualTo(0);
+
+        vm.ConfirmInterlockCommand.Execute(null);
+        await Assert.That(job.StartCount).IsEqualTo(1);
+    }
+
+    // A dry run walks the plan against the mock and never launches CS2, so it has nothing to warn about.
+    [Test]
+    public async Task LaunchNotice_SkippedForDryRun()
+    {
+        HighlightReelDialogViewModel vm = New([Sel("/d/a.dem", "10", "p", 7, 5000, "A")], out FakeReelJob job,
+            dryRunOnly: true, noticeAcknowledged: false);
+
+        vm.GenerateCommand.Execute(null);
+        await Assert.That(vm.ShowLaunchNotice).IsFalse();
+        await Assert.That(job.StartCount).IsEqualTo(1);
+        await Assert.That(vm.LaunchNoticeCaption).IsNull();
     }
 
     // (j) Cancel closes the dialog without starting a job.

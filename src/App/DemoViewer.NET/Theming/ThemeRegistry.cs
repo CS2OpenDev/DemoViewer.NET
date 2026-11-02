@@ -1,10 +1,10 @@
 #region
 
-using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
+using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 using DemoViewer.NET.Services;
 
 #endregion
@@ -20,23 +20,40 @@ namespace DemoViewer.NET.Theming;
 ///     dictionary and merged into the app once, so the variant → base → Default fallback chain resolves each
 ///     token: a custom variant's own token wins, everything else inherits its base Light/Dark palette.
 ///     <para>
-///         User drop-ins (T3) are loaded from <see cref="AppPaths.ThemesDirectory" /> by <see cref="Reload" />,
-///         not at construction, so a fresh registry (tests, the designer) is hermetic. <see cref="Reloaded" />
-///         fires after a reload so the app can repaint code-held surfaces that don't observe a same-variant
-///         override edit on their own.
+///         Load order: the built-ins first, from <see cref="BuiltInThemes" />, then user drop-ins from
+///         <see cref="AppPaths.ThemesDirectory" /> on <see cref="Reload" />. A user file can never replace a
+///         built-in: one that reuses a built-in id is skipped and listed in <see cref="LoadProblems" />. A token
+///         a user file leaves out resolves through the variant chain to its base's built-in value, and is listed
+///         on <see cref="Theme.MissingTokens" /> so the app can say so.
+///     </para>
+///     <para>
+///         The theme editor's live preview is one more custom variant, <see cref="PreviewId" />, holding a
+///         complete palette whose brushes are recoloured in place as the user edits. It is never in
+///         <see cref="Themes" /> and is removed by <see cref="EndPreview" />.
 ///     </para>
 /// </summary>
 public sealed class ThemeRegistry
 {
+    /// <summary>The id of the editor's preview variant. Not selectable, and never saved.</summary>
+    public const string PreviewId = "theme-editor-preview";
+
     private readonly Dictionary<string, Theme> _byId = new(StringComparer.OrdinalIgnoreCase);
 
     // One dictionary holding ThemeDictionaries[customVariant] = overrides, merged into Application.Resources.
     private readonly ResourceDictionary _customDicts = new();
 
+    // What each user theme's file set, for PaletteFor (a copy, the editor).
+    private readonly Dictionary<string, ThemeDefinition> _userDefinitions = new(StringComparer.OrdinalIgnoreCase);
+
     // Ordered store (built-ins first, in registration order, then user drop-ins) + a case-insensitive id
     // lookup over the same Theme instances. Both are kept in sync by Add/Remove.
     private readonly List<Theme> _ordered = [];
+    private readonly List<ThemeLoadProblem> _problems = [];
     private bool _installed;
+
+    private ResourceDictionary? _previewDict;
+    private ThemeVariant? _previewVariant;
+    private int _previewSerial;
 
     public ThemeRegistry()
     {
@@ -56,48 +73,22 @@ public sealed class ThemeRegistry
         {
             Id = "system",
             DisplayName = "System",
-            Variant = ThemeVariant.Default
+            Variant = ThemeVariant.Default,
+            CanCustomize = false
         });
-        LoadBuiltInCustomThemes();
+
+        // The custom built-ins register only what they set; the rest falls through to Dark exactly as before.
+        foreach (ThemeDefinition def in BuiltInThemes.CustomDefinitions)
+        {
+            Register(def, ThemeSource.BuiltIn);
+        }
     }
 
     /// <summary>All registered themes, in registration order (built-ins first, then user drop-ins).</summary>
     public IReadOnlyList<Theme> Themes => _ordered.ToList();
 
-    // Load the embedded built-in custom themes (High-Contrast, E-Girl) from assembly resources (Themes/*.json)
-    // via the SAME parser as user drop-ins: the proof that a built-in is pure data too. Hermetic (reflection
-    // over embedded resources, no Avalonia asset system), so a fresh registry in a unit test loads them without
-    // a running app. Loaded in filename order (the files carry an NN- prefix, so the picker lists them
-    // deterministically). A missing/broken built-in is skipped, never fatal.
-    private void LoadBuiltInCustomThemes()
-    {
-        Assembly asm = typeof(ThemeRegistry).Assembly;
-        foreach (string resource in asm.GetManifestResourceNames()
-                     .Where(n => n.Contains(".Themes.", StringComparison.Ordinal)
-                                 && n.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-                     .OrderBy(n => n, StringComparer.Ordinal))
-        {
-            try
-            {
-                using Stream? stream = asm.GetManifestResourceStream(resource);
-                if (stream is null)
-                {
-                    continue;
-                }
-
-                using StreamReader reader = new(stream);
-                ThemeDefinition? def = ThemeJson.TryParse(reader.ReadToEnd(), resource);
-                if (def is not null)
-                {
-                    Register(def, ThemeSource.BuiltIn);
-                }
-            }
-            catch (IOException)
-            {
-                // A shipped built-in that fails to read is simply not offered: never crash the app.
-            }
-        }
-    }
+    /// <summary>Theme files the last <see cref="Reload" /> skipped, with the reason.</summary>
+    public IReadOnlyList<ThemeLoadProblem> LoadProblems => _problems.ToList();
 
     /// <summary>Fires after <see cref="Reload" /> re-scans the drop-in directory, so the app can refresh + repaint.</summary>
     public event EventHandler? Reloaded;
@@ -120,38 +111,60 @@ public sealed class ThemeRegistry
     /// </summary>
     public Theme RegisterCustom(
         string id, string displayName, ThemeVariant baseVariant,
-        IReadOnlyDictionary<string, Color> tokens, ThemeSource source = ThemeSource.BuiltIn)
+        IReadOnlyDictionary<string, Color> tokens, ThemeSource source = ThemeSource.BuiltIn) =>
+        RegisterCore(new ThemeDefinition(id, displayName, baseVariant, tokens), source, null, []);
+
+    /// <summary>Registers a <see cref="ThemeDefinition" /> (parsed JSON, a built-in or a user drop-in).</summary>
+    public Theme Register(ThemeDefinition def, ThemeSource source) => RegisterCore(def, source, null, []);
+
+    private Theme RegisterCore(ThemeDefinition def, ThemeSource source, string? filePath, IReadOnlyList<string> badValues)
     {
-        ThemeVariant variant = new(id, baseVariant);
+        ThemeVariant variant = new(def.Id, def.BaseVariant);
+        _customDicts.ThemeDictionaries[variant] = BuildDictionary(def.Tokens, def.Gradients);
+
+        Theme theme = new()
+        {
+            Id = def.Id,
+            DisplayName = def.DisplayName,
+            Variant = variant,
+            Source = source,
+            FilePath = filePath,
+            MissingTokens = source == ThemeSource.User ? [.. ThemeTokens.All.Where(t => !def.Sets(t))] : [],
+            UnknownKeys = source == ThemeSource.User ? [.. def.UnknownTokens.Keys] : [],
+            BadValues = badValues
+        };
+        if (source == ThemeSource.User)
+        {
+            _userDefinitions[def.Id] = def;
+        }
+
+        Add(theme);
+        return theme;
+    }
+
+    private static ResourceDictionary BuildDictionary(
+        IReadOnlyDictionary<string, Color> tokens, IReadOnlyDictionary<string, ThemeGradient> gradients)
+    {
         ResourceDictionary overrides = new();
         foreach ((string key, Color color) in tokens)
         {
             overrides[key] = new SolidColorBrush(color);
         }
 
-        _customDicts.ThemeDictionaries[variant] = overrides;
-
-        Theme theme = new()
+        foreach ((string key, ThemeGradient gradient) in gradients)
         {
-            Id = id,
-            DisplayName = displayName,
-            Variant = variant,
-            Source = source
-        };
-        Add(theme);
-        return theme;
-    }
+            overrides[key] = gradient.ToBrush();
+        }
 
-    /// <summary>Registers a <see cref="ThemeDefinition" /> (parsed JSON, a built-in or a user drop-in).</summary>
-    public Theme Register(ThemeDefinition def, ThemeSource source) =>
-        RegisterCustom(def.Id, def.DisplayName, def.BaseVariant, def.Tokens, source);
+        return overrides;
+    }
 
     /// <summary>
     ///     Re-scans <see cref="AppPaths.ThemesDirectory" /> for <c>*.json</c> drop-ins (T3): drops the previously
     ///     loaded user themes, loads the current ones (malformed files skipped, a user id colliding with a
-    ///     built-in skipped to protect it), then raises <see cref="Reloaded" />. No-op on WASM (no filesystem).
-    ///     Not called at construction: the app calls it once at startup (before <see cref="Install" />) and again
-    ///     from the Settings "Reload themes" affordance.
+    ///     built-in skipped to protect it; both listed in <see cref="LoadProblems" />), then raises
+    ///     <see cref="Reloaded" />. No-op on WASM (no filesystem). Not called at construction: the app calls it
+    ///     once at startup (before <see cref="Install" />) and again whenever the themes folder changes.
     /// </summary>
     public void Reload()
     {
@@ -170,6 +183,9 @@ public sealed class ThemeRegistry
             _byId.Remove(user.Id);
             _customDicts.ThemeDictionaries.Remove(user.Variant);
         }
+
+        _userDefinitions.Clear();
+        _problems.Clear();
     }
 
     private void LoadUserThemes()
@@ -197,35 +213,48 @@ public sealed class ThemeRegistry
         // Deterministic order (by filename) so the picker list is stable across reloads.
         foreach (string file in files.OrderBy(f => f, StringComparer.Ordinal))
         {
+            string name = Path.GetFileName(file);
             string json;
             try
             {
                 json = File.ReadAllText(file);
             }
-            catch (IOException)
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
-                continue;
-            }
-            catch (UnauthorizedAccessException)
-            {
+                _problems.Add(new ThemeLoadProblem(name, "It could not be read: " + e.Message));
                 continue;
             }
 
-            ThemeDefinition? def = ThemeJson.TryParse(json, file);
-            if (def is null)
+            ThemeParseResult parsed = ThemeJson.Parse(json, file);
+            if (parsed.Definition is not { } def)
             {
+                _problems.Add(new ThemeLoadProblem(name, parsed.Error ?? "It is not a theme file."));
                 continue; // malformed: skip, keep the rest
             }
 
             // A user file must not shadow a built-in id (that would turn a native theme into a custom variant
-            // and could surprise the user). Only ids not already claimed by a BUILT-IN are accepted; a later
-            // user file with the same id as an earlier user file replaces it (last write wins).
-            if (_byId.TryGetValue(def.Id, out Theme? existing) && existing.Source == ThemeSource.BuiltIn)
+            // and could surprise the user). A later user file with the same id as an earlier one replaces it
+            // (last write wins), and the earlier file is reported.
+            if (def.Id.StartsWith(PreviewId, StringComparison.OrdinalIgnoreCase))
             {
+                _problems.Add(new ThemeLoadProblem(name, $"Its id \"{def.Id}\" is reserved for the editor's preview. Give it a different id."));
                 continue;
             }
 
-            Register(def, ThemeSource.User);
+            if (_byId.TryGetValue(def.Id, out Theme? existing))
+            {
+                if (existing.Source == ThemeSource.BuiltIn)
+                {
+                    _problems.Add(new ThemeLoadProblem(name,
+                        $"Its id \"{def.Id}\" belongs to the built-in {existing.DisplayName} theme, so it was not loaded. Give it a different id."));
+                    continue;
+                }
+
+                _problems.Add(new ThemeLoadProblem(Path.GetFileName(existing.FilePath ?? existing.Id),
+                    $"{name} has the same id \"{def.Id}\" and was loaded instead."));
+            }
+
+            RegisterCore(def, ThemeSource.User, file, parsed.BadValues);
         }
     }
 
@@ -261,4 +290,92 @@ public sealed class ThemeRegistry
 
     /// <summary>True when <paramref name="id" /> is a known theme.</summary>
     public bool Contains(string? id) => id is not null && _byId.ContainsKey(id);
+
+    /// <summary>The theme registered under <paramref name="id" />, or null.</summary>
+    public Theme? Find(string? id) => id is not null && _byId.TryGetValue(id, out Theme? t) ? t : null;
+
+    /// <summary>
+    ///     The complete palette for <paramref name="id" />: a built-in's own, or a user theme filled out from its
+    ///     base. Null for <c>system</c> and unknown ids.
+    /// </summary>
+    public ThemePalette? PaletteFor(string? id)
+    {
+        if (id is null || !_byId.TryGetValue(id, out Theme? theme))
+        {
+            return null;
+        }
+
+        return theme.Source == ThemeSource.BuiltIn
+            ? BuiltInThemes.Find(theme.Id)
+            : _userDefinitions.TryGetValue(theme.Id, out ThemeDefinition? def) ? ThemePalette.Resolve(def) : null;
+    }
+
+    /// <summary>The definition a user theme's file holds, as read. Null for a built-in.</summary>
+    public ThemeDefinition? UserDefinitionFor(string? id) =>
+        id is not null && _userDefinitions.TryGetValue(id, out ThemeDefinition? def) ? def : null;
+
+    // ── Live preview ────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>The preview variant while a preview is running, else null.</summary>
+    public ThemeVariant? PreviewVariant => _previewVariant;
+
+    /// <summary>
+    ///     Starts (or restarts) the editor preview with every token of <paramref name="palette" />, and returns the
+    ///     variant to show it under. A restart is needed only when the base changes; a token edit goes through
+    ///     <see cref="UpdatePreview(string, Color)" />.
+    /// </summary>
+    public ThemeVariant BeginPreview(ThemePalette palette)
+    {
+        if (_previewVariant is { } old)
+        {
+            _customDicts.ThemeDictionaries.Remove(old);
+        }
+
+        // A fresh key per start: replacing a theme dictionary under the same key does not make a scope already
+        // on that variant re-resolve, and the base may have changed; a new variant does both.
+        ThemeVariant variant = new($"{PreviewId}-{++_previewSerial}", palette.BaseVariant);
+        _previewDict = BuildDictionary(palette.Colors, palette.Gradients);
+        _previewVariant = variant;
+        _customDicts.ThemeDictionaries[variant] = _previewDict;
+        return variant;
+    }
+
+    /// <summary>Recolours one preview token in place, so everything showing it repaints without a re-resolve.</summary>
+    public void UpdatePreview(string token, Color color)
+    {
+        if (_previewDict is null)
+        {
+            return;
+        }
+
+        if (_previewDict.TryGetValue(token, out object? existing) && existing is SolidColorBrush brush)
+        {
+            brush.Color = color;
+        }
+        else
+        {
+            _previewDict[token] = new SolidColorBrush(color);
+        }
+    }
+
+    /// <summary>Replaces one preview gradient.</summary>
+    public void UpdatePreview(string token, ThemeGradient gradient)
+    {
+        if (_previewDict is not null)
+        {
+            _previewDict[token] = gradient.ToBrush();
+        }
+    }
+
+    /// <summary>Drops the preview variant. Whoever pointed the app at it must point it back first.</summary>
+    public void EndPreview()
+    {
+        if (_previewVariant is { } variant)
+        {
+            _customDicts.ThemeDictionaries.Remove(variant);
+        }
+
+        _previewDict = null;
+        _previewVariant = null;
+    }
 }

@@ -62,6 +62,10 @@ it:
 
 - **FFMpegCore** (MIT): a managed argument builder and process wrapper. It links no ffmpeg code;
   it starts ffmpeg as a **separate program** and pipes raw frames to its standard input. See §g.
+- **Cs2VideoGenerator.Core** (MIT, from
+  [CS2OpenDev/CS2VideoGenerator](https://github.com/CS2OpenDev/CS2VideoGenerator)): drives Live
+  Sync and in-game Reels. Its package also carries the native CS2 plugin binaries (`server.dll`,
+  `server.so`) and a `mock_server` test host, which the installers redistribute as-is.
 
 ## d. Inter font (SIL Open Font License 1.1)
 

@@ -5,6 +5,8 @@
              xmlns:ae="using:AvaloniaEdit"
              xmlns:vm="using:DemoViewer.NET.Modules.RuleWorkbench"
              xmlns:viz="using:DemoViewer.NET.Visualization"
+             xmlns:controls="using:DemoViewer.NET.Controls"
+             controls:TutorialAnchor.Target="RuleWorkbenchTab"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="650"
              x:Class="DemoViewer.NET.Views.RuleWorkbench.RuleWorkbenchView"
              x:DataType="vm:RuleWorkbenchTabViewModel">

@@ -69,10 +69,11 @@ public class TutorialDeferredSegmentTests
                 // First-run run: welcome → tabs → library → open-demo gateway. With no demo open the gateway
                 // WAITS in place (overlay stays visible, advance disabled) rather than hiding: the fix for the
                 // "left on the Library tab with no guidance" dead-end.
-                vm.StartWalkthrough(); // welcome (1/8)
-                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/8)
-                vm.Tutorial.NextCommand.Execute(null); // library (3/8)
-                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (4/8) → waiting
+                vm.StartWalkthrough(); // welcome (1/13)
+                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/13)
+                vm.Tutorial.NextCommand.Execute(null); // library (3/13)
+                vm.Tutorial.NextCommand.Execute(null); // player overview (4/13)
+                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (5/13) → waiting
 
                 using (Assert.Multiple())
                 {
@@ -121,8 +122,8 @@ public class TutorialDeferredSegmentTests
                         .Because("opening a demo auto-resumes the waiting walkthrough");
                     await Assert.That(vm.Tutorial.IsWaiting).IsFalse();
                     await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.StatsContent);
-                    await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(5)
-                        .Because("the indicator continues across the two runs (stats is 5 of 8)");
+                    await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(6)
+                        .Because("the indicator continues across the two runs (stats is 6 of 13)");
                     await Assert.That(vm.SelectedTab!.TabId).IsEqualTo("builtin.stats")
                         .Because("the resumed step switches to the tab hosting its region");
                 }
@@ -141,13 +142,19 @@ public class TutorialDeferredSegmentTests
                 Console.WriteLine(
                     $"[tutorial-live-stats] {outPath} rect={vm.Tutorial.SpotlightRect} nonBg={ScanNonBackground(frame)}");
 
-                // Advance the rest of the demo segment: playback (6) → transport (7) → outro (8) → Finish.
-                // Steps 6–7 ARE the "2d playback and controls" the tour was built to show, so each is measured
+                // The report step sits on the Stats toolbar's bug button. This shell has no window service, so
+                // the button is not wired and stays hidden; only the step and its tab are asserted.
+                vm.Tutorial.NextCommand.Execute(null); // report an analysis error (7/13)
+                await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.ReportError);
+                await Assert.That(vm.SelectedTab!.TabId).IsEqualTo("builtin.stats");
+
+                // Advance the rest of the demo segment: playback (8) → transport (9) → annotations (10) →
+                // Strat Book (11) → workbench (12) → outro (13) → Finish. Steps 8 and 9 ARE the "2d playback and controls" the tour was built to show, so each is measured
                 // for a real non-zero spotlight over the live shell, not merely advanced past (a zero-size
                 // spotlight would still let the tour sail through, so the enum/step asserts alone prove nothing).
-                vm.Tutorial.NextCommand.Execute(null); // 2D playback (6/8)
+                vm.Tutorial.NextCommand.Execute(null); // 2D playback (8/13)
                 await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.PlaybackTab);
-                await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(6);
+                await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(8);
                 await Assert.That(vm.SelectedTab!.TabId).IsEqualTo("playback2d.viewport")
                     .Because("the playback step switches to the 2D Playback tab");
 
@@ -156,9 +163,9 @@ public class TutorialDeferredSegmentTests
                     .Because("the overlay resolved the 2D Playback viewport anchor and measured its rect");
                 await Assert.That(vm.Tutorial.SpotlightRect.Height).IsGreaterThan(0);
 
-                vm.Tutorial.NextCommand.Execute(null); // transport (7/8)
+                vm.Tutorial.NextCommand.Execute(null); // transport (9/13)
                 await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.PlaybackTransport);
-                await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(7);
+                await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(9);
 
                 // The transport anchor is structurally different from every prior one: it sits on the NavStrip
                 // clock-group cluster (app chrome), not a tab-root control, so its resolution is proven, not
@@ -175,8 +182,22 @@ public class TutorialDeferredSegmentTests
                 Console.WriteLine(
                     $"[tutorial-live-transport] {transportPath} rect={vm.Tutorial.SpotlightRect} nonBg={ScanNonBackground(transportFrame)}");
 
-                vm.Tutorial.NextCommand.Execute(null); // outro (8/8)
-                await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(8);
+                // The annotation toolbar is a control inside the 2D tab, not its root, so its anchor is
+                // measured the same way the transport cluster's is.
+                vm.Tutorial.NextCommand.Execute(null); // annotations (10/13)
+                await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.AnnotationTools);
+                PumpLayout();
+                await Assert.That(vm.Tutorial.SpotlightRect.Width).IsGreaterThan(0)
+                    .Because("the overlay resolved the annotation-toolbar anchor and measured its rect");
+                await Assert.That(vm.Tutorial.SpotlightRect.Height).IsGreaterThan(0);
+
+                vm.Tutorial.NextCommand.Execute(null); // strat book (11/13), a centred card
+                await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.StratBookHub);
+                vm.Tutorial.NextCommand.Execute(null); // rule workbench (12/13)
+                await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.RuleWorkbenchTab);
+
+                vm.Tutorial.NextCommand.Execute(null); // outro (13/13)
+                await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(13);
                 await Assert.That(vm.Tutorial.NextLabel).IsEqualTo("Finish");
 
                 vm.Tutorial.NextCommand.Execute(null); // Finish

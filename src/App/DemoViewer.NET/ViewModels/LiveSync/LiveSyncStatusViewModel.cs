@@ -1,5 +1,6 @@
 #region
 
+using System.ComponentModel;
 using System.Globalization;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -31,9 +32,15 @@ namespace DemoViewer.NET.ViewModels.LiveSync;
 /// </summary>
 public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable, ILiveSyncHudState
 {
+    // The shell's app-wide recovery banner. When set, the Off-flyout offer mirrors it instead of probing on
+    // its own, so the two can never disagree about whether the install still needs restoring.
+    private readonly Cs2InstallRecoveryViewModel? _installRecovery;
+
     // The chrome.livesync gate, folded into the 2D HUD projection's IsActive. Null (tests / capture)
     // ⇒ the gate is treated as enabled, so the HUD shows whenever the session state is non-Disconnected.
     private readonly Func<bool>? _isHudGateEnabled;
+    private readonly Action? _acknowledgeLaunchNotice;
+    private readonly Func<bool>? _isLaunchNoticeAcknowledged;
     private readonly ILiveSyncService _liveSync;
     private readonly IModuleContext? _moduleContext;
     private readonly Func<string, Task>? _openDemoInDv;
@@ -51,6 +58,10 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     private ILogger? _diagLog;
 
     private bool _disposed;
+
+    /// <summary>The launch-notice strip's "don't show again" box.</summary>
+    [ObservableProperty]
+    private bool _dontShowLaunchNoticeAgain;
 
     [ObservableProperty]
     private string? _enableDisabledReason;
@@ -110,6 +121,10 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _showLeftoverRestoreOffer;
 
+    /// <summary>The <c>-insecure</c> / install-modification confirm strip is showing (Enable pressed, not yet acknowledged).</summary>
+    [ObservableProperty]
+    private bool _showLaunchNotice;
+
     // ── Demo-path guard ──
     [ObservableProperty]
     private bool _showNoPathWarning;
@@ -137,10 +152,14 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     ///     Constructs the mapper over the live engine. Seeds the chip from the CURRENT
     ///     <see cref="ILiveSyncService.State" /> (not the first transition, so the chip is never blank), then
     ///     tracks <see cref="ILiveSyncService.StateChanged" /> and the host's demo-reset signal.
+    ///     <paramref name="isLaunchNoticeAcknowledged" /> null means never acknowledged, so Enable always asks
+    ///     first; <paramref name="acknowledgeLaunchNotice" /> persists "don't show again".
     /// </summary>
     public LiveSyncStatusViewModel(
         ILiveSyncService liveSync, IModuleContext? moduleContext, PlaybackController playback, Action openSettings,
-        Func<string, Task>? openDemoInDv = null, Func<bool>? isHudGateEnabled = null)
+        Func<string, Task>? openDemoInDv = null, Func<bool>? isHudGateEnabled = null,
+        Func<bool>? isLaunchNoticeAcknowledged = null, Action? acknowledgeLaunchNotice = null,
+        Cs2InstallRecoveryViewModel? installRecovery = null)
     {
         ArgumentNullException.ThrowIfNull(liveSync);
         ArgumentNullException.ThrowIfNull(playback);
@@ -151,6 +170,9 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         _openSettings = openSettings;
         _openDemoInDv = openDemoInDv;
         _isHudGateEnabled = isHudGateEnabled;
+        _isLaunchNoticeAcknowledged = isLaunchNoticeAcknowledged;
+        _acknowledgeLaunchNotice = acknowledgeLaunchNotice;
+        _installRecovery = installRecovery;
 
         Chip = new StatusChipViewModel
         {
@@ -169,7 +191,15 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         // Probe the CS2 install for a crashed prior session's leftovers exactly once, at
         // host start (this VM is constructed when the engine attaches): the offer surfaces in
         // the Off flyout BEFORE any session start. Detection never errors (null → no offer).
-        _ = ProbeLeftoverModificationsAsync();
+        if (_installRecovery is null)
+        {
+            _ = ProbeLeftoverModificationsAsync();
+        }
+        else
+        {
+            _installRecovery.PropertyChanged += OnInstallRecoveryChanged;
+            MirrorInstallRecovery();
+        }
     }
 
     private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.LiveSync");
@@ -225,6 +255,11 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         {
             _moduleContext.DemoReset -= OnDemoReset;
         }
+
+        if (_installRecovery is not null)
+        {
+            _installRecovery.PropertyChanged -= OnInstallRecoveryChanged;
+        }
     }
 
     // ── ILiveSyncHudState (the 2D indicator's read-only view) ────────────────────────────────────────
@@ -238,6 +273,20 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     {
         add => _hudChanged += value;
         remove => _hudChanged -= value;
+    }
+
+    private void OnInstallRecoveryChanged(object? sender, PropertyChangedEventArgs e) => MirrorInstallRecovery();
+
+    private void MirrorInstallRecovery()
+    {
+        if (_installRecovery is not { } recovery)
+        {
+            return;
+        }
+
+        ShowLeftoverRestoreOffer = recovery.NeedsRestore;
+        IsRestoringInstall = recovery.IsRestoring;
+        RestoreFailureText = recovery.NeedsRestore ? recovery.FailureText : null;
     }
 
     private async Task ProbeLeftoverModificationsAsync()
@@ -263,6 +312,12 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task RestoreInstall()
     {
+        if (_installRecovery is not null)
+        {
+            await _installRecovery.RestoreCommand.ExecuteAsync(null).ConfigureAwait(true);
+            return;
+        }
+
         IsRestoringInstall = true;
         RestoreFailureText = null;
         try
@@ -285,9 +340,43 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
 
     // ── Commands (per-state action sets) ────────────────────────────────────────────────────────────
 
-    /// <summary>Informed launch (Off state): the copy above the button is the consent; this starts a session.</summary>
+    /// <summary>The launch-notice confirm-strip copy.</summary>
+    public string LaunchNoticeMessage { get; } = Cs2LaunchNotice.Message;
+
+    /// <summary>
+    ///     Informed launch (Off state). Until the user has acknowledged the launch notice, this only shows the
+    ///     confirm strip; <see cref="ConfirmLaunchNotice" /> starts the session.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(CanEnable))]
-    private async Task Enable()
+    private Task Enable()
+    {
+        if (!(_isLaunchNoticeAcknowledged?.Invoke() ?? false))
+        {
+            ShowLaunchNotice = true;
+            return Task.CompletedTask;
+        }
+
+        return StartSession();
+    }
+
+    /// <summary>Launch-notice "Continue": records "don't show again" if ticked, then starts the session.</summary>
+    [RelayCommand]
+    private Task ConfirmLaunchNotice()
+    {
+        ShowLaunchNotice = false;
+        if (DontShowLaunchNoticeAgain)
+        {
+            _acknowledgeLaunchNotice?.Invoke();
+        }
+
+        return StartSession();
+    }
+
+    /// <summary>Launch-notice "Back": dismiss the strip without starting.</summary>
+    [RelayCommand]
+    private void CancelLaunchNotice() => ShowLaunchNotice = false;
+
+    private async Task StartSession()
     {
         try
         {

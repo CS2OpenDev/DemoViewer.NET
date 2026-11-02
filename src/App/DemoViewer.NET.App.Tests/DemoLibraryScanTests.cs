@@ -748,9 +748,11 @@ public class DemoLibraryScanTests
         DemoLibraryService.CanonicalizeDirectory(
             Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "dvscan_" + Guid.NewGuid().ToString("N"))).FullName);
 
+    // Full, so "ok/a.dem" comes back with Windows separators: the walk reports them, and a row keyed with a
+    // '/' matches no listed file and is pruned as deleted.
     internal static string WriteDemo(string root, string relative, int size, byte fill = 1)
     {
-        string path = Path.Combine(root, relative);
+        string path = Path.GetFullPath(Path.Combine(root, relative));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, Enumerable.Repeat(fill, size).ToArray());
         return path;

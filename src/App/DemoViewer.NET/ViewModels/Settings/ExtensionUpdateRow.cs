@@ -144,6 +144,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
             ExtensionUpdateStatus.NeedsNewerApp => NeedsNewerApp(state),
             ExtensionUpdateStatus.FeedUnreachable => $"Could not check for updates: {state.Error}.",
             ExtensionUpdateStatus.FeedInvalid => $"Could not check for updates: {state.Error}.",
+            ExtensionUpdateStatus.NotPublished => "No updates have been published yet.",
             _ => string.Empty
         };
     }

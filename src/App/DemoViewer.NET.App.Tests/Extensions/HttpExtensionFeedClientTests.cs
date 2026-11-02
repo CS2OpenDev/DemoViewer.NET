@@ -96,6 +96,34 @@ public class HttpExtensionFeedClientTests
         await Assert.That(destination.Length).IsLessThan(100 * 1024);
     }
 
+    // ExtensionUpdateService reads a missing feed off the exception's status code, so the client must keep it.
+    [Test]
+    public async Task Feed_NotFound_ThrowsWithTheStatusCode()
+    {
+        using StatusHandler handler = new(HttpStatusCode.NotFound);
+        using HttpExtensionFeedClient client = new(handler, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+
+        HttpRequestException? ex = await Assert.ThrowsAsync<HttpRequestException>(
+            () => client.GetFeedAsync(new Uri("https://example.invalid/extensions.json"), CancellationToken.None));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ex!.StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+            await Assert.That(handler.Requests).IsEqualTo(1);
+        }
+    }
+
+    private sealed class StatusHandler(HttpStatusCode status) : HttpMessageHandler
+    {
+        public int Requests { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests++;
+            return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent("Not Found") });
+        }
+    }
+
     // Serves chunks at a fixed pace from a stream that waits between them, after an optional header delay;
     // with stallAfter set, the read after that many chunks never returns. onChunk runs after the pace wait, so
     // the caller's read is already pending when it does.

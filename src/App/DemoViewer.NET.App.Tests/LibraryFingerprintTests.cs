@@ -39,9 +39,10 @@ public class LibraryFingerprintTests
         return bytes;
     }
 
+    // Full for the separators, as DemoLibraryScanTests.WriteDemo is.
     internal static string Write(string root, string relative, byte[] bytes)
     {
-        string path = Path.Combine(root, relative);
+        string path = Path.GetFullPath(Path.Combine(root, relative));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, bytes);
         return path;

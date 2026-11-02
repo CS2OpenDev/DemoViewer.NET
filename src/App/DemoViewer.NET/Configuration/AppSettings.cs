@@ -84,6 +84,12 @@ public sealed class AppSettings
     ///     single scalar with none of the constructor-shape problems that exiled Session/Recents.
     /// </summary>
     public string? LastSeenVersion { get; set; }
+
+    /// <summary>
+    ///     The missing-colours notice the user last dismissed: the theme id and a hash of which tokens were
+    ///     missing. The notice comes back only when that changes. Null until a dismiss.
+    /// </summary>
+    public string? DismissedThemeWarning { get; set; }
 }
 
 /// <summary>
@@ -277,6 +283,12 @@ public sealed class LiveSyncSettings
     public string? ExternalMockServerPath { get; set; }
 
     /// <summary>
+    ///     True when no real CS2 is launched: <see cref="MockMode" />, or a non-blank
+    ///     <see cref="ExternalMockServerPath" />. A method, not a property, so it never lands in settings.json.
+    /// </summary>
+    public bool UsesMock() => MockMode || !string.IsNullOrWhiteSpace(ExternalMockServerPath);
+
+    /// <summary>
     ///     Tick-identity shim: added to DV frame-clock ticks when mapping to CS2 demo ticks
     ///     (<c>cs2DemoTick = max(0, ServerTick) + TickOffset</c>). Default 0, the identity
     ///     hypothesis; override only if validation on a real Windows CS2 install finds a fixed skew.
@@ -317,6 +329,12 @@ public sealed class LiveSyncSettings
     ///     <see cref="MinimumLogLevel" />; live-adjustable like it.
     /// </summary>
     public bool CaptureFrameworkLogs { get; set; }
+
+    /// <summary>
+    ///     The user ticked "don't show again" on the <c>-insecure</c> / install-modification notice. Shared by
+    ///     Live Sync and Reels: both launch CS2 through CSVG with the same consequences, so one consent covers both.
+    /// </summary>
+    public bool LaunchNoticeAcknowledged { get; set; }
 }
 
 /// <summary>
@@ -358,6 +376,14 @@ public sealed class UpdateSettings
     ///     and latest beta is newer, so a stable release still reaches them.
     /// </summary>
     public bool SubscribeToBeta { get; set; }
+
+    /// <summary>
+    ///     Let the app reach the network on its own. Default ON. Covers the launch update check, the
+    ///     release notes that check and the post-update What's New would fetch, and the extension feed
+    ///     check when Settings opens. OFF leaves every Check button working; it only stops the calls
+    ///     nobody asked for.
+    /// </summary>
+    public bool CheckAutomatically { get; set; } = true;
 }
 
 /// <summary>

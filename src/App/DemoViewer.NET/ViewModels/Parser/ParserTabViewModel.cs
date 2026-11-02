@@ -824,7 +824,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
 
     private void BuildChainForEntity(EntityState entity)
     {
-        const string Cs2Schema = "https://sid2934.github.io/CS2-OpenDevDocs/schemas/server";
+        const string Cs2Schema = "https://cs2opendev.github.io/CS2OpenDev-Docs/schemas/server/";
 
         Add(ParseChainEntry.Linked("EntityTracker.ProcessFrame()",
             webUrl: KitUrl(EntityTrackerSourcePath, 95), indent: 0));

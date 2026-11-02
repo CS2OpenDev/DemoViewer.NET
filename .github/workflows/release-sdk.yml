@@ -15,6 +15,9 @@
 # PublicAPI.Unshipped gate or the push: both live in the publish job and run nowhere else. A branch
 # legitimately has Unshipped entries, so gating a dry run on them would fail it where it is wanted.
 #
+# When CS2DemoKit moves, this release goes out before the app's: release.yml refuses an app whose pin
+# the newest SDK on nuget.org does not declare.
+#
 # EVERY trigger, dispatch included, is gated on verify-ci: the head SHA must already have a completed,
 # successful ci run. Dispatching from a branch therefore fails at the gate until ci has run on that
 # branch's head, so dispatch ci first and let it finish.
@@ -111,6 +114,11 @@ jobs:
             dotnet pack "$dir" -c Release -o artifacts/sdk-packages
           done
           ls -l artifacts/sdk-packages
+
+      # release.yml's gate matches the app's CS2DemoKit pin against what this release declares, so the
+      # packed nuspecs must carry that pin. They take it from Directory.Packages.props; this proves it.
+      - name: Packed CS2DemoKit matches the pin
+        run: bash scripts/check-sdk-published.sh --packed artifacts/sdk-packages
 
       # An .snupkg with no .pdb in it is refused by nuget.org with a 400, and the push loop runs under
       # set -e over a glob, so that refusal lands AFTER the earlier packages are already live and

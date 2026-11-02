@@ -107,6 +107,7 @@ public class App : Application
             WireTheme(services); // apply persisted theme + keep it live
             MainViewModel viewModel = services.GetRequiredService<MainViewModel>();
             WireDiagnosticsLogging(services, viewModel); // internal ILogger pillar -> Diagnostics tab + file
+            WireThemeWarning(services, viewModel);
             LogExtensionStatuses();
             // The one whole-library check of the session: every pass is asked about every known demo, off
             // the UI thread, so work left from the last session or owed by a changed configuration starts
@@ -640,6 +641,44 @@ public class App : Application
     private static void ApplyTheme(ThemeRegistry registry, string? theme) =>
         Current!.RequestedThemeVariant = registry.VariantFor(theme);
 
+    // Points the whole app at `variant` and repaints it, the same bounce RepaintForThemeReload uses, so the
+    // code-drawn surfaces re-read their colours. The theme editor's preview and its restore both go through here.
+    private static void ShowAppIn(ThemeVariant variant)
+    {
+        if (Current is null)
+        {
+            return;
+        }
+
+        WorkbenchYamlHighlighting.ClearCache();
+        Current.RequestedThemeVariant = ThemeVariant.Default;
+        Current.RequestedThemeVariant = variant;
+    }
+
+    /// <summary>
+    ///     The shell's missing-colours notice, re-checked whenever the themes reload or the selected theme
+    ///     changes. Desktop only: the browser head has no theme files.
+    /// </summary>
+    internal static void WireThemeWarning(IServiceProvider services, MainViewModel shell)
+    {
+        if (!ThemeEditorLauncher.IsSupported)
+        {
+            return;
+        }
+
+        ThemeRegistry registry = services.GetRequiredService<ThemeRegistry>();
+        IOptionsMonitor<AppSettings> monitor = services.GetRequiredService<IOptionsMonitor<AppSettings>>();
+        SettingsService settings = services.GetRequiredService<SettingsService>();
+        ThemeWarningViewModel warning = new(registry,
+            () => monitor.CurrentValue.Theme,
+            () => monitor.CurrentValue.DismissedThemeWarning,
+            signature => settings.Write(s => s.DismissedThemeWarning = signature),
+            (id, missingOnly) => services.GetRequiredService<ThemeEditorLauncher>().Open(id, missingOnly));
+        registry.Reloaded += (_, _) => warning.Reevaluate();
+        monitor.OnChange(_ => Dispatcher.UIThread.Post(warning.Reevaluate));
+        shell.AttachThemeWarning(warning);
+    }
+
     /// <summary>
     ///     Repaints the running app after a theme reload. The syntax highlighter caches its definition per
     ///     variant, so an edit to the active variant would otherwise stay stale. <c>ClearCache</c> drops it.
@@ -830,6 +869,22 @@ public class App : Application
         // custom-variant override dictionary installed into Application.Resources (App.WireTheme), and both
         // the Settings picker and WireTheme must resolve themes from that same instance.
         services.AddSingleton<ThemeRegistry>();
+        services.AddSingleton<UserThemeStore>();
+        // Theme Customization: the editor reads the selected theme and selects one through settings, and
+        // previews by pointing the whole app at its preview variant, which RestoreApp undoes.
+        services.AddSingleton(sp =>
+        {
+            ThemeRegistry registry = sp.GetRequiredService<ThemeRegistry>();
+            IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
+            return new ThemeEditorLauncher(sp.GetRequiredService<IWindowService>(), sp.GetRequiredService<UserThemeStore>(),
+                new ThemeEditorHost
+                {
+                    ActiveThemeId = () => monitor.CurrentValue.Theme,
+                    UseTheme = id => sp.GetRequiredService<SettingsService>().Write(s => s.Theme = id),
+                    ShowAppIn = ShowAppIn,
+                    RestoreApp = () => ShowAppIn(registry.VariantFor(monitor.CurrentValue.Theme))
+                });
+        });
 
         // The host window service instance (desktop real / browser no-op), resolved by MainViewModel.
         services.AddSingleton(windowService);
@@ -863,6 +918,11 @@ public class App : Application
                 // The extension updater; absent where there is no config root to stage into.
                 sp.GetService<ExtensionUpdateService>());
             settingsVm.AttachIdentity(sp.GetRequiredService<IdentityService>(), sp.GetRequiredService<PlayerDirectory>());
+            if (ThemeEditorLauncher.IsSupported)
+            {
+                settingsVm.AttachThemeEditor(id => sp.GetRequiredService<ThemeEditorLauncher>().Open(id));
+            }
+
             // Says which extensions were switched off this session after errors.
             settingsVm.AttachExtensionFaults(sp.GetRequiredService<ExtensionFaults>(),
                 AppPaths.LogsDir is { } logs ? () => Services?.GetService<MainViewModel>()?.OpenOutputFolder(logs) : null);

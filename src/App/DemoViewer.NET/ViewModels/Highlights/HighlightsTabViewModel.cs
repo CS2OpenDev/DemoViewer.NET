@@ -183,7 +183,8 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
             [], current.Highlights, reelJob,
             settingsService is null ? null : mutate => settingsService.Write(mutate),
             isLiveSyncSessionActive, dryRunOnly, fileExists,
-            ffmpegLocator)
+            ffmpegLocator,
+            settings is null ? null : () => Cs2LaunchNotice.IsAcknowledged(settings.CurrentValue.LiveSync))
         {
             Tray = this
         };

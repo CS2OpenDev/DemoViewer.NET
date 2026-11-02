@@ -4,6 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:DemoViewer.NET.ViewModels.PlayerOverview"
              xmlns:views="using:DemoViewer.NET.Views.PlayerOverview"
+             xmlns:controls="using:DemoViewer.NET.Controls"
+             controls:TutorialAnchor.Target="PlayerOverviewTab"
              mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="760"
              x:Class="DemoViewer.NET.Views.PlayerOverview.PlayerOverviewTabView"
              x:DataType="vm:PlayerOverviewTabViewModel">

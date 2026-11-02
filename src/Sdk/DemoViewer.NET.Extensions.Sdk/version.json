@@ -7,6 +7,7 @@
     "precision": "major"
   },
   "pathFilters": [
+    "/Directory.Packages.props",
     "/src/Sdk/DemoViewer.NET.Extensions.Sdk",
     "/src/Sdk/DemoViewer.NET.Extensions.Sdk.Ui",
     "/src/App/DemoViewer.NET.Modules.Abstractions",

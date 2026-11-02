@@ -1,0 +1,12 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DemoViewer.NET.ViewModels.Settings"
+        xmlns:views="using:DemoViewer.NET.Views.Settings"
+        x:Class="DemoViewer.NET.Views.Settings.ThemeEditorWindow"
+        x:DataType="vm:ThemeEditorViewModel"
+        Title="Theme Customization"
+        Width="1240" Height="820"
+        MinWidth="900" MinHeight="560"
+        Background="{DynamicResource ShellBg}">
+    <views:ThemeEditorView />
+</Window>

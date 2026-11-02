@@ -65,6 +65,8 @@ public class StratBookPackTests
         "DemoViewer.NET.Extensions.StratBook.StratBookSettings",
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeStore",
         "DemoViewer.NET.Theming.ThemeRegistry",
+        "DemoViewer.NET.Theming.UserThemeStore",
+        "DemoViewer.NET.ViewModels.Settings.ThemeEditorLauncher",
         "DemoViewer.NET.Services.IWindowService",
         "System.Func`1[DemoViewer.NET.ViewModels.Settings.SettingsViewModel]",
         "System.Func`1[DemoViewer.NET.ViewModels.Setup.FirstRunWizardViewModel]",

@@ -11,7 +11,7 @@ namespace DemoViewer.NET.AppTests;
 ///     Unit coverage of the <see cref="TutorialController" /> state machine, independent of any shell or real
 ///     demo: the two-segment sequencing (first-run plays immediately; at the WaitsForDemo gateway the tour
 ///     stays visible and WAITS when nothing is open, then resumes on
-///     <see cref="TutorialController.NotifyDemoLoaded" />), the whole-script step indicator ("N of 8"), the
+///     <see cref="TutorialController.NotifyDemoLoaded" />), the whole-script step indicator ("N of 13"), the
 ///     per-step tab-switch mapping, the CTA label overrides, and the Back / Skip / Finish transitions. Pure
 ///     logic (no visual tree), so this class runs in parallel; the over-the-real-shell resumption is covered
 ///     separately by <see cref="TutorialDeferredSegmentTests" />.
@@ -21,6 +21,7 @@ public class TutorialControllerTests
     // Builds a controller over the real authored script, capturing the tab-switch requests and "seen" marks so
     // the sequencing can be asserted without a shell. `demoLoaded` backs the is-demo-open predicate the engine
     // consults at the first-run→demo-segment gateway (false = the gateway waits; true = it is Next-able).
+    // No audience filter, so every authored step plays: the per-profile cut is TutorialAudienceTests' job.
     private static (TutorialController Controller, List<string?> Tabs, Func<int> SeenCount) NewController(
         Func<bool>? demoLoaded = null, Func<bool>? demoAvailable = null, Func<bool>? sampleCta = null)
     {
@@ -51,8 +52,8 @@ public class TutorialControllerTests
             await Assert.That(vm.CurrentStep!.Title).IsEqualTo("Welcome to DemoViewer");
             await Assert.That(vm.CurrentStep!.Segment).IsEqualTo(TutorialSegment.FirstRun);
             await Assert.That(vm.StepNumber).IsEqualTo(1);
-            await Assert.That(vm.StepCount).IsEqualTo(8);
-            await Assert.That(vm.StepIndicator).IsEqualTo("1 of 8");
+            await Assert.That(vm.StepCount).IsEqualTo(13);
+            await Assert.That(vm.StepIndicator).IsEqualTo("1 of 13");
             await Assert.That(vm.IsWaiting).IsFalse();
             await Assert.That(vm.CanGoBack).IsFalse().Because("welcome is the first step of the first run");
             await Assert.That(vm.NextLabel).IsEqualTo("Get started")
@@ -67,22 +68,27 @@ public class TutorialControllerTests
         (TutorialController controller, List<string?> tabs, _) = NewController();
         TutorialViewModel vm = controller.ViewModel;
 
-        controller.Start(); // welcome (1/8), tab=null
-        vm.NextCommand.Execute(null); // tab-nav (2/8)
+        controller.Start(); // welcome (1/13), tab=null
+        vm.NextCommand.Execute(null); // tab-nav (2/13)
         await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.TabNav);
         await Assert.That(vm.StepNumber).IsEqualTo(2);
         await Assert.That(vm.CanGoBack).IsTrue();
         await Assert.That(tabs[^1]).IsEqualTo("builtin.library")
             .Because("the tab-strip step lands on the Library as its backdrop tab");
 
-        vm.NextCommand.Execute(null); // library (3/8)
+        vm.NextCommand.Execute(null); // library (3/13)
         await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.LibraryTab);
         await Assert.That(vm.StepNumber).IsEqualTo(3);
         await Assert.That(tabs[^1]).IsEqualTo("builtin.library");
 
-        vm.NextCommand.Execute(null); // open-demo gateway (4/8)
-        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.OpenDemo);
+        vm.NextCommand.Execute(null); // player overview (4/13)
+        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.PlayerOverviewTab);
         await Assert.That(vm.StepNumber).IsEqualTo(4);
+        await Assert.That(tabs[^1]).IsEqualTo("builtin.playeroverview");
+
+        vm.NextCommand.Execute(null); // open-demo gateway (5/13)
+        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.OpenDemo);
+        await Assert.That(vm.StepNumber).IsEqualTo(5);
         await Assert.That(tabs[^1]).IsEqualTo("builtin.library")
             .Because("the Open-Demo gateway still uses the Library as its backdrop tab");
 
@@ -110,6 +116,7 @@ public class TutorialControllerTests
         withDemo.Start();
         a.NextCommand.Execute(null); // tab-nav
         a.NextCommand.Execute(null); // library
+        a.NextCommand.Execute(null); // player overview
         a.NextCommand.Execute(null); // gateway → waiting
 
         using (Assert.Multiple())
@@ -125,6 +132,7 @@ public class TutorialControllerTests
         noDemo.Start();
         b.NextCommand.Execute(null); // tab-nav
         b.NextCommand.Execute(null); // library
+        b.NextCommand.Execute(null); // player overview
         b.NextCommand.Execute(null); // gateway → waiting
 
         using (Assert.Multiple())
@@ -146,6 +154,7 @@ public class TutorialControllerTests
         sampleOnly.Start();
         a.NextCommand.Execute(null); // tab-nav
         a.NextCommand.Execute(null); // library
+        a.NextCommand.Execute(null); // player overview
         a.NextCommand.Execute(null); // gateway → waiting
 
         using (Assert.Multiple())
@@ -160,6 +169,7 @@ public class TutorialControllerTests
         both.Start();
         b.NextCommand.Execute(null); // tab-nav
         b.NextCommand.Execute(null); // library
+        b.NextCommand.Execute(null); // player overview
         b.NextCommand.Execute(null); // gateway → waiting
 
         await Assert.That(b.ActiveTarget).IsEqualTo(TutorialTarget.FirstLibraryCard)
@@ -167,7 +177,7 @@ public class TutorialControllerTests
     }
 
     [Test]
-    public async Task NotifyDemoLoaded_WhileWaiting_ResumesAtStats_AsStepFiveOfEight()
+    public async Task NotifyDemoLoaded_WhileWaiting_ResumesAtStats_AsStepSixOfThirteen()
     {
         (TutorialController controller, List<string?> tabs, _) = NewController();
         TutorialViewModel vm = controller.ViewModel;
@@ -175,6 +185,7 @@ public class TutorialControllerTests
         controller.Start();
         vm.NextCommand.Execute(null); // tab-nav
         vm.NextCommand.Execute(null); // library
+        vm.NextCommand.Execute(null); // player overview
         vm.NextCommand.Execute(null); // gateway → waiting
 
         controller.NotifyDemoLoaded();
@@ -185,9 +196,9 @@ public class TutorialControllerTests
             await Assert.That(vm.IsWaiting).IsFalse();
             await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.StatsContent);
             await Assert.That(vm.CurrentStep!.Segment).IsEqualTo(TutorialSegment.DemoLoaded);
-            await Assert.That(vm.StepNumber).IsEqualTo(5)
-                .Because("the indicator counts across the whole 8-step script, not per-run");
-            await Assert.That(vm.StepIndicator).IsEqualTo("5 of 8");
+            await Assert.That(vm.StepNumber).IsEqualTo(6)
+                .Because("the indicator counts across the whole script, not per-run");
+            await Assert.That(vm.StepIndicator).IsEqualTo("6 of 13");
             await Assert.That(vm.CanGoBack).IsFalse()
                 .Because("stats is the first step of the resumed demo run");
             await Assert.That(tabs[^1]).IsEqualTo("builtin.stats");
@@ -202,10 +213,11 @@ public class TutorialControllerTests
         (TutorialController controller, List<string?> tabs, _) = NewController(() => true);
         TutorialViewModel vm = controller.ViewModel;
 
-        controller.Start(); // welcome (1/8)
-        vm.NextCommand.Execute(null); // tab-nav (2/8)
-        vm.NextCommand.Execute(null); // library (3/8)
-        vm.NextCommand.Execute(null); // gateway (4/8), demo already open
+        controller.Start(); // welcome (1/13)
+        vm.NextCommand.Execute(null); // tab-nav (2/13)
+        vm.NextCommand.Execute(null); // library (3/13)
+        vm.NextCommand.Execute(null); // player overview (4/13)
+        vm.NextCommand.Execute(null); // gateway (5/13), demo already open
 
         await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.OpenDemo);
         await Assert.That(vm.IsWaiting).IsFalse().Because("a demo is already open, so the gateway does not wait");
@@ -217,8 +229,8 @@ public class TutorialControllerTests
         {
             await Assert.That(controller.IsActive).IsTrue();
             await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.StatsContent);
-            await Assert.That(vm.StepNumber).IsEqualTo(5);
-            await Assert.That(vm.StepIndicator).IsEqualTo("5 of 8");
+            await Assert.That(vm.StepNumber).IsEqualTo(6);
+            await Assert.That(vm.StepIndicator).IsEqualTo("6 of 13");
             await Assert.That(vm.CanGoBack).IsFalse().Because("stats is the first step of the demo run");
             await Assert.That(tabs[^1]).IsEqualTo("builtin.stats");
         }
@@ -249,23 +261,41 @@ public class TutorialControllerTests
         controller.Start();
         vm.NextCommand.Execute(null); // tab-nav
         vm.NextCommand.Execute(null); // library
+        vm.NextCommand.Execute(null); // player overview
         vm.NextCommand.Execute(null); // gateway → waiting
-        controller.NotifyDemoLoaded(); // stats (5/8)
+        controller.NotifyDemoLoaded(); // stats (6/13)
 
-        vm.NextCommand.Execute(null); // 2D playback (6/8)
+        vm.NextCommand.Execute(null); // report an analysis error (7/13)
+        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.ReportError);
+        await Assert.That(tabs[^1]).IsEqualTo("builtin.stats").Because("the bug button is on the Stats toolbar");
+
+        vm.NextCommand.Execute(null); // 2D playback (8/13)
         await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.PlaybackTab);
-        await Assert.That(vm.StepNumber).IsEqualTo(6);
-        await Assert.That(tabs[^1]).IsEqualTo("playback2d.viewport");
-
-        vm.NextCommand.Execute(null); // transport (7/8)
-        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.PlaybackTransport);
-        await Assert.That(vm.StepNumber).IsEqualTo(7);
-        await Assert.That(tabs[^1]).IsEqualTo("playback2d.viewport");
-
-        vm.NextCommand.Execute(null); // outro (8/8)
-        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.None);
         await Assert.That(vm.StepNumber).IsEqualTo(8);
-        await Assert.That(vm.StepIndicator).IsEqualTo("8 of 8");
+        await Assert.That(tabs[^1]).IsEqualTo("playback2d.viewport");
+
+        vm.NextCommand.Execute(null); // transport (9/13)
+        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.PlaybackTransport);
+        await Assert.That(vm.StepNumber).IsEqualTo(9);
+        await Assert.That(tabs[^1]).IsEqualTo("playback2d.viewport");
+
+        vm.NextCommand.Execute(null); // annotations (10/13)
+        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.AnnotationTools);
+        await Assert.That(tabs[^1]).IsEqualTo("playback2d.viewport");
+
+        vm.NextCommand.Execute(null); // strat book (11/13)
+        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.StratBookHub);
+        await Assert.That(vm.HasSpotlight).IsFalse().Because("the hub carries no anchor, so it is a centred card");
+        await Assert.That(tabs[^1]).IsEqualTo("stratbook.hub");
+
+        vm.NextCommand.Execute(null); // rule workbench (12/13)
+        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.RuleWorkbenchTab);
+        await Assert.That(tabs[^1]).IsEqualTo("ruleworkbench.editor");
+
+        vm.NextCommand.Execute(null); // outro (13/13)
+        await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.None);
+        await Assert.That(vm.StepNumber).IsEqualTo(13);
+        await Assert.That(vm.StepIndicator).IsEqualTo("13 of 13");
         await Assert.That(vm.HasSpotlight).IsFalse().Because("the outro is a centred card");
         await Assert.That(vm.NextLabel).IsEqualTo("Finish").Because("the outro's NextLabelOverride is the CTA");
         await Assert.That(seenCount()).IsEqualTo(0).Because("not marked seen until the tour actually finishes");
@@ -323,31 +353,34 @@ public class TutorialControllerTests
         controller.Start();
         vm.NextCommand.Execute(null); // tab-nav
         vm.NextCommand.Execute(null); // library
+        vm.NextCommand.Execute(null); // player overview
         vm.NextCommand.Execute(null); // gateway → waiting
         await Assert.That(vm.IsWaiting).IsTrue();
 
-        vm.BackCommand.Execute(null); // → library
+        vm.BackCommand.Execute(null); // → player overview
 
         using (Assert.Multiple())
         {
             await Assert.That(vm.IsWaiting).IsFalse().Because("stepping off the gateway leaves the waiting state");
             await Assert.That(vm.CanGoNext).IsTrue();
             await Assert.That(vm.WaitingHint).IsEmpty();
-            await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.LibraryTab);
+            await Assert.That(vm.CurrentStep!.Target).IsEqualTo(TutorialTarget.PlayerOverviewTab);
         }
     }
 
-    // The authored script is the engine's input contract: eight steps, the CTA overrides on the two centred
-    // cards, the segment split (4 first-run + 4 demo-loaded), and the single WaitsForDemo gateway with a hint.
+    // The authored script is the engine's input contract: thirteen steps, the CTA overrides on the two centred
+    // cards, the segment split (5 first-run + 8 demo-loaded), and the single WaitsForDemo gateway, which must
+    // close the first run because the controller flows from that run's last step into the demo run.
     [Test]
-    public async Task DefaultScript_HasEightSteps_WithSegmentSplit_CtaOverrides_AndOneGateway()
+    public async Task DefaultScript_HasThirteenSteps_WithSegmentSplit_CtaOverrides_AndOneGateway()
     {
         IReadOnlyList<TutorialStep> steps = TutorialSteps.Default;
         using (Assert.Multiple())
         {
-            await Assert.That(steps.Count).IsEqualTo(8);
-            await Assert.That(steps.Count(s => s.Segment == TutorialSegment.FirstRun)).IsEqualTo(4);
-            await Assert.That(steps.Count(s => s.Segment == TutorialSegment.DemoLoaded)).IsEqualTo(4);
+            await Assert.That(steps.Count).IsEqualTo(13);
+            await Assert.That(steps.Count(s => s.Segment == TutorialSegment.FirstRun)).IsEqualTo(5);
+            await Assert.That(steps.Count(s => s.Segment == TutorialSegment.DemoLoaded)).IsEqualTo(8);
+            await Assert.That(steps.Last(s => s.Segment == TutorialSegment.FirstRun).WaitsForDemo).IsTrue();
             await Assert.That(steps[0].NextLabelOverride).IsEqualTo("Get started");
             await Assert.That(steps[^1].NextLabelOverride).IsEqualTo("Finish");
 

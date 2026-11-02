@@ -5,8 +5,8 @@ in. It builds on `DemoViewer.NET.Extensions.Sdk` and is versioned with it.
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="DemoViewer.NET.Extensions.Sdk" Version="1.2.*" />
-  <PackageReference Include="DemoViewer.NET.Extensions.Sdk.Ui" Version="1.2.*" />
+  <PackageReference Include="DemoViewer.NET.Extensions.Sdk" Version="2.1.*" />
+  <PackageReference Include="DemoViewer.NET.Extensions.Sdk.Ui" Version="2.1.*" />
   <PackageReference Include="Avalonia" Version="12.1.4" />
   <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
 </ItemGroup>
@@ -141,3 +141,5 @@ of what 2.0 changed. The breaks in this kit are `SceneView.ActiveTool`, `SceneVi
 `MapView.AddLayer`, which return an `ILayerHandle` and refuse a duplicate id; `MapAssets.RenderPng`, which
 takes layer factories in place of an overlay document; and `MapAssets.TryLoad`, which is now
 `MapAssets.Acquire` and returns a lease you dispose.
+
+2.1 adds `SceneView.PanesArranged` and breaks nothing. The SDK package's README lists the rest of 2.1.

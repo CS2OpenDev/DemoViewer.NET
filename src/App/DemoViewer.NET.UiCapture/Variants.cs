@@ -3030,14 +3030,18 @@ public static partial class Variants
     // null → the live breathing animation (settles near its bright end under the headless render pump).
     private static Panel Tutorial(TutorialMock mock, double? pulsePhase = null)
     {
-        (TutorialStep step, int index, Rect rect) = mock switch
+        // By target, not index: the script grows, and its gated steps make an index mean different steps
+        // for different profiles.
+        (TutorialTarget target, Rect rect) = mock switch
         {
-            TutorialMock.TabNav => (TutorialSteps.Default[1], 2, _tabNavRect),
-            TutorialMock.Library => (TutorialSteps.Default[2], 3, _libraryTabRect),
-            TutorialMock.Waiting => (TutorialSteps.Default[3], 4, _firstCardRect),
-            TutorialMock.Transport => (TutorialSteps.Default[6], 7, _transportRect),
-            _ => (TutorialSteps.Default[0], 1, default)
+            TutorialMock.TabNav => (TutorialTarget.TabNav, _tabNavRect),
+            TutorialMock.Library => (TutorialTarget.LibraryTab, _libraryTabRect),
+            TutorialMock.Waiting => (TutorialTarget.OpenDemo, _firstCardRect),
+            TutorialMock.Transport => (TutorialTarget.PlaybackTransport, _transportRect),
+            _ => (TutorialTarget.None, default(Rect))
         };
+        TutorialStep step = TutorialSteps.Default.First(s => s.Target == target);
+        int index = TutorialSteps.Default.ToList().IndexOf(step) + 1;
 
         bool waiting = mock == TutorialMock.Waiting;
         TutorialViewModel vm = new()
@@ -3055,7 +3059,7 @@ public static partial class Variants
             // Runtime the controller swaps in the card hint when the gateway points at a library card; mirror
             // that here so the capture matches what the user sees.
             WaitingHint = waiting
-                ? "Double-click a demo below to open it — the tour will pick back up automatically."
+                ? "Double-click a demo below to open it. The tour picks back up automatically."
                 : string.Empty
         };
 

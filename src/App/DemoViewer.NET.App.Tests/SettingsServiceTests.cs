@@ -336,6 +336,48 @@ public class SettingsServiceTests
         await Assert.That(svc.Current.Playback2D.LastTool).IsEqualTo("Erase");
     }
 
+    /// <summary>
+    ///     <c>Updates.CheckAutomatically</c> came after the Updates section did, so a file from an older
+    ///     build has the section without the key. It must read as ON, the shipped default, and an OFF must
+    ///     survive a fresh service.
+    /// </summary>
+    [Test]
+    public async Task CheckAutomatically_MissingFromAnOlderFile_ReadsOn_AndOffRoundTrips()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "settings.json"),
+                """
+                {
+                  "FirstRunCompleted": true,
+                  "Updates": { "SubscribeToBeta": true }
+                }
+                """);
+
+            SettingsService svc = new(dir);
+            using (Assert.Multiple())
+            {
+                await Assert.That(svc.Current.Updates.SubscribeToBeta).IsTrue();
+                await Assert.That(svc.Current.Updates.CheckAutomatically).IsTrue();
+                await Assert.That(new AppSettings().Updates.CheckAutomatically).IsTrue();
+            }
+
+            svc.Write(s => s.Updates.CheckAutomatically = false);
+
+            AppSettings reloaded = new SettingsService(dir).Current;
+            using (Assert.Multiple())
+            {
+                await Assert.That(reloaded.Updates.CheckAutomatically).IsFalse();
+                await Assert.That(reloaded.Updates.SubscribeToBeta).IsTrue();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     // ── Consolidated Session + Recents sections ────────────────────────────────
 
     /// <summary>

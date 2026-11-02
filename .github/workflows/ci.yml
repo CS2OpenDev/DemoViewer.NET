@@ -319,6 +319,90 @@ jobs:
       - name: App suite, full tier (batched)
         run: bash scripts/test-app-suite.sh -c Release -n 4 -t full -b skip -x
 
+  # The same suite on Windows, because Linux-only CI never sees a Windows-only test bug: the
+  # library-scan fixtures built "ok/a.dem" relative paths and failed only here, for as long as
+  # nobody happened to run the suite on Windows. Its own job rather than a matrix on app-tests, so
+  # that job's check name, which the require-ci ruleset pins, does not change.
+  #
+  # `shell: bash` is Git Bash on this runner. A bare `bash` from the default pwsh shell can resolve to
+  # WSL's launcher instead. Git Bash rewrites arguments that look like POSIX paths, but a tree-node
+  # filter containing `*` is left alone (checked), so the scripts run unchanged.
+  #
+  # 45 rather than app-tests' 30: the runner takes about 18 minutes here against app-tests' 11, so both
+  # keep roughly the same headroom.
+  #
+  # Required by the require-ci ruleset since 2026-11-02, once two full runs on cba9d634 came back clean.
+  # Its first runs each failed a different Windows-only race: antivirus holding a file a test had just
+  # written (AtomicFile now retries; tests delete through TestFiles.Delete) and library tests listing
+  # through the shared QueueWork.Ambient. A new failure here is most likely the same family.
+  app-tests-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # Nerdbank.GitVersioning needs full history
+
+      # `native` is Linux-only; SkiaSharp's Windows native ships in its package.
+      - uses: ./.github/actions/dotnet-sdk
+
+      - name: App suite, full tier (batched)
+        env:
+          DV_TEST_LOG_DIR: artifacts/test-logs   # relative to the repo root, where both scripts run
+        run: bash scripts/test-app-suite.sh -c Release -n 4 -t full -b skip -x
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: app-tests-windows-logs
+          path: artifacts/test-logs/
+          if-no-files-found: ignore
+
+  # ext-tests and library-tests on Windows, in one job: together they take a few minutes, and the
+  # first local run turned up four Strat Book goldens that only failed here.
+  library-tests-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      DV_TEST_LOG_DIR: artifacts/test-logs   # relative to the repo root, where both scripts run
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # Nerdbank.GitVersioning needs full history
+
+      - uses: ./.github/actions/dotnet-sdk
+
+      - name: Extension (Strat Book) suite, full tier
+        run: bash scripts/test.sh -t full -b skip -p ext -c Release
+
+      - name: LiveSync suite (full tier)
+        run: bash scripts/test.sh -t full -b skip -p livesync
+
+      - name: Visualization suite (full tier)
+        run: bash scripts/test.sh -t full -b skip -p visualization
+
+      - name: RuleAuthoring suite (full tier)
+        run: bash scripts/test.sh -t full -b skip -p ruleauthoring
+
+      - name: DemoTrimmer suite (full tier)
+        run: bash scripts/test.sh -t full -b skip -p trimmer
+
+      - name: GameIcons suite (full tier)
+        run: bash scripts/test.sh -t full -b skip -p gameicons
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: library-tests-windows-logs
+          path: artifacts/test-logs/
+          if-no-files-found: ignore
+
   # The pack's own tests. Its own job rather than a step in app-tests: a different memory
   # posture deserves a different timeout, not app-tests' budget shared by subtraction. Single process
   # for now, unbatched: that follows a measured peak (as app-tests' batching did), not the test count,
@@ -426,8 +510,9 @@ jobs:
           dotnet run -c Release --project tools/DemoViewer.NET.Playback2D.Cli -- probe --json
 
       # The only filters still written inline in this file. This job has a Windows leg, whose default
-      # shell is pwsh, and scripts/test.sh has never run there. `Category!=Budget` is what `-b skip`
-      # selects for this project, which carries no KnownFailure case.
+      # shell is pwsh; the Windows test lanes above run scripts/test.sh through `shell: bash`, and this
+      # one has not been moved over. `Category!=Budget` is what `-b skip` selects for this project,
+      # which carries no KnownFailure case.
       - name: Render-backend tests (CPU contract + cross-backend parity)
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'

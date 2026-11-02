@@ -20,7 +20,7 @@
         <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto,Auto" Margin="24,12,24,20">
             <Button Grid.Column="0" Classes="ghost" Padding="10,6" Content="Skip setup"
                     IsVisible="{Binding ShowSkip}" Command="{Binding SkipCommand}"
-                    ToolTip.Tip="Use the defaults for now — you can adjust everything later in Settings." />
+                    ToolTip.Tip="Use the defaults for now. You can adjust everything later in Settings." />
             <Button Grid.Column="2" Classes="ghost" Padding="16,6" Content="Back" Margin="0,0,8,0"
                     IsVisible="{Binding CanGoBack}" Command="{Binding BackCommand}" />
             <Button Grid.Column="3" Classes="primary" Padding="22,6" Content="Next"
@@ -40,7 +40,7 @@
                            Foreground="{DynamicResource TextValue}" />
                 <TextBlock TextWrapping="Wrap" TextAlignment="Center" FontSize="13"
                            Foreground="{DynamicResource TextMid}"
-                           Text="Let's get you set up. A couple of quick choices tailor the app to how you work — you can change any of them later in Settings." />
+                           Text="Let's get you set up. A couple of quick choices tailor the app to how you work, and you can change any of them later in Settings." />
             </StackPanel>
 
             <!-- Step 1 — Pick your category -->
@@ -71,7 +71,7 @@
                 <TextBlock Text="Add your demo folders" FontSize="19" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextValue}" />
                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextMid}"
-                           Text="Folders the demo library scans for .dem files. This step is optional — add or change folders anytime in Settings." />
+                           Text="Folders the demo library scans for .dem files. This step is optional, and you can add or change folders anytime in Settings." />
 
                 <!-- Auto-detected CS2 demos folder — where the game saves downloaded match/GOTV demos.
                      Shown only when a CS2 install was found; one click adds it to the list. -->
@@ -176,7 +176,7 @@
                            HorizontalAlignment="Center" Foreground="{DynamicResource TextValue}" />
                 <TextBlock TextWrapping="Wrap" TextAlignment="Center" FontSize="13"
                            Foreground="{DynamicResource TextMid}"
-                           Text="DemoViewer.NET is ready. Open a demo to get started — and revisit Settings anytime to adjust your category, folders, or individual features." />
+                           Text="DemoViewer.NET is ready. Open a demo to get started, and revisit Settings anytime to adjust your category, folders, or individual features." />
                 <Border Classes="card" Padding="16,12" HorizontalAlignment="Center" MinWidth="220">
                     <StackPanel Spacing="4">
                         <TextBlock Classes="col-label" Text="YOUR CATEGORY" />

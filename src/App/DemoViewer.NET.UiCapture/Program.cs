@@ -6,6 +6,7 @@ using Avalonia.Styling;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Services;
+using DemoViewer.NET.Theming;
 using DemoViewer.NET.UiCapture;
 
 #endregion
@@ -16,6 +17,7 @@ using DemoViewer.NET.UiCapture;
 //   dotnet run --project src/App/DemoViewer.NET.UiCapture -- <variant> [--out <path>] [--size WxH]
 //   dotnet run --project src/App/DemoViewer.NET.UiCapture -- ab <variantA> <variantB> [--out <path>] [--size WxH]
 //   dotnet run --project src/App/DemoViewer.NET.UiCapture -- list
+//   dotnet run --project src/App/DemoViewer.NET.UiCapture -- export-themes [--out samples/Themes]
 //
 // --out defaults to %TEMP%/demoviewer-uitests/<variant>.png; --size defaults to the variant's own size
 // (the WxH override sizes the render window, e.g. 800x600).
@@ -39,10 +41,26 @@ if (args.Length == 0 || args[0] is "-h" or "--help" or "help")
     return 0;
 }
 
+// Writes every built-in theme's reference file (samples/Themes by default). No render, so no Avalonia session.
+if (args[0] is "export-themes")
+{
+    int at = Array.IndexOf(args, "--out");
+    string dir = at >= 0 && at + 1 < args.Length ? args[at + 1] : Path.Combine("samples", "Themes");
+    Directory.CreateDirectory(dir);
+    foreach (ThemePalette builtIn in BuiltInThemes.All)
+    {
+        string path = Path.Combine(dir, ThemeExport.SampleFileName(builtIn));
+        File.WriteAllText(path, ThemeExport.SampleFile(builtIn));
+        Console.WriteLine($"[uicapture] wrote {path}");
+    }
+
+    return 0;
+}
+
 if (args[0] is "list")
 {
     Console.WriteLine("Variants:");
-    foreach (string name in Variants.All.Keys.OrderBy(n => n, StringComparer.Ordinal))
+    foreach (string name in Variants.All.Keys.Concat(Variants.ThemeCaptures.Keys).OrderBy(n => n, StringComparer.Ordinal))
     {
         Console.WriteLine($"  {name}");
     }
@@ -93,7 +111,7 @@ catch (Exception ex)
 
 Func<Control> Resolve(string name)
 {
-    if (Variants.All.TryGetValue(name, out Func<Control>? f))
+    if (Variants.All.TryGetValue(name, out Func<Control>? f) || Variants.ThemeCaptures.TryGetValue(name, out f))
     {
         return f;
     }
@@ -132,4 +150,5 @@ static void PrintUsage()
     Console.WriteLine("  <variant> [--out <path>] [--size WxH]     render one variant");
     Console.WriteLine("  ab <a> <b> [--out <path>] [--size WxH]    render two variants side-by-side");
     Console.WriteLine("  list                                      list available variants");
+    Console.WriteLine("  export-themes [--out <dir>]               write the built-in themes as JSON (default samples/Themes)");
 }

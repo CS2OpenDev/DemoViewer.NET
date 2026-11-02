@@ -10,6 +10,7 @@ using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.LiveSync;
 using DemoViewer.NET.ViewModels.Highlights;
+using Microsoft.Extensions.Options;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -116,11 +117,22 @@ public class HighlightsTabViewModelTests
         return (store, scanner);
     }
 
+    private sealed class StubMonitor(AppSettings value) : IOptionsMonitor<AppSettings>
+    {
+        public AppSettings CurrentValue { get; } = value;
+        public AppSettings Get(string? name) => CurrentValue;
+        public IDisposable? OnChange(Action<AppSettings, string?> listener) => null;
+    }
+
     private static HighlightsTabViewModel Vm(
         DemoCacheStore store, HighlightScanService scanner,
-        IReelJobService? job = null, bool demosExist = true, Action? addClips = null)
+        IReelJobService? job = null, bool demosExist = true, Action? addClips = null,
+        bool noticeAcknowledged = true)
     {
+        AppSettings settings = new();
+        settings.LiveSync.LaunchNoticeAcknowledged = noticeAcknowledged;
         HighlightsTabViewModel vm = new(store, scanner,
+            new StubMonitor(settings),
             reelJob: job,
             isLiveSyncSessionActive: () => false,
             fileExists: _ => demosExist);
@@ -307,6 +319,26 @@ public class HighlightsTabViewModelTests
         vm.ReelConfig.GenerateCommand.Execute(null);
         await Assert.That(job.LastRequest!.Clips.Select(c => c.DemoPath))
             .IsEquivalentTo(_pathsAAB, CollectionOrdering.Matching);
+    }
+
+    // The tab wires the notice to LiveSync.LaunchNoticeAcknowledged: unacknowledged, Generate asks instead of
+    // handing the reel to the job service.
+    [Test]
+    public async Task Generate_AsksForLaunchNotice_UntilSettingsRecordConsent()
+    {
+        DemoCacheRecord b = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
+            [Ev("ZywOo", "2", 0, 2, 20000, "clutch.retake")]);
+        (DemoCacheStore store, HighlightScanService scanner) = NewStore(b);
+        FakeReelJob job = new();
+        HighlightsTabViewModel vm = Vm(store, scanner, job, noticeAcknowledged: false);
+        vm.Stage(b, b.Highlights[0]);
+
+        vm.ReelConfig.GenerateCommand.Execute(null);
+        await Assert.That(vm.ReelConfig.ShowLaunchNotice).IsTrue();
+        await Assert.That(job.LastRequest).IsNull();
+
+        vm.ReelConfig.ConfirmLaunchNoticeCommand.Execute(null);
+        await Assert.That(job.LastRequest).IsNotNull();
     }
 
     // ── Removal + the guarded clear ───────────────────────────────────────────

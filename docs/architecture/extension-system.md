@@ -43,8 +43,8 @@ assembly; the pack reports the embedded copy in process through `IExtension.Mani
   "version": "{version}",
   "assembly": "DemoViewer.NET.Extensions.StratBook.dll",
   "entryType": "DemoViewer.NET.Extensions.StratBook.StratBookPack",
-  "requiresHost": "^1.0",
-  "requiresCs2DemoKit": "0.14.0"
+  "requiresHost": "^2.1",
+  "requiresCs2DemoKit": "0.14.1"
 }
 ```
 
@@ -159,7 +159,7 @@ no `ContractVersion` bump.
 
 A contract bump (section 1's major/minor rule) must update `requiresHost` in `extension.json`, or
 `RequiresHost_IsSatisfiedByTheCurrentContract_AndWouldBeViolatedByTheNextMajor` fails. A CS2DemoKit bump
-must move all three `CS2DemoKit.*` pins in `Directory.Packages.props` and `requiresCs2DemoKit` in one
+must move both `CS2DemoKit.*` pins in `Directory.Packages.props` and `requiresCs2DemoKit` in one
 commit, or `RequiresCs2DemoKit_EqualsTheDirectoryPackagesPropsPin_Exactly` fails.
 
 **The pinning rule.** A staged extension compiles against the app assembly, Avalonia, CS2DemoKit, Playback2D
@@ -563,7 +563,10 @@ Settings can say what a newer version needs. Pending is a version already staged
 would take at the next start: the highest `extensions/<id>/<version>/` above the running version that
 passes the section 1 check. The status, in order of precedence: `UpdateAvailable` when something is
 offered and it is newer than any pending copy; `PendingRestart` when a pending copy exists; `NeedsNewerApp`
-when the latest is newer and nothing is offered; else `UpToDate`. A feed that cannot be fetched is
+when the latest is newer and nothing is offered; else `UpToDate`. A feed that answers 404 is
+`NotPublished` (or `PendingRestart` over a staged copy), logged at Information with the URL: the rolling
+release does not exist until the first extension release creates it. It is not shown as an error, but it
+is not `UpToDate` either, because a wrong or stale feed address answers 404 as well. Any other feed that cannot be fetched is
 `FeedUnreachable` and one that does not parse, or is for another extension, is `FeedInvalid`, each with a
 user-terms `Error` and the exception message on `LogDetail` for the log only; a pack whose own manifest
 did not read is `Unknown`. Nothing throws. The service remembers the last state per pack for the run
@@ -623,6 +626,7 @@ one sentence per state:
 | not checked this run | (empty; the Check button is the invitation) |
 | checking | `Checking for updates…` |
 | `UpToDate` | `Up to date.` |
+| `NotPublished` | `No updates have been published yet.` |
 | `UpdateAvailable` | `1.0.1 available.` and the Update button |
 | downloading | `Downloading 1.0.1: 1.2 of 4.5 MB`, the bar and Cancel |
 | `PendingRestart` (and after a successful download) | `1.0.1 installed, restart to use it.` |
@@ -885,6 +889,17 @@ with the computed version or the workflow refuses it. The workflow builds, tests
 release and updates the feed with no further action; watch its run in the Actions tab. To preview without
 publishing, dispatch the workflow by hand with `dry_run` left at its default and read the artifact it
 uploads. `dotnet nbgv get-version -p src/Extensions/StratBook` shows what the next tag would be.
+
+**Release order when CS2DemoKit moves.** The app loads one CS2DemoKit for itself and every extension, so
+the SDK on nuget.org has to declare the version the app pins. Release the SDK first: on the `main` commit
+that carries the bump (with `scripts/ship-public-api.sh` run and committed if Unshipped has entries), run
+`dotnet nbgv tag -p src/Sdk/DemoViewer.NET.Extensions.Sdk` and push the `sdk/v<version>` tag it prints.
+Tag the app (`v*`) once nuget.org serves those packages. `release.yml`'s `verify-sdk` job runs
+`scripts/check-sdk-published.sh`, which refuses the app until the newest stable SDK on nuget.org declares
+each CS2DemoKit package at the `Directory.Packages.props` pin. It does not require the SDK at the app's
+commit to be published, so an app release after an SDK-only change goes ahead. A dry run reports instead of
+failing, and a dispatch with `allow_sdk_drift` skips the gate for an emergency and says so in the run.
+`release-sdk.yml` runs the same script with `--packed` on its own packages before pushing them.
 
 **One extension per output directory.** The shipped manifest copy is the bare `extension.json`. A second
 extension shipped beside this one in the same output directory needs it renamed to `<id>.extension.json`,

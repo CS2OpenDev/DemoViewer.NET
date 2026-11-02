@@ -1,3 +1,9 @@
+#region
+
+using DemoViewer.NET.Configuration;
+
+#endregion
+
 namespace DemoViewer.NET.ViewModels.Tutorial;
 
 /// <summary>
@@ -66,7 +72,61 @@ public enum TutorialTarget
     PlaybackTab,
 
     /// <summary>The NavStrip transport cluster (play/pause, speed, seek).</summary>
-    PlaybackTransport
+    PlaybackTransport,
+
+    /// <summary>The Player Overview tab's content area.</summary>
+    PlayerOverviewTab,
+
+    /// <summary>The Stats toolbar's "Report Analysis Errors" (bug) button.</summary>
+    ReportError,
+
+    /// <summary>The 2D Playback annotation toolbar.</summary>
+    AnnotationTools,
+
+    /// <summary>The Authoring (Rule Workbench) tab's content area.</summary>
+    RuleWorkbenchTab,
+
+    /// <summary>
+    ///     The Strat Book hub tab. A backdrop only: the hub's view belongs to the extension and carries no
+    ///     anchor, so a step naming it is a centred card over that tab.
+    /// </summary>
+    StratBookHub
+}
+
+/// <summary>
+///     Who a tour step or note is for. A step must never point at a surface the user cannot see, so each one
+///     can name the feature it shows, the categories it is written for, and whether it needs a desktop head.
+///     Everything left unset admits everyone. <see cref="Services.Tutorial.TutorialAudienceFilter" /> decides.
+/// </summary>
+public interface ITutorialAudience
+{
+    /// <summary>The feature-catalog id this shows; hidden when the gate has it off.</summary>
+    string? FeatureId { get; }
+
+    /// <summary>The effective categories this is written for; null is every category.</summary>
+    IReadOnlyList<UserCategory>? Categories { get; }
+
+    /// <summary>True when the surface does not exist on the WASM head.</summary>
+    bool DesktopOnly { get; }
+}
+
+/// <summary>
+///     A sentence appended to its step's <see cref="TutorialStep.Body" /> only when its own audience admits the
+///     user, so one step can carry a line that only some profiles should read.
+/// </summary>
+public sealed record TutorialNote : ITutorialAudience
+{
+    /// <summary>The sentence, appended after the body with a single space.</summary>
+    public required string Text { get; init; }
+
+    /// <inheritdoc />
+    public string? FeatureId { get; init; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<UserCategory>? Categories { get; init; }
+
+    /// <inheritdoc />
+    public bool DesktopOnly { get; init; }
 }
 
 /// <summary>
@@ -89,7 +149,7 @@ public enum TutorialSegment
 ///     binds <see cref="Title" /> / <see cref="Body" /> and reads <see cref="HasSpotlight" /> /
 ///     <see cref="Placement" /> for its layout. The canonical set is <see cref="TutorialSteps.Default" />.
 /// </summary>
-public sealed record TutorialStep
+public sealed record TutorialStep : ITutorialAudience
 {
     /// <summary>Short step heading (consumer-friendly, jargon-free).</summary>
     public required string Title { get; init; }
@@ -133,16 +193,31 @@ public sealed record TutorialStep
     ///     a demo to be opened. Null → the engine's default hint. Ignored on every non-waiting step.
     /// </summary>
     public string? WaitingHint { get; init; }
+
+    /// <inheritdoc />
+    public string? FeatureId { get; init; }
+
+    /// <inheritdoc />
+    public IReadOnlyList<UserCategory>? Categories { get; init; }
+
+    /// <inheritdoc />
+    public bool DesktopOnly { get; init; }
+
+    /// <summary>Sentences appended to <see cref="Body" /> when their own audience admits the user.</summary>
+    public IReadOnlyList<TutorialNote> Notes { get; init; } = [];
 }
 
 /// <summary>
 ///     The canonical first-run walkthrough script. This is the engine's <b>input</b>: the presentation
-///     layer does not own it, so the engine can sequence, filter by <see cref="TutorialSegment" />, or A/B
-///     the copy without touching the view. Consumer-level content for every audience.
+///     layer does not own it, so the engine can sequence, filter by <see cref="TutorialSegment" /> and by each
+///     step's audience, or A/B the copy without touching the view.
 /// </summary>
 public static class TutorialSteps
 {
-    /// <summary>The eight-step default tour (4 first-run + 4 demo-loaded, including the outro).</summary>
+    /// <summary>
+    ///     The full script (5 first-run + 8 demo-loaded, including the outro). A user sees the steps whose
+    ///     audience admits them; the eight ungated ones are the tour every profile gets.
+    /// </summary>
     public static IReadOnlyList<TutorialStep> Default { get; } =
     [
         new()
@@ -154,7 +229,7 @@ public static class TutorialSteps
             NextLabelOverride = "Get started",
             Title = "Welcome to DemoViewer",
             Body =
-                "Here's a quick tour of the essentials — it takes about a minute. You can skip it any time "
+                "Here's a quick tour of the essentials. It takes about a minute, and you can skip it any time "
                 + "and reopen it later from Settings."
         },
         new()
@@ -165,8 +240,8 @@ public static class TutorialSteps
             Placement = CalloutPlacement.Below,
             Title = "Move between areas",
             Body =
-                "These tabs are how you get around — your Library, a match's Stats, and 2D Playback. Click a "
-                + "tab any time to switch; the tour will hop between them for you as we go."
+                "These tabs are how you get around: your Library, a match's Stats, 2D Playback and more. Click "
+                + "a tab any time to switch. The tour hops between them for you as we go."
         },
         new()
         {
@@ -176,8 +251,20 @@ public static class TutorialSteps
             Placement = CalloutPlacement.Right,
             Title = "Your demo library",
             Body =
-                "The Library is home base. Every demo you add shows up here as a card with its map, players "
-                + "and final score."
+                "The Library is home base. Every demo in the folders you add here shows up as a card with its "
+                + "map, players and final score."
+        },
+        new()
+        {
+            Segment = TutorialSegment.FirstRun,
+            HasSpotlight = true,
+            Target = TutorialTarget.PlayerOverviewTab,
+            Placement = CalloutPlacement.Left,
+            FeatureId = "tab.playeroverview",
+            Title = "Follow one player",
+            Body =
+                "Player Overview follows one player across your whole library: their match history, the maps "
+                + "they play and how their stats change over time."
         },
         new()
         {
@@ -186,10 +273,10 @@ public static class TutorialSteps
             Target = TutorialTarget.OpenDemo,
             Placement = CalloutPlacement.Below,
             WaitsForDemo = true,
-            WaitingHint = "Open a demo to keep going — the tour picks back up automatically.",
+            WaitingHint = "Open a demo to keep going. The tour picks back up automatically.",
             Title = "Open a demo",
             Body =
-                "This is where you load demos. Open one now — the tour then continues into the match stats and "
+                "This is where you load demos. Open one now and the tour continues into the match stats and "
                 + "2D playback."
         },
         new()
@@ -200,8 +287,21 @@ public static class TutorialSteps
             Placement = CalloutPlacement.Left,
             Title = "Review the match",
             Body =
-                "The Stats tab breaks down the whole match — the scoreboard, how each player performed, and "
-                + "a round-by-round timeline."
+                "The Stats tab breaks down the whole match: the scoreboard, how each player performed, and a "
+                + "round-by-round timeline."
+        },
+        new()
+        {
+            Segment = TutorialSegment.DemoLoaded,
+            HasSpotlight = true,
+            Target = TutorialTarget.ReportError,
+            Placement = CalloutPlacement.Below,
+            // The button is wired only where a report can be stored, which the browser head cannot do.
+            DesktopOnly = true,
+            Title = "Report an analysis error",
+            Body =
+                "If the analysis gets a round or a kill wrong, click this bug button or press Ctrl+Shift+R and "
+                + "write down what you saw. The report is saved with the demo."
         },
         new()
         {
@@ -222,8 +322,55 @@ public static class TutorialSteps
             Placement = CalloutPlacement.Above,
             Title = "Play, pause and seek",
             Body =
-                "These controls run the replay — play or pause, change the speed, and jump between rounds and "
+                "These controls run the replay. Play or pause, change the speed, and jump between rounds and "
                 + "key moments."
+        },
+        new()
+        {
+            Segment = TutorialSegment.DemoLoaded,
+            HasSpotlight = true,
+            Target = TutorialTarget.AnnotationTools,
+            Placement = CalloutPlacement.Below,
+            FeatureId = "playback2d.annotations",
+            Title = "Draw on the map",
+            Body =
+                "Sketch lines, arrows, shapes and text over the replay. Anchor a drawing to the current moment "
+                + "so it fades with the clock, or start a stroke on a player and it follows them.",
+            Notes =
+            [
+                new()
+                {
+                    // The app's own ffmpeg download is the LGPL build, which has VP9 but no H.264.
+                    FeatureId = "playback2d.export",
+                    Text =
+                        "Export video saves the result as a GIF with nothing else installed. WebM needs ffmpeg, "
+                        + "and MP4 needs a full ffmpeg build you install yourself."
+                }
+            ]
+        },
+        new()
+        {
+            Segment = TutorialSegment.DemoLoaded,
+            HasSpotlight = false,
+            Target = TutorialTarget.StratBookHub,
+            Placement = CalloutPlacement.Center,
+            FeatureId = "pack.stratbook",
+            Title = "Strat Book is on",
+            Body =
+                "Search your library for situations, tag rounds, build a utility book, scout opponents and "
+                + "queue rounds to review later. You can turn it off any time in Settings."
+        },
+        new()
+        {
+            Segment = TutorialSegment.DemoLoaded,
+            HasSpotlight = true,
+            Target = TutorialTarget.RuleWorkbenchTab,
+            Placement = CalloutPlacement.Left,
+            FeatureId = "tab.authoring",
+            Title = "Write your own rules",
+            Body =
+                "Highlight and stat rules are plain YAML. In the Authoring tab you can open one, save your own "
+                + "copy, check it for problems and evaluate it against the open demo."
         },
         new()
         {
@@ -234,8 +381,36 @@ public static class TutorialSteps
             NextLabelOverride = "Finish",
             Title = "You're all set",
             Body =
-                "That's the tour. Explore at your own pace — and you can reopen this walkthrough any time from "
-                + "Settings."
+                "That's the tour. Explore at your own pace, and reopen this walkthrough any time from Settings.",
+            Notes =
+            [
+                // Reels are on for every profile (off by default on macOS) and Live Sync only for developers,
+                // so each launch note follows its own feature rather than sharing one gate.
+                new()
+                {
+                    FeatureId = "tab.highlights",
+                    DesktopOnly = true,
+                    Text =
+                        "Reels start CS2 with -insecure and patch your CS2 install while they record, so the app "
+                        + "asks first until you tell it not to."
+                },
+                new()
+                {
+                    FeatureId = "chrome.livesync",
+                    DesktopOnly = true,
+                    Text =
+                        "Live Sync starts CS2 with -insecure and patches your CS2 install while it runs, so the app "
+                        + "asks first until you tell it not to."
+                },
+                new()
+                {
+                    // Theme Customization is desktop-only: the browser head has no themes folder to save into.
+                    DesktopOnly = true,
+                    Text =
+                        "To restyle the app, open Settings, go to Theme and click Customize… to make your own copy "
+                        + "of any theme."
+                }
+            ]
         }
     ];
 }

@@ -147,6 +147,9 @@ jobs:
           # Only a real publish ever sees the production key; pack-extension.sh also refuses it in
           # --dry-run on its own, so this is belt and suspenders, not the only guard.
           DV_EXTENSION_SIGNING_KEY: ${{ steps.resolve.outputs.do_publish == '1' && secrets.DV_EXTENSION_SIGNING_KEY || '' }}
+          # The feed entry's zip url is built from this. Left to the script's hardcoded default, it names
+          # the old owner after a repo transfer, and the url check in the publish job then refuses the release.
+          DV_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
           set -euo pipefail
           ARGS=("$EXT_ID" --out "artifacts/extension-release/$EXT_ID")

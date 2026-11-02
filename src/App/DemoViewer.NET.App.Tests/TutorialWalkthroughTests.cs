@@ -61,7 +61,8 @@ public class TutorialWalkthroughTests
                 await Assert.That(vm.Tutorial.IsActive).IsTrue();
                 await Assert.That(vm.Tutorial.CurrentStep!.Title).IsEqualTo("Welcome to DemoViewer");
                 await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(1);
-                await Assert.That(vm.Tutorial.StepCount).IsEqualTo(8);
+                await Assert.That(vm.Tutorial.StepCount).IsEqualTo(13)
+                    .Because("a null gate admits every authored step, the same fail-open the tab strip takes");
                 await Assert.That(vm.Tutorial.CanGoBack).IsFalse();
                 await Assert.That(vm.Tutorial.HasSpotlight).IsFalse().Because("welcome is a centered card");
             }
@@ -80,19 +81,22 @@ public class TutorialWalkthroughTests
             MainViewModel vm = NewShell();
             try
             {
-                vm.StartWalkthrough(); // welcome (1/8)
+                vm.StartWalkthrough(); // welcome (1/13)
 
-                vm.Tutorial.NextCommand.Execute(null); // → move between areas / tab strip (2/8)
+                vm.Tutorial.NextCommand.Execute(null); // → move between areas / tab strip (2/13)
                 await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.TabNav);
                 await Assert.That(vm.SelectedTab!.TabId).IsEqualTo("builtin.library")
                     .Because("the tab-strip step lands on the Library as its backdrop");
                 await Assert.That(vm.Tutorial.CanGoBack).IsTrue();
 
-                vm.Tutorial.NextCommand.Execute(null); // → library (3/8)
+                vm.Tutorial.NextCommand.Execute(null); // → library (3/13)
                 await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.LibraryTab);
                 await Assert.That(vm.SelectedTab!.TabId).IsEqualTo("builtin.library");
 
-                vm.Tutorial.NextCommand.Execute(null); // → open a demo, the gateway (4/8)
+                vm.Tutorial.NextCommand.Execute(null); // → player overview (4/13)
+                await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.PlayerOverviewTab);
+
+                vm.Tutorial.NextCommand.Execute(null); // → open a demo, the gateway (5/13)
                 await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.OpenDemo);
 
                 // The gateway waits IN PLACE with no demo open: the overlay stays up (guiding the user to the
@@ -118,10 +122,10 @@ public class TutorialWalkthroughTests
             try
             {
                 vm.StartWalkthrough();
-                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/8)
-                vm.Tutorial.NextCommand.Execute(null); // library (3/8)
+                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/13)
+                vm.Tutorial.NextCommand.Execute(null); // library (3/13)
 
-                vm.Tutorial.BackCommand.Execute(null); // → tab strip (2/8)
+                vm.Tutorial.BackCommand.Execute(null); // → tab strip (2/13)
                 await Assert.That(vm.Tutorial.StepNumber).IsEqualTo(2);
                 await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.TabNav);
             }
@@ -182,7 +186,7 @@ public class TutorialWalkthroughTests
 
                 // Step 2: the tab strip, a union of the realized TabItem headers, NOT the whole workspace, so
                 // it must measure a short, wide rect near the top of the window (a chrome-strip region).
-                vm.Tutorial.NextCommand.Execute(null); // → move between areas / tab strip (2/8)
+                vm.Tutorial.NextCommand.Execute(null); // → move between areas / tab strip (2/13)
                 PumpLayout();
                 await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.TabNav);
                 await Assert.That(vm.Tutorial.SpotlightRect.Width).IsGreaterThan(0)
@@ -199,16 +203,22 @@ public class TutorialWalkthroughTests
                     $"[tutorial-live-tabnav] {tabsPath} rect={vm.Tutorial.SpotlightRect} nonBg={ScanNonBackground(tabsFrame)}");
 
                 // Step 3: the Library region (a tab-root anchor).
-                vm.Tutorial.NextCommand.Execute(null); // → library (3/8)
+                vm.Tutorial.NextCommand.Execute(null); // → library (3/13)
                 PumpLayout();
                 await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.LibraryTab);
                 await Assert.That(vm.Tutorial.SpotlightRect.Width).IsGreaterThan(0)
                     .Because("the overlay resolved the Library anchor and measured its rect");
                 await Assert.That(vm.Tutorial.SpotlightRect.Height).IsGreaterThan(0);
 
-                // Step 4: the Open-Demo toolbar button, a chrome control, not a tab root. With no demo open it
+                // Step 4: Player Overview, which needs the demo cache this shell is built without, so its tab
+                // is absent and the step has no anchor to measure. Only the sequence is asserted.
+                vm.Tutorial.NextCommand.Execute(null); // → player overview (4/13)
+                PumpLayout();
+                await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.PlayerOverviewTab);
+
+                // Step 5: the Open-Demo toolbar button, a chrome control, not a tab root. With no demo open it
                 // is the waiting gateway, but the spotlight still frames the button (advance disabled).
-                vm.Tutorial.NextCommand.Execute(null); // → open a demo, the gateway (4/8)
+                vm.Tutorial.NextCommand.Execute(null); // → open a demo, the gateway (5/13)
                 PumpLayout();
                 await Assert.That(vm.Tutorial.CurrentStep!.Target).IsEqualTo(TutorialTarget.OpenDemo);
                 await Assert.That(vm.Tutorial.IsWaiting).IsTrue().Because("no demo is open at the gateway");
@@ -259,9 +269,10 @@ public class TutorialWalkthroughTests
                 window.Show();
 
                 vm.StartWalkthrough();
-                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/8)
-                vm.Tutorial.NextCommand.Execute(null); // library (3/8)
-                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (4/8) → waiting
+                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/13)
+                vm.Tutorial.NextCommand.Execute(null); // library (3/13)
+                vm.Tutorial.NextCommand.Execute(null); // player overview (4/13)
+                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (5/13) → waiting
                 for (int i = 0; i < 4; i++)
                 {
                     Dispatcher.UIThread.RunJobs();
@@ -326,9 +337,10 @@ public class TutorialWalkthroughTests
                 window.Show();
 
                 vm.StartWalkthrough();
-                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/8)
-                vm.Tutorial.NextCommand.Execute(null); // library (3/8)
-                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (4/8) → waiting
+                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/13)
+                vm.Tutorial.NextCommand.Execute(null); // library (3/13)
+                vm.Tutorial.NextCommand.Execute(null); // player overview (4/13)
+                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (5/13) → waiting
                 for (int i = 0; i < 6; i++)
                 {
                     Dispatcher.UIThread.RunJobs();
@@ -395,9 +407,10 @@ public class TutorialWalkthroughTests
                 window.Show();
 
                 vm.StartWalkthrough();
-                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/8)
-                vm.Tutorial.NextCommand.Execute(null); // library (3/8)
-                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (4/8) → waiting
+                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/13)
+                vm.Tutorial.NextCommand.Execute(null); // library (3/13)
+                vm.Tutorial.NextCommand.Execute(null); // player overview (4/13)
+                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (5/13) → waiting
                 for (int i = 0; i < 6; i++)
                 {
                     Dispatcher.UIThread.RunJobs();
@@ -455,9 +468,10 @@ public class TutorialWalkthroughTests
             try
             {
                 vm.StartWalkthrough();
-                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/8)
-                vm.Tutorial.NextCommand.Execute(null); // library (3/8)
-                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (4/8) → waiting
+                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/13)
+                vm.Tutorial.NextCommand.Execute(null); // library (3/13)
+                vm.Tutorial.NextCommand.Execute(null); // player overview (4/13)
+                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (5/13) → waiting
                 Dispatcher.UIThread.RunJobs();
                 await Assert.That(vm.SelectedTab!.TabId).IsEqualTo("builtin.library");
 
@@ -513,18 +527,19 @@ public class TutorialWalkthroughTests
                 };
                 window.Show();
 
-                vm.StartWalkthrough(); // welcome (1/8), a centred card, no spotlight
+                vm.StartWalkthrough(); // welcome (1/13), a centred card, no spotlight
                 Pump();
 
                 SpotlightScrim scrim = view.GetVisualDescendants().OfType<SpotlightScrim>().Single();
                 await Assert.That(scrim.Classes.Contains("pulsing")).IsFalse()
                     .Because("the welcome card has no spotlight, so it must not breathe");
 
-                // Walk to the gateway (4/8): a spotlight step (OpenDemo) AND the waiting state, so both the
+                // Walk to the gateway (5/13): a spotlight step (OpenDemo) AND the waiting state, so both the
                 // spotlight pulse and the proven waiting-dot pulse are live in the tree at once.
-                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/8)
-                vm.Tutorial.NextCommand.Execute(null); // library (3/8)
-                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (4/8) → waiting
+                vm.Tutorial.NextCommand.Execute(null); // tab strip (2/13)
+                vm.Tutorial.NextCommand.Execute(null); // library (3/13)
+                vm.Tutorial.NextCommand.Execute(null); // player overview (4/13)
+                vm.Tutorial.NextCommand.Execute(null); // open-demo gateway (5/13) → waiting
                 Pump();
 
                 await Assert.That(vm.Tutorial.HasSpotlight).IsTrue();

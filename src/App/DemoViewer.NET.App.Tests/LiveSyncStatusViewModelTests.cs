@@ -326,6 +326,46 @@ public class LiveSyncStatusViewModelTests
         await Assert.That(hud.IsActive).IsTrue().Because("a gate flip re-projects IsActive");
     }
 
+    // Enable must not launch CS2 or patch the install until the -insecure notice is confirmed.
+    [Test]
+    public async Task Enable_ShowsLaunchNotice_AndDoesNotStart_UntilConfirmed()
+    {
+        LiveSyncStatusViewModel vm = New(out FakeLiveSync svc, out _);
+
+        await vm.EnableCommand.ExecuteAsync(null);
+        await Assert.That(vm.ShowLaunchNotice).IsTrue();
+        await Assert.That(svc.EnableCount).IsEqualTo(0).Because("no CS2 launch before the user has read the notice");
+
+        vm.CancelLaunchNoticeCommand.Execute(null);
+        await Assert.That(vm.ShowLaunchNotice).IsFalse();
+        await Assert.That(svc.EnableCount).IsEqualTo(0);
+
+        await vm.EnableCommand.ExecuteAsync(null);
+        await vm.ConfirmLaunchNoticeCommand.ExecuteAsync(null);
+        await Assert.That(vm.ShowLaunchNotice).IsFalse();
+        await Assert.That(svc.EnableCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task LaunchNotice_DontShowAgain_Persists_AndLaterEnableSkipsIt()
+    {
+        FakeLiveSync svc = new();
+        bool acknowledged = false;
+        LiveSyncStatusViewModel vm = new(svc, null, new PlaybackController(), () => { },
+            isLaunchNoticeAcknowledged: () => acknowledged,
+            acknowledgeLaunchNotice: () => acknowledged = true);
+
+        await vm.EnableCommand.ExecuteAsync(null);
+        vm.DontShowLaunchNoticeAgain = true;
+        await vm.ConfirmLaunchNoticeCommand.ExecuteAsync(null);
+        await Assert.That(acknowledged).IsTrue();
+        await Assert.That(svc.EnableCount).IsEqualTo(1);
+
+        await vm.EnableCommand.ExecuteAsync(null);
+        await Assert.That(vm.ShowLaunchNotice).IsFalse();
+        await Assert.That(svc.EnableCount).IsEqualTo(2);
+    }
+
     // Fake App-side engine: a mutable current state + an inline StateChanged raise (real event → the VM's
     // handler runs, and there is no CS0067). Matches the FIXED ILiveSyncService contract surface.
     private sealed class FakeLiveSync : ILiveSyncService
@@ -340,7 +380,14 @@ public class LiveSyncStatusViewModelTests
 
         public event EventHandler<LiveSyncStateChangedEventArgs>? StateChanged;
 
-        public Task EnableAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public int EnableCount { get; private set; }
+
+        public Task EnableAsync(CancellationToken cancellationToken = default)
+        {
+            EnableCount++;
+            return Task.CompletedTask;
+        }
+
         public Task DisableAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task ResyncAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 

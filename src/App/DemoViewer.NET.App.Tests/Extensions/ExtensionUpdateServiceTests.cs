@@ -1,11 +1,13 @@
 #region
 
 using System.IO.Compression;
+using System.Net;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Services.DemoProcessing;
+using DemoViewer.NET.ViewModels.Settings;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.Extensions.UpdateFixtures;
@@ -100,6 +102,44 @@ public class ExtensionUpdateServiceTests
                 await Assert.That(all.Single().Status).IsEqualTo(ExtensionUpdateStatus.Unknown);
                 await Assert.That(all.Single().Installed).IsNull();
                 await Assert.That(all.Single().Name).IsEqualTo(Id);
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // The rolling release does not exist until the first extension release, so GitHub answers 404. That is
+    // not an alarm, but it is not "up to date" either: a wrong feed address answers 404 too. Any other HTTP
+    // failure stays unreachable.
+    [Test]
+    public async Task Check_FeedNotFound_IsNotPublished_OtherStatusesAreUnreachable()
+    {
+        string root = NewRoot();
+        try
+        {
+            FakeFeedClient client = new();
+            ExtensionUpdateService service = NewService(root, client);
+
+            client.FeedFailure = new HttpRequestException("404 (Not Found)", null, HttpStatusCode.NotFound);
+            ExtensionUpdateState notPublished = await service.CheckAsync(Id);
+
+            client.FeedFailure = new HttpRequestException("403 (Forbidden)", null, HttpStatusCode.Forbidden);
+            ExtensionUpdateState forbidden = await service.CheckAsync(Id);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(notPublished.Status).IsEqualTo(ExtensionUpdateStatus.NotPublished);
+                await Assert.That(notPublished.Error).IsNull();
+                await Assert.That(ExtensionUpdateRow.Describe(notPublished)).IsEqualTo("No updates have been published yet.");
+                await Assert.That(notPublished.Latest).IsNull();
+                await Assert.That(notPublished.Installed).IsEqualTo(SemVersion.Parse("1.0.0"));
+                await Assert.That(notPublished.CheckedAt).IsNotNull();
+                await Assert.That(client.FeedFetches).IsEqualTo(2).Because("a 404 is one request, not a retry loop");
+
+                await Assert.That(forbidden.Status).IsEqualTo(ExtensionUpdateStatus.FeedUnreachable);
+                await Assert.That(forbidden.Error).IsEqualTo("the update feed could not be reached");
             }
         }
         finally
