@@ -92,7 +92,7 @@ public sealed partial class UpdateNoticeViewModel : ViewModelBase
             if (notes is null)
             {
                 NotesFallback = "Couldn't fetch the release notes — you can read them on the GitHub releases page.";
-                ReleaseUrl = "https://github.com/sid2934/DemoViewer.NET/releases";
+                ReleaseUrl = "https://github.com/CS2OpenDev/DemoViewer.NET/releases";
                 return;
             }
 

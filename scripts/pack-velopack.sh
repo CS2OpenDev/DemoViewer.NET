@@ -115,7 +115,7 @@ if [ "${DV_DELTA_SEED:-0}" = "1" ]; then
     mkdir -p "$REL"
     if dotnet vpk download github \
         --outputDir "$REL" \
-        --repoUrl "${DV_REPO_URL:-https://github.com/sid2934/DemoViewer.NET}" \
+        --repoUrl "${DV_REPO_URL:-https://github.com/CS2OpenDev/DemoViewer.NET}" \
         ${CHANNEL:+--channel "$CHANNEL"} \
         --pre "$([ -n "$CHANNEL" ] && echo true || echo false)" \
         ${DV_GITHUB_TOKEN:+--token "$DV_GITHUB_TOKEN"}; then

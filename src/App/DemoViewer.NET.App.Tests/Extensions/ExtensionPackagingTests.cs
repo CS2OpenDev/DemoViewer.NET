@@ -121,7 +121,7 @@ public class ExtensionPackagingTests
             "requiresHost": "^1.0",
             "requiresCs2DemoKit": "0.14.0"
           },
-          "url": "https://github.com/sid2934/DemoViewer.NET/releases/download/net.demoviewer.pack.stratbook-v1.0.0/DemoViewer.NET.Extensions.StratBook-1.0.0.zip",
+          "url": "https://github.com/CS2OpenDev/DemoViewer.NET/releases/download/net.demoviewer.pack.stratbook-v1.0.0/DemoViewer.NET.Extensions.StratBook-1.0.0.zip",
           "sha256": "093341e647d88aa621ddcd199c4f6c0fb4e874a9ed4882d46a1406ab75946723",
           "size": 1535538,
           "publishedAt": "2026-10-04T03:08:44Z"
