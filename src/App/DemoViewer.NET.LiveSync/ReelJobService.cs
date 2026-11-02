@@ -31,8 +31,12 @@ public sealed class ReelJobService(
     LiveSyncService? liveSync,
     HeavyJobGate? gate,
     IOptionsMonitor<AppSettings>? settings,
-    Action<string>? log = null) : IReelJobService, IDisposable
+    Action<string>? log = null,
+    Func<bool>? isCs2Running = null) : IReelJobService, IDisposable
 {
+    /// <summary>How long a reel waits for a suspended sync session's CS2 to exit before the guard runs.</summary>
+    private static readonly TimeSpan Cs2ExitTimeout = TimeSpan.FromSeconds(15);
+
     private readonly object _lifecycle = new();
     private CancellationTokenSource? _cts;
     private Task? _job;
@@ -186,10 +190,18 @@ public sealed class ReelJobService(
                 }
                 : baseSettings;
 
-            // Same pre-launch guard as Live Sync: a reel launches CS2 through the same CSVG install path.
+            // Same pre-launch guard as Live Sync: a reel launches CS2 through the same CSVG install path. A
+            // suspended sync session's CS2 can still be exiting here, and the guard refuses a running CS2.
             if (!request.DryRun)
             {
-                InstallRecovery.EnsureRestoredBeforeLaunch(baseSettings, log);
+                if (suspendedSync)
+                {
+                    await InstallRecovery.WaitForCs2ExitAsync(Cs2ExitTimeout, cancellationToken, isCs2Running)
+                        .ConfigureAwait(false);
+                }
+
+                await Task.Run(() => InstallRecovery.EnsureRestoredBeforeLaunch(baseSettings, log, isCs2Running),
+                    cancellationToken).ConfigureAwait(false);
             }
 
             host = await CsvgWebHost.StartAsync(effective,

@@ -283,6 +283,12 @@ public sealed class LiveSyncSettings
     public string? ExternalMockServerPath { get; set; }
 
     /// <summary>
+    ///     True when no real CS2 is launched: <see cref="MockMode" />, or a non-blank
+    ///     <see cref="ExternalMockServerPath" />. A method, not a property, so it never lands in settings.json.
+    /// </summary>
+    public bool UsesMock() => MockMode || !string.IsNullOrWhiteSpace(ExternalMockServerPath);
+
+    /// <summary>
     ///     Tick-identity shim: added to DV frame-clock ticks when mapping to CS2 demo ticks
     ///     (<c>cs2DemoTick = max(0, ServerTick) + TickOffset</c>). Default 0, the identity
     ///     hypothesis; override only if validation on a real Windows CS2 install finds a fixed skew.

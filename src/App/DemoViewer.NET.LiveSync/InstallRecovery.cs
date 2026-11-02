@@ -42,6 +42,12 @@ internal static class InstallRecovery
     private const string GameInfoMarker = "Game\tcsgo/csvg";
 
     /// <summary>
+    ///     Serializes every restore. The banner's unattended restore and the pre-launch guard run on different
+    ///     threads and would otherwise both rewrite gameinfo.gi and delete the plugin directory at once.
+    /// </summary>
+    private static readonly object RestoreGate = new();
+
+    /// <summary>
     ///     Probes the real CS2 install for leftover CSVG modifications. Null when nothing is
     ///     determinable — mock mode, no CS2 install found, or unreadable files — which callers
     ///     must treat as "nothing to offer", never as an error.
@@ -102,6 +108,14 @@ internal static class InstallRecovery
             throw new InvalidOperationException("CS2 is running. Close it, then try again.");
         }
 
+        lock (RestoreGate)
+        {
+            RestoreCore(settings, log);
+        }
+    }
+
+    private static void RestoreCore(LiveSyncSettings settings, Action<string>? log)
+    {
         using ServiceProvider services = BuildCsvgServices(settings);
         Cs2DirectoryUtil paths = services.GetRequiredService<Cs2DirectoryUtil>();
         string gameInfoPath = paths.Cs2GameInfoFilePath;
@@ -131,27 +145,68 @@ internal static class InstallRecovery
     ///     The guard Live Sync and Reels both run before CSVG launches CS2. CSVG's launch backs up
     ///     <c>gameinfo.gi</c> first, and with no backup left over from the crashed session it would
     ///     back up the PATCHED file and put that back after every later session. So the leftovers
-    ///     are undone here, or the launch is refused with the reason.
+    ///     are undone here, or the launch is refused with the reason. Only a restore
+    ///     <see cref="LeftoverState.SafeToAutoRestore" /> proves safe runs unasked: a backup that no longer
+    ///     matches (CS2 updated since) would roll the update back, so that case is left to the banner.
     /// </summary>
     public static void EnsureRestoredBeforeLaunch(LiveSyncSettings settings, Action<string>? log = null,
         Func<bool>? isCs2Running = null)
     {
-        if (Detect(settings, isCs2Running)?.Any != true)
+        lock (RestoreGate)
         {
-            return;
+            LeftoverState? state = Detect(settings, isCs2Running);
+            if (state?.Any != true)
+            {
+                return;
+            }
+
+            if (!state.SafeToAutoRestore)
+            {
+                throw new InvalidOperationException(
+                    "An earlier session left changes in your CS2 install that could not be undone, so CS2 was not "
+                    + "started. "
+                    + (state.Cs2Running
+                        ? "CS2 is running. Close it, then try again."
+                        : "Its backup of gameinfo.gi no longer matches your install, so DemoViewer won't restore it "
+                          + "on its own. Use Restore my CS2 install on the banner, or Verify integrity of game "
+                          + "files on Counter-Strike 2 in Steam."));
+            }
+
+            log?.Invoke("An earlier session left CSVG changes in the CS2 install; restoring them before launch.");
+            try
+            {
+                RestoreCore(settings, log);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    "An earlier session left changes in your CS2 install that could not be undone, so CS2 "
+                    + $"was not started. {ex.Message}", ex);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Waits for a CS2 that was just told to stop to finish exiting, so the pre-launch guard does not
+    ///     refuse a CS2 that is on its way out. Returns false if it is still running at
+    ///     <paramref name="timeout" />; the guard then gives the reason.
+    /// </summary>
+    public static async Task<bool> WaitForCs2ExitAsync(TimeSpan timeout, CancellationToken cancellationToken,
+        Func<bool>? isCs2Running = null)
+    {
+        Func<bool> running = isCs2Running ?? IsCs2Running;
+        DateTime deadline = DateTime.UtcNow + timeout;
+        while (running())
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                return false;
+            }
+
+            await Task.Delay(250, cancellationToken).ConfigureAwait(false);
         }
 
-        log?.Invoke("An earlier session left CSVG changes in the CS2 install; restoring them before launch.");
-        try
-        {
-            Restore(settings, log, isCs2Running);
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                "An earlier session left changes in your CS2 install that could not be undone, so CS2 "
-                + $"was not started. {ex.Message}", ex);
-        }
+        return true;
     }
 
     /// <summary>
@@ -192,8 +247,7 @@ internal static class InstallRecovery
         return found.Length > 0;
     }
 
-    private static bool IsMock(LiveSyncSettings settings) =>
-        settings.MockMode || !string.IsNullOrWhiteSpace(settings.ExternalMockServerPath);
+    private static bool IsMock(LiveSyncSettings settings) => settings.UsesMock();
 
     private static ServiceProvider BuildCsvgServices(LiveSyncSettings settings)
     {

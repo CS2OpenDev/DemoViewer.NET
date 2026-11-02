@@ -222,7 +222,7 @@ public sealed class LiveSyncService : ILiveSyncService
             ResetSessionSurface();
 
             SetState(new LiveSyncState(LiveSyncStateKind.LaunchingCs2,
-                settings.MockMode || !string.IsNullOrWhiteSpace(settings.ExternalMockServerPath)
+                settings.UsesMock()
                     ? "Launching mock CS2"
                     : "Launching CS2 (up to ~2 min)"));
             try

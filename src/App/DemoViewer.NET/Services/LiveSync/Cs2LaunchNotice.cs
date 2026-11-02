@@ -29,6 +29,5 @@ public static class Cs2LaunchNotice
     ///     real CS2 is launched at all.
     /// </summary>
     public static bool IsAcknowledged(LiveSyncSettings settings) =>
-        settings.LaunchNoticeAcknowledged || settings.MockMode
-                                          || !string.IsNullOrEmpty(settings.ExternalMockServerPath);
+        settings.LaunchNoticeAcknowledged || settings.UsesMock();
 }

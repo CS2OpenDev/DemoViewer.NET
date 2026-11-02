@@ -2216,9 +2216,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         LiveSync = liveSync;
 
         // Built before the chip so the chip's offer can mirror it, and probed now so leftovers from a crash
-        // surface at startup whichever profile is active (the chip is hidden for most of them).
+        // surface at startup whichever profile is active (the chip is hidden for most of them). Faulted does
+        // not own CS2: the probe still reports a CS2 left running, and a guard that faulted the launch needs
+        // the banner to send the user somewhere.
         Cs2InstallRecovery = new Cs2InstallRecoveryViewModel(liveSync,
-            () => liveSync.State.Kind != LiveSyncStateKind.Disconnected || ReelJob?.Status.IsRunning == true);
+            () => liveSync.State.IsSessionActive || ReelJob?.Status.IsRunning == true);
         _ = Cs2InstallRecovery.CheckAsync();
 
         _liveSyncStatus = new LiveSyncStatusViewModel(liveSync, _moduleContext, Playback, OpenSettings,
