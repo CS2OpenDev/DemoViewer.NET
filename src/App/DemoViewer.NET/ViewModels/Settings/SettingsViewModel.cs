@@ -517,6 +517,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         // Populate the theme list from the registry. Held in an ObservableCollection so "Reload themes" can
         // refresh it in place (a drop-in added/edited/deleted) and the ComboBox reflects it.
         RepopulateThemes();
+        // Theme Customization saves reload the registry too; the list follows whoever reloaded it.
+        _registry.Reloaded += OnThemesReloaded;
 
         // Seed the bound state directly from the FIELDS (not the properties) so construction does not
         // trip the change-hooks and write settings straight back.
@@ -526,6 +528,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         ExternalExtensionRows = ExternalExtensionRow.Build(StatusesOrProcess(packStatuses), FeaturePacks.ExternalRejected);
         _selectedCategoryOption = OptionFor(current.UserCategory);
         _selectedTheme = ThemeFor(current.Theme);
+        UpdateSelectedThemeMissing();
         // Live Sync section: the enable toggle mirrors the GATE decision (an override write flips it); the
         // rest mirror AppSettings.LiveSync. Seed from fields so construction trips no change-hooks.
         _liveSyncEnabled = gate.IsEnabled("chrome.livesync");
@@ -669,6 +672,30 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>Whether user theme drop-ins are available (a real filesystem: false on the browser host).</summary>
     public bool CanManageThemes { get; } = !OperatingSystem.IsBrowser();
+
+    private Action<string?>? _openThemeEditor;
+
+    /// <summary>Whether the Customize button shows: desktop, once the host has attached the editor.</summary>
+    public bool CanCustomizeThemes => CanManageThemes && _openThemeEditor is not null;
+
+    /// <summary>Theme files that could not be loaded, one "file: reason" per line, or null.</summary>
+    [ObservableProperty]
+    private string? _themeLoadProblemsText;
+
+    /// <summary>A line about the selected theme's missing colours, or null when it has none.</summary>
+    [ObservableProperty]
+    private string? _selectedThemeMissingText;
+
+    /// <summary>Wires the Customize button to the Theme Customization window. Desktop only.</summary>
+    internal void AttachThemeEditor(Action<string?> open)
+    {
+        _openThemeEditor = open;
+        OnPropertyChanged(nameof(CanCustomizeThemes));
+    }
+
+    /// <summary>Opens Theme Customization on the selected theme (System opens on the variant it shows).</summary>
+    [RelayCommand]
+    private void CustomizeTheme() => _openThemeEditor?.Invoke(SelectedTheme.CanCustomize ? SelectedTheme.Id : null);
 
     /// <summary>Whether the Live Sync (CS2) section is shown: desktop only (suppressed on WASM).</summary>
     public bool CanManageLiveSync { get; } = !OperatingSystem.IsBrowser();
@@ -849,6 +876,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
         _disposed = true;
         _gate.Changed -= OnGateChanged;
+        _registry.Reloaded -= OnThemesReloaded;
         if (_faults is not null)
         {
             _faults.Changed -= RefreshFaultNotices;
@@ -1275,6 +1303,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedThemeChanged(Theme value)
     {
+        UpdateSelectedThemeMissing();
         if (_applyingExternal)
         {
             return;
@@ -1823,22 +1852,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     ///     is not a user choice). The reselect is guarded.
     /// </summary>
     [RelayCommand]
-    private void ReloadThemes()
-    {
-        string currentId = SelectedTheme.Id;
-        _registry.Reload();
-
-        _applyingExternal = true;
-        try
-        {
-            RepopulateThemes();
-            SelectedTheme = ThemeFor(currentId);
-        }
-        finally
-        {
-            _applyingExternal = false;
-        }
-    }
+    private void ReloadThemes() => _registry.Reload(); // OnThemesReloaded refreshes the list
 
     /// <summary>
     ///     Re-launches the first-run setup wizard (P2b: the relaunchable first-run experience). Resolves
@@ -2587,6 +2601,42 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         {
             Themes.Add(theme);
         }
+
+        IReadOnlyList<ThemeLoadProblem> problems = _registry.LoadProblems;
+        ThemeLoadProblemsText = problems.Count == 0
+            ? null
+            : (problems.Count == 1 ? "1 theme file couldn't be loaded:\n" : $"{problems.Count} theme files couldn't be loaded:\n")
+              + string.Join("\n", problems.Select(p => $"{p.FileName}: {p.Reason}"));
+    }
+
+    // The editor or "Reload themes" re-scanned the folder: refresh the list, keeping the selection (or falling
+    // back if its file is gone). Not a user choice, so nothing is persisted.
+    private void OnThemesReloaded(object? sender, EventArgs e)
+    {
+        string? currentId = SelectedTheme?.Id;
+        _applyingExternal = true;
+        try
+        {
+            RepopulateThemes();
+            SelectedTheme = ThemeFor(currentId);
+        }
+        finally
+        {
+            _applyingExternal = false;
+        }
+
+        UpdateSelectedThemeMissing();
+    }
+
+    private void UpdateSelectedThemeMissing()
+    {
+        int n = SelectedTheme?.MissingTokens.Count ?? 0;
+        string baseName = SelectedTheme?.Variant.InheritVariant?.Key as string ?? "base";
+        SelectedThemeMissingText = n == 0
+            ? null
+            : n == 1
+                ? $"This theme is missing 1 colour, which uses the {baseName} default. Customize to fill it in."
+                : $"This theme is missing {n} colours, which use the {baseName} defaults. Customize to fill them in.";
     }
 
     // Map a persisted theme id onto one of the offered Theme instances (case-insensitive, matching the

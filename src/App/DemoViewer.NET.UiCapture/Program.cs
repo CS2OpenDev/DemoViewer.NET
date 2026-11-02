@@ -60,7 +60,7 @@ if (args[0] is "export-themes")
 if (args[0] is "list")
 {
     Console.WriteLine("Variants:");
-    foreach (string name in Variants.All.Keys.OrderBy(n => n, StringComparer.Ordinal))
+    foreach (string name in Variants.All.Keys.Concat(Variants.ThemeCaptures.Keys).OrderBy(n => n, StringComparer.Ordinal))
     {
         Console.WriteLine($"  {name}");
     }
@@ -111,7 +111,7 @@ catch (Exception ex)
 
 Func<Control> Resolve(string name)
 {
-    if (Variants.All.TryGetValue(name, out Func<Control>? f))
+    if (Variants.All.TryGetValue(name, out Func<Control>? f) || Variants.ThemeCaptures.TryGetValue(name, out f))
     {
         return f;
     }

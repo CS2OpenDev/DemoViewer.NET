@@ -324,16 +324,32 @@
                                                   SelectedItem="{Binding SelectedTheme, Mode=TwoWay}">
                                             <ComboBox.ItemTemplate>
                                                 <DataTemplate x:DataType="theming:Theme">
-                                                    <TextBlock Text="{Binding DisplayName}" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                                        <Border Classes="badge" Padding="5,1" IsVisible="{Binding IsBuiltIn}">
+                                                            <TextBlock Text="Built-in" FontSize="10" Foreground="{DynamicResource TextMid}" />
+                                                        </Border>
+                                                    </StackPanel>
                                                 </DataTemplate>
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
+                                        <Button Content="Customize…" Classes="ghost" Padding="10,4"
+                                                VerticalAlignment="Center"
+                                                IsVisible="{Binding CanCustomizeThemes}"
+                                                Command="{Binding CustomizeThemeCommand}"
+                                                ToolTip.Tip="Open Theme Customization to copy a theme and change its colours." />
                                         <Button Content="Reload themes" Classes="ghost" Padding="10,4"
                                                 VerticalAlignment="Center"
                                                 IsVisible="{Binding CanManageThemes}"
                                                 Command="{Binding ReloadThemesCommand}"
                                                 ToolTip.Tip="Re-scan the themes folder for added, edited, or removed drop-in files." />
                                     </StackPanel>
+                                    <TextBlock Foreground="{DynamicResource AccentCaution}" FontSize="11" TextWrapping="Wrap"
+                                               IsVisible="{Binding SelectedThemeMissingText, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                               Text="{Binding SelectedThemeMissingText}" />
+                                    <TextBlock Foreground="{DynamicResource AccentCaution}" FontSize="11" TextWrapping="Wrap"
+                                               IsVisible="{Binding ThemeLoadProblemsText, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                               Text="{Binding ThemeLoadProblemsText}" />
                                     <TextBlock Foreground="{DynamicResource TextDim}" FontSize="11" TextWrapping="Wrap"
                                                Text="Themes apply instantly across the app — panels, the 2D viewport, the analysis graph, and syntax highlighting all follow your selection." />
                                     <TextBlock Foreground="{DynamicResource TextDim}" FontSize="11" TextWrapping="Wrap"

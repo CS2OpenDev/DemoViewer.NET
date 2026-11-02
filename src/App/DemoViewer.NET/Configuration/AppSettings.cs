@@ -84,6 +84,12 @@ public sealed class AppSettings
     ///     single scalar with none of the constructor-shape problems that exiled Session/Recents.
     /// </summary>
     public string? LastSeenVersion { get; set; }
+
+    /// <summary>
+    ///     The missing-colours notice the user last dismissed: the theme id and a hash of which tokens were
+    ///     missing. The notice comes back only when that changes. Null until a dismiss.
+    /// </summary>
+    public string? DismissedThemeWarning { get; set; }
 }
 
 /// <summary>

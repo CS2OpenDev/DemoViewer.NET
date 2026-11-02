@@ -222,6 +222,26 @@
                 </DockPanel>
             </Border>
 
+            <!-- The selected theme is missing colours. They already fall back to the base, so this only
+             offers the editor; Dismiss keeps it away until the set of missing colours changes. -->
+            <Border DockPanel.Dock="Top"
+                    IsVisible="{Binding ThemeWarning.IsVisible, FallbackValue=False}"
+                    Background="{DynamicResource CardBg}"
+                    BorderBrush="{DynamicResource AccentCaution}"
+                    BorderThickness="0,0,0,2"
+                    Padding="12,8">
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+                        <Button Content="Fix in Theme Customization" Classes="primary"
+                                Command="{Binding ThemeWarning.OpenCommand, FallbackValue={x:Null}}" />
+                        <Button Content="Dismiss"
+                                Command="{Binding ThemeWarning.DismissCommand, FallbackValue={x:Null}}" />
+                    </StackPanel>
+                    <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                               Text="{Binding ThemeWarning.Message, FallbackValue=''}" />
+                </DockPanel>
+            </Border>
+
             <!-- Leftover CS2 install changes from a crashed Live Sync or Reels session. Here and not on the
              Live Sync chip, which most profiles never see. No Dismiss while there is something to restore. -->
             <Border DockPanel.Dock="Top"

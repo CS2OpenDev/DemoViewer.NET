@@ -1144,6 +1144,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public Cs2InstallRecoveryViewModel? Cs2InstallRecovery { get; private set; }
 
     /// <summary>
+    ///     The notice for a selected theme that is missing colours. Null until the desktop bootstrap attaches it
+    ///     (the browser head has no theme files to be missing anything).
+    /// </summary>
+    [ObservableProperty]
+    private ThemeWarningViewModel? _themeWarning;
+
+    /// <summary>Shows <paramref name="warning" /> in the shell's notice area. Called once by the desktop bootstrap.</summary>
+    internal void AttachThemeWarning(ThemeWarningViewModel warning) => ThemeWarning = warning;
+
+    /// <summary>
     ///     Status-strip chips: the Live Sync chip (and the Reel-job
     ///     chip). Bound by <c>StatusStrip.Chips</c>. Empty when no chip is active, so the strip reads exactly
     ///     as before. The Live Sync chip is present only while <see cref="IsLiveSyncEnabled" /> and an engine

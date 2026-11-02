@@ -61,6 +61,17 @@ public interface IWindowService
     ///     an update" moment to gate on).
     /// </summary>
     void ShowWhatsNew(WhatsNewViewModel viewModel);
+
+    /// <summary>
+    ///     Shows the Theme Customization window on <paramref name="themeId" />, filtered to missing tokens when
+    ///     <paramref name="missingOnly" /> is set. One window at a time: an open one is re-targeted (asking first
+    ///     about unsaved edits) instead of building a second editor, since there is one preview to share.
+    ///     <paramref name="create" /> builds the editor only when no window is open. No-op by default (WASM has no
+    ///     themes folder).
+    /// </summary>
+    void ShowThemeEditor(Func<string?, bool, ThemeEditorViewModel> create, string? themeId, bool missingOnly)
+    {
+    }
 }
 
 /// <summary>
@@ -80,6 +91,7 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
     private SettingsWindow? _settingsWindow;
     private UpdateNoticeWindow? _updateNoticeWindow;
     private WhatsNewWindow? _whatsNewWindow;
+    private ThemeEditorWindow? _themeEditorWindow;
 
     /// <summary>Open parse chain inspector.</summary>
     public void OpenParseChainInspector(object dataContext)
@@ -256,6 +268,41 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
     }
 
     private void OnErrorReportCloseRequested(object? sender, EventArgs e) => _errorReportWindow?.Close();
+
+    /// <summary>Shows the Theme Customization window, single re-used window; see <see cref="IWindowService.ShowThemeEditor" />.</summary>
+    public void ShowThemeEditor(Func<string?, bool, ThemeEditorViewModel> create, string? themeId, bool missingOnly)
+    {
+        ArgumentNullException.ThrowIfNull(create);
+
+        if (_themeEditorWindow is { DataContext: ThemeEditorViewModel live })
+        {
+            live.Reveal(themeId, missingOnly);
+            _themeEditorWindow.Activate();
+            return;
+        }
+
+        ThemeEditorViewModel viewModel = create(themeId, missingOnly);
+        ThemeEditorWindow window = new()
+        {
+            DataContext = viewModel
+        };
+        _themeEditorWindow = window;
+
+        void OnCloseRequested(object? sender, EventArgs e)
+        {
+            window.Close();
+        }
+
+        viewModel.CloseRequested += OnCloseRequested;
+        window.Closed += (_, _) =>
+        {
+            viewModel.CloseRequested -= OnCloseRequested;
+            viewModel.Dispose(); // ends the preview and puts the app back on its theme
+            _themeEditorWindow = null;
+        };
+
+        ShowOwned(window);
+    }
 
     /// <summary>
     ///     Shows the first-run wizard as a MODAL dialog owned by the main window, so the user completes
