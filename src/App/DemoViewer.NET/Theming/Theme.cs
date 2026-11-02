@@ -37,4 +37,33 @@ public sealed record Theme
 
     /// <summary>Built-in vs a user drop-in.</summary>
     public ThemeSource Source { get; init; } = ThemeSource.BuiltIn;
+
+    /// <summary>True for the shipped themes, which the user can copy but never change.</summary>
+    public bool IsBuiltIn => Source == ThemeSource.BuiltIn;
+
+    /// <summary>
+    ///     True when the theme has a palette to copy: everything but <c>system</c>, which only follows the OS
+    ///     between Dark and Light.
+    /// </summary>
+    public bool CanCustomize { get; init; } = true;
+
+    /// <summary>The file a user theme was loaded from. Null for a built-in.</summary>
+    public string? FilePath { get; init; }
+
+    /// <summary>
+    ///     Tokens a user theme does not set, in palette order. Each one shows its base palette's value. Always
+    ///     empty for a built-in: those are complete by construction.
+    /// </summary>
+    public IReadOnlyList<string> MissingTokens { get; init; } = [];
+
+    /// <summary>Keys in the file this app version does not use. Kept in the file, never applied.</summary>
+    public IReadOnlyList<string> UnknownKeys { get; init; } = [];
+
+    /// <summary>Known tokens whose value could not be read, so they fall back to the base too.</summary>
+    public IReadOnlyList<string> BadValues { get; init; } = [];
 }
+
+/// <summary>A theme file the registry could not offer, and why, for the Settings and editor lists.</summary>
+/// <param name="FileName">The file's name inside the themes folder.</param>
+/// <param name="Reason">Why it was skipped, in words for the UI.</param>
+public sealed record ThemeLoadProblem(string FileName, string Reason);

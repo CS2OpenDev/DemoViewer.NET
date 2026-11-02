@@ -3,11 +3,11 @@
 // A complete user theme: every colour token the app reads, with the value this theme
 // resolves to. Copy it, change the id and name, and edit what you like. Delete a line and
 // that token falls back to the base palette instead. Lines marked "base" are the
-// dark palette's own value, which the built-in theme inherits rather than sets.
+// dark palette's own value, which this theme inherits rather than sets.
 //
 // Colours are "#RRGGBB" (opaque) or "#AARRGGBB", where AA is the alpha. Several overlay
-// and canvas tokens are translucent on purpose. Token meanings are listed in
-// docs/ui/theme-token-catalog.md.
+// and canvas tokens are translucent on purpose. A gradient is an object with start, end
+// and stops. Token meanings are listed in docs/ui/theme-token-catalog.md.
 //
 // Install: put this file in the themes folder (Windows %APPDATA%\DemoViewer.NET\themes\,
 // macOS ~/Library/Application Support/DemoViewer.NET/themes/, Linux ~/.config/DemoViewer.NET/themes/)
@@ -76,7 +76,7 @@
     "AccentInteractive":           "#00E5FF",
     "AccentHighlight":             "#FFEB3B",
     "AccentAmber":                 "#FFEB3B",
-    "AccentAmberOpaque":           "#FFFFEB3B",
+    "AccentAmberOpaque":           "#FFEB3B",
     "AccentError":                 "#FF3B30",
     "AccentErrorSoft":             "#FF6E63",
     "AccentCaution":               "#FFC000",
@@ -132,7 +132,16 @@
     "MapAccentRef":                "#FF5555",
 
     // Library cards, drawn over the baked radar thumbnail
-    // LibraryCardScrim is a gradient and cannot be set from a theme file.
+    "LibraryCardScrim": {
+      "start": "0%,0%",
+      "end": "0%,100%",
+      "stops": [
+        { "offset": 0, "color": "#C805050F" },
+        { "offset": 0.34, "color": "#5805050F" },
+        { "offset": 0.62, "color": "#7005050F" },
+        { "offset": 1, "color": "#EE05050F" }
+      ]
+    }, // base
     "LibraryCardTextBright":       "#ECFFFFFF", // base
     "LibraryCardTextMid":          "#C6FFFFFF", // base
     "LibraryCardTextDim":          "#B4FFFFFF", // base
@@ -231,7 +240,7 @@
     "Pb2dCanvasConeNeutral":       "#2C888888", // base
     "Pb2dCanvasRingShooting":      "#FFD400",   // base
     "Pb2dCanvasRingDamage":        "#F44336",   // base
-    "Pb2dCanvasRingBlinded":       "#FFFFFFFF", // base
+    "Pb2dCanvasRingBlinded":       "#FFFFFF",   // base
     "Pb2dCanvasRingDead":          "#555B62",   // base
     "Pb2dCanvasBomb":              "#F03A2E",   // base
     "Pb2dCanvasBombTrack":         "#40FFFFFF", // base

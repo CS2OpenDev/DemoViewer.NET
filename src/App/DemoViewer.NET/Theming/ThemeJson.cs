@@ -1,97 +1,175 @@
 #region
 
+using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using Avalonia;
 using Avalonia.Media;
 using Avalonia.Styling;
+using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 
 #endregion
 
 namespace DemoViewer.NET.Theming;
 
 /// <summary>
-///     A parsed theme definition, the neutral shape a <see cref="ThemeRegistry" /> registers as a custom
-///     variant. Produced by <see cref="ThemeJson" /> from either a user drop-in
-///     file under <c>&lt;config&gt;/themes/</c> or an embedded built-in JSON (High-Contrast / E-Girl).
+///     A parsed theme file: what the file itself sets, before anything is filled in from the base. Produced by
+///     <see cref="ThemeJson" /> from a user drop-in under <c>&lt;config&gt;/themes/</c> or an embedded built-in
+///     JSON (High-Contrast / E-Girl). <see cref="ThemePalette.Resolve" /> turns it into a complete palette.
 /// </summary>
 /// <param name="Id">Stable id, persisted in <c>settings.json</c> and used as the <see cref="ThemeVariant" /> key.</param>
 /// <param name="DisplayName">Human-readable name shown in the Settings theme picker.</param>
 /// <param name="BaseVariant">The Light or Dark palette every omitted token (and FluentTheme colour) inherits.</param>
-/// <param name="Tokens">The token overrides this theme supplies (a subset of the token namespace).</param>
+/// <param name="Tokens">The colour tokens this theme sets (a subset of <see cref="ThemeTokens.All" />).</param>
 public sealed record ThemeDefinition(
     string Id,
     string DisplayName,
     ThemeVariant BaseVariant,
-    IReadOnlyDictionary<string, Color> Tokens);
+    IReadOnlyDictionary<string, Color> Tokens)
+{
+    /// <summary>The gradient tokens this theme sets.</summary>
+    public IReadOnlyDictionary<string, ThemeGradient> Gradients { get; init; } = new Dictionary<string, ThemeGradient>();
+
+    /// <summary>
+    ///     Keys this version of the app does not know, with their raw JSON. Kept so a save writes them back
+    ///     instead of dropping what a newer app version, or the user, put there.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> UnknownTokens { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>True when the file sets <paramref name="token" />, as a colour or a gradient.</summary>
+    public bool Sets(string token) => Tokens.ContainsKey(token) || Gradients.ContainsKey(token);
+}
+
+/// <summary>The outcome of reading one theme file.</summary>
+/// <param name="Definition">The theme, or null when the file is not usable.</param>
+/// <param name="Error">Why the file was not usable, in words for the UI. Null on success.</param>
+/// <param name="BadValues">Known tokens whose value could not be read, and so fall back to the base.</param>
+public sealed record ThemeParseResult(ThemeDefinition? Definition, string? Error, IReadOnlyList<string> BadValues);
 
 /// <summary>
 ///     Safe JSON reader for theme definitions (T3). A theme file is pure DATA:
-///     <c>{ id, name, base, tokens{ key: "#RRGGBB" } }</c>, parsed into a <see cref="ThemeDefinition" /> with no
-///     object instantiation or code execution, so loading an untrusted drop-in is never code-exec (unlike runtime
-///     AXAML). Malformed input degrades gracefully: an unparseable file yields <c>null</c>; individual bad token
-///     entries are skipped while the rest of the file loads (partial files are valid, omitted tokens inherit the
-///     base palette).
+///     <c>{ id, name, base, tokens{ key: "#RRGGBB" | gradient } }</c>, parsed with no object instantiation or
+///     code execution, so loading an untrusted drop-in is never code-exec (unlike runtime AXAML). Malformed
+///     input degrades gracefully: an unparseable file yields an error; a bad token value is skipped while the
+///     rest of the file loads, and an unknown key is kept aside, never applied.
+///     <para>
+///         A gradient token is an object: <c>{ "start": "0%,0%", "end": "0%,100%", "stops": [ { "offset": 0,
+///         "color": "#C805050F" }, ... ] }</c>.
+///     </para>
 /// </summary>
 public static class ThemeJson
 {
-    private static readonly JsonSerializerOptions _options = new()
+    private static readonly JsonDocumentOptions _options = new()
     {
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
+        CommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true
     };
 
+    private static readonly HashSet<string> _known = new(ThemeTokens.All, StringComparer.Ordinal);
+
     /// <summary>
     ///     Parses <paramref name="json" /> into a <see cref="ThemeDefinition" />, or returns <c>null</c> if it is
-    ///     not a usable theme (unparseable, or missing a non-empty <c>id</c>). <paramref name="sourceLabel" /> is
-    ///     used only in a diagnostic: a file path for a drop-in, the built-in name otherwise.
+    ///     not a usable theme. <paramref name="sourceLabel" /> names the source in a diagnostic.
     /// </summary>
-    public static ThemeDefinition? TryParse(string json, string sourceLabel)
+    public static ThemeDefinition? TryParse(string json, string sourceLabel) => Parse(json, sourceLabel).Definition;
+
+    /// <summary>Parses <paramref name="json" />, saying why when it is not a usable theme.</summary>
+    public static ThemeParseResult Parse(string json, string sourceLabel)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
-            return null;
+            return Fail("The file is empty.");
         }
 
-        ThemeFileDto? dto;
+        JsonDocument doc;
         try
         {
-            dto = JsonSerializer.Deserialize<ThemeFileDto>(json, _options);
+            doc = JsonDocument.Parse(json, _options);
         }
-        catch (JsonException)
+        catch (JsonException e)
         {
-            return null; // not valid JSON, degrade to "theme unavailable"
-        }
-
-        if (dto is null || string.IsNullOrWhiteSpace(dto.Id))
-        {
-            return null; // a theme with no id cannot be persisted or resolved
+            return Fail($"It is not valid JSON (line {e.LineNumber + 1}).");
         }
 
-        string id = dto.Id.Trim();
-        string name = string.IsNullOrWhiteSpace(dto.Name) ? id : dto.Name.Trim();
-        ThemeVariant baseVariant = ParseBase(dto.Base);
-
-        Dictionary<string, Color> tokens = new(StringComparer.Ordinal);
-        if (dto.Tokens is not null)
+        using (doc)
         {
-            foreach ((string key, string? hex) in dto.Tokens)
+            JsonElement root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
             {
-                if (string.IsNullOrWhiteSpace(key) || hex is null)
-                {
-                    continue;
-                }
+                return Fail("It is not a JSON object.");
+            }
 
-                if (TryParseColor(hex, out Color color))
+            string? id = StringProperty(root, "id")?.Trim();
+            if (string.IsNullOrEmpty(id))
+            {
+                return Fail("It has no \"id\".");
+            }
+
+            string? name = StringProperty(root, "name")?.Trim();
+            ThemeVariant baseVariant = ParseBase(StringProperty(root, "base"));
+
+            Dictionary<string, Color> tokens = new(StringComparer.Ordinal);
+            Dictionary<string, ThemeGradient> gradients = new(StringComparer.Ordinal);
+            Dictionary<string, string> unknown = new(StringComparer.Ordinal);
+            List<string> bad = [];
+            if (Property(root, "tokens") is { ValueKind: JsonValueKind.Object } tokenObject)
+            {
+                foreach (JsonProperty entry in tokenObject.EnumerateObject())
                 {
-                    tokens[key.Trim()] = color;
+                    string key = entry.Name.Trim();
+                    if (key.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!_known.Contains(key))
+                    {
+                        unknown[key] = entry.Value.GetRawText();
+                        continue;
+                    }
+
+                    if (entry.Value.ValueKind == JsonValueKind.String && TryParseColor(entry.Value.GetString()!, out Color color))
+                    {
+                        tokens[key] = color;
+                    }
+                    else if (entry.Value.ValueKind == JsonValueKind.Object && TryParseGradient(entry.Value, out ThemeGradient? gradient))
+                    {
+                        gradients[key] = gradient;
+                    }
+                    else
+                    {
+                        bad.Add(key);
+                    }
                 }
-                // else: skip this one token, keep the rest (partial files degrade gracefully)
+            }
+
+            ThemeDefinition def = new(id, string.IsNullOrEmpty(name) ? id : name, baseVariant, tokens)
+            {
+                Gradients = gradients,
+                UnknownTokens = unknown
+            };
+            return new ThemeParseResult(def, null, bad);
+        }
+
+        static ThemeParseResult Fail(string reason) => new(null, reason, []);
+    }
+
+    // Case-insensitive property lookup: the old reader bound with PropertyNameCaseInsensitive, so "Id" or
+    // "Tokens" in a hand-written file must keep working.
+    private static JsonElement? Property(JsonElement obj, string name)
+    {
+        foreach (JsonProperty p in obj.EnumerateObject())
+        {
+            if (string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return p.Value;
             }
         }
 
-        return new ThemeDefinition(id, name, baseVariant, tokens);
+        return null;
     }
+
+    private static string? StringProperty(JsonElement obj, string name) =>
+        Property(obj, name) is { ValueKind: JsonValueKind.String } v ? v.GetString() : null;
 
     // "light" → Light, anything else (incl. null / "dark") → Dark. Dark is the app's canonical base, so an
     // unspecified or unrecognized base defaults to it.
@@ -100,8 +178,11 @@ public static class ThemeJson
             ? ThemeVariant.Light
             : ThemeVariant.Dark;
 
+    /// <summary>The file spelling of a base variant: <c>"light"</c> or <c>"dark"</c>.</summary>
+    public static string BaseName(ThemeVariant baseVariant) => baseVariant == ThemeVariant.Light ? "light" : "dark";
+
     // Color.Parse throws on a bad string; wrap it so one malformed token never fails the whole file.
-    private static bool TryParseColor(string hex, out Color color)
+    public static bool TryParseColor(string hex, out Color color)
     {
         try
         {
@@ -115,20 +196,53 @@ public static class ThemeJson
         }
     }
 
-    // The on-disk shape. Nullable everywhere so a partial file deserializes without throwing; validation
-    // happens in TryParse. Token values are strings (hex) parsed to Color in code, never objects.
-    private sealed class ThemeFileDto
+    /// <summary><c>#RRGGBB</c> for an opaque colour, <c>#AARRGGBB</c> otherwise.</summary>
+    public static string FormatColor(Color c) =>
+        c.A == 255 ? $"#{c.R:X2}{c.G:X2}{c.B:X2}" : $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
+
+    private static bool TryParseGradient(JsonElement obj, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ThemeGradient? gradient)
     {
-        [JsonPropertyName("id")]
-        public string? Id { get; set; }
+        gradient = null;
+        try
+        {
+            RelativePoint start = RelativePoint.Parse(StringProperty(obj, "start") ?? "0%,0%");
+            RelativePoint end = RelativePoint.Parse(StringProperty(obj, "end") ?? "0%,100%");
+            if (Property(obj, "stops") is not { ValueKind: JsonValueKind.Array } stops)
+            {
+                return false;
+            }
 
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
+            List<ThemeGradientStop> list = [];
+            foreach (JsonElement stop in stops.EnumerateArray())
+            {
+                if (stop.ValueKind != JsonValueKind.Object
+                    || Property(stop, "offset") is not { ValueKind: JsonValueKind.Number } offset
+                    || StringProperty(stop, "color") is not { } hex
+                    || !TryParseColor(hex, out Color color))
+                {
+                    return false;
+                }
 
-        [JsonPropertyName("base")]
-        public string? Base { get; set; }
+                list.Add(new ThemeGradientStop(offset.GetDouble(), color));
+            }
 
-        [JsonPropertyName("tokens")]
-        public Dictionary<string, string?>? Tokens { get; set; }
+            if (list.Count < 2)
+            {
+                return false;
+            }
+
+            gradient = new ThemeGradient(start, end, list);
+            return true;
+        }
+        catch (Exception e) when (e is FormatException or ArgumentException or InvalidOperationException)
+        {
+            return false;
+        }
     }
+
+    /// <summary>Formats a relative point the way a theme file spells it (<c>"0%,100%"</c>).</summary>
+    public static string FormatPoint(RelativePoint p) =>
+        p.Unit == RelativeUnit.Relative
+            ? string.Create(CultureInfo.InvariantCulture, $"{p.Point.X * 100:0.##}%,{p.Point.Y * 100:0.##}%")
+            : string.Create(CultureInfo.InvariantCulture, $"{p.Point.X:0.##},{p.Point.Y:0.##}");
 }
