@@ -18,6 +18,9 @@
 # Signing/notarization is DEFERRED:
 # the DV_SIGN_* / DV_NOTARY_PROFILE secrets are unset today → unsigned. Wire them as repo
 # secrets to flip signing on with no workflow change (empty = unsigned).
+#
+# Every published release carries SHA256SUMS and a build provenance attestation per asset:
+# `gh attestation verify <file> --repo CS2OpenDev/DemoViewer.NET`.
 name: release
 
 on:
@@ -204,7 +207,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || github.event.inputs.publish == 'true')
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # create the GitHub Release + upload assets
+      contents: write       # create the GitHub Release + upload assets
+      id-token: write       # attest-build-provenance signs through Sigstore with this job's OIDC identity
+      attestations: write   # and stores the attestations on the repository
     steps:
       - uses: actions/checkout@v4   # for .config/dotnet-tools.json (vpk)
 
@@ -253,6 +258,29 @@ jobs:
               --pre "$pre" \
               --merge true
           done
+
+      # From the release itself, not from dist/: dist also holds the previous release's packages that
+      # delta seeding downloaded, and the point is to vouch for exactly what a user can download.
+      - name: Checksum the release's assets
+        id: assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${{ github.ref_name }}"
+          dir="$RUNNER_TEMP/release-assets"
+          rm -rf "$dir" && mkdir -p "$dir"
+          gh release download "$tag" --repo "${{ github.repository }}" --dir "$dir"
+          rm -f "$dir/SHA256SUMS"   # a re-run's earlier copy
+          (cd "$dir" && sha256sum -- * > SHA256SUMS)
+          cat "$dir/SHA256SUMS"
+          gh release upload "$tag" "$dir/SHA256SUMS" --repo "${{ github.repository }}" --clobber
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      - name: Attest the release's assets
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ steps.assets.outputs.dir }}/*
 
       # Stable notes are hand-written in release-body.md before tagging. Beta notes are fixed text plus
       # a compare link against the latest full release, so a beta needs no notes edit to ship.

@@ -168,6 +168,7 @@ jobs:
       # and the login fails before any package is touched. No long-lived key exists in this repository.
       id-token: write
       contents: read
+      attestations: write   # the packages' provenance, signed with the same OIDC identity
     steps:
       - uses: actions/checkout@v4   # for scripts/sdk-packages.sh and the PublicAPI lists
 
@@ -210,3 +211,10 @@ jobs:
               --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
               --skip-duplicate
           done
+
+      # nuget.org adds its own repository signature; this ties each package to this workflow run:
+      # `gh attestation verify <nupkg> --repo CS2OpenDev/DemoViewer.NET`.
+      - name: Attest the packages
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: artifacts/sdk-packages/*.nupkg
