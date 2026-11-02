@@ -145,6 +145,76 @@ public class InstallRecoveryTests
             .Throws<InvalidOperationException>().WithMessageContaining("so CS2 was not started");
     }
 
+    // A CS2 update since the crash makes the backup stale: restoring it would roll the update back. The banner
+    // refuses that unattended, so the guard must too, and send the user to the banner or Steam instead.
+    [Test]
+    public async Task PreLaunchGuard_LeavesAStaleBackupAlone_AndRefusesTheLaunch()
+    {
+        using FakeInstall install = new();
+        install.LeaveCrashedSession(Original.Replace("Game\tcore", "Game\tcore_old", StringComparison.Ordinal));
+
+        await Assert.That(() => InstallRecovery.EnsureRestoredBeforeLaunch(install.Settings, null, () => false))
+            .Throws<InvalidOperationException>().WithMessageContaining("Restore my CS2 install");
+        await Assert.That(await File.ReadAllTextAsync(install.GameInfo)).IsEqualTo(Patched);
+        await Assert.That(Directory.Exists(install.PluginDir)).IsTrue();
+    }
+
+    // The banner's unattended restore and the pre-launch guard run on different threads. Held mid-restore,
+    // the first must keep the second out until it is done; the second then finds a clean install.
+    [Test]
+    [Timeout(30_000)]
+    public async Task Restores_AreSerialized(CancellationToken cancellationToken)
+    {
+        using FakeInstall install = new();
+        install.LeaveCrashedSession(Original);
+        using ManualResetEventSlim entered = new();
+        using ManualResetEventSlim release = new();
+
+        Task banner = Task.Run(() => InstallRecovery.Restore(install.Settings, line =>
+        {
+            if (line.StartsWith("Restoring patched", StringComparison.Ordinal))
+            {
+                entered.Set();
+                release.Wait(cancellationToken);
+            }
+        }, () => false), cancellationToken);
+        entered.Wait(cancellationToken);
+
+        List<string> guardLog = [];
+        Task guard = Task.Run(() => InstallRecovery.EnsureRestoredBeforeLaunch(install.Settings, guardLog.Add,
+            () => false), cancellationToken);
+        await Task.Delay(500, cancellationToken);
+        bool guardRanAlongside = guard.IsCompleted;
+
+        release.Set();
+        await banner;
+        await guard;
+
+        await Assert.That(guardRanAlongside).IsFalse().Because("the guard waits for the restore in progress");
+        await Assert.That(guardLog).IsEmpty().Because("by then there is nothing left to restore");
+        await Assert.That(await File.ReadAllTextAsync(install.GameInfo, cancellationToken)).IsEqualTo(Original);
+        await Assert.That(Directory.Exists(install.PluginDir)).IsFalse();
+
+        // And a restore that loses the race to the guard finds a clean install and still succeeds.
+        InstallRecovery.Restore(install.Settings, null, () => false);
+    }
+
+    [Test]
+    public async Task WaitForCs2Exit_ReturnsOnceCs2IsGone_OrGivesUpAtTheTimeout()
+    {
+        int polls = 0;
+        await Assert.That(await InstallRecovery.WaitForCs2ExitAsync(TimeSpan.FromSeconds(10), CancellationToken.None,
+            () => ++polls <= 2)).IsTrue();
+        await Assert.That(polls).IsEqualTo(3);
+
+        await Assert.That(await InstallRecovery.WaitForCs2ExitAsync(TimeSpan.FromMilliseconds(300),
+            CancellationToken.None, () => true)).IsFalse();
+
+        using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(100));
+        await Assert.That(async () => await InstallRecovery.WaitForCs2ExitAsync(TimeSpan.FromSeconds(30), cts.Token,
+            () => true)).Throws<OperationCanceledException>();
+    }
+
     // The reel path runs the same guard before CSVG launches CS2. Leftovers with no backup to restore from
     // fail the job with the guard's reason, before any host or CS2 comes up, and the install is untouched.
     [Test]

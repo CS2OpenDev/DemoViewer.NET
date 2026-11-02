@@ -188,11 +188,13 @@ public sealed class LiveSyncService : ILiveSyncService
             // restores backups, returns the session to Disconnected). This runs exactly when CSVG is
             // cleaning up a dead CS2. Failures land in Faulted per the ILiveSyncService contract,
             // never escape into the flyout command.
+            bool stoppedFaulted = false;
             if (session.State == CsvgSessionState.Faulted)
             {
                 try
                 {
                     await session.StopAsync(CancellationToken.None);
+                    stoppedFaulted = true;
                 }
                 catch (Exception ex)
                 {
@@ -204,6 +206,12 @@ public sealed class LiveSyncService : ILiveSyncService
 
             try
             {
+                // The stop above can leave its CS2 still exiting, and the guard refuses a running CS2.
+                if (stoppedFaulted && !settings.UsesMock())
+                {
+                    await InstallRecovery.WaitForCs2ExitAsync(InstallRecovery.Cs2ExitTimeout, ct);
+                }
+
                 await Task.Run(() => InstallRecovery.EnsureRestoredBeforeLaunch(settings, PostRecoveryLine), ct);
             }
             catch (OperationCanceledException)
@@ -222,7 +230,7 @@ public sealed class LiveSyncService : ILiveSyncService
             ResetSessionSurface();
 
             SetState(new LiveSyncState(LiveSyncStateKind.LaunchingCs2,
-                settings.MockMode || !string.IsNullOrWhiteSpace(settings.ExternalMockServerPath)
+                settings.UsesMock()
                     ? "Launching mock CS2"
                     : "Launching CS2 (up to ~2 min)"));
             try

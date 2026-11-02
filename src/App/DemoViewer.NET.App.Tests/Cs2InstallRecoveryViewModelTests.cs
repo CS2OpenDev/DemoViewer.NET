@@ -272,6 +272,26 @@ public class Cs2InstallRecoveryViewModelTests
 [NotInParallel]
 public class Cs2InstallRecoveryAcrossProfilesTests
 {
+    // A Faulted session does not own CS2, and a pre-launch guard that refused the launch lands there: the
+    // shell's busy check has to let the banner probe and show, or the guard's "use the banner" goes nowhere.
+    [Test]
+    public async Task FaultedLiveSync_DoesNotHideTheBanner()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            MainViewModel vm = new(library: TestLibraries.Empty());
+            Cs2InstallRecoveryViewModelTests.FakeLiveSync liveSync = new(new Cs2InstallProbe(false, false, false));
+            vm.AttachLiveSync(liveSync);
+
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.HostStarting));
+            liveSync.Probe = new Cs2InstallProbe(true, false, false);
+            liveSync.Raise(new LiveSyncState(LiveSyncStateKind.Faulted, "the guard refused the launch"));
+
+            await Assert.That(vm.Cs2InstallRecovery!.NeedsRestore).IsTrue();
+            await Assert.That(vm.Cs2InstallRecovery.IsVisible).IsTrue();
+        });
+    }
+
     [Test]
     [Arguments(UserCategory.Consumer, false)]
     [Arguments(UserCategory.PowerUser, false)]
