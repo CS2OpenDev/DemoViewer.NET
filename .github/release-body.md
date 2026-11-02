@@ -1,57 +1,61 @@
-## What's new in 0.9.0
+## What's new in 0.10.0
 
-Extensions from outside this repository, a library that knows a demo by its content rather than its
-path, one parse per demo for everything the app reads from it, and an opt-in beta channel.
+Your own themes, a clear warning before anything touches your CS2 install, a first-run setup that
+actually fills your library, and a switch for the app's automatic update checks.
 
-**Third-party extensions.** Drop an extension into the `extensions` folder under the app's
-config folder and it loads on the next launch, in its own load context, beside the Strat Book, as
-long as it is compatible with this version. An unsigned one loads only with **Allow
-unverified and potentially dangerous extensions** turned on in Settings, which is off by default. A
-broken signature never loads, and an extension that claims a `net.demoviewer.*` id is refused.
+**Theme Customization.** Settings > Theme > **Customize…** opens a window where you can make your own
+copy of any theme and change every colour in it, with a live preview of panels, lists, the stats
+table, the 2D map, the rule editor and the analysis graph. Turn on **Apply to the app while editing**
+to see the change across the whole app before you save, and Cancel puts everything back. Light,
+Dark, High Contrast and E-Girl are built in and marked with a **Built-in** chip; they can't be
+changed, only copied. Your copies are plain JSON files in your themes folder, and complete examples
+of all four built-ins are in `samples/Themes` in the repository.
 
-**An extension can't take the app down with it.** Every call into an extension is guarded. Three
-faults in a minute, or ten in a session, switch it off for the rest of the session with a notice.
-One that throws while registering is left out and the app starts without it. Launch with
-`--safe-mode` to load no extensions at all; the app also starts in safe mode on its own after a
-launch that never finished, a crash with an extension on the stack, or a freeze you had to kill.
+**Themes from older versions keep working.** A theme that leaves out a colour, including colours
+added in later versions, uses its base theme's value instead of failing. If your selected theme is
+missing colours the app says so once, and **Fix in Theme Customization** opens the editor with only
+the missing colours listed and a **Fill missing from base** button. A theme file that doesn't load
+is listed in Settings with the reason.
 
-**Moved, renamed and remounted demos keep their analysis.** The cache used to key a demo by its
-path, so moving a file, renaming it, or reaching it through a second mount parsed it again from
-scratch, and a bad prune could delete results. A demo is now known by its SHA-256, with every path
-it has been seen at kept as a location. A copy is recognised from its size and a hash of its head
-and tail, so a second mount of the same folder folds onto the cards you already have. Removing a
-folder detaches it rather than deleting anything, and a demo with no location left is only swept
-after a grace period. Recents, extension data and Strat Book indexes follow the content too. The
-first launch after updating renames the existing cache files in one queue item; it reads no demos
-and steps aside if you open one.
+**A warning before Live Sync or Reels start CS2.** Both launch CS2 with `-insecure`, which turns VAC
+off for that session, and both temporarily patch your CS2 install. The app now says so before the
+first launch, with what it changes and that it restores everything afterwards, and keeps a one-line
+reminder next to the launch button. You can tell it not to ask again.
 
-**Network folders stop costing you analysis.** A folder used to count as scanned before it had been
-listed, so an automount that had not mounted yet looked empty and pruned everything under it, and
-one slow share held up the whole queue. Listing and header reads now run as short queue slices with
-a time bound, and a folder counts as reached only when its walk completes. Network demos are no
-longer memory-mapped.
+**Recovering a CS2 install after a crash.** If the app or CS2 stopped while the install was patched,
+every profile now sees a banner offering to restore it, not only the developer profile. Restoring
+needs CS2 closed, and Live Sync and Reels put the install back themselves before launching
+again.
 
-**One parse per demo.** Library score, clans and coaches, highlights, round facts, the Strat Book's
-round index, suggested tags and the grenade walk each used to walk the demo on their own. They now
-all read off the one rules run. On the benchmark demos a library sweep is 26 to 48% faster and
-opening a demo 21 to 38% faster.
+**First-run setup fills your library.** Folders you added in the setup wizard didn't reach the
+Library tab, so you had to add them again. The library now follows folder changes from Settings and
+the wizard and scans the new folders straight away.
 
-**The processing queue panel.** Running work sits on top and queued work is listed in the order it
-will start. Finished work moves to a Recent tab with the last 25 items and their errors.
-Right-click a queued item and **Move to top** to make it next, without interrupting what is running.
+**A walkthrough that matches your profile.** The tour only visits the parts of the app your profile
+shows, and now covers Player Overview, the report-an-error button, drawing on the 2D map and
+exporting it, the Strat Book and writing your own rules.
 
-**Beta releases, if you want them.** Settings > Updates has **Subscribe to beta releases**, off by
-default. Betas can break your configuration or corrupt cached data. Subscribed copies always move to
-whichever is newer, the latest beta or the latest full release, and turning it off never downgrades
-you: you stay put until a full release passes your build. Unsubscribed copies never see a beta.
+**Turn off automatic update checks.** Settings > Updates has **Check for updates automatically**,
+on by default. Off, the app makes no update requests of its own: no check at launch, no release notes
+fetched for the What's New window, and no extension update check when Settings opens. The **Check**
+buttons still work when you want them.
 
-**Smaller fixes.** A surrendered match keeps the score it was read at. The Background Work chip
-counts only the work the concurrency setting controls. A full queue no longer keeps the planner
-spinning. Context menus and flyouts take their colours from the theme instead of Fluent's gray,
-under every theme.
+**Smaller fixes.** The Strat Book's update check no longer reports an error when no extension update
+has been published yet. Syntax colours in the rule editor keep their transparency.
+
+**For extension authors.** The extension SDK is 2.1, built against CS2DemoKit 0.14.1; the SDK
+README lists what 2.1 adds. Live Sync and Reels now use Cs2VideoGenerator.Core 0.10.1, its first
+MIT-licensed release, listed in THIRD-PARTY-NOTICES.
 
 <details>
-<summary>What was new in 0.8.2 and earlier</summary>
+<summary>What was new in 0.9.0 and earlier</summary>
+
+**0.9.0** brought third-party extensions, loaded in their own context with a signature check and
+an opt-in for unsigned ones, with faults contained and a `--safe-mode` launch; a library that knows
+a demo by its SHA-256, so moved, renamed and remounted demos keep their analysis; network folders
+that no longer prune themselves before they mount; one parse per demo for everything the app reads,
+which made a library sweep 26 to 48% faster and opening a demo 21 to 38% faster on the benchmark
+demos; a processing queue panel with Move to top; and an opt-in beta channel.
 
 **0.8.2** brought the Strat Room as the Strat Book extension: Situation Search, Round Tagger,
 Strat Book, Utility Book, the Review Queue with reels, and the Opponent Dossier, all behind one

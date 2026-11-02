@@ -392,15 +392,15 @@ public static class TutorialSteps
                     DesktopOnly = true,
                     Text =
                         "Reels start CS2 with -insecure and patch your CS2 install while they record, so the app "
-                        + "asks before each launch."
+                        + "asks first until you tell it not to."
                 },
                 new()
                 {
                     FeatureId = "chrome.livesync",
                     DesktopOnly = true,
                     Text =
-                        "Live Sync starts CS2 with -insecure and patches your CS2 install while it runs, and asks "
-                        + "before each launch as well."
+                        "Live Sync starts CS2 with -insecure and patches your CS2 install while it runs, so the app "
+                        + "asks first until you tell it not to."
                 },
                 new()
                 {
