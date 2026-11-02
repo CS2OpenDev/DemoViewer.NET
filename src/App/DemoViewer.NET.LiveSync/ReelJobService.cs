@@ -34,9 +34,6 @@ public sealed class ReelJobService(
     Action<string>? log = null,
     Func<bool>? isCs2Running = null) : IReelJobService, IDisposable
 {
-    /// <summary>How long a reel waits for a suspended sync session's CS2 to exit before the guard runs.</summary>
-    private static readonly TimeSpan Cs2ExitTimeout = TimeSpan.FromSeconds(15);
-
     private readonly object _lifecycle = new();
     private CancellationTokenSource? _cts;
     private Task? _job;
@@ -196,7 +193,7 @@ public sealed class ReelJobService(
             {
                 if (suspendedSync)
                 {
-                    await InstallRecovery.WaitForCs2ExitAsync(Cs2ExitTimeout, cancellationToken, isCs2Running)
+                    await InstallRecovery.WaitForCs2ExitAsync(InstallRecovery.Cs2ExitTimeout, cancellationToken, isCs2Running)
                         .ConfigureAwait(false);
                 }
 

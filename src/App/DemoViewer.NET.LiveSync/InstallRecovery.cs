@@ -47,6 +47,9 @@ internal static class InstallRecovery
     /// </summary>
     private static readonly object RestoreGate = new();
 
+    /// <summary>How long a launch waits for the CS2 it just stopped to exit before the guard runs.</summary>
+    internal static readonly TimeSpan Cs2ExitTimeout = TimeSpan.FromSeconds(15);
+
     /// <summary>
     ///     Probes the real CS2 install for leftover CSVG modifications. Null when nothing is
     ///     determinable — mock mode, no CS2 install found, or unreadable files — which callers
