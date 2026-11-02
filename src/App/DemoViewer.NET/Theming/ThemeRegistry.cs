@@ -53,6 +53,7 @@ public sealed class ThemeRegistry
 
     private ResourceDictionary? _previewDict;
     private ThemeVariant? _previewVariant;
+    private int _previewSerial;
 
     public ThemeRegistry()
     {
@@ -234,9 +235,15 @@ public sealed class ThemeRegistry
             // A user file must not shadow a built-in id (that would turn a native theme into a custom variant
             // and could surprise the user). A later user file with the same id as an earlier one replaces it
             // (last write wins), and the earlier file is reported.
+            if (def.Id.StartsWith(PreviewId, StringComparison.OrdinalIgnoreCase))
+            {
+                _problems.Add(new ThemeLoadProblem(name, $"Its id \"{def.Id}\" is reserved for the editor's preview. Give it a different id."));
+                continue;
+            }
+
             if (_byId.TryGetValue(def.Id, out Theme? existing))
             {
-                if (existing.Source == ThemeSource.BuiltIn || def.Id.Equals(PreviewId, StringComparison.OrdinalIgnoreCase))
+                if (existing.Source == ThemeSource.BuiltIn)
                 {
                     _problems.Add(new ThemeLoadProblem(name,
                         $"Its id \"{def.Id}\" belongs to the built-in {existing.DisplayName} theme, so it was not loaded. Give it a different id."));
@@ -324,7 +331,9 @@ public sealed class ThemeRegistry
             _customDicts.ThemeDictionaries.Remove(old);
         }
 
-        ThemeVariant variant = new(PreviewId, palette.BaseVariant);
+        // A fresh key per start: replacing a theme dictionary under the same key does not make a scope already
+        // on that variant re-resolve, and the base may have changed; a new variant does both.
+        ThemeVariant variant = new($"{PreviewId}-{++_previewSerial}", palette.BaseVariant);
         _previewDict = BuildDictionary(palette.Colors, palette.Gradients);
         _previewVariant = variant;
         _customDicts.ThemeDictionaries[variant] = _previewDict;

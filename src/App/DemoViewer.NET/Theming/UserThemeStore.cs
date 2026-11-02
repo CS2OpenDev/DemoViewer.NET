@@ -98,7 +98,7 @@ public sealed class UserThemeStore(ThemeRegistry registry)
 
     private bool Taken(string id) =>
         Registry.Contains(id)
-        || string.Equals(id, ThemeRegistry.PreviewId, StringComparison.OrdinalIgnoreCase)
+        || id.StartsWith(ThemeRegistry.PreviewId, StringComparison.OrdinalIgnoreCase)
         || (AppPaths.ThemesDirectory is { } dir && File.Exists(Path.Combine(dir, id + ".json")));
 
     /// <summary>

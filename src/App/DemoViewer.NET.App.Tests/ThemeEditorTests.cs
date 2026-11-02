@@ -76,6 +76,7 @@ public class ThemeEditorTests
             using (vm)
             {
                 await Assert.That(vm.IsReadOnly).IsTrue();
+                ThemeVariant? firstPreview = vm.PreviewVariant;
                 await Assert.That(vm.MissingCount).IsEqualTo(0).Because("a built-in is complete");
 
                 ThemeTokenRowViewModel shell = vm.Sections[0].Rows[0];
@@ -96,6 +97,7 @@ public class ThemeEditorTests
                 vm.ConfirmCopyCommand.Execute(null);
                 await Assert.That(vm.Prompt).IsEqualTo(ThemeEditorPrompt.None);
                 await Assert.That(vm.Theme.Id).IsEqualTo("user-mine");
+                await Assert.That(vm.PreviewVariant).IsNotEqualTo(firstPreview).Because("a new theme gets a new preview variant, so the pane re-resolves");
                 await Assert.That(vm.CanEdit).IsTrue();
                 await Assert.That(File.Exists(Path.Combine(folder.Themes, "user-mine.json"))).IsTrue();
                 await Assert.That(vm.Themes.Single(t => t.Theme.Id == "user-mine").IsBuiltIn).IsFalse();
