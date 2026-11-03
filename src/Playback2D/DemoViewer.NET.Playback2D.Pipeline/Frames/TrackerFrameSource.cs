@@ -140,14 +140,14 @@ public sealed class TrackerFrameSource : ISceneFrameSource, IPreparableFrameSour
     public IReadOnlyList<HudPlayerRow> LastRoster { get; private set; } = [];
 
     /// <summary>The map name stamped onto every built frame. Set before the first <see cref="FrameAt" />.</summary>
-    public string? MapName { get; init; }
+    public string? MapName { get; set; }
 
     /// <summary>
     ///     The decoded radar art stamped onto every built frame, from a loaded map bundle. Set before the
     ///     first <see cref="FrameAt" />; leaving it null renders the synthetic grid instead of the map
     ///     image, which is what a demo-backed render looks like with no assets on disk.
     /// </summary>
-    public IReadOnlyList<MapRadarImage>? Radars { get; init; }
+    public IReadOnlyList<MapRadarImage>? Radars { get; set; }
 
     /// <summary>Drops the private tracker. Idempotent.</summary>
     public void Dispose()
