@@ -51,7 +51,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         new(@"^catalog_version:\s*\d+\s*$", RegexOptions.Multiline | RegexOptions.Compiled);
 
     private static readonly Regex _rulesetLine =
-        new(@"^ruleset:.*$", RegexOptions.Multiline | RegexOptions.Compiled);
+        new("^ruleset:.*$", RegexOptions.Multiline | RegexOptions.Compiled);
 
     // The live user-settings monitor (null on the designer / test path) + its OnChange
     // subscription, disposed in Dispose.
@@ -69,10 +69,6 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     private IModuleContext? _context;
 
     private ICurrentDemoSource? _demoSource;
-
-    // Diagnostics-pillar logger (v0.6.0: failure surfaces show clean text, this carries the real
-    // exception). Lazy: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
 
     [ObservableProperty]
     private string _documentText = "";
@@ -92,6 +88,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     private bool _isClean;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSave))]
     private bool _isDirty;
 
     /// <summary>
@@ -180,7 +177,9 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             }));
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.RuleWorkbench");
+    // Diagnostics-pillar logger (v0.6.0: failure surfaces show clean text, this carries the real
+    // exception). Lazy: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.RuleWorkbench");
 
     // Shipped rulesets are read-only unless developer mode is on. A save on a read-only file
     // prompts for a new name (save-as to the user overlay).
@@ -478,7 +477,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     ///     </para>
     ///     Node count is set synchronously (the deterministic test hook); the MSAGL layout is fired best-effort.
     /// </summary>
-    public void RenderGraphForOpenFile()
+    private void RenderGraphForOpenFile()
     {
         if (!ShowGraph)
         {
@@ -608,7 +607,6 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
                 {
                     FullPath = path,
                     Display = shipped ? $"{name} (shipped)" : name,
-                    IsShipped = shipped,
                     IsSelected = wasSelected.Count == 0 || wasSelected.Contains(path)
                 });
             }
@@ -804,8 +802,6 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         OnPropertyChanged(nameof(CanSave));
         Check(); // buffer-aware, inline diagnostics track the edit
     }
-
-    partial void OnIsDirtyChanged(bool value) => OnPropertyChanged(nameof(CanSave));
 
     /// <summary>Creates a starter draft in the user folder and opens it.</summary>
     [RelayCommand]

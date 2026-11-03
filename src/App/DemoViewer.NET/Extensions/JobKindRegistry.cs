@@ -100,8 +100,7 @@ public sealed class JobKindRegistry
             {
                 if (BuiltInExtensionKinds.ContainsKey(declared.Id)
                     || !byExtensionKind.TryAdd(declared.Id,
-                        new JobKindDescriptor(QueueJobKind.Extension, declared.Label, declared.Rank, declared.IsLight,
-                            declared.Id)))
+                        new JobKindDescriptor(QueueJobKind.Extension, declared.Label, declared.Rank, declared.IsLight)))
                 {
                     throw new InvalidOperationException(
                         $"Extension '{pack.Id}' job kind '{declared.Id}' is already declared by the host or another extension.");

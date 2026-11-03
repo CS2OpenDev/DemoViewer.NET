@@ -58,7 +58,7 @@ public static class ExtensionStartup
     /// </summary>
     /// <param name="configRoot">The config root; null reads only the shipped manifests.</param>
     /// <param name="shipped">The extensions this build ships.</param>
-    public static IReadOnlyList<string> ClaimedRulesets(string? configRoot, IReadOnlyList<ShippedPack> shipped)
+    private static IReadOnlyList<string> ClaimedRulesets(string? configRoot, IReadOnlyList<ShippedPack> shipped)
     {
         ArgumentNullException.ThrowIfNull(shipped);
         List<ExtensionManifest> manifests = [];

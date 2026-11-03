@@ -52,7 +52,7 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
     }
 
     /// <summary>Compares only the numeric core, ignoring any prerelease tag.</summary>
-    public int CompareCore(SemVersion other)
+    private int CompareCore(SemVersion other)
     {
         ArgumentNullException.ThrowIfNull(other);
         int c = Major.CompareTo(other.Major);
@@ -137,7 +137,7 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
     public static bool operator >=(SemVersion left, SemVersion right) => Compare(left, right) >= 0;
 
     private static int Compare(SemVersion? left, SemVersion? right) =>
-        left is null ? (right is null ? 0 : -1) : left.CompareTo(right);
+        left?.CompareTo(right) ?? (right is null ? 0 : -1);
 
     private static int ComparePrerelease(string left, string right)
     {

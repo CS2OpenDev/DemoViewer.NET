@@ -75,7 +75,7 @@ internal sealed class HostStatusChip : IShellChip
     /// <summary>The host's own chip; the same instance for the life of the session.</summary>
     public StatusChipViewModel Chip { get; } = new();
 
-    StatusChipViewModel? IShellChip.Chip => Chip;
+    StatusChipViewModel IShellChip.Chip => Chip;
 
     public bool IsShown { get; private set; }
 

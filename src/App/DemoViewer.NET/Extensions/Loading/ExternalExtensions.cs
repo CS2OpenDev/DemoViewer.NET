@@ -18,9 +18,6 @@ public sealed record ExternalResolution(IReadOnlyList<PackStatus> Loaded, IReadO
 {
     /// <summary>Nothing installed, or nothing looked at.</summary>
     public static ExternalResolution None { get; } = new([], []);
-
-    /// <summary>The loaded extensions.</summary>
-    public IReadOnlyList<IExtension> Extensions => [.. Loaded.Select(s => s.Pack)];
 }
 
 /// <summary>

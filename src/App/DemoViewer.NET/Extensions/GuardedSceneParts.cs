@@ -66,9 +66,6 @@ internal sealed class GuardedSceneLayer : ISceneLayer
         Cache = guard.Run("scene layer", () => inner.Cache, LayerCacheHint.Dynamic);
     }
 
-    /// <summary>True once the layer threw; it draws nothing more.</summary>
-    public bool IsFaulted => _faulted;
-
     public string Id { get; }
 
     public LayerSlot Slot { get; }
@@ -276,7 +273,7 @@ internal sealed class GuardedPointerTool : IPointerTool
         Kind = guard.Run("pointer tool", () => inner.Kind, ToolKind.Map);
     }
 
-    public IPointerTool Inner { get; }
+    private IPointerTool Inner { get; }
 
     public string Id { get; }
 

@@ -41,7 +41,6 @@ internal sealed class PackContributions(
     : IExtensionContributions
 {
     private readonly Action<Action> _toUiThread = toUiThread ?? (static a => a());
-    private IExtensionContext? _context;
     private readonly List<IWorkspaceModule> _modules = [];
     private readonly List<ContributedHub> _hubTabs = [];
     private readonly List<PassContribution> _passes = [];
@@ -52,7 +51,6 @@ internal sealed class PackContributions(
     private readonly List<IReindexEstimate> _reindexEstimates = [];
     private readonly List<IPlaybackContribution> _playback = [];
     private readonly List<ILibraryContribution> _library = [];
-    private IReadOnlyList<StoreDescriptor>? _stores;
     private readonly List<GatedDemoAction> _demoActions = [];
     private readonly List<ContributedRuleset> _rulesets = [];
     private readonly List<Action> _dataDeleted = [];
@@ -63,7 +61,7 @@ internal sealed class PackContributions(
     /// <summary>The guard every contribution of the pack runs under.</summary>
     public ExtensionGuard Guard { get; } = guard ?? ExtensionGuard.Standalone(pack);
 
-    public IExtensionContext Context => _context ??= context();
+    public IExtensionContext Context => field ??= context();
     public IReadOnlyList<GatedDemoAction> DemoActions => _demoActions;
 
 
@@ -107,7 +105,7 @@ internal sealed class PackContributions(
     public IReadOnlyList<StoreDescriptor> Stores =>
         Context is ExtensionContext { Stores: ExtensionStores declared }
             ? declared.Declared
-            : _stores ??= AcceptedStores(Pack, Guard);
+            : field ??= AcceptedStores(Pack, Guard);
 
     /// <summary>The pack's own "delete extension data", replacing the host's, or null when it declared none.</summary>
     public IExtensionDataRemoval? DataRemovalContribution { get; private set; }
@@ -290,7 +288,7 @@ internal sealed class PackContributions(
             FeatureId = Guard.OwnFeature("settings page", page.FeatureId),
             ViewModelFactory = () =>
             {
-                object? built = Guard.Run("settings page view model", () => viewModel(), null);
+                object? built = Guard.Run("settings page view model", viewModel, null);
                 viewModelFailed = built is null;
                 return built ?? new object();
             },
@@ -404,7 +402,7 @@ internal sealed class PackContributions(
                 return $"'{raw}' does not name a file or folder";
             }
 
-            string[] reserved = store.Root == StoreRoot.Config ? ReservedConfigNames : ReservedCacheNames;
+            string[] reserved = store.Root == StoreRoot.Config ? _reservedConfigNames : _reservedCacheNames;
             if (reserved.Contains(first, StringComparer.OrdinalIgnoreCase))
             {
                 return $"'{raw}' is a folder the app keeps";
@@ -440,14 +438,14 @@ internal sealed class PackContributions(
     }
 
     // What the host and every extension share under each root; no store may name one.
-    private static readonly string[] ReservedConfigNames =
+    private static readonly string[] _reservedConfigNames =
     [
         ExtensionFolders.DataDirectoryName, ExtensionSettingsStore.DirectoryName,
         ExtensionLoader.ExtensionsDirectoryName,
         "cache", "logs", "themes", "zones", "settings.json"
     ];
 
-    private static readonly string[] ReservedCacheNames = [ExtensionFolders.DataDirectoryName];
+    private static readonly string[] _reservedCacheNames = [ExtensionFolders.DataDirectoryName];
 
     /// <inheritdoc />
     public void DataRemoval(IExtensionDataRemoval removal)
@@ -504,7 +502,7 @@ internal sealed class PackContributions(
         private readonly List<(Action Handler, Action Marshaled)> _handlers = [];
         private (LibraryFilter Inner, LibraryFilter Guarded)? _filter;
 
-        public string? FeatureId => featureId;
+        public string FeatureId => featureId;
 
         public event Action? Changed
         {

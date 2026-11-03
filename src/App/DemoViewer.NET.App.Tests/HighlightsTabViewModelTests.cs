@@ -744,10 +744,6 @@ public class HighlightsTabViewModelTests
             ($"fp@{tickRate}", new Dictionary<string, string>());
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) => throw new NotSupportedException();
-
-        public void InvalidateRules()
-        {
-        }
     }
 
     // Records the hand-off (Start payload) without launching anything.

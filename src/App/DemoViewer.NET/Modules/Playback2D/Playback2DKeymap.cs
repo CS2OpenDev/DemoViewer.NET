@@ -257,18 +257,6 @@ public static class Playback2DKeymap
         return false;
     }
 
-    /// <summary>Convenience overload for the view's KeyDown handler.</summary>
-    public static bool TryResolve(KeyEventArgs e, bool toolActive, out Playback2DAction action)
-    {
-        if (e is null)
-        {
-            action = Playback2DAction.None;
-            return false;
-        }
-
-        return TryResolve(e.Key, e.KeyModifiers, toolActive, out action);
-    }
-
     /// <summary>
     ///     Human-readable conflict list: duplicate gestures within a scope, and collisions with
     ///     <paramref name="shellReserved" />. Empty = clean. The static ctor throws on non-empty.

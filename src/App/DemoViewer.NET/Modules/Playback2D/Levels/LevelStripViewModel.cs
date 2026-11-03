@@ -60,9 +60,6 @@ public sealed partial class LevelStripViewModel : ObservableObject
         ? "Showing one floor at full height. Switch back to stacked bands."
         : "Showing every floor as a band. Switch to one floor at full height.";
 
-    /// <summary>The level currently shown, when a surface is bound.</summary>
-    public MapLevelId ActiveLevelId => _surface?.ActiveLevelId ?? MapLevelId.None;
-
     /// <summary>The display mode to persist.</summary>
     public LevelDisplayMode DisplayMode =>
         IsSingleMode ? LevelDisplayMode.Single : LevelDisplayMode.Stacked;
@@ -72,7 +69,7 @@ public sealed partial class LevelStripViewModel : ObservableObject
 
     /// <summary>Picks a level. Switches to a single pane and turns AutoFollow off.</summary>
     [RelayCommand]
-    public void Select(LevelChipViewModel? chip)
+    private void Select(LevelChipViewModel? chip)
     {
         if (chip is null || _surface is null)
         {
@@ -98,7 +95,7 @@ public sealed partial class LevelStripViewModel : ObservableObject
 
     /// <summary>Flips between stacked bands and a single floor.</summary>
     [RelayCommand]
-    public void ToggleDisplayMode()
+    private void ToggleDisplayMode()
     {
         if (_surface is null)
         {
@@ -186,7 +183,7 @@ public sealed partial class LevelStripViewModel : ObservableObject
     }
 
     /// <summary>Re-reads the surface's level set and active level.</summary>
-    public void Refresh()
+    private void Refresh()
     {
         if (_surface is null)
         {
@@ -205,9 +202,9 @@ public sealed partial class LevelStripViewModel : ObservableObject
         if (!SameChips(_scratch))
         {
             Chips.Clear();
-            for (int i = 0; i < _scratch.Count; i++)
+            foreach (LevelChipViewModel chip in _scratch)
             {
-                Chips.Add(_scratch[i]);
+                Chips.Add(chip);
             }
         }
         else

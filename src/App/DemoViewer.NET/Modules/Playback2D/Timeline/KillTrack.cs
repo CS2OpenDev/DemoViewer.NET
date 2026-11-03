@@ -38,16 +38,11 @@ public sealed class KillTrack : ITimelineTrack
     public string DisplayName => "Kills";
 
     /// <inheritdoc />
-    public bool IsAvailable(ITimelineData data) => data is not null && data.HasEvent(DeathEvent);
+    public bool IsAvailable(ITimelineData data) => data.HasEvent(DeathEvent);
 
     /// <inheritdoc />
     public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data)
     {
-        if (data is null)
-        {
-            return Array.Empty<TimelineMarker>();
-        }
-
         IReadOnlyList<TimelineEventRecord> records = data.EventsOfType(DeathEvent);
         if (records.Count == 0)
         {

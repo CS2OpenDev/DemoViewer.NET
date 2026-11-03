@@ -29,7 +29,6 @@ namespace DemoViewer.NET.Modules.Playback2D;
 internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
 {
     private readonly Dictionary<IPointerTool, IPointerTool> _tools = new(ReferenceEqualityComparer.Instance);
-    private readonly ExtensionFaults? _faults;
     private SourceFrameHost? _bound;
 
     /// <summary>Creates the view over a fresh scene host.</summary>
@@ -39,7 +38,7 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     /// </param>
     public HostedSceneView(ExtensionFaults? faults = null)
     {
-        _faults = faults;
+        Faults = faults;
         ClipToBounds = true;
         Host.TextEditRequested += (at, emPixels) => TextEditRequested?.Invoke(at, emPixels);
 
@@ -51,11 +50,11 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     }
 
     /// <summary>The scene host drawing the view.</summary>
-    internal Scene2DHost Host { get; } = new();
+    private Scene2DHost Host { get; } = new();
 
     // Read per add, not cached: the desktop head installs the process's tracker before the first view is
     // built, but a host built in a test or a designer may outlive one being installed.
-    private ExtensionFaults? Faults => _faults ?? ExtensionFaults.Current;
+    private ExtensionFaults? Faults { get => field ?? ExtensionFaults.Current; }
 
     /// <inheritdoc />
     public Control View => this;
@@ -255,9 +254,8 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
         {
             ScenePress converted = new(press.Level, press.WorldX, press.WorldY,
                 new Point(press.Screen.X, press.Screen.Y), Convert(press.Modifiers));
-            return _guard is null
-                ? Source.OnPress(converted)
-                : _guard.Run("scene source", () => Source.OnPress(converted), false, FaultKind.Recurring);
+            return _guard?.Run("scene source", () => Source.OnPress(converted), false, FaultKind.Recurring)
+                   ?? Source.OnPress(converted);
         }
 
         // The host's handlers touch the visual tree, so a raise from a worker is posted to the UI thread.
@@ -304,7 +302,7 @@ internal sealed class HostedTimeline : ITimelineBackend
     }
 
     /// <summary>The view model the control binds.</summary>
-    internal Playback2DTimelineViewModel ViewModel { get; } = new() { IsVisible = true };
+    private Playback2DTimelineViewModel ViewModel { get; } = new() { IsVisible = true };
 
     /// <inheritdoc />
     public int TotalFrames => ViewModel.TotalFrames;

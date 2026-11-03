@@ -34,7 +34,7 @@ public sealed class ExtensionUpdateService
     private readonly IExtensionFeedClient _client;
     private readonly Func<string, Uri> _feedUrl;
     private readonly IDemoProcessingQueue? _queue;
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
     private readonly Dictionary<string, ExtensionUpdateState> _last = new(StringComparer.Ordinal);
 
     /// <param name="configRoot">The config root; <c>extensions/</c> under it is the only tree touched.</param>
@@ -84,7 +84,7 @@ public sealed class ExtensionUpdateService
     public Func<ExtensionFeedEntry, ExtensionHostInfo, bool> IsOffered { get; }
 
     /// <summary>The packs this service knows, as handed in.</summary>
-    public IReadOnlyList<PackStatus> Statuses { get; }
+    private IReadOnlyList<PackStatus> Statuses { get; }
 
     /// <summary>
     ///     The most recent state of every extension that has been checked this run, in declaration order;
@@ -545,7 +545,7 @@ public sealed class ExtensionUpdateService
         string versionText = entry.Version.ToString();
         string suffix = logDetail is null ? string.Empty : " [" + logDetail + "]";
         AppLog.ExtensionUpdateRefused(Log, entry.Manifest.Name, versionText, detail, suffix);
-        return new StageResult(StageOutcome.Refused, null, detail, logDetail);
+        return new StageResult(StageOutcome.Refused, null, detail);
     }
 
     // Both staging paths, then the id folder under .staging when it is empty. Never the installed tree.

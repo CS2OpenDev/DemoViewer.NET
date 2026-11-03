@@ -24,7 +24,7 @@ public sealed partial record ExtensionFeed(string Id, IReadOnlyList<ExtensionFee
     public const string FileName = "extensions.json";
 
     /// <summary>More entries than this is not a feed.</summary>
-    public const int MaxEntries = 500;
+    private const int MaxEntries = 500;
 
     /// <summary>The feed may not be larger than this, in characters, before it is parsed.</summary>
     public const int MaxLength = 4 * 1024 * 1024;
@@ -212,10 +212,6 @@ public sealed record ExtensionFeedEntry(
 /// <summary>A feed that could not be read or did not validate.</summary>
 public sealed class ExtensionFeedException : Exception
 {
-    public ExtensionFeedException()
-    {
-    }
-
     public ExtensionFeedException(string message) : base(message)
     {
     }

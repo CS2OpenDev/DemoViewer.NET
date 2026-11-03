@@ -4012,10 +4012,6 @@ public static partial class Variants
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) =>
             throw new NotSupportedException("capture never scans");
-
-        public void InvalidateRules()
-        {
-        }
     }
 
     private enum LibraryState

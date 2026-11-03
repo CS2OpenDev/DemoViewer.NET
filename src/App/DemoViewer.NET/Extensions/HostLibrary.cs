@@ -24,7 +24,7 @@ namespace DemoViewer.NET.Extensions;
 /// </summary>
 internal sealed class HostLibrary : IExtensionLibrary
 {
-    private static readonly ConditionalWeakTable<DemoCacheStore, HostLibrary> Shared = new();
+    private static readonly ConditionalWeakTable<DemoCacheStore, HostLibrary> _shared = new();
 
     // The shown key of a row projected while the packs contributed: never a key the facts answer.
     private const string DeferredKey = "\0deferred";
@@ -34,7 +34,7 @@ internal sealed class HostLibrary : IExtensionLibrary
     private bool _deferred;
     private int _recheckPosted;
     private volatile bool _hasFactsStamps;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Func<bool> _onUiThread;
     private readonly Action<Action> _post;
 
@@ -44,7 +44,6 @@ internal sealed class HostLibrary : IExtensionLibrary
     private readonly Dictionary<string, DemoCacheIndexEntry> _seen = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _shownAt = new(StringComparer.OrdinalIgnoreCase);
     private readonly DemoCacheStore _store;
-    private IReadOnlyList<LibraryDemo> _demos = [];
     private long _demosVersion = -1;
 
     /// <param name="store">The demo cache.</param>
@@ -60,11 +59,14 @@ internal sealed class HostLibrary : IExtensionLibrary
         _onUiThread = onUiThread ?? (static () => Dispatcher.UIThread.CheckAccess());
         _post = post ?? (static action => Dispatcher.UIThread.Post(action));
         _factsSource = facts;
+        bool hasFactsStamps = false;
         foreach (DemoCacheIndexEntry entry in store.Contents)
         {
             Remember(entry);
-            _hasFactsStamps |= HasFactsStamp(entry);
+            hasFactsStamps |= HasFactsStamp(entry);
         }
+
+        _hasFactsStamps = hasFactsStamps;
 
         store.Changed += OnStoreChanged;
     }
@@ -75,7 +77,7 @@ internal sealed class HostLibrary : IExtensionLibrary
     /// <param name="facts">Resolves the analysis facts on first read; the first caller that passes one wins.</param>
     public static HostLibrary For(DemoCacheStore store, IDemoProcessingQueue? queue, Func<IAnalysisFacts>? facts = null)
     {
-        HostLibrary library = Shared.GetValue(store, s => new HostLibrary(s, queue, facts: facts));
+        HostLibrary library = _shared.GetValue(store, s => new HostLibrary(s, queue, facts: facts));
         if (facts is not null)
         {
             Interlocked.CompareExchange(ref library._factsSource, facts, null);
@@ -175,19 +177,19 @@ internal sealed class HostLibrary : IExtensionLibrary
             {
                 if (version == _demosVersion)
                 {
-                    return _demos;
+                    return field;
                 }
             }
 
             List<LibraryDemo> demos = [.. _store.Contents.Select(e => Project(e, visibility))];
             lock (_gate)
             {
-                _demos = demos;
+                field = demos;
                 _demosVersion = version;
                 return demos;
             }
         }
-    }
+    } = [];
 
     /// <summary>Raised on the thread the store raises its own change on, the UI thread in the app.</summary>
     public event Action<LibraryChange>? Changed;
@@ -482,7 +484,7 @@ internal sealed class ExtensionLibraryView : IExtensionLibrary
 {
     private readonly ExtensionGuard _guard;
     private readonly HostLibrary _host;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private Action<LibraryChange>? _changed;
     private bool _subscribed;
 

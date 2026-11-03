@@ -33,9 +33,6 @@ public interface IHighlightHarvester
     /// </summary>
     AnalysisRun RunBareAnalysis(ParsedDemo demo, string path) => RunBareAnalysis(demo);
 
-    /// <summary>Drops the cached rule config (Authoring Workbench save trigger).</summary>
-    void InvalidateRules();
-
     /// <summary>
     ///     True when highlights of <paramref name="rulesetId" /> belong in the highlights tier. A stamped
     ///     ruleset rides the same run but stays out of the fingerprint, so its firings stay out of the tier too.
@@ -58,11 +55,6 @@ public sealed class RulesHighlightHarvester : IHighlightHarvester
 
     private readonly MergedRulesBuild _rules;
 
-    /// <summary>A harvester over its own read of the shipped-plus-user rules.</summary>
-    public RulesHighlightHarvester() : this(new MergedRulesBuild())
-    {
-    }
-
     /// <param name="rules">The shared rules read, so the fingerprint matches the one round facts are stored under.</param>
     public RulesHighlightHarvester(MergedRulesBuild rules)
     {
@@ -81,9 +73,6 @@ public sealed class RulesHighlightHarvester : IHighlightHarvester
 
     /// <inheritdoc />
     public AnalysisRun RunBareAnalysis(ParsedDemo demo, string path) => _rules.BareRun(demo, path);
-
-    /// <inheritdoc />
-    public void InvalidateRules() => _rules.Invalidate();
 
     /// <inheritdoc />
     public bool IsHighlightRuleset(string rulesetId) => !_rules.IsStamped(rulesetId);

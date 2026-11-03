@@ -33,7 +33,7 @@ public sealed record ContributedRuleset(string RulesetId, string Owner, string F
 /// </summary>
 public static class RuleLayers
 {
-    private static readonly ConditionalWeakTable<RulesetDoc, string> Sources = new();
+    private static readonly ConditionalWeakTable<RulesetDoc, string> _sources = new();
 
     /// <summary>Reads the shipped folder with the user's overlay, and places the extension rulesets between them.</summary>
     /// <param name="shippedDir">The shipped rules folder.</param>
@@ -132,7 +132,7 @@ public static class RuleLayers
                 continue;
             }
 
-            Sources.AddOrUpdate(doc, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(yaml))));
+            _sources.AddOrUpdate(doc, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(yaml))));
             docs.Add(doc);
             taken.Add(doc.Id);
             tables.UnionWith(TablesOf(doc));
@@ -143,7 +143,7 @@ public static class RuleLayers
 
     /// <summary>The SHA-256 of the YAML an extension ruleset was read from, or null for a ruleset read from a file.</summary>
     /// <param name="doc">The ruleset.</param>
-    public static string? SourceOf(RulesetDoc doc) => Sources.TryGetValue(doc, out string? source) ? source : null;
+    public static string? SourceOf(RulesetDoc doc) => _sources.TryGetValue(doc, out string? source) ? source : null;
 
     private static IEnumerable<string> TablesOf(RulesetDoc doc) => doc.Show?.Tables.Select(t => t.Name) ?? [];
 }

@@ -539,9 +539,5 @@ public class HighlightScanServiceTests
             Interlocked.Increment(ref RunBareAnalysisCalls);
             throw new NotSupportedException("unit tests fake the processor");
         }
-
-        public void InvalidateRules()
-        {
-        }
     }
 }

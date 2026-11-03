@@ -105,9 +105,6 @@ internal sealed class PackContributionSet
     public IReadOnlyList<ILibraryContribution> LibraryContributions =>
         [.. Packs.SelectMany(p => p.LibraryContributions)];
 
-    /// <summary>Every pack's store and cache paths, in pack order then contribution order.</summary>
-    public IReadOnlyList<StoreDescriptor> Stores => [.. Packs.SelectMany(p => p.Stores)];
-
     /// <summary>Every extension's Match Overview actions, in extension order.</summary>
     public IReadOnlyList<GatedDemoAction> DemoActions => [.. Packs.SelectMany(p => p.DemoActions)];
 

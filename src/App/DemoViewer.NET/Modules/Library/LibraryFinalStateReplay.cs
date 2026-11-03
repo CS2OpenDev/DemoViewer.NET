@@ -35,8 +35,8 @@ public sealed record ControllerRank(
 public static class LibraryFinalStateReplay
 {
     /// <summary>The only classes the read looks at; the tracker stores nothing else.</summary>
-    public static IReadOnlySet<string> Classes { get; } =
-        new HashSet<string>(StringComparer.Ordinal) { "CCSTeam", "CCSPlayerController", "CCSGameRulesProxy" };
+    private static HashSet<string> Classes { get; } =
+        new(StringComparer.Ordinal) { "CCSTeam", "CCSPlayerController", "CCSGameRulesProxy" };
 
     public static EntityTracker NewTracker() => new() { StoreClassFilter = Classes };
 

@@ -64,9 +64,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // here, not per-frame, so the per-tick grenade loop allocates no path strings.
     private const int MyWeaponsSlots = 64;
 
-    // The window constants live with the window function they parameterise, so the exported feed and
-    // this one cannot drift apart by editing one number.
-    private const int KillFeedWindowSeconds = KillFeedTimeline.DefaultWindowSeconds;
+    // The row cap lives with the window function it parameterises, so the exported feed and this one
+    // cannot drift apart by editing one number.
     private const int MaxKillFeedRows = KillFeedTimeline.DefaultMaxRows;
 
     // The module's own "events of interest" for forward-nav: a 2D combat viewer scrubs between
@@ -79,15 +78,15 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
 
     private static readonly string[] _myWeaponsPaths = BuildMyWeaponsPaths();
 
-    private static readonly string[] _killEventFilter = { KillEventName };
+    private static readonly string[] _killEventFilter = [KillEventName];
 
     // CS2 rounds OPEN at round_freeze_end (not round_start), the same fact RoundTrack's band layout rests
     // on, so Q/E round nav and the timeline's bands can never disagree about where a round starts.
-    private static readonly string[] _roundEventFilter = { RoundTrack.FreezeEndEvent };
+    private static readonly string[] _roundEventFilter = [RoundTrack.FreezeEndEvent];
 
     // The NavStrip speed ComboBox's ladder. ↑/↓ step within it rather than multiplying, so the keys and the
     // ComboBox always offer the same set of speeds.
-    private static readonly double[] _speedPresets = { 0.25, 0.5, 1, 2, 4, 8 };
+    private static readonly double[] _speedPresets = [0.25, 0.5, 1, 2, 4, 8];
 
     // The WHOLE demo's kills, pre-built ONCE at load from IModuleContext.GetEventTimeline("player_death")
     // (decoupling display from the push cadence, no kill lost to a render-skipped frame). Rebuilt if the
@@ -392,13 +391,6 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     public (double MinX, double MinY, double MaxX, double MaxY)? MapBounds =>
         CurrentFrame.Map.NetworkedBounds is { } b ? (b.MinX, b.MinY, b.MaxX, b.MaxY) : null;
 
-    /// <summary>
-    ///     The bundle's nav-derived floor bands for the current map, or null when no baked bundle is available
-    ///     (→ viewport uses its Z-histogram heuristic). The viewport adopts these as the authoritative floor
-    ///     split. Validated to correctly classify real players (ZFloorValidationProbe).
-    /// </summary>
-    public IReadOnlyList<FloorSlice>? AuthoritativeFloors => MapAsset?.Floors;
-
     /// <summary>The loaded map-asset bundle (radar bitmaps + transform + layers) for the current map, or null.</summary>
     public LoadedMapAsset? MapAsset => _mapLease?.Bundle;
 
@@ -482,7 +474,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     ///         the same way the shell does.
     ///     </para>
     /// </summary>
-    internal Playback2DExportStatusViewModel? ExportStatus { get; private set; }
+    private Playback2DExportStatusViewModel? ExportStatus { get; set; }
 
     /// <summary>
     ///     The live surface's camera capture, supplied by the View when it binds (and cleared when it
@@ -754,7 +746,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     ///         demo) and deliberately not the camera, the playhead or the selection.
     ///     </para>
     /// </summary>
-    public object? SnapshotState() => new Playback2DTabState(
+    public object SnapshotState() => new Playback2DTabState(
         Annotations.ActiveTool.ToString(),
         Annotations.InkColorHex,
         Annotations.InkWidth,
@@ -1156,9 +1148,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
 
         IReadOnlyList<TimelineEventRecord> freeze = data.EventsOfType(RoundTrack.FreezeEndEvent);
         int from = -1;
-        for (int i = 0; i < freeze.Count; i++)
+        foreach (TimelineEventRecord freezeEnd in freeze)
         {
-            int start = freeze[i].Tick;
+            int start = freezeEnd.Tick;
             if (start > tick)
             {
                 // A round CLOSES the tick before the next one opens: freeze-ends are back to back, so an
@@ -1230,10 +1222,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     }
 
     /// <summary>
-    ///     The round facts the winner tint reads, as the constructor was handed them. A test may assign a fake
-    ///     here before activation.
+    ///     The round facts the winner tint reads, as the constructor was handed them.
     /// </summary>
-    internal IRoundFactsSource? RoundFactsSource { get; set; }
+    internal IRoundFactsSource? RoundFactsSource { get; }
 
     // One sidecar read, served by the store's capacity-1 record cache on the common path (Match Overview
     // has usually just read the same record). Null without a source, without a path, or without rows.
@@ -1517,7 +1508,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     ///     </para>
     /// </summary>
     /// <param name="slot">The roster slot to follow.</param>
-    public void FollowPlayer(int slot)
+    private void FollowPlayer(int slot)
     {
         if (IsFollowEnabled)
         {
@@ -1536,7 +1527,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     }
 
     /// <summary>Steps the follow target through <see cref="FollowablePlayers" />; +1 next, -1 previous.</summary>
-    public void CycleFollow(int direction)
+    private void CycleFollow(int direction)
     {
         if (!IsFollowEnabled)
         {
@@ -2510,9 +2501,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         }
 
         KillFeed.Clear();
-        for (int i = 0; i < _killRows.Count; i++)
+        foreach (KillFeedRow row in _killRows)
         {
-            KillFeed.Add(_killRows[i]);
+            KillFeed.Add(row);
         }
 
         _lastKillCount = count;
@@ -2533,7 +2524,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         ev.Fields.TryGetValue(key, out object? v) && v is string s ? s : "";
 
     private static bool ReadBool(GameEventView ev, string key) =>
-        ev.Fields.TryGetValue(key, out object? v) && v is bool b && b;
+        ev.Fields.TryGetValue(key, out object? v) && v is true;
 
     // Builds one push: seed the roster display if it arrived late, run the ATTRIBUTES pass over the
     // players (panel state, stays here), then hand the same tick to SceneFrameBuilder for the SCENE
@@ -2811,9 +2802,6 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
 
     private static int ReadInt(IReadOnlyEntity? entity, string path, int fallback) =>
         entity is not null && entity.TryGet(path, out int v) ? v : fallback;
-
-    private static float ReadFloat(IReadOnlyEntity? entity, string path, float fallback) =>
-        entity is not null && entity.TryGet(path, out float v) ? v : fallback;
 
     // dead = m_lifeState != 0 OR m_iHealth <= 0. Reads are null/seen-tolerant. Mirrors
     // CS2DemoKit.Parser.EntityTracking.PawnLookup.IsAlive(EntityState), which this view-model cannot

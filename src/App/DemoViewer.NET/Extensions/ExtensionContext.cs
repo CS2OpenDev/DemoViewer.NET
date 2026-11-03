@@ -106,7 +106,6 @@ internal sealed class ExtensionContext : IExtensionContext
     private readonly Lazy<IExtensionLibrary> _library;
     private readonly Lazy<IExtensionReviewPackExport?> _packExport;
     private readonly Lazy<IExtensionReviewQueue> _review;
-    private readonly Lazy<ReviewQueue> _reviewQueue;
     private readonly Lazy<IExtensionSceneExport?> _sceneExport;
     private readonly ExtensionGuard _guard;
     private readonly HostKeymap _keymap;
@@ -121,10 +120,10 @@ internal sealed class ExtensionContext : IExtensionContext
         _logPrefix = "Extension." + extension.Id;
         _guard = services.GetService<ExtensionFaults>()?.GuardFor(extension) ?? ExtensionGuard.Standalone(extension);
         Features = new GateView(services.GetService<IFeatureGate>(), _guard);
-        Jobs = new ExtensionJobs(extension.Id, () => services.GetService<IDemoProcessingQueue>(),
+        Jobs = new ExtensionJobs(extension.Id, services.GetService<IDemoProcessingQueue>,
             () => services.GetService<JobKindRegistry>() ?? JobKindRegistry.Default, _guard, Post,
             Dispatcher.UIThread.CheckAccess);
-        Passes = new ExtensionPasses(extension.Id, () => services.GetService<DemoScheduler>(), Post);
+        Passes = new ExtensionPasses(extension.Id, services.GetService<DemoScheduler>, Post);
         Shell = new ShellView(services.GetRequiredService<ExtensionShellHub>(), _guard);
         Stores = new ExtensionStores(extension.Id, AppPaths.ConfigRoot, AppPaths.DemoCacheDir,
             PackContributions.AcceptedStores(extension, _guard));
@@ -133,7 +132,7 @@ internal sealed class ExtensionContext : IExtensionContext
                         ?? new NotificationCenter(Post).For(_guard, CreateLogger("Notifications"));
         _keymap = new HostKeymap(() => CommandRegistry.Default.EffectiveBindings,
             () => services.GetService<SettingsService>()?.Current.Playback2D.KeybindOverrides ?? []);
-        Identity = new HostIdentity(() => services.GetService<IdentityService>(), _guard);
+        Identity = new HostIdentity(services.GetService<IdentityService>, _guard);
         // The settings watcher raises on a thread-pool thread for an edit of the file.
         services.GetService<IOptionsMonitor<AppSettings>>()?.OnChange(_ => Post(_keymap.Refresh));
         string? version = extension.GetType().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
@@ -150,12 +149,12 @@ internal sealed class ExtensionContext : IExtensionContext
             : UnavailableDemoData.Instance);
         // Lazy all the way to the resolve: constructing the ReviewQueue is what schedules the queue's
         // startup read, so an eager resolve here queued one on every launch whether or not anything looked.
-        _reviewQueue = new Lazy<ReviewQueue>(() => services.GetService<ReviewQueue>() ?? new ReviewQueue(null));
+        Lazy<ReviewQueue> reviewQueue = new(() => services.GetService<ReviewQueue>() ?? new ReviewQueue(null));
         _review = new Lazy<IExtensionReviewQueue>(() =>
-            new ExtensionReviewQueue(_reviewQueue.Value, _guard, Dispatcher.UIThread.CheckAccess));
+            new ExtensionReviewQueue(reviewQueue.Value, _guard, Dispatcher.UIThread.CheckAccess));
         _packExport = new Lazy<IExtensionReviewPackExport?>(() =>
             services.GetService<FirstPartyExports>()?.PackExport is { } run
-                ? new ExtensionReviewPackExport(run, _reviewQueue.Value,
+                ? new ExtensionReviewPackExport(run, reviewQueue.Value,
                     services.GetService<FirstPartyExports>()?.ExportOutputDirectory,
                     onUiThread: Dispatcher.UIThread.CheckAccess)
                 : null);
@@ -170,7 +169,7 @@ internal sealed class ExtensionContext : IExtensionContext
         _library = new Lazy<IExtensionLibrary>(() => new ExtensionLibraryView(
             HostLibrary.For(services.GetRequiredService<DemoCacheStore>(), services.GetService<IDemoProcessingQueue>(),
                 () => services.GetService<AnalysisFacts>() ?? (IAnalysisFacts)NoFacts.Instance), _guard,
-            () => services.GetService<PlayerDirectory>()));
+            services.GetService<PlayerDirectory>));
     }
 
     public string ExtensionId { get; }
@@ -574,7 +573,7 @@ internal sealed class ExtensionJobs(
         private readonly TaskCompletionSource<JobResult>
             _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        private readonly object _gate = new();
+        private readonly Lock _gate = new();
         private Action? _cancel;
         private Action<JobResult>? _completed;
         private bool _cancelRequested;
@@ -678,7 +677,7 @@ internal sealed class ExtensionJobs(
 internal sealed class ExtensionPasses(string extensionId, Func<DemoScheduler?> scheduler, Action<Action>? post = null)
     : IExtensionPasses
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Action<Action> _post = post ?? (static a => a());
     private Action? _changed;
     private DemoScheduler? _subscribed;

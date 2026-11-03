@@ -79,5 +79,5 @@ public static class ScenePaletteFactory
 
     /// <summary>Converts an Avalonia colour to a Skia one.</summary>
     /// <param name="colour">The Avalonia colour.</param>
-    public static SKColor ToSkia(Color colour) => new(colour.R, colour.G, colour.B, colour.A);
+    private static SKColor ToSkia(Color colour) => new(colour.R, colour.G, colour.B, colour.A);
 }

@@ -13,7 +13,7 @@ namespace DemoViewer.NET.Modules.Playback2D;
 ///     Every field is copied out of the transient/pooled <c>PlayerState</c> INSIDE the <c>Advanced</c>
 ///     callback; missing fields render "—" and never crash.
 /// </summary>
-public sealed partial class PlayerAttributes : ObservableObject
+public sealed partial class PlayerAttributes(int slot) : ObservableObject
 {
     [ObservableProperty]
     private string _activeWeapon = "—";
@@ -58,6 +58,7 @@ public sealed partial class PlayerAttributes : ObservableObject
     private bool _inMatch;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RowOpacity))]
     private bool _isAlive;
 
     /// <summary>
@@ -81,12 +82,13 @@ public sealed partial class PlayerAttributes : ObservableObject
     private string _score = "—";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsT))]
+    [NotifyPropertyChangedFor(nameof(IsCt))]
+    [NotifyPropertyChangedFor(nameof(TeamLabel))]
     private int _team;
 
-    public PlayerAttributes(int slot) => Slot = slot;
-
     /// <summary>Stable join key into the roster.</summary>
-    public int Slot { get; }
+    public int Slot { get; } = slot;
 
     /// <summary>The card's "Open player overview" entry.</summary>
     public PlayerOverviewEntry PlayerOverview { get; init; } = PlayerOverviewEntry.None;
@@ -112,15 +114,4 @@ public sealed partial class PlayerAttributes : ObservableObject
         3 => "CT",
         _ => "—"
     };
-
-    // RowOpacity derives from IsAlive: re-raise it when IsAlive changes.
-    partial void OnIsAliveChanged(bool value) => OnPropertyChanged(nameof(RowOpacity));
-
-    // IsT / IsCt / TeamLabel derive from Team: re-raise them when Team changes.
-    partial void OnTeamChanged(int value)
-    {
-        OnPropertyChanged(nameof(IsT));
-        OnPropertyChanged(nameof(IsCt));
-        OnPropertyChanged(nameof(TeamLabel));
-    }
 }

@@ -13,13 +13,13 @@ namespace DemoViewer.NET.Modules.Playback2D.Timeline;
 public sealed class BombTrack : ITimelineTrack
 {
     /// <summary>The plant event.</summary>
-    public const string PlantedEvent = "bomb_planted";
+    private const string PlantedEvent = "bomb_planted";
 
     /// <summary>The defuse event.</summary>
-    public const string DefusedEvent = "bomb_defused";
+    private const string DefusedEvent = "bomb_defused";
 
     /// <summary>The detonation event.</summary>
-    public const string ExplodedEvent = "bomb_exploded";
+    private const string ExplodedEvent = "bomb_exploded";
 
     private const string PlantGlyph = "◆";
     private const string DefuseGlyph = "✂";
@@ -33,17 +33,11 @@ public sealed class BombTrack : ITimelineTrack
 
     /// <inheritdoc />
     public bool IsAvailable(ITimelineData data) =>
-        data is not null
-        && (data.HasEvent(PlantedEvent) || data.HasEvent(DefusedEvent) || data.HasEvent(ExplodedEvent));
+        data.HasEvent(PlantedEvent) || data.HasEvent(DefusedEvent) || data.HasEvent(ExplodedEvent);
 
     /// <inheritdoc />
     public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data)
     {
-        if (data is null)
-        {
-            return Array.Empty<TimelineMarker>();
-        }
-
         List<TimelineMarker> markers = new();
         Collect(data, PlantedEvent, TimelineMarkerKind.BombPlant, PlantGlyph, "Bomb planted", markers);
         Collect(data, DefusedEvent, TimelineMarkerKind.BombDefuse, DefuseGlyph, "Bomb defused", markers);

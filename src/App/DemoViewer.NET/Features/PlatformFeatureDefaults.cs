@@ -26,8 +26,7 @@ internal static class PlatformFeatureDefaults
     ///     there is a separate question and flipping this for Linux before answering it would reproduce the
     ///     empty tab on Linux instead.
     /// </summary>
-    internal static IReadOnlySet<string> MacOsOffIds { get; } =
-        new HashSet<string>(StringComparer.Ordinal) { "tab.highlights" };
+    private static HashSet<string> MacOsOffIds { get; } = new(StringComparer.Ordinal) { "tab.highlights" };
 
     /// <summary>
     ///     The catalog default for <paramref name="category" />, less any platform rule above.

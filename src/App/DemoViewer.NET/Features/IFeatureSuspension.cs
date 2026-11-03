@@ -14,8 +14,4 @@ public interface IFeatureSuspension
     /// <summary>Lifts a suspension; the id resolves from settings again.</summary>
     /// <param name="packFeatureId">A pack's master switch.</param>
     void ResumeForSession(string packFeatureId);
-
-    /// <summary>True while <paramref name="packFeatureId" /> is suspended.</summary>
-    /// <param name="packFeatureId">A pack's master switch.</param>
-    bool IsSuspended(string packFeatureId);
 }

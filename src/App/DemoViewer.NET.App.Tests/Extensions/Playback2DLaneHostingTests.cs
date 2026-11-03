@@ -529,9 +529,9 @@ public class Playback2DLaneHostingTests
         public List<int> Labels { get; } = [];
         public List<(int Start, int End)> Dragged { get; } = [];
 
-        public void OnBandPressed(TimelineBandViewModel band, ITimelineData data) => Pressed.Add(band.StartFrameIndex);
+        public void OnBandPressed(TimelineBandViewModel band) => Pressed.Add(band.StartFrameIndex);
 
-        public IEnumerable<MenuEntry> MenuFor(TimelineBandViewModel band, ITimelineData data) =>
+        public IEnumerable<MenuEntry> MenuFor(TimelineBandViewModel band) =>
             [new MenuEntry($"{name}:{band.StartFrameIndex}", () => { })];
 
         public void OnLabelRequested(int frame) => Labels.Add(frame);

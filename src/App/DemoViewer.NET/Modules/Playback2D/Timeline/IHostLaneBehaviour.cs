@@ -20,13 +20,11 @@ public interface IHostLaneBehaviour
 {
     /// <summary>A left press on one of the lane's bands, before the seek to the band's first frame.</summary>
     /// <param name="band">The band pressed.</param>
-    /// <param name="data">The data the band was built from.</param>
-    void OnBandPressed(TimelineBandViewModel band, ITimelineData data);
+    void OnBandPressed(TimelineBandViewModel band);
 
     /// <summary>The right-click entries for one of the lane's bands, shown before the surface's band-menu contributors'. Empty for none.</summary>
     /// <param name="band">The band right-clicked.</param>
-    /// <param name="data">The data the band was built from.</param>
-    IEnumerable<MenuEntry> MenuFor(TimelineBandViewModel band, ITimelineData data);
+    IEnumerable<MenuEntry> MenuFor(TimelineBandViewModel band);
 
     /// <summary>A left click on the lane row where no band is, while the lane <see cref="IHostLaneHandle.IsEditable" />.</summary>
     /// <param name="frame">The frame under the click.</param>

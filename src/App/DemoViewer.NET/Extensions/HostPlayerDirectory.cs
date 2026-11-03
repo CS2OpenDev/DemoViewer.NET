@@ -20,9 +20,8 @@ internal sealed class HostPlayerDirectory : IPlayerDirectory
     private readonly ExtensionGuard _guard;
     private readonly Action _forward;
     private readonly ConditionalWeakTable<PlayerEntry, LibraryPlayerAccount> _mapped = new();
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private IReadOnlyList<PlayerEntry>? _source;
-    private IReadOnlyList<LibraryPlayerAccount> _accounts = [];
     private Action? _handlers;
 
     /// <param name="directory">
@@ -57,14 +56,14 @@ internal sealed class HostPlayerDirectory : IPlayerDirectory
             {
                 if (!ReferenceEquals(source, _source))
                 {
-                    _accounts = [.. source.Select(Map)];
+                    field = [.. source.Select(Map)];
                     _source = source;
                 }
 
-                return _accounts;
+                return field;
             }
         }
-    }
+    } = [];
 
     /// <inheritdoc />
     public LibraryPlayerAccount? Account(ulong steamId64) => Directory?.Get(steamId64) is { } entry ? Map(entry) : null;

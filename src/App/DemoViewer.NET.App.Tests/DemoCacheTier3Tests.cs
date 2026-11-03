@@ -309,10 +309,6 @@ public class DemoCacheTier3Tests
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) =>
             throw new NotSupportedException("these tests supply rows via processorOverride");
-
-        public void InvalidateRules()
-        {
-        }
     }
 
     // Records each run the scanner asked for. It throws: the point is that the run was asked for.
@@ -327,10 +323,6 @@ public class DemoCacheTier3Tests
         {
             Calls.Add("bare");
             throw new NotSupportedException("stop here: the request is what is under test");
-        }
-
-        public void InvalidateRules()
-        {
         }
     }
 }

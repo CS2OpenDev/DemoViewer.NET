@@ -17,10 +17,3 @@ public interface ITokenEditingHost
     /// <summary>The editor the token tool drags through; null while the host refuses edits (read-only).</summary>
     ITokenEditor? TokenEditor { get; }
 }
-
-/// <summary>An <see cref="ISceneFrameHost" /> with editing guides to draw over the scene.</summary>
-public interface IGuidesHost
-{
-    /// <summary>The guides for the current frame. Never null; <see cref="SceneGuides.None" /> draws nothing.</summary>
-    SceneGuides Guides { get; }
-}

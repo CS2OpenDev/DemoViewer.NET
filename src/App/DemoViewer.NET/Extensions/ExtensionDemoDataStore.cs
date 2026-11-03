@@ -38,24 +38,24 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
     /// <summary>The folder under the extension's cache folder the host owns. The extension's own file writes may not enter it.</summary>
     public const string DirectoryName = "demo-data";
 
-    private const int Format = 1;
+    private const int CurrentFormat = 1;
     private const string IndexFileName = "index.json.gz";
     private const string Suffix = ".json.gz";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, Converters = { new JsonStringEnumConverter() }
     };
 
     private readonly string _extensionId;
     private readonly string? _extensionVersion;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly DemoCacheStore _library;
-    private readonly object _loadGate = new();
+    private readonly Lock _loadGate = new();
     private readonly Func<bool> _onUiThread;
     private readonly Action<Action>? _loadInBackground;
     private readonly Action<Action> _post;
-    private readonly object _saveGate = new();
+    private readonly Lock _saveGate = new();
     private Dictionary<(string Key, string Facet), Entry>? _entries;
     private int _loadQueued;
     private long _savedVersion;
@@ -206,7 +206,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
             bool sameDemo = header.Sha256 is null || sha is null
                                                   || string.Equals(header.Sha256, sha,
                                                       StringComparison.OrdinalIgnoreCase);
-            return header.Format == Format && sameDemo && string.Equals(header.Facet, facet, StringComparison.Ordinal)
+            return header.Format == CurrentFormat && sameDemo && string.Equals(header.Facet, facet, StringComparison.Ordinal)
                    && string.Equals(header.Part, part, StringComparison.Ordinal)
                 ? new DemoDataRecord(header.Schema, header.Fingerprint, header.ExtensionVersion, header.WrittenAtTicks,
                     content)
@@ -220,7 +220,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         }
     }
 
-    public DemoDataStamp? Write(string demoPath, DemoDataWrite write)
+    public DemoDataStamp Write(string demoPath, DemoDataWrite write)
     {
         ArgumentException.ThrowIfNullOrEmpty(demoPath);
         ArgumentNullException.ThrowIfNull(write);
@@ -235,12 +235,12 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         long now = DateTime.UtcNow.Ticks;
         foreach ((string part, ReadOnlyMemory<byte> content) in write.Parts)
         {
-            WriteFile(FileFor(write.Facet, key, part), new Header(Format, write.Facet, part, write.Schema,
+            WriteFile(FileFor(write.Facet, key, part), new Header(CurrentFormat, write.Facet, part, write.Schema,
                 write.Fingerprint, sha,
                 demoPath, _extensionVersion, now), content.Span);
         }
 
-        WriteFile(FileFor(write.Facet, key, null), new Header(Format, write.Facet, null, write.Schema,
+        WriteFile(FileFor(write.Facet, key, null), new Header(CurrentFormat, write.Facet, null, write.Schema,
             write.Fingerprint, sha,
             demoPath, _extensionVersion, now), write.Payload.Span);
 
@@ -664,8 +664,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         {
             using FileStream stream = File.OpenRead(file);
             using GZipStream gzip = new(stream, CompressionMode.Decompress);
-            IndexFile? index = JsonSerializer.Deserialize<IndexFile>(gzip, JsonOptions);
-            if (index is not { Version: Format })
+            IndexFile? index = JsonSerializer.Deserialize<IndexFile>(gzip, _jsonOptions);
+            if (index is not { Version: CurrentFormat })
             {
                 return null;
             }
@@ -717,7 +717,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
                 try
                 {
                     Header header = ReadHeader(file);
-                    if (header.Format == Format && string.Equals(header.Facet, facet, StringComparison.Ordinal)
+                    if (header.Format == CurrentFormat && string.Equals(header.Facet, facet, StringComparison.Ordinal)
                                                 && header.DemoPath is { } path)
                     {
                         entries[(key, facet)] = new Entry(key, facet, path, header.Sha256, header.Schema,
@@ -737,7 +737,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
     }
 
     // Called under the lock: the index as it is now, numbered so an older snapshot never overwrites a newer one.
-    private IndexFile Snapshot() => new(Format, [.. _entries!.Values]) { Sequence = ++_version };
+    private IndexFile Snapshot() => new(CurrentFormat, [.. _entries!.Values]) { Sequence = ++_version };
 
     // Outside the lock. Null saves nothing.
     private void Save(IndexFile? index)
@@ -767,7 +767,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
             AtomicFile.Write(file, stream =>
             {
                 using GZipStream gzip = new(stream, CompressionLevel.Fastest, true);
-                JsonSerializer.Serialize(gzip, index, JsonOptions);
+                JsonSerializer.Serialize(gzip, index, _jsonOptions);
             });
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -783,7 +783,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         AtomicFile.Write(file, stream =>
         {
             using GZipStream gzip = new(stream, CompressionLevel.Fastest, true);
-            gzip.Write(JsonSerializer.SerializeToUtf8Bytes(header, JsonOptions));
+            gzip.Write(JsonSerializer.SerializeToUtf8Bytes(header, _jsonOptions));
             gzip.WriteByte((byte)'\n');
             gzip.Write(content);
         });
@@ -802,7 +802,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
             throw new InvalidDataException("No header line.");
         }
 
-        Header header = JsonSerializer.Deserialize<Header>(bytes.AsSpan(0, newline), JsonOptions)
+        Header header = JsonSerializer.Deserialize<Header>(bytes.AsSpan(0, newline), _jsonOptions)
                         ?? throw new InvalidDataException("Empty header.");
         return (header, bytes[(newline + 1)..]);
     }
@@ -813,7 +813,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         using GZipStream gzip = new(stream, CompressionMode.Decompress);
         using StreamReader reader = new(gzip, Encoding.UTF8);
         string line = reader.ReadLine() ?? throw new InvalidDataException("No header line.");
-        return JsonSerializer.Deserialize<Header>(line, JsonOptions) ?? throw new InvalidDataException("Empty header.");
+        return JsonSerializer.Deserialize<Header>(line, _jsonOptions) ?? throw new InvalidDataException("Empty header.");
     }
 
     private sealed record Header(

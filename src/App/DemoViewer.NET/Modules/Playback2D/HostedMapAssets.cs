@@ -51,10 +51,10 @@ internal sealed class HostedMapAssets : IMapAssetsBackend
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack(layerIds);
         Compose(compositor, layers);
-        using HeadlessSceneRenderer renderer = new(provider, compositor)
-        {
-            Palette = ScenePalette.Dark, Purpose = RenderPurpose.Export, Camera = camera
-        };
+        using HeadlessSceneRenderer renderer = new(provider, compositor);
+        renderer.Palette = ScenePalette.Dark;
+        renderer.Purpose = RenderPurpose.Export;
+        renderer.Camera = camera;
         renderer.Levels.SetAuthoritativeFloors(map?.Floors);
         renderer.Levels.RadarBinder = map?.CreateRadarBinder();
 

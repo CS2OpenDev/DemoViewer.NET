@@ -22,9 +22,14 @@ public sealed class ExtensionLoadContext : AssemblyLoadContext
 {
     /// <param name="candidate">The staged copy this context is for; names the context.</param>
     public ExtensionLoadContext(ExtensionCandidate candidate)
-        : base($"extension:{candidate?.Manifest.Id}@{candidate?.Manifest.Version}", isCollectible: false)
+        : base(NameOf(candidate), isCollectible: false)
+    {
+    }
+
+    private static string NameOf(ExtensionCandidate candidate)
     {
         ArgumentNullException.ThrowIfNull(candidate);
+        return $"extension:{candidate.Manifest.Id}@{candidate.Manifest.Version}";
     }
 
     /// <summary>Null for everything: the default context resolves every dependency.</summary>

@@ -15,13 +15,11 @@ namespace DemoViewer.NET.Modules.RuleWorkbench;
 ///     time and player at which the selected node had a rising edge (highlights / flag conjunctions) or
 ///     its trigger edge applied (value-node stats like <c>count:</c>/<c>sum:</c>).
 /// </summary>
-/// <param name="FrameIndex">Zero-based demo frame index of the fire, or <c>-1</c> when the frame could not be located.</param>
 /// <param name="Tick">Server tick of the fire.</param>
 /// <param name="RoundNumber">Live round number at the fire, or <c>null</c> when the run tracked no round context.</param>
 /// <param name="PlayerSlot">Owning player slot, or <c>null</c> for a game-scoped (<c>for: match</c>) fire.</param>
 /// <param name="PlayerName">Owning player display name, or <c>null</c> for a game-scoped fire.</param>
 public sealed record WorkbenchTraceFire(
-    int FrameIndex,
     int Tick,
     int? RoundNumber,
     int? PlayerSlot,
@@ -33,7 +31,7 @@ public sealed record WorkbenchTraceFire(
 
     /// <summary>Round display label (the number, or an em-dash when unknown/warmup).</summary>
     public string RoundLabel =>
-        RoundNumber is { } r && r > 0 ? r.ToString(CultureInfo.InvariantCulture) : "—";
+        RoundNumber is { } r and > 0 ? r.ToString(CultureInfo.InvariantCulture) : "—";
 }
 
 /// <summary>
@@ -158,7 +156,7 @@ public static class WorkbenchTraceModel
             }
 
             list.Add(new WorkbenchTraceFire(
-                ev.FrameIndex, ev.Tick, Round(ev.FrameIndex), ev.PlayerSlot, ev.PlayerName));
+                ev.Tick, Round(ev.FrameIndex), ev.PlayerSlot, ev.PlayerName));
         }
 
         // ── source 2: applied trigger edges for value-node stats, keyed by written-node name ────────
@@ -200,7 +198,7 @@ public static class WorkbenchTraceModel
 
                     MessageRef message = result.Messages[idx];
                     list.Add(new WorkbenchTraceFire(
-                        message.FrameIndex, message.Tick, Round(message.FrameIndex), slot, name));
+                        message.Tick, Round(message.FrameIndex), slot, name));
                 }
             }
         }

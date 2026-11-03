@@ -55,7 +55,7 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
     private readonly IHighlightHarvester _harvester;
     private readonly Func<IReadOnlyList<string>> _libraryDemoPaths;
 
-    private readonly object _lifecycle = new();
+    private readonly Lock _lifecycle = new();
     private readonly Action<Action> _post;
 
     // Test seam: yields the harvested events for (path, parsed) instead of running the rules engine.
@@ -673,7 +673,7 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
             List<CachedPlayerInfo> parsedRoster =
             [
                 .. parsed.Players
-                    .Where(pl => !pl.IsBot && pl.Name.Length > 0)
+                    .Where(pl => pl is { IsBot: false, Name.Length: > 0 })
                     .Select(pl => new CachedPlayerInfo
                     {
                         Slot = pl.Slot,
@@ -749,20 +749,6 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
 
         public static HarvestFacts From(ForwardDemoResult pass) => new(pass.Rounds, pass.Demo.Players.Values,
             pass.Demo.TickRate, pass.Demo.TickCount, pass.Demo.ServerStartTick, pass.Demo.MapName);
-    }
-
-    private static (long Size, long ModifiedTicks) SafeFileIdentity(string path)
-    {
-        try
-        {
-            FileInfo info = new(path);
-            // A missing file reports the 1601 epoch, not zero. Normalize so "unknown" is stable.
-            return info.Exists ? (info.Length, info.LastWriteTime.Ticks) : (0, 0);
-        }
-        catch (Exception)
-        {
-            return (0, 0);
-        }
     }
 
     private void RaiseProgress() => _post(() => ScanProgressChanged?.Invoke());

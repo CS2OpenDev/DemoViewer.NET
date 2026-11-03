@@ -52,7 +52,7 @@ internal static class GameEventViewFactory
     // An unrecognised tag still falls through to the raw string, deliberately. Sniffing the value's shape
     // would turn a future SDK tag from a visible wrong-type into an invisible plausible one: `local` renders
     // as "System.Byte[]" and would sniff clean as a string.
-    internal static IReadOnlyDictionary<string, object?> ToFields(GameEvent e)
+    private static IReadOnlyDictionary<string, object?> ToFields(GameEvent e)
     {
         IReadOnlyList<(string Name, string Value, string WireType)> decoded = e.GetDecodedFields();
         if (decoded.Count == 0)
@@ -111,7 +111,7 @@ internal static class GameEventViewFactory
     }
 
     private static string Unquote(string value) =>
-        value.Length >= 2 && value[0] == '"' && value[^1] == '"'
+        value is ['"', _, ..] and [.., '"']
             ? value[1..^1]
             : value;
 }

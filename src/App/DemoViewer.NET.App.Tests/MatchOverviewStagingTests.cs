@@ -267,9 +267,5 @@ public class MatchOverviewStagingTests
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) =>
             throw new NotSupportedException("staging tests never scan");
-
-        public void InvalidateRules()
-        {
-        }
     }
 }

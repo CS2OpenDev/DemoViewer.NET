@@ -49,8 +49,8 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
     private readonly Dictionary<string, DemoLibraryCacheEntry> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object _cacheLock = new();
-    private readonly object _saveGate = new();
+    private readonly Lock _cacheLock = new();
+    private readonly Lock _saveGate = new();
     private readonly string? _dataPath; // library.json, or null on WASM
 
     // The unified demo cache, dual-written alongside library.json during the transition. Null → legacy only.
@@ -74,17 +74,14 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     // Tier-2 backlog: _pendingFull is the working set of demos still needing a tier-2 parse (recomputed
     // each rescan; Wants(path) reads its membership). The scheduler's own outstanding set prevents
     // double-submit, so no separate _enqueued set is needed here.
-    private readonly object _tier2Lock = new();
+    private readonly Lock _tier2Lock = new();
 
-    // Diagnostics-pillar logger (v0.6.0, replaced Console.WriteLine, which a windowed Release build
-    // never shows). Lazy like MainViewModel.DiagLog: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
     private int _enrichedSinceSave;
 
     // A plain array mirror of Folders, refreshed on the (UI) thread that mutates the UI-bound
     // ObservableCollection. Save() runs on a queue worker thread and reads THIS, never enumerating the
     // live Folders across a concurrent Add/Remove (which would throw "collection was modified").
-    private volatile string[] _folderSnapshot = [];
+    private volatile string[] _folderSnapshot;
 
     // Each registered folder's real path from the last walk that resolved it, so a folder that does not
     // answer this scan still covers the rows under its real path.
@@ -206,7 +203,9 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         _ = RescanAsync();
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger(AppLog.LibraryCategory);
+    // Diagnostics-pillar logger (v0.6.0, replaced Console.WriteLine, which a windowed Release build
+    // never shows). Lazy like MainViewModel.DiagLog: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger(AppLog.LibraryCategory);
 
     /// <summary>The file-system calls the folder walk makes. Test seam.</summary>
     internal ILibraryFolderReader FolderReader { get; set; } = FileSystemLibraryFolderReader.Instance;
@@ -237,7 +236,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     ///     The rules run over a held parse of the demo at a path when its visit makes one anyway, which the score,
     ///     clans and coaches are read from. Null, or a null answer, replays the three entity classes instead.
     /// </summary>
-    internal Func<ParsedDemo, string, AnalysisRun?>? TeamRun { get; set; }
+    internal Func<ParsedDemo, string, AnalysisRun?>? TeamRun { get; init; }
 
     private IDemoProcessingQueue? Queue => QueueOverride ?? QueueWork.Ambient;
 
@@ -810,13 +809,11 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     }
 
     // Full reads for the content hash, a folder at a time, as background heavy slices with one read in flight.
-    // A read that stops delivering bytes gives no hash rather than holding its slice. Returns the files left
-    // unread.
-    private async Task<HashSet<string>> HashAsync(List<(string Path, long Size, DateTime Modified)> files,
+    // A read that stops delivering bytes gives no hash rather than holding its slice.
+    private async Task HashAsync(List<(string Path, long Size, DateTime Modified)> files,
         CancellationToken ct)
     {
         Func<string, string> folderOf = FolderLookup();
-        HashSet<string> unread = new(StringComparer.OrdinalIgnoreCase);
         await Task.WhenAll(files.GroupBy(f => folderOf(f.Path), StringComparer.Ordinal).Select(async folder =>
         {
             Queue<(string Path, long Size, DateTime Modified)> pending = new(folder);
@@ -825,22 +822,13 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             await ReadEachAsync(folder.Key, "Library: confirm copies in ", pending, slice, _outstandingHashes,
                     f => f.Path, f => ReadHash(f.Path), ApplyHash,
                     (left, reason) => AppLog.LibraryFingerprintsLeftUnread(DiagLog, folder.Key, left, reason), ct,
-                    QueueJobKind.LibraryScan, WholeFileNoAnswer, "library-hash:" + folder.Key)
+                    QueueJobKind.LibraryScan, _wholeFileNoAnswer, "library-hash:" + folder.Key)
                 .ConfigureAwait(false);
-            lock (unread)
-            {
-                unread.UnionWith(pending.Select(f => f.Path));
-                if (slice.InFlight is { } stuck)
-                {
-                    unread.Add(stuck.Item.Path);
-                }
-            }
         })).ConfigureAwait(false);
-        return unread;
     }
 
     // A whole-file read bounds its own stalls; this only stops a scan waiting on one that is merely slow.
-    private static readonly TimeSpan WholeFileNoAnswer = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan _wholeFileNoAnswer = TimeSpan.FromMinutes(30);
 
     private (string? Sha256, DemoContentFingerprint? Fingerprint) ReadHash(string path)
     {
@@ -1818,7 +1806,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             }
             else if (SessionFingerprints(path, size, modified) is { Count: > 0 } fingerprints)
             {
-                string? id = fingerprints.Select(f => contentByFingerprint.GetValueOrDefault(f))
+                string? id = fingerprints.Select(contentByFingerprint.GetValueOrDefault)
                     .FirstOrDefault(i => i is not null);
                 DemoContentFingerprint fingerprint = fingerprints[0];
                 keyByPath[path] = id is not null && _demoCache!.AttachUnconfirmed(id, path, size, modified.Ticks)
@@ -2385,7 +2373,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
                 // IsHltv as well as IsBot: the GOTV proxy holds a userinfo slot with a name, and
                 // before the CS2-path fakeplayer/ishltv read it landed on library cards and in the
                 // player filter as if it were someone who played.
-                .Where(p => !p.IsBot && !p.IsHltv && !string.IsNullOrWhiteSpace(p.Name))
+                .Where(p => p is { IsBot: false, IsHltv: false } && !string.IsNullOrWhiteSpace(p.Name))
                 .Select(p => p.Name)
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
@@ -2436,7 +2424,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             (ctScore, tScore, ctClan, tClan) = (null, null, null, null);
         }
 
-        if (ctScore is int ct && tScore is int t)
+        if (ctScore is { } ct && tScore is { } t)
         {
             _post(() =>
             {
@@ -2705,7 +2693,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     /// <returns>True when the tuple satisfies the extractor's contract; false when it is a stale half-result.</returns>
     internal static bool IsScoreResultCoherent(int? ctScore, int? tScore, string? ctClan, string? tClan)
     {
-        if (ctScore is int ct && tScore is int t)
+        if (ctScore is { } ct && tScore is { } t)
         {
             return ct + t > 0; // both sides resolved: clans may legitimately be one-sided or absent
         }

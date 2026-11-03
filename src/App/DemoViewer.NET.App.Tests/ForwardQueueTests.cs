@@ -592,9 +592,5 @@ public class ForwardQueueTests
             ($"{fingerprint}@{tickRate}", new Dictionary<string, string>());
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) => throw new NotSupportedException();
-
-        public void InvalidateRules()
-        {
-        }
     }
 }

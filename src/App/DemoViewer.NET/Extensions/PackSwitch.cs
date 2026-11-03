@@ -204,7 +204,8 @@ public sealed class PackSwitch : IDisposable
 
         try
         {
-            state.Pending = Observed(pack, lifecycle.OnDisabledAsync(), "disable", "disable pack " + pack.Id, default);
+            state.Pending = Observed(pack, lifecycle.OnDisabledAsync(), "disable", "disable pack " + pack.Id,
+                CancellationToken.None);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
