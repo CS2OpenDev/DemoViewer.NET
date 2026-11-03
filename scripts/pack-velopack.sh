@@ -1,6 +1,6 @@
 #!/bin/bash
 # Wraps a self-contained publish into a Velopack install/auto-update package:
-#   Windows → Setup.exe · macOS → .app/.dmg · Linux → AppImage, each with delta updates.
+#   Windows → Setup.exe · macOS → .app + Setup.pkg · Linux → AppImage, each with delta updates.
 #
 #   ./scripts/pack-velopack.sh [RID]
 #
@@ -10,16 +10,17 @@
 # macOS. So run this on each platform (that's why CI is a tri-OS matrix). The RID
 # must match the host OS family; a mismatch is rejected up front.
 #
-# Signing. Each platform reads only its own variables, and one set for another platform is an error,
-# so a secret can never reach the wrong vpk (Windows vpk rejects the macOS flags outright). Unset
-# means unsigned.
+# Signing. Unset means unsigned. The DV_MAC_* names are read only for osx-arm64 and one of them on
+# another RID is an error, so this script cannot hand a macOS secret to the Windows vpk. vpk also
+# binds every signing option to a VPK_* variable it reads straight from the environment, which this
+# script has no say over, so those names are refused outright.
 #   macOS (osx-arm64), all of the first three or none:
 #     DV_MAC_SIGN_APP_IDENTITY      "Developer ID Application: ..."   (--signAppIdentity)
 #     DV_MAC_SIGN_INSTALL_IDENTITY  "Developer ID Installer: ..."     (--signInstallIdentity)
 #     DV_MAC_NOTARY_PROFILE         notarytool keychain profile name   (--notaryProfile)
 #     DV_MAC_KEYCHAIN               keychain holding both identities and the profile (--keychain)
 #     DV_MAC_SIGN_ENTITLEMENTS      entitlements plist (--signEntitlements); vpk's .NET default if unset
-#   Windows: none yet; Windows signing is deferred (docs/code-signing/plan.md).
+#   Windows: none yet; Windows signing is deferred.
 #   DV_REQUIRE_SIGNING=1          fail instead of packing unsigned. release.yml sets it wherever it signs.
 #   DV_PACK_RETRIES               extra `vpk pack` attempts after a notarization network drop
 #                                 (default 1, signed packs only; 0 disables).
@@ -105,6 +106,15 @@ fi
 for old in DV_SIGN_APP_IDENTITY DV_SIGN_INSTALL_IDENTITY DV_SIGN_ENTITLEMENTS DV_NOTARY_PROFILE; do
     if [ -n "${!old:-}" ]; then
         echo "ERROR: $old was replaced by the DV_MAC_* variables (see the header of this script)." >&2
+        exit 2
+    fi
+done
+
+# vpk reads these itself (`vpk pack -H` lists them), so they reach it whatever the checks below decide.
+for v in VPK_SIGN_APP_IDENTITY VPK_SIGN_INSTALL_IDENTITY VPK_SIGN_ENTITLEMENTS VPK_NOTARY_PROFILE VPK_KEYCHAIN; do
+    if [ -n "${!v:-}" ]; then
+        echo "ERROR: $v goes straight to vpk and bypasses this script's per-RID signing checks." >&2
+        echo "       Use the DV_MAC_* variables instead." >&2
         exit 2
     fi
 done
@@ -200,9 +210,8 @@ args+=(${SIGN_ARGS[@]+"${SIGN_ARGS[@]}"})
 [ -n "${DV_VPK_EXTRA_ARGS:-}" ] && args+=($DV_VPK_EXTRA_ARGS)
 
 # Notarization is the only part of a pack that waits on the network for tens of minutes, and vpk
-# throws away a signed build when that wait drops. Resuming the existing submission is the better
-# answer, but vpk owns both the submit and the staple, so a bounded resubmit is what is available.
-# A verdict of Invalid or Rejected is Apple's answer and will not change, so it never retries.
+# throws away a signed build when that wait drops. Invalid or Rejected is Apple's verdict on the
+# submission and will not change, so neither is ever retried.
 pack_retryable() {
     if grep -qE 'status: (Invalid|Rejected)' "$1"; then return 1; fi
     grep -qE 'NSURLErrorDomain|HTTPError\(statusCode: 5|The request timed out' "$1"
@@ -211,8 +220,7 @@ pack_retryable() {
 # Apple keeps processing a submission whose wait was interrupted, so report the id rather than
 # leaving a finished notarization unreachable.
 pack_submission_id() {
-    # No match is the normal case for a failure that never reached Apple, and under `set -e` a
-    # failing grep here would skip the cleanup below.
+    # grep finds nothing when the failure never reached Apple, and set -e must not take the caller out.
     grep -oE 'submissions/[0-9a-f]{8}-[0-9a-f-]{27}' "$1" | tail -1 | cut -d/ -f2 || true
 }
 
@@ -220,6 +228,12 @@ ATTEMPTS=1
 [ "$SIGNED" = "1" ] && ATTEMPTS=$(( ${DV_PACK_RETRIES:-1} + 1 ))
 PACK_LOG="$(mktemp "${TMPDIR:-/tmp}/vpk-pack.XXXXXX")"
 PACK_SNAP=""
+pack_restore() { [ -n "$PACK_SNAP" ] || return 0; rm -rf "$REL"; cp -Rp "$PACK_SNAP" "$REL"; }
+pack_cleanup() {
+    rm -f "$PACK_LOG"
+    if [ -n "$PACK_SNAP" ]; then rm -rf "$(dirname "$PACK_SNAP")"; fi
+}
+trap pack_cleanup EXIT
 if [ "$ATTEMPTS" -gt 1 ]; then
     # Restore $REL from a copy, not by deleting what the failed attempt added: vpk may also rewrite
     # the seeded release metadata in place, and a second pack must not diff against its own output.
@@ -242,20 +256,17 @@ while :; do
             echo "       Apple may still be processing submission $PACK_SUB. Its verdict:" >&2
             echo "         xcrun notarytool info $PACK_SUB --key <p8> --key-id <id> --issuer <uuid>" >&2
         fi
-        # Leave $REL as it was found. A half-written package here becomes a delta base for the
-        # next run, and the evidence for a failure is the log above, not the output dir.
-        if [ -n "$PACK_SNAP" ]; then rm -rf "$REL"; cp -Rp "$PACK_SNAP" "$REL"; fi
+        # A half-written package here becomes a delta base for the next run. Only a pack with
+        # retries enabled holds a snapshot to restore from.
+        pack_restore
         exit "$PACK_RC"
     fi
     PACK_TRY=$(( PACK_TRY + 1 ))
     echo "vpk pack lost its connection while notarizing. Retrying: attempt $PACK_TRY of $ATTEMPTS." >&2
     echo "       Apple finishes the abandoned submission anyway; nothing needs cleaning up." >&2
-    rm -rf "$REL"
-    cp -Rp "$PACK_SNAP" "$REL"
+    pack_restore
     sleep 30
 done
-rm -f "$PACK_LOG"
-[ -n "$PACK_SNAP" ] && rm -rf "$(dirname "$PACK_SNAP")"
 
 echo "velopack packages:"
 ls -la "$REL"

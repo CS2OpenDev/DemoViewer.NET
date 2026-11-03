@@ -37,11 +37,17 @@ build provenance attestation, which proves it was built by this repository's rel
 not changed since. With the [GitHub CLI](https://cli.github.com/):
 
 ```
-gh attestation verify DemoViewer.NET-win-Setup.exe --repo CS2OpenDev/DemoViewer.NET
+gh attestation verify DemoViewer.NET-win-Setup.exe \
+  --repo CS2OpenDev/DemoViewer.NET \
+  --signer-workflow CS2OpenDev/DemoViewer.NET/.github/workflows/release.yml
 ```
 
-Without it, compare the file's hash against `SHA256SUMS` (`sha256sum`, or `Get-FileHash` in
-PowerShell).
+`--signer-workflow` is what pins the claim to the release workflow; `--repo` on its own accepts an
+attestation from any workflow in the repository.
+
+`SHA256SUMS` is attested the same way, so verify it first and then check hashes against it
+(`sha256sum`, or `Get-FileHash` in PowerShell). On its own the checksum file proves nothing: it
+lives on the same release as the files it describes.
 
 ## What it does
 
