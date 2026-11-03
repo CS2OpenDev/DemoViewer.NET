@@ -233,16 +233,37 @@ public static class CaptureHost
         window.Close();
     }
 
-    /// <summary>Runs <paramref name="body" /> on the shared headless UI thread and returns its result.</summary>
-    private static async Task<string> RunOnUi(Func<string> body)
+    /// <summary>
+    ///     Renders <paramref name="content" /> to <paramref name="outPng" />. Must already be on the headless
+    ///     UI thread, inside <see cref="RunOnUiAsync{T}" />; for callers that render several frames in one
+    ///     session.
+    /// </summary>
+    public static void RenderOnUi(Control content, Size size, string outPng, ThemeVariant? theme = null)
     {
-        Task<string> dispatched = _session.Value.Dispatch(() =>
+        if (theme is not null)
+        {
+            EnsureThemesInstalled();
+        }
+
+        Render(content, size, outPng, theme);
+    }
+
+    /// <summary>Runs <paramref name="body" /> on the shared headless UI thread and returns its result.</summary>
+    private static Task<string> RunOnUi(Func<string> body) =>
+        RunOnUiAsync(() => Task.FromResult(body()), TimeSpan.FromSeconds(120));
+
+    /// <summary>
+    ///     Runs an asynchronous <paramref name="body" /> on the shared headless UI thread, closes any window
+    ///     it leaked, and gives up after <paramref name="budget" />.
+    /// </summary>
+    public static async Task<T> RunOnUiAsync<T>(Func<Task<T>> body, TimeSpan budget)
+    {
+        Task<T> dispatched = _session.Value.Dispatch(async () =>
         {
             EnsureTracking();
-            string result;
             try
             {
-                result = body();
+                return await body();
             }
             finally
             {
@@ -269,10 +290,8 @@ public static class CaptureHost
                     /* post-body flush of any leaked animating content; ignore */
                 }
             }
-
-            return Task.FromResult(result);
         }, CancellationToken.None);
 
-        return await dispatched.WaitAsync(TimeSpan.FromSeconds(120));
+        return await dispatched.WaitAsync(budget);
     }
 }
