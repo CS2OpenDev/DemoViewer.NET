@@ -24,7 +24,7 @@ namespace DemoViewer.NET.Playback2D.Compositing;
 internal sealed class SceneCompositor : IDisposable
 {
     // Generous world-space cull for Static recordings: CS2 maps live well inside ±32768 world units.
-    private static readonly SKRect WorldCullRect = new(-32768, -32768, 32768, 32768);
+    private static readonly SKRect _worldCullRect = new(-32768, -32768, 32768, 32768);
     private readonly SKPaint _background;
     private readonly LayerPictureCache _cache;
     private readonly SKPaint _divider;
@@ -69,7 +69,7 @@ internal sealed class SceneCompositor : IDisposable
     ///     the CLI, tests); set by <c>Scene2DHost</c>, and then every cache mutation debug-asserts that
     ///     the caller holds it.
     /// </summary>
-    internal SceneRenderGate? Gate { get; set; }
+    internal SceneRenderGate? Gate { get; init; }
 
     /// <summary>Counters from the last completed render. Diagnostics and the bench harness.</summary>
     internal SceneCompositorStats Stats { get; private set; }
@@ -475,7 +475,7 @@ internal sealed class SceneCompositor : IDisposable
             // A PerCamera recording is in PANE-LOCAL SCREEN space, so its cull rect is the pane. A
             // Static recording is in WORLD space, and its extent is not knowable up front: Skia treats
             // an oversized cull rect as a hint, so a generous one is correct rather than wasteful.
-            SKRect cull = perCamera ? ctx.PaneBounds : WorldCullRect;
+            SKRect cull = perCamera ? ctx.PaneBounds : _worldCullRect;
             SKCanvas recording = recorder.BeginRecording(cull);
             layer.Render(recording, ctx);
             picture = recorder.EndRecording();

@@ -30,7 +30,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Headless;
 public static class SceneLayerCatalog
 {
     /// <summary>The prefix every layer id carries; accepted but not required on the command line.</summary>
-    public const string IdPrefix = "playback2d.";
+    private const string IdPrefix = "playback2d.";
 
     /// <summary>
     ///     Every layer id this build can register: an alias for
@@ -73,7 +73,7 @@ public static class SceneLayerCatalog
 
     /// <summary>The ids in <paramref name="ids" /> that no layer answers to. Empty when all are known.</summary>
     /// <param name="ids">Candidate ids, bare or prefixed.</param>
-    public static IReadOnlyList<string> UnknownIds(IReadOnlyList<string>? ids)
+    private static List<string> UnknownIds(IReadOnlyList<string>? ids)
     {
         if (ids is null || ids.Count == 0)
         {
@@ -235,7 +235,7 @@ public static class SceneLayerCatalog
 
                 // Null include = "the scene", not "everything": the HUD and the ink are opt-in by name.
                 bool optIn = SceneLayerIds.OptIn.Contains(id);
-                if (wanted is null ? optIn : !wanted.Contains(id))
+                if (!wanted?.Contains(id) ?? optIn)
                 {
                     continue;
                 }

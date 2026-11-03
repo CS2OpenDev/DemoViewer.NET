@@ -187,11 +187,9 @@ public sealed class VisionSolution
 
     // A window over the pooled list's live prefix. A List<T>.GetRange would allocate; exposing the pool
     // directly would leak stale cones from a previous, busier frame.
-    private sealed class ConeView : IReadOnlyList<ConePolygon>
+    private sealed class ConeView(VisionSolution owner) : IReadOnlyList<ConePolygon>
     {
-        private readonly VisionSolution _owner;
-
-        public ConeView(VisionSolution owner) => _owner = owner;
+        private readonly VisionSolution _owner = owner;
 
         public ConePolygon this[int index] => index >= 0 && index < _owner._coneCount
             ? _owner._conePool[index]

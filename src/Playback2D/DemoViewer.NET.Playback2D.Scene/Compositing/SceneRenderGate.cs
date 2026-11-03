@@ -34,11 +34,9 @@ internal sealed class SceneRenderGate
         return new Scope(_lock);
     }
 
-    private sealed class Scope : IDisposable
+    private sealed class Scope(Lock held) : IDisposable
     {
-        private Lock? _held;
-
-        public Scope(Lock held) => _held = held;
+        private Lock? _held = held;
 
         public void Dispose()
         {

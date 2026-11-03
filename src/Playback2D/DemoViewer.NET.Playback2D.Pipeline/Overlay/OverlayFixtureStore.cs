@@ -33,7 +33,7 @@ public static class OverlayFixtureStore
     public const string SidecarExtension = ".dvoverlay.json";
 
     /// <summary>The schema stamp a writer puts in the file.</summary>
-    public const string SchemaVersion = "dvoverlay/1";
+    private const string SchemaVersion = "dvoverlay/1";
 
     /// <summary>Reads a document from a file.</summary>
     /// <param name="path">The <c>.dvoverlay.json</c> path.</param>
@@ -66,23 +66,6 @@ public static class OverlayFixtureStore
         }
 
         return document;
-    }
-
-    /// <summary>Writes a document to a file, creating the directory if needed. LF on every platform.</summary>
-    /// <param name="document">The document.</param>
-    /// <param name="path">The <c>.dvoverlay.json</c> path.</param>
-    public static void WriteFile(OverlayDocument document, string path)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-        ArgumentException.ThrowIfNullOrEmpty(path);
-
-        if (Path.GetDirectoryName(path) is { Length: > 0 } directory)
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        using FileStream stream = File.Create(path);
-        Write(document, stream);
     }
 
     /// <summary>Writes a document to a stream. Not closed.</summary>

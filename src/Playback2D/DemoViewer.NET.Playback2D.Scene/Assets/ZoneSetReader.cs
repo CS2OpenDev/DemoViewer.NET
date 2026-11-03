@@ -160,19 +160,19 @@ internal static class ZoneSetReader
 
     private sealed class ZonesFileDto
     {
-        public int SchemaVersion { get; set; }
-        public string? MapName { get; set; }
-        public string? BundleMapVersion { get; set; }
-        public string? ZonesVersion { get; set; }
-        public string? BakerVersion { get; set; }
-        public double FloorQuantum { get; set; } = 64;
-        public List<FloorDto>? Floors { get; set; }
-        public List<PlaceDto>? Places { get; set; }
-        public List<VolumeDto>? Volumes { get; set; }
-        public List<AreaDto>? Areas { get; set; }
-        public List<int[]>? AreaLinks { get; set; }
-        public List<int[]>? Adjacency { get; set; }
-        public ParametersDto? Parameters { get; set; }
+        public int SchemaVersion { get; init; }
+        public string? MapName { get; init; }
+        public string? BundleMapVersion { get; init; }
+        public string? ZonesVersion { get; init; }
+        public string? BakerVersion { get; init; }
+        public double FloorQuantum { get; init; } = 64;
+        public List<FloorDto>? Floors { get; init; }
+        public List<PlaceDto>? Places { get; init; }
+        public List<VolumeDto>? Volumes { get; init; }
+        public List<AreaDto>? Areas { get; init; }
+        public List<int[]>? AreaLinks { get; init; }
+        public List<int[]>? Adjacency { get; init; }
+        public ParametersDto? Parameters { get; init; }
     }
 
     private sealed class FloorDto

@@ -229,7 +229,7 @@ public sealed class PackExporter
     }
 
     /// <summary>Writes a title card: one drawn frame, repeated for the card's hold.</summary>
-    internal static async Task WriteTitleCardAsync(PackTitleCard card, PackSettings settings, IFrameSink sink,
+    private static async Task WriteTitleCardAsync(PackTitleCard card, PackSettings settings, IFrameSink sink,
         CancellationToken ct, ScenePalette? palette = null)
     {
         byte[] rgba =
@@ -243,7 +243,7 @@ public sealed class PackExporter
 
     /// <summary>"Clip 3: smoke into CT", as progress and the failure list name a clip.</summary>
     /// <param name="clip">The clip.</param>
-    public static string Label(PackClip clip)
+    private static string Label(PackClip clip)
     {
         ArgumentNullException.ThrowIfNull(clip);
         string number = string.Create(CultureInfo.InvariantCulture, $"clip {clip.Number}");

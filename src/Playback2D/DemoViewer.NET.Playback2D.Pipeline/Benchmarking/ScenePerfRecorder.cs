@@ -70,10 +70,10 @@ internal enum PerfStage
 internal sealed class ScenePerfRecorder : ISceneProfiler
 {
     /// <summary>Frames of history each ring holds before it wraps.</summary>
-    public const int DefaultCapacity = 4096;
+    private const int DefaultCapacity = 4096;
 
     /// <summary>Layer slots tracked. A scene stack is nine layers; 32 is headroom, not a guess.</summary>
-    public const int DefaultMaxLayers = 32;
+    private const int DefaultMaxLayers = 32;
 
     private const int PhaseCount = 2;
     private const int StageCount = 5;

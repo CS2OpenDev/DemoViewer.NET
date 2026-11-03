@@ -140,18 +140,18 @@ public sealed class QueryTokenLayer : ISceneLayer
         _mark.Color = token.IsResolved ? SKColors.Black : team;
         int count = token.Slot + 1;
         int uprights = Math.Min(count, 4);
-        const float step = 3.5f;
-        const float half = 4.5f;
-        float left = at.X - (uprights - 1) * step / 2f;
+        const float Step = 3.5f;
+        const float Half = 4.5f;
+        float left = at.X - (uprights - 1) * Step / 2f;
         for (int i = 0; i < uprights; i++)
         {
-            float x = left + i * step;
-            canvas.DrawLine(x, at.Y - half, x, at.Y + half, _mark);
+            float x = left + i * Step;
+            canvas.DrawLine(x, at.Y - Half, x, at.Y + Half, _mark);
         }
 
         if (count == 5)
         {
-            canvas.DrawLine(left - step / 2f, at.Y + half, left + 3 * step + step / 2f, at.Y - half, _mark);
+            canvas.DrawLine(left - Step / 2f, at.Y + Half, left + 3 * Step + Step / 2f, at.Y - Half, _mark);
         }
     }
 }

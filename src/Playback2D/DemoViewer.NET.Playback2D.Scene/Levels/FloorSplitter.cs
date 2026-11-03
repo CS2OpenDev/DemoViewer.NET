@@ -93,7 +93,7 @@ internal sealed class FloorSplitter
     }
 
     /// <summary>Histogram bucket width in world units (fixed, e.g. 64u).</summary>
-    public double BucketWidth { get; }
+    private double BucketWidth { get; }
 
     /// <summary>Minimum empty-Z gap (world units) that separates two floors (e.g. ~180u).</summary>
     public double GapThreshold { get; }

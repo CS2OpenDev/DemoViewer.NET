@@ -1,7 +1,3 @@
-#region
-
-#endregion
-
 namespace DemoViewer.NET.Playback2D.Pipeline.Hud;
 
 /// <summary>
@@ -27,7 +23,7 @@ public static class KillFeedTimeline
     /// <summary>How many rows the feed shows at once.</summary>
     public const int DefaultMaxRows = 6;
 
-    private static readonly Comparison<KillFeedRow> ByTick = static (a, b) => a.Tick.CompareTo(b.Tick);
+    private static readonly Comparison<KillFeedRow> _byTick = static (a, b) => a.Tick.CompareTo(b.Tick);
 
     /// <summary>
     ///     Fills <paramref name="into" /> with the rows whose tick is in
@@ -68,7 +64,7 @@ public static class KillFeedTimeline
             }
         }
 
-        into.Sort(ByTick);
+        into.Sort(_byTick);
 
         int excess = into.Count - Math.Max(0, maxRows);
         if (excess > 0)

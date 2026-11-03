@@ -79,10 +79,10 @@ public interface IEncoderProbe
 public sealed class FfmpegEncoderProbe : IEncoderProbe
 {
     /// <summary>The square edge of the test frames. Above every hardware encoder's minimum.</summary>
-    public const int ProbeSize = 256;
+    private const int ProbeSize = 256;
 
     /// <summary>Frames fed to the test encode. Two, so an encoder that needs a second frame gets one.</summary>
-    public const int ProbeFrames = 2;
+    private const int ProbeFrames = 2;
 
     /// <summary>How long a probe may run before it is killed and reported as unavailable.</summary>
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
@@ -201,8 +201,8 @@ public sealed class FfmpegEncoderProbe : IEncoderProbe
     {
         // yuv420p: one luma plane plus two half-resolution chroma planes. All zeros: the encoder does
         // not care what the picture is, only that it is handed one of the size it was told about.
-        byte[] frame = new byte[ProbeSize * ProbeSize * 3 / 2];
-        byte[] payload = new byte[frame.Length * ProbeFrames];
+        const int FrameBytes = ProbeSize * ProbeSize * 3 / 2;
+        byte[] payload = new byte[FrameBytes * ProbeFrames];
 
         string[] arguments =
         [

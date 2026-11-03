@@ -36,10 +36,6 @@ public sealed class RosterLayer : ISceneLayer
     private const float MinCardWidthPx = 96f;
     private const float MinRowHeightPx = 22f;
 
-    // A card only earns its second line (weapon · K/D · cash) once the first line and the bars have
-    // their own room. Under it the card degrades to tag + health + bars rather than overlapping itself.
-    private const float TwoLineRowHeightPx = 40f;
-
     // The most of a pane's width one column of cards may take. Two columns therefore never cost the map
     // more than a third of the frame.
     private const float MaxWidthFraction = 0.16f;
@@ -59,7 +55,7 @@ public sealed class RosterLayer : ISceneLayer
     private readonly Dictionary<int, string> _money = new(64);
     private readonly bool _ownsText;
     private readonly SKPaint _paint;
-    private readonly string[] _small = new string[101];
+    private readonly string?[] _small = new string?[101];
     private readonly HudStyle _style;
     private readonly TextBlobCache _text;
 
@@ -250,7 +246,7 @@ public sealed class RosterLayer : ISceneLayer
     private void DrawCard(SKCanvas canvas, HudPlayerRow row, float x, float y, float w, float h,
         SKColor teamColor, bool accentLeft)
     {
-        const float accentW = 3f;
+        const float AccentW = 3f;
         float padX = 6f;
         float padY = Math.Min(4f, h * 0.1f);
 
@@ -261,10 +257,10 @@ public sealed class RosterLayer : ISceneLayer
         // of pointing into it, and a dead player's stripe fades rather than disappearing, because a card
         // with no colour at all reads as "not on a team".
         _paint.Color = row.IsAlive ? teamColor : teamColor.WithAlpha(0x55);
-        canvas.DrawRect(accentLeft ? x : x + w - accentW, y, accentW, h, _paint);
+        canvas.DrawRect(accentLeft ? x : x + w - AccentW, y, AccentW, h, _paint);
 
-        float innerLeft = x + (accentLeft ? accentW : 0) + padX;
-        float innerRight = x + w - (accentLeft ? 0 : accentW) - padX;
+        float innerLeft = x + (accentLeft ? AccentW : 0) + padX;
+        float innerRight = x + w - (accentLeft ? 0 : AccentW) - padX;
         uint nameArgb = row.IsAlive ? _style.TextArgb : ClockLayer.DimTextArgb;
 
         float nameSize = _style.FontSizePx * 0.95f;

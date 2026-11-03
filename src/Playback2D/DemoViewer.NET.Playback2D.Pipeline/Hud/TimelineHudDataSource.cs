@@ -133,7 +133,7 @@ public readonly record struct ClockReading(
     // re-asks its readers every time (see its own comment). A match has a few dozen rounds; the array
     // covers every one of them and overtime besides. A benign race on a slot costs two identical
     // strings, never a wrong one.
-    private static readonly string[] _roundText = new string[128];
+    private static readonly string?[] _roundText = new string?[128];
 
     /// <summary>The reading for a tick with no game-rules state. Renders placeholders.</summary>
     public static ClockReading Unknown { get; } = new("—", 0, 0, double.NaN, false, false, double.NaN);

@@ -63,10 +63,10 @@ public sealed class ManagedGifSink : IFrameSink
     }
 
     /// <summary>Frames accumulated so far.</summary>
-    public int FramesWritten { get; private set; }
+    private int FramesWritten { get; set; }
 
     /// <summary>The centisecond delay stamped on every frame. Test hook for the delay arithmetic.</summary>
-    public int FrameDelayCentiseconds { get; }
+    private int FrameDelayCentiseconds { get; }
 
     /// <inheritdoc />
     public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
@@ -160,7 +160,7 @@ public sealed class ManagedGifSink : IFrameSink
 
             for (int i = 0; i < _frames.Count; i++)
             {
-                writer.WriteFrame(_frames[i], i == 0 ? default : _frames[i - 1], FrameDelayCentiseconds);
+                writer.WriteFrame(_frames[i], i == 0 ? null : _frames[i - 1], FrameDelayCentiseconds);
 
                 // Encoded frames are only needed as the next frame's reference.
                 if (i > 0)

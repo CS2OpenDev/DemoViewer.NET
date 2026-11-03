@@ -1,7 +1,3 @@
-#region
-
-#endregion
-
 namespace DemoViewer.NET.Playback2D.Pipeline;
 
 /// <summary>
@@ -25,14 +21,12 @@ namespace DemoViewer.NET.Playback2D.Pipeline;
 ///         prior sample can't manufacture a false flash.
 ///     </para>
 /// </summary>
-public sealed class RingStateTracker
+public sealed class RingStateTracker(int decayFrames = 8)
 {
     private readonly Dictionary<int, SlotHistory> _bySlot = new(16);
 
-    public RingStateTracker(int decayFrames = 8) => DecayFrames = Math.Max(1, decayFrames);
-
     /// <summary>Frames a shoot / take-damage flash stays lit before decaying back to the team colour.</summary>
-    public int DecayFrames { get; }
+    private int DecayFrames { get; } = Math.Max(1, decayFrames);
 
     /// <summary>
     ///     Clears all per-slot history. Call on a backward seek (frameIndex went down) or a round

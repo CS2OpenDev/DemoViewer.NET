@@ -79,8 +79,12 @@ internal static class PackTitleCardRenderer
         canvas.Clear(palette.Background.WithAlpha(255));
 
         using TextBlobCache text = new();
-        using SKPaint titlePaint = new() { Color = SKColors.White, IsAntialias = true };
-        using SKPaint subtitlePaint = new() { Color = palette.Label.WithAlpha(255), IsAntialias = true };
+        using SKPaint titlePaint = new();
+        titlePaint.Color = SKColors.White;
+        titlePaint.IsAntialias = true;
+        using SKPaint subtitlePaint = new();
+        subtitlePaint.Color = palette.Label.WithAlpha(255);
+        subtitlePaint.IsAntialias = true;
         float margin = side * 0.08f;
         float width = side - 2 * margin;
         float titleSize = side * 0.075f;

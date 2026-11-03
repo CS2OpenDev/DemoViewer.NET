@@ -74,7 +74,7 @@ public sealed class FfmpegFrameSink : IFrameSink
     private const int StderrTailLines = 6;
 
     /// <summary>How long <see cref="DisposeAsync" /> waits for ffmpeg to drain before giving up.</summary>
-    public static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _shutdownTimeout = TimeSpan.FromSeconds(30);
 
     private readonly ChannelVideoFrameSource _frames = new();
     private readonly FfmpegSinkOptions _options;
@@ -97,7 +97,7 @@ public sealed class FfmpegFrameSink : IFrameSink
     }
 
     /// <summary>Frames handed to the encoder so far.</summary>
-    public int FramesWritten { get; private set; }
+    private int FramesWritten { get; set; }
 
     /// <inheritdoc />
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
@@ -170,7 +170,7 @@ public sealed class FfmpegFrameSink : IFrameSink
             {
                 // A timeout rather than an unbounded await: R2's failure mode is a deadlock between the
                 // pump and the writer, and a diagnosable "ffmpeg did not exit in 30 s" beats a hang.
-                await _encoder.WaitAsync(ShutdownTimeout).ConfigureAwait(false);
+                await _encoder.WaitAsync(_shutdownTimeout).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

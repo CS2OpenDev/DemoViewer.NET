@@ -64,13 +64,13 @@ internal sealed class LevelHysteresis
     public MapLevelId Current { get; private set; } = MapLevelId.None;
 
     /// <summary>The candidate awaiting its dwell, or <see cref="MapLevelId.None" /> when settled.</summary>
-    public MapLevelId Pending { get; private set; } = MapLevelId.None;
+    private MapLevelId Pending { get; set; } = MapLevelId.None;
 
     /// <summary>Scene-seconds accumulated toward <see cref="Pending" />.</summary>
     public double PendingSeconds { get; private set; }
 
     /// <summary>The tuning in force.</summary>
-    public LevelHysteresisOptions Options { get; }
+    private LevelHysteresisOptions Options { get; }
 
     /// <summary>
     ///     The spatial half-band between two adjacent levels:

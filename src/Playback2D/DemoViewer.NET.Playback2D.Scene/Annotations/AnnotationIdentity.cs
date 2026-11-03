@@ -58,5 +58,5 @@ public sealed record ClockIdentity(string Kind, int TickRate, int FrameCount, in
     }
 
     private static bool IsUnknown(ClockIdentity clock) =>
-        clock.FrameCount == 0 && clock.TickRate == 0 && clock.FirstTick == 0 && clock.LastTick == 0;
+        clock is { FrameCount: 0, TickRate: 0, FirstTick: 0, LastTick: 0 };
 }

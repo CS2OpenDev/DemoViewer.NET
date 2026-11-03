@@ -42,7 +42,7 @@ public sealed class LevelSelection
     }
 
     // The tuning type is behind the scene fence, so the overload that names it cannot be public.
-    internal LevelSelection(MapSpace space, LevelHysteresisOptions? options)
+    private LevelSelection(MapSpace space, LevelHysteresisOptions? options)
     {
         ArgumentNullException.ThrowIfNull(space);
         _space = space;

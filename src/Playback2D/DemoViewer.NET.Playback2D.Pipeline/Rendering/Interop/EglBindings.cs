@@ -37,7 +37,7 @@ internal sealed class EglBindings
     public required EglGetDisplayFn GetDisplay { get; init; }
 
     /// <summary><c>eglGetPlatformDisplayEXT</c>, or null where the extension is absent.</summary>
-    public EglGetPlatformDisplayExtFn? GetPlatformDisplayExt { get; init; }
+    public EglGetPlatformDisplayExtFn? GetPlatformDisplayExt { get; private init; }
 
     /// <summary><c>eglInitialize</c>.</summary>
     public required EglInitializeFn Initialize { get; init; }

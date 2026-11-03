@@ -35,7 +35,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Layers;
 public sealed class KillFeedLayer : ISceneLayer
 {
     /// <summary>Rows drawn at most, matching the view-model's own window (<c>KillFeedTimeline</c>).</summary>
-    public const int MaxRows = 6;
+    private const int MaxRows = 6;
 
     /// <summary>Row pitch: the vertical advance from one row's top to the next's.</summary>
     private const float LineHeightFactor = 1.75f;
@@ -231,7 +231,7 @@ public sealed class KillFeedLayer : ISceneLayer
     // The keys this row draws, in feed order: the weapon, then each modifier it carries. Materialised
     // once per distinct row into the row cache — including the composed "equipment/<weapon>" string,
     // which would otherwise be a fresh allocation on every frame the row is on screen.
-    private static string[] IconKeys(KillFeedRow row)
+    private static string[] IconKeysFor(KillFeedRow row)
     {
         List<string> keys = [Weapons.Key(row.Weapon)];
 
@@ -345,7 +345,7 @@ public sealed class KillFeedLayer : ISceneLayer
             return cached;
         }
 
-        string[] keys = _icons is null ? [] : IconKeys(row);
+        string[] keys = _icons is null ? [] : IconKeysFor(row);
 
         // Two separate decisions, decided once per distinct row and never per frame.
         //
@@ -432,16 +432,16 @@ public sealed class KillFeedLayer : ISceneLayer
     // would otherwise leave one allocation behind for every kill in the match.
     private static class Weapons
     {
-        private static readonly Dictionary<string, string> Cache = new(64, StringComparer.Ordinal);
+        private static readonly Dictionary<string, string> _cache = new(64, StringComparer.Ordinal);
 
         public static string Key(string weapon)
         {
-            lock (Cache)
+            lock (_cache)
             {
-                if (!Cache.TryGetValue(weapon, out string? key))
+                if (!_cache.TryGetValue(weapon, out string? key))
                 {
                     key = "equipment/" + weapon;
-                    Cache[weapon] = key;
+                    _cache[weapon] = key;
                 }
 
                 return key;

@@ -32,12 +32,12 @@ public sealed class RadarLayer : ISceneLayer
     //
     // Shipping Mitchell everywhere therefore blurred a blit that used to copy, and cost about 3x
     // on the downscale that is the radar's normal regime. Both are what these two pick apart.
-    private static readonly SKSamplingOptions Magnify = new(SKCubicResampler.Mitchell);
-    private static readonly SKSamplingOptions Minify = new(SKFilterMode.Linear, SKMipmapMode.Nearest);
+    private static readonly SKSamplingOptions _magnify = new(SKCubicResampler.Mitchell);
+    private static readonly SKSamplingOptions _minify = new(SKFilterMode.Linear, SKMipmapMode.Nearest);
 
     // 2.88.9's rule, restated: cubic upwards, linear plus mipmap downwards.
     private static SKSamplingOptions SamplingFor(SKImage source, SKRect destination) =>
-        destination.Width >= source.Width && destination.Height >= source.Height ? Magnify : Minify;
+        destination.Width >= source.Width && destination.Height >= source.Height ? _magnify : _minify;
 
     private readonly SKPaint _image;
     private readonly SKPaint _major;
@@ -330,16 +330,16 @@ public sealed class RadarLayer : ISceneLayer
         (double wx0, double wy1) = t.ScreenToWorld(0, 0);
         (double wx1, double wy0) = t.ScreenToWorld(bounds.Width, bounds.Height);
 
-        const double step = SceneDefaults.GridStepWorld;
-        double startX = Math.Floor(wx0 / step) * step;
+        const double Step = SceneDefaults.GridStepWorld;
+        double startX = Math.Floor(wx0 / Step) * Step;
         double endX = wx1;
-        double startY = Math.Floor(wy0 / step) * step;
+        double startY = Math.Floor(wy0 / Step) * Step;
         double endY = wy1;
 
         // Guard against an absurd line count when zoomed all the way out. A negative count means an
         // inverted or degenerate transform, which is equally a bail-out.
-        int countX = (int)((endX - startX) / step);
-        int countY = (int)((endY - startY) / step);
+        int countX = (int)((endX - startX) / Step);
+        int countY = (int)((endY - startY) / Step);
         if (countX > SceneDefaults.MaxGridLines || countY > SceneDefaults.MaxGridLines ||
             countX < 0 || countY < 0)
         {
@@ -351,14 +351,14 @@ public sealed class RadarLayer : ISceneLayer
         _major.Color = ctx.Palette.MajorGrid;
         _major.StrokeWidth = ctx.Palette.Strokes.MajorGrid;
 
-        for (double wx = startX; wx <= endX; wx += step)
+        for (double wx = startX; wx <= endX; wx += Step)
         {
             (double sx, _) = t.WorldToScreen(wx, 0);
             bool major = Math.Abs(wx) < 1e-3; // the major line is the AXIS, not every nth line
             canvas.DrawLine((float)sx, 0, (float)sx, bounds.Height, major ? _major : _minor);
         }
 
-        for (double wy = startY; wy <= endY; wy += step)
+        for (double wy = startY; wy <= endY; wy += Step)
         {
             (_, double sy) = t.WorldToScreen(0, wy);
             bool major = Math.Abs(wy) < 1e-3;
