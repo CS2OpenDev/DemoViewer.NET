@@ -21,6 +21,8 @@
 #     DV_MAC_SIGN_ENTITLEMENTS      entitlements plist (--signEntitlements); vpk's .NET default if unset
 #   Windows: none yet; Windows signing is deferred (docs/code-signing/plan.md).
 #   DV_REQUIRE_SIGNING=1          fail instead of packing unsigned. release.yml sets it wherever it signs.
+#   DV_PACK_RETRIES               extra `vpk pack` attempts after a notarization network drop
+#                                 (default 1, signed packs only; 0 disables).
 #   DV_VPK_EXTRA_ARGS             escape hatch for anything not modeled
 #
 # Delta updates: vpk diffs against the *.nupkg files already in --outputDir, so keep a
@@ -197,8 +199,63 @@ args+=(${SIGN_ARGS[@]+"${SIGN_ARGS[@]}"})
 # shellcheck disable=SC2206
 [ -n "${DV_VPK_EXTRA_ARGS:-}" ] && args+=($DV_VPK_EXTRA_ARGS)
 
+# Notarization is the only part of a pack that waits on the network for tens of minutes, and vpk
+# throws away a signed build when that wait drops. Resuming the existing submission is the better
+# answer, but vpk owns both the submit and the staple, so a bounded resubmit is what is available.
+# A verdict of Invalid or Rejected is Apple's answer and will not change, so it never retries.
+pack_retryable() {
+    if grep -qE 'status: (Invalid|Rejected)' "$1"; then return 1; fi
+    grep -qE 'NSURLErrorDomain|HTTPError\(statusCode: 5|The request timed out' "$1"
+}
+
+# Apple keeps processing a submission whose wait was interrupted, so report the id rather than
+# leaving a finished notarization unreachable.
+pack_submission_id() {
+    # No match is the normal case for a failure that never reached Apple, and under `set -e` a
+    # failing grep here would skip the cleanup below.
+    grep -oE 'submissions/[0-9a-f]{8}-[0-9a-f-]{27}' "$1" | tail -1 | cut -d/ -f2 || true
+}
+
+ATTEMPTS=1
+[ "$SIGNED" = "1" ] && ATTEMPTS=$(( ${DV_PACK_RETRIES:-1} + 1 ))
+PACK_LOG="$(mktemp "${TMPDIR:-/tmp}/vpk-pack.XXXXXX")"
+PACK_SNAP=""
+if [ "$ATTEMPTS" -gt 1 ]; then
+    # Restore $REL from a copy, not by deleting what the failed attempt added: vpk may also rewrite
+    # the seeded release metadata in place, and a second pack must not diff against its own output.
+    PACK_SNAP="$(mktemp -d "${TMPDIR:-/tmp}/vpk-rel.XXXXXX")/rel"
+    cp -Rp "$REL" "$PACK_SNAP"
+fi
+
 echo "vpk pack: id=$PACK_ID version=$VERSION rid=$RID channel=${CHANNEL:-<os default>} -> $REL"
-dotnet vpk pack "${args[@]}"
+PACK_TRY=1
+while :; do
+    if dotnet vpk pack "${args[@]}" 2>&1 | tee "$PACK_LOG"; then
+        break
+    fi
+    PACK_RC=${PIPESTATUS[0]}
+    [ "$PACK_RC" -eq 0 ] && PACK_RC=1
+    if [ "$PACK_TRY" -ge "$ATTEMPTS" ] || ! pack_retryable "$PACK_LOG"; then
+        echo "ERROR: vpk pack failed on attempt $PACK_TRY of $ATTEMPTS (exit $PACK_RC)." >&2
+        PACK_SUB="$(pack_submission_id "$PACK_LOG")"
+        if [ -n "$PACK_SUB" ]; then
+            echo "       Apple may still be processing submission $PACK_SUB. Its verdict:" >&2
+            echo "         xcrun notarytool info $PACK_SUB --key <p8> --key-id <id> --issuer <uuid>" >&2
+        fi
+        # Leave $REL as it was found. A half-written package here becomes a delta base for the
+        # next run, and the evidence for a failure is the log above, not the output dir.
+        if [ -n "$PACK_SNAP" ]; then rm -rf "$REL"; cp -Rp "$PACK_SNAP" "$REL"; fi
+        exit "$PACK_RC"
+    fi
+    PACK_TRY=$(( PACK_TRY + 1 ))
+    echo "vpk pack lost its connection while notarizing. Retrying: attempt $PACK_TRY of $ATTEMPTS." >&2
+    echo "       Apple finishes the abandoned submission anyway; nothing needs cleaning up." >&2
+    rm -rf "$REL"
+    cp -Rp "$PACK_SNAP" "$REL"
+    sleep 30
+done
+rm -f "$PACK_LOG"
+[ -n "$PACK_SNAP" ] && rm -rf "$(dirname "$PACK_SNAP")"
 
 echo "velopack packages:"
 ls -la "$REL"
