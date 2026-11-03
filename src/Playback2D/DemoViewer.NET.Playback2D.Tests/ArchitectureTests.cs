@@ -370,8 +370,8 @@ public class ArchitectureTests
     public async Task ExCoreNamespaces_AllStillExist()
     {
         Type[] all = Pipeline.GetTypes();
-        List<string> empty = [.. _exCoreNamespaces.Where(ns => !all.Any(t => t.Namespace == ns))];
-        List<string> gone = [.. _mergedNamespaceOwnTypes.Where(n => !all.Any(t => t.FullName == n))];
+        List<string> empty = [.. _exCoreNamespaces.Where(ns => all.All(t => t.Namespace != ns))];
+        List<string> gone = [.. _mergedNamespaceOwnTypes.Where(n => all.All(t => t.FullName != n))];
 
         using (Assert.Multiple())
         {
@@ -458,7 +458,7 @@ public class ArchitectureTests
                 continue;
             }
 
-            string text = File.ReadAllText(file);
+            string text = await File.ReadAllTextAsync(file);
             Match declared = Regex.Match(text, @"^namespace\s+([\w.]+)\s*;", RegexOptions.Multiline);
             if (!declared.Success || !_exCoreNamespaces.Contains(declared.Groups[1].Value, StringComparer.Ordinal))
             {
@@ -468,7 +468,7 @@ public class ArchitectureTests
             // Comments are stripped first. VisionLayer's own summary explains that VisibilityEngine is a
             // CS2DemoKit type and that IVisionSolver exists to keep it out, which is the opposite of a
             // violation and would otherwise be read as one.
-            string code = Regex.Replace(text, @"//.*?$", "", RegexOptions.Multiline);
+            string code = Regex.Replace(text, "//.*?$", "", RegexOptions.Multiline);
             code = Regex.Replace(code, @"/\*.*?\*/", "", RegexOptions.Singleline);
 
             // A file in one of the two merged namespaces that declares one of Pipeline's own types is not

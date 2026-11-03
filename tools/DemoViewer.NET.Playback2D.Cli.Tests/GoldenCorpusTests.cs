@@ -141,7 +141,7 @@ public class GoldenCorpusTests
     {
         using CorpusCopy copy = new();
         string manifestPath = Path.Combine(copy.Path, GoldenCorpus.ManifestFileName);
-        string before = File.ReadAllText(manifestPath);
+        string before = await File.ReadAllTextAsync(manifestPath);
         int entriesBefore = GoldenCorpus.Load(copy.Path).Entries.Count;
 
         GoldenCorpusEntry existing = GoldenCorpus.Load(copy.Path).Find("duel-mirage-b")!;
@@ -150,7 +150,7 @@ public class GoldenCorpusTests
         GoldenCorpus after = GoldenCorpus.Load(copy.Path);
         await Assert.That(after.Entries.Count).IsEqualTo(entriesBefore);
         await Assert.That(after.Find("duel-mirage-b")!.Pending).IsTrue();
-        await Assert.That(File.ReadAllText(manifestPath)).IsNotEqualTo(before);
+        await Assert.That(await File.ReadAllTextAsync(manifestPath)).IsNotEqualTo(before);
         await Assert.That(after.Find("synthetic-utility")!.Notes).IsNotNull();
     }
 

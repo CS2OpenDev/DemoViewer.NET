@@ -29,7 +29,7 @@ namespace DemoViewer.NET.Playback2D.Cli;
 internal static class BenchCommand
 {
     /// <summary>The environment variable that relaxes the time budgets on a shared runner.</summary>
-    public const string BudgetScaleVariable = "DV2D_BUDGET_SCALE";
+    private const string BudgetScaleVariable = "DV2D_BUDGET_SCALE";
 
     /// <summary>Runs the command.</summary>
     /// <param name="args">The parsed arguments.</param>
@@ -180,7 +180,7 @@ internal static class BenchCommand
     }
 
     /// <summary>The <c>DV2D_BUDGET_SCALE</c> value, or 1.0.</summary>
-    public static double DefaultBudgetScale() =>
+    private static double DefaultBudgetScale() =>
         double.TryParse(Environment.GetEnvironmentVariable(BudgetScaleVariable), NumberStyles.Float,
             CultureInfo.InvariantCulture, out double scale) && scale > 0
             ? scale
@@ -315,9 +315,9 @@ internal static class BenchCommand
     private static string? ResolveWorktreeHead(string gitFilePath)
     {
         string content = File.ReadAllText(gitFilePath).Trim();
-        const string prefix = "gitdir:";
-        return content.StartsWith(prefix, StringComparison.Ordinal)
-            ? ReadHead(content[prefix.Length..].Trim())
+        const string Prefix = "gitdir:";
+        return content.StartsWith(Prefix, StringComparison.Ordinal)
+            ? ReadHead(content[Prefix.Length..].Trim())
             : null;
     }
 

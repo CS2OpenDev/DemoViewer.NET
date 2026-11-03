@@ -242,7 +242,7 @@ public class ExportHudRosterTests
 
     // The shipped size renders 14 px glyphs whose only fully-covered pixels are stems; doubling it gives
     // solid glyph cores, so a colour assertion can be exact instead of needing an arbitrary tolerance.
-    private static HudStyle Bigger() => new HudStyle() with { FontSizePx = 28f };
+    private static HudStyle Bigger() => new() { FontSizePx = 28f };
 
     private static KillFeedRow Kill(int attacker, int victim) =>
         new(1000, "neo", null, "smith", "awp", false, false, false, false, false, false, false,
@@ -250,7 +250,7 @@ public class ExportHudRosterTests
 
     private static SKBitmap Feed(KillFeedRow row) =>
         Render(new KillFeedLayer(new StubHudDataSource(
-            ExportFixtures.Hud(0) with { KillRows = new[] { row } }), Bigger()), default);
+            ExportFixtures.Hud(0) with { KillRows = [row] }), Bigger()), default);
 
     private static string Hash(KillFeedRow row)
     {

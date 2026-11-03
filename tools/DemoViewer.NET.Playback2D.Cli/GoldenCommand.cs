@@ -29,7 +29,7 @@ namespace DemoViewer.NET.Playback2D.Cli;
 internal static class GoldenCommand
 {
     /// <summary>The default directory diffs are written to.</summary>
-    public const string DefaultDiffDirectory = "artifacts/playback2d-goldens";
+    private const string DefaultDiffDirectory = "artifacts/playback2d-goldens";
 
     /// <summary>Runs the command.</summary>
     /// <param name="args">The parsed arguments.</param>
@@ -114,7 +114,7 @@ internal static class GoldenCommand
 
             byte[] expectedPng = File.ReadAllBytes(goldenPath);
             int labels = GoldenEntryPlan.LabelCount(fixture);
-            GoldenTolerance tolerance = ToleranceFor(entry, labels, toleranceOverride);
+            GoldenTolerance tolerance = ToleranceFor(entry, toleranceOverride);
 
             // Text is judged under its own ink and nowhere else. The glyph rasteriser differs per
             // operating system, so a second render with every text layer silenced marks the glyph
@@ -273,10 +273,8 @@ internal static class GoldenCommand
     ///     <c>--tolerance</c> overrides the mode the manifest states, not what a mode means.
     /// </summary>
     /// <param name="entry">The entry, for its declared mode.</param>
-    /// <param name="labels">The count from <see cref="GoldenEntryPlan.LabelCount" />, reported in the result row.</param>
     /// <param name="toleranceOverride">The parsed <c>--tolerance</c>, or null.</param>
-    internal static GoldenTolerance ToleranceFor(GoldenCorpusEntry entry, int labels,
-        GoldenMode? toleranceOverride)
+    internal static GoldenTolerance ToleranceFor(GoldenCorpusEntry entry, GoldenMode? toleranceOverride)
     {
         ArgumentNullException.ThrowIfNull(entry);
 

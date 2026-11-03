@@ -30,7 +30,8 @@ public class HeadlessSceneRendererTests
 
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
-        using HeadlessSceneRenderer renderer = new(provider, compositor) { Camera = fixture.Camera };
+        using HeadlessSceneRenderer renderer = new(provider, compositor);
+        renderer.Camera = fixture.Camera;
 
         SceneTime time = fixture.Time;
         byte[] whole = renderer.RenderPng(fixture.Frame, in time, size);
@@ -120,7 +121,7 @@ public class HeadlessSceneRendererTests
             [SceneLayerIds.Markers, SceneLayerIds.HudClock, SceneLayerIds.Annotations]);
 
         await Assert.That(starved.Layers.Select(l => l.Id).ToArray())
-            .IsEquivalentTo(new[] { SceneLayerIds.Markers }, CollectionOrdering.Matching);
+            .IsEquivalentTo([SceneLayerIds.Markers], CollectionOrdering.Matching);
     }
 
     [Test]

@@ -272,7 +272,7 @@ public class SceneExportSessionCancellationTests
         using CpuSurfaceProvider surfaces = new();
         RecordingFrameSink sink = new();
         using CancellationTokenSource source = new();
-        source.Cancel();
+        await source.CancelAsync();
 
         // Same reason as the mid-render case below: the callback runs on the pool, unsynchronized.
         ConcurrentQueue<ExportProgress> reports = [];

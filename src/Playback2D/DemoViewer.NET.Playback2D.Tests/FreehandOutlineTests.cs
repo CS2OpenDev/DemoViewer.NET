@@ -109,12 +109,12 @@ public class FreehandOutlineTests
         await Assert.That(outline.Count).IsGreaterThan(8);
 
         float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
-        for (int i = 0; i < outline.Count; i++)
+        foreach (SKPoint point in outline)
         {
-            minX = Math.Min(minX, outline[i].X);
-            minY = Math.Min(minY, outline[i].Y);
-            maxX = Math.Max(maxX, outline[i].X);
-            maxY = Math.Max(maxY, outline[i].Y);
+            minX = Math.Min(minX, point.X);
+            minY = Math.Min(minY, point.Y);
+            maxX = Math.Max(maxX, point.X);
+            maxY = Math.Max(maxY, point.Y);
         }
 
         await Assert.That(minX).IsLessThan(10f);

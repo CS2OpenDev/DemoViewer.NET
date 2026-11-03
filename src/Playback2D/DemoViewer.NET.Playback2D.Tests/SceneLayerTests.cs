@@ -43,14 +43,15 @@ public class SceneLayerTests
     public async Task RadarLayer_DrawsTheLevelsImage_WhenOneIsBound()
     {
         using SKImage image = SolidImage(SKColors.Magenta, 64);
-        using RadarLayer layer = new() { RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500) };
+        using RadarLayer layer = new();
+        layer.RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500);
 
         SKColor[] pixels = Render(layer, Frame(), image);
 
         // Not pure magenta: the pre-v2 draw was PushOpacity(0.9), ported as a white paint at alpha 229,
         // so the image lands blended 90/10 over the background. Asserting the BLEND rather than the
         // source colour is what actually pins the opacity port.
-        int magentaish = Count(pixels, p => p.Red > 200 && p.Blue > 200 && p.Green < 60);
+        int magentaish = Count(pixels, p => p is { Red: > 200, Blue: > 200, Green: < 60 });
         SKColor sample = pixels[_size.Height / 2 * _size.Width + _size.Width / 2];
         Console.WriteLine($"[radar] magenta-ish pixels={magentaish} centre={sample}");
 
@@ -67,10 +68,9 @@ public class SceneLayerTests
     public async Task RadarLayer_UseRadarImageOff_StillDrawsTheGrid()
     {
         using SKImage image = SolidImage(SKColors.Magenta, 64);
-        using RadarLayer layer = new()
-        {
-            RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500), UseRadarImage = false
-        };
+        using RadarLayer layer = new();
+        layer.RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500);
+        layer.UseRadarImage = false;
 
         SKColor[] pixels = Render(layer, Frame(), image);
         await Assert.That(CountColour(pixels, SKColors.Magenta)).IsEqualTo(0);
@@ -202,15 +202,15 @@ public class SceneLayerTests
     [Arguments("il")]
     public async Task MarkerLayer_LabelInk_IsCentredOnTheDisc(string label)
     {
-        const float worldX = 120f, worldY = -260f;
+        const float WorldX = 120f, WorldY = -260f;
         Scene2DFrame frame = new()
         {
-            Markers = [new PlayerMarker(0, 2, worldX, worldY, 0, 0, RingState.Team, 1, label, true)]
+            Markers = [new PlayerMarker(0, 2, WorldX, WorldY, 0, 0, RingState.Team, 1, label, true)]
         };
 
         ViewportTransform camera = ViewportTransform.Fit(_size.Width, _size.Height,
             -500, -500, 500, 500);
-        (double discX, double discY) = camera.WorldToScreen(worldX, worldY);
+        (double discX, double discY) = camera.WorldToScreen(WorldX, WorldY);
 
         using MarkerLayer withLabels = new();
         using MarkerLayer withoutLabels = new() { DrawLabels = false };
@@ -397,9 +397,8 @@ public class SceneLayerTests
     {
         SKColor background = ScenePalette.Dark.Background;
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor p in pixels)
         {
-            SKColor p = pixels[i];
             if (p.Red != background.Red || p.Green != background.Green || p.Blue != background.Blue)
             {
                 count++;
@@ -441,9 +440,9 @@ public class SceneLayerTests
     private static int Count(SKColor[] pixels, Func<SKColor, bool> predicate)
     {
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor pixel in pixels)
         {
-            if (predicate(pixels[i]))
+            if (predicate(pixel))
             {
                 count++;
             }
@@ -455,9 +454,8 @@ public class SceneLayerTests
     private static int CountColour(SKColor[] pixels, SKColor colour)
     {
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor p in pixels)
         {
-            SKColor p = pixels[i];
             if (p.Red == colour.Red && p.Green == colour.Green && p.Blue == colour.Blue)
             {
                 count++;

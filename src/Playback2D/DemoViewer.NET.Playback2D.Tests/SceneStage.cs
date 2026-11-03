@@ -66,7 +66,7 @@ internal sealed class SceneStage : IDisposable
             Compositor.Add(layer);
         }
 
-        foreach (ISceneLayer layer in extra ?? [])
+        foreach (ISceneLayer layer in extra)
         {
             Compositor.Add(layer);
         }
@@ -82,14 +82,14 @@ internal sealed class SceneStage : IDisposable
     public SceneCompositor Compositor { get; }
 
     public HeadlessSceneRenderer Renderer { get; }
-    public MarkerSmoother Smoother { get; }
-    public RadarLayer Radar { get; }
+    private MarkerSmoother Smoother { get; }
+    private RadarLayer Radar { get; }
     public MarkerLayer Markers { get; }
-    public VisionLayer Vision { get; }
-    public FloorLabelLayer FloorLabel { get; }
+    private VisionLayer Vision { get; }
+    private FloorLabelLayer FloorLabel { get; }
 
     /// <summary>The map bundle bound to this stage, when one was loaded. Owned; disposed with the stage.</summary>
-    public LoadedMapAsset? MapAsset { get; private set; }
+    private LoadedMapAsset? MapAsset { get; set; }
 
     public void Dispose()
     {

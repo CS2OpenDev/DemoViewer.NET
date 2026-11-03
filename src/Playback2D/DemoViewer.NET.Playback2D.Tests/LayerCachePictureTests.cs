@@ -219,21 +219,16 @@ public class LayerCachePictureTests
         return -1;
     }
 
-    private sealed class CountingLayer : ISceneLayer
+    private sealed class CountingLayer(string id, LayerCacheHint cache) : ISceneLayer
     {
-        public CountingLayer(string id, LayerCacheHint cache)
-        {
-            Id = id;
-            Cache = cache;
-        }
 
         public int Version { get; set; }
         public int RenderCalls { get; private set; }
         public int AdvanceCalls { get; private set; }
-        public string Id { get; }
+        public string Id { get; } = id;
         public LayerSlot Slot => LayerSlot.World;
         public int Order => 0;
-        public LayerCacheHint Cache { get; }
+        public LayerCacheHint Cache { get; } = cache;
         public bool IsEnabled { get; set; } = true;
         public int ContentVersion => Version;
 

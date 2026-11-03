@@ -141,10 +141,9 @@ internal static class ExportCommand
             new CameraScript.Fixed(new Dictionary<MapLevelId, ViewportTransform>()));
 
         using TrackerFrameSource source = new(frames, new SceneFrameBuilder(), startFrame, endFrame,
-            fps, speed, tickRate)
-        {
-            MapName = demo.MapName, Radars = mapAssets is null ? null : MapAssetPipeline.DescribeRadars(mapAssets)
-        };
+            fps, speed, tickRate);
+        source.MapName = demo.MapName;
+        source.Radars = mapAssets is null ? null : MapAssetPipeline.DescribeRadars(mapAssets);
 
         request = request with { EndFrame = Math.Max(0, source.FrameCount - 1) };
 
@@ -261,9 +260,7 @@ internal static class ExportCommand
                 // file's bytes are a function of this machine. Record the machine's answer or two files
                 // cannot be compared later.
                 ["video_encoder"] = encoder?.Encoder.Name,
-                ["video_encoder_kind"] = encoder is null
-                    ? null
-                    : encoder.Encoder.Acceleration.ToString().ToLowerInvariant(),
+                ["video_encoder_kind"] = encoder?.Encoder.Acceleration.ToString().ToLowerInvariant(),
                 ["video_codec"] = encoder?.Encoder.Codec,
                 ["encoder_reason"] = encoder?.Reason,
                 ["encoder_arguments"] = encoder?.Arguments,

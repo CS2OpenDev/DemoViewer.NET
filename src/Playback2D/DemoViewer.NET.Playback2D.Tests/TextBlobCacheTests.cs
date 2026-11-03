@@ -155,14 +155,14 @@ public class TextBlobCacheTests
     public async Task Get_StringPastTheStackBuffer_MeasuresTheSameWay()
     {
         using TextBlobCache cache = new();
-        const string longRow =
+        const string LongRow =
             "a_very_long_player_name +another_long_assister  awp HS WB NS  →  yet_another_victim";
-        await Assert.That(longRow.Length).IsGreaterThan(64);
+        await Assert.That(LongRow.Length).IsGreaterThan(64);
 
-        ShapedText shaped = cache.Get(longRow, 14f)!.Value;
-        ShapedText half = cache.Get(longRow[..40], 14f)!.Value;
+        ShapedText shaped = cache.Get(LongRow, 14f)!.Value;
+        ShapedText half = cache.Get(LongRow[..40], 14f)!.Value;
 
-        Console.WriteLine($"[text] {longRow.Length} chars: advance={shaped.Advance:F3} " +
+        Console.WriteLine($"[text] {LongRow.Length} chars: advance={shaped.Advance:F3} " +
                           $"ink width={shaped.Bounds.Width:F3}");
 
         await Assert.That(shaped.Advance).IsGreaterThan(half.Advance);

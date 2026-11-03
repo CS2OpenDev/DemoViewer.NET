@@ -25,7 +25,7 @@ internal static class RealTimeFakes
     public const float LeftWorld = -450f;
 
     /// <summary>World X of the last sample.</summary>
-    public const float RightWorld = 450f;
+    private const float RightWorld = 450f;
 
     /// <summary>
     ///     A run table from explicit <c>(sample, tickOffset)</c> boundaries, the last of which is also the
@@ -33,7 +33,7 @@ internal static class RealTimeFakes
     ///     these suites must be able to author a cadence that no clock could be persuaded to produce.
     /// </summary>
     /// <param name="runs">Boundaries, ordered by sample index, offsets non-decreasing.</param>
-    public static StrokeTiming Cadence(params (int Sample, int Tick)[] runs)
+    private static StrokeTiming Cadence(params (int Sample, int Tick)[] runs)
     {
         ArgumentNullException.ThrowIfNull(runs);
 

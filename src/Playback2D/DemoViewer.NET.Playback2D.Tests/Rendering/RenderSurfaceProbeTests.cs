@@ -170,7 +170,7 @@ public class RenderSurfaceProbeTests
     [Category("Gpu")]
     public async Task Create_PreferGpu_ReachesTheGpu_EvenWhenTheEnvironmentSaysCpu()
     {
-        using (ProbeEnvironment clean = ProbeEnvironment.Clean())
+        using (ProbeEnvironment.Clean())
         {
             GpuFixtureRender.RequireGpu();
         }

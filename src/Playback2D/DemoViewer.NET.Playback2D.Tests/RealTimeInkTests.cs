@@ -168,31 +168,31 @@ public class RealTimeInkTests
     {
         StrokeTiming cadence = RealTimeFakes.WithPause(RealTimeFakes.SampleCount, 50, 60);
         AnnotationElement element = RealTimeFakes.RealTime(cadence, 100, 40);
-        const int target = 196;
+        const int Target = 196;
 
         using Fixture jumped = Fixture.With(element);
-        string reference = Hash(jumped.Render(target));
+        string reference = Hash(jumped.Render(Target));
 
         using Fixture stepped = Fixture.With(element);
-        for (int tick = 100; tick < target; tick++)
+        for (int tick = 100; tick < Target; tick++)
         {
             stepped.Advance(tick);
         }
 
         using Fixture skipping = Fixture.With(element);
         // 64 tick / 30 fps: the export lands on 100, 102, 104, 106, 109, … and never sees most ticks.
-        for (double t = 100; t < target; t += 64.0 / 30)
+        for (double t = 100; t < Target; t += 64.0 / 30)
         {
             skipping.Advance((int)t);
         }
 
         Console.WriteLine($"[realtime] hash jumped={reference[..16]} " +
-                          $"stepped={Hash(stepped.Render(target))[..16]} " +
-                          $"skipped={Hash(skipping.Render(target))[..16]}");
+                          $"stepped={Hash(stepped.Render(Target))[..16]} " +
+                          $"skipped={Hash(skipping.Render(Target))[..16]}");
 
-        await Assert.That(Hash(stepped.Render(target))).IsEqualTo(reference)
+        await Assert.That(Hash(stepped.Render(Target))).IsEqualTo(reference)
             .Because("the layer holds no replay state, so 96 advances leave it exactly where one does");
-        await Assert.That(Hash(skipping.Render(target))).IsEqualTo(reference)
+        await Assert.That(Hash(skipping.Render(Target))).IsEqualTo(reference)
             .Because("a 30 fps export skips ticks; RevealedCount is continuous in the tick for this");
     }
 
@@ -301,11 +301,11 @@ public class RealTimeInkTests
     [Category("Budget")]
     public async Task OneRealTimeStroke_CostsAboutWhatSection4Costed()
     {
-        const int samples = 400;
+        const int Samples = 400;
 
-        using Fixture plain = Fixture.With(RealTimeFakes.Untimed(count: samples, width: 24f));
+        using Fixture plain = Fixture.With(RealTimeFakes.Untimed(count: Samples, width: 24f));
         using Fixture live = Fixture.With(RealTimeFakes.RealTime(
-            RealTimeFakes.Steady(samples, 260), 100, 64, 48, samples,
+            RealTimeFakes.Steady(Samples, 260), 100, 64, 48, Samples,
             24f));
 
         // Tick 228: the plain stroke, whole, in one draw. Tick 300: elapsed 200 of 260, so the real-time
@@ -314,7 +314,7 @@ public class RealTimeInkTests
         (double liveUs, long liveBytes) = Cost(live, 300);
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"[realtime] one {samples}-sample stroke at {_hd.Width}x{_hd.Height}: " +
+            $"[realtime] one {Samples}-sample stroke at {_hd.Width}x{_hd.Height}: " +
             $"plain {plainUs:F0} µs/frame {plainBytes} B/frame → " +
             $"real-time, body + 8 tail bands {liveUs:F0} µs/frame {liveBytes} B/frame"));
 
@@ -485,9 +485,8 @@ public class RealTimeInkTests
     {
         SKColor background = ScenePalette.Dark.Background;
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor p in pixels)
         {
-            SKColor p = pixels[i];
             if (p.Red != background.Red || p.Green != background.Green || p.Blue != background.Blue)
             {
                 count++;

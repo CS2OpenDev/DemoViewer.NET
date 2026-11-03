@@ -206,7 +206,7 @@ public class SceneFrameBuilderTests
         await Assert.That(frame.AreaEffects.Count(a => a.Kind == AreaEffectKind.Fire)).IsEqualTo(2);
         await Assert.That(frame.AreaEffects.Single(a => a.Kind == AreaEffectKind.Smoke).WorldRadius)
             .IsEqualTo(144f);
-        await Assert.That(frame.AreaEffects.Any(a => a.Kind == AreaEffectKind.Fire && a.WorldX == 5f))
+        await Assert.That(frame.AreaEffects.Any(a => a is { Kind: AreaEffectKind.Fire, WorldX: 5f }))
             .IsFalse();
     }
 

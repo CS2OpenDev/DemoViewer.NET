@@ -46,14 +46,14 @@ public class KillFeedTimelineTests
     [Test]
     public async Task AKillExactlyAtTheWindowsLowerEdge_HasExpired()
     {
-        const int tickRate = 64;
+        const int TickRate = 64;
         int nowTick = 10_000;
-        int lowTick = nowTick - KillFeedTimeline.DefaultWindowSeconds * tickRate;
+        int lowTick = nowTick - KillFeedTimeline.DefaultWindowSeconds * TickRate;
 
         List<KillFeedRow> all = [Kill(lowTick), Kill(lowTick + 1)];
         List<KillFeedRow> window = [];
 
-        KillFeedTimeline.Window(all, nowTick, tickRate, window);
+        KillFeedTimeline.Window(all, nowTick, TickRate, window);
 
         await Assert.That(window.Count).IsEqualTo(1);
         await Assert.That(window[0].Tick).IsEqualTo(lowTick + 1);

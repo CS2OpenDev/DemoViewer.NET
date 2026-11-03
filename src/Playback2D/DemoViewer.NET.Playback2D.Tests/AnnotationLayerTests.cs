@@ -533,9 +533,8 @@ public class AnnotationLayerTests
     {
         SKColor background = ScenePalette.Dark.Background;
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor p in pixels)
         {
-            SKColor p = pixels[i];
             if (p.Red != background.Red || p.Green != background.Green || p.Blue != background.Blue)
             {
                 count++;
@@ -574,13 +573,13 @@ public class AnnotationLayerTests
     {
         SKColor best = default;
         int bestSum = -1;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor pixel in pixels)
         {
-            int sum = pixels[i].Red + pixels[i].Green + pixels[i].Blue;
+            int sum = pixel.Red + pixel.Green + pixel.Blue;
             if (sum > bestSum)
             {
                 bestSum = sum;
-                best = pixels[i];
+                best = pixel;
             }
         }
 

@@ -96,7 +96,7 @@ public class FfmpegArgumentTests
     [Test]
     public async Task BuildingArguments_DoesNotTouchGlobalFfOptions()
     {
-        string? before = GlobalFFOptions.Current.BinaryFolder;
+        string before = GlobalFFOptions.Current.BinaryFolder;
         FfmpegFrameSink.DescribeArguments(Options(ExportFormats.WebM) with { BinaryFolder = "/somewhere/else" });
 
         // The binary folder is passed per invocation on purpose: GlobalFFOptions is process-global
@@ -324,15 +324,15 @@ public class ManagedGifSinkTests
     [Test]
     public async Task NoiseThatOverflowsTheCodeTable_RoundTripsExactly()
     {
-        const int size = 128;
-        byte[] first = Noise(size, size, 1);
+        const int Size = 128;
+        byte[] first = Noise(Size, Size, 1);
         byte[] second = (byte[])first.Clone();
         // A colour the noise never uses, so every pixel in the block changes.
-        Paint(second, size, 30, 20, 50, 40, (250, 250, 250));
-        byte[] fourth = Noise(size, size, 2);
+        Paint(second, Size, 30, 20, 50, 40, (250, 250, 250));
+        byte[] fourth = Noise(Size, Size, 2);
         byte[][] frames = [first, second, second, fourth];
 
-        byte[] file = await Encode(frames, size, size);
+        byte[] file = await Encode(frames, Size, Size);
         DecodedGif gif = GifTestDecoder.Decode(file);
 
         await Assert.That(gif.Frames.Count).IsEqualTo(4);
@@ -354,13 +354,13 @@ public class ManagedGifSinkTests
     [Test]
     public async Task MoreColoursThanThePaletteHolds_AreQuantizedClosely()
     {
-        const int width = 256, height = 64;
-        byte[] rgba = new byte[width * height * 4];
-        for (int y = 0; y < height; y++)
+        const int Width = 256, Height = 64;
+        byte[] rgba = new byte[Width * Height * 4];
+        for (int y = 0; y < Height; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (int x = 0; x < Width; x++)
             {
-                int i = ((y * width) + x) * 4;
+                int i = ((y * Width) + x) * 4;
                 rgba[i] = (byte)x;
                 rgba[i + 1] = (byte)(y * 4);
                 rgba[i + 2] = (byte)(255 - x);
@@ -368,7 +368,7 @@ public class ManagedGifSinkTests
             }
         }
 
-        DecodedGif gif = GifTestDecoder.Decode(await Encode([rgba], width, height));
+        DecodedGif gif = GifTestDecoder.Decode(await Encode([rgba], Width, Height));
         byte[] expected = Rgb(rgba);
         byte[] actual = gif.Frames[0].Rgb;
 

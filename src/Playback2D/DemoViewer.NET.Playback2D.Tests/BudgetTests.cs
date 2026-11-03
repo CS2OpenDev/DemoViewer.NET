@@ -384,9 +384,9 @@ public class BudgetTests
 
         foreach (string id in ids)
         {
-            for (int i = 0; i < layers.Count; i++)
+            foreach (ISceneLayer layer in layers)
             {
-                layers[i].IsEnabled = string.Equals(layers[i].Id, id, StringComparison.Ordinal);
+                layer.IsEnabled = string.Equals(layer.Id, id, StringComparison.Ordinal);
             }
 
             SceneTime time = fixture.Time;

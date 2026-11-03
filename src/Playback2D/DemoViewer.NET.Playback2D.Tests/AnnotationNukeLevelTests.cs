@@ -208,7 +208,7 @@ public class AnnotationNukeLevelTests
         return count;
     }
 
-    private static bool IsRed(SKColor p) => p.Red > 150 && p.Green < 90 && p.Blue < 90;
+    private static bool IsRed(SKColor p) => p is { Red: > 150, Green: < 90, Blue: < 90 };
 
-    private static bool IsGreen(SKColor p) => p.Green > 150 && p.Red < 90 && p.Blue < 90;
+    private static bool IsGreen(SKColor p) => p is { Green: > 150, Red: < 90, Blue: < 90 };
 }

@@ -136,7 +136,7 @@ public class ZoneOutlineLayerTests
         ZoneOverlayDocument overlay = new(1, null, null,
             [new ZoneOverlayZone("E-box", ZoneFixtures.Upper, [200, 0, 300, 0, 300, 100, 200, 100], null, null, false)],
             [], []);
-        ZoneSet effective = ZoneOverlayApplier.Apply(baked, overlay, Encoding.UTF8.GetBytes("{}"), "o").Effective;
+        ZoneSet effective = ZoneOverlayApplier.Apply(baked, overlay, "{}"u8, "o").Effective;
 
         using ZoneOutlineLayer layer = new(new PlaceResolver(baked)) { DrawLabels = false };
         SceneRenderContext ctx = TestContexts.For(Scene2DFrame.Empty, _camera, Width, Height);

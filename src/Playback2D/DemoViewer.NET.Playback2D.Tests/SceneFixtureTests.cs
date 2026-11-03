@@ -80,7 +80,7 @@ public class SceneFixtureTests
     [Test]
     public async Task Read_UnknownMember_IsPreservedOnWrite()
     {
-        const string json = """
+        const string Json = """
                             {
                               "schemaVersion": "playback2d-scene/1",
                               "futureThing": { "nested": [1, 2, 3] },
@@ -90,7 +90,7 @@ public class SceneFixtureTests
                             """;
 
         SceneFixture fixture;
-        using (MemoryStream input = new(Encoding.UTF8.GetBytes(json)))
+        using (MemoryStream input = new(Encoding.UTF8.GetBytes(Json)))
         {
             fixture = SceneFixtureSerializer.Read(input);
         }
@@ -108,9 +108,9 @@ public class SceneFixtureTests
     [Test]
     public async Task Read_MissingOptionalMembers_UsesDefaults()
     {
-        const string json = """{ "frame": { } }""";
+        const string Json = """{ "frame": { } }""";
 
-        using MemoryStream input = new(Encoding.UTF8.GetBytes(json));
+        using MemoryStream input = new(Encoding.UTF8.GetBytes(Json));
         SceneFixture fixture = SceneFixtureSerializer.Read(input);
 
         await Assert.That(fixture.SchemaVersion).IsEqualTo(SceneFixture.CurrentSchemaVersion);

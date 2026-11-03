@@ -167,14 +167,14 @@ public class ReviewRegressionTests
         GC.WaitForPendingFinalizers();
         GC.Collect(2, GCCollectionMode.Aggressive, true, true);
 
-        const int iterations = 256;
+        const int Iterations = 256;
         long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < iterations; i++)
+        for (int i = 0; i < Iterations; i++)
         {
             snapshot.Refresh(tracker);
         }
 
-        long perFrame = (GC.GetAllocatedBytesForCurrentThread() - before) / iterations;
+        long perFrame = (GC.GetAllocatedBytesForCurrentThread() - before) / Iterations;
 
         // 424 with the per-frame delegate, 360 without; a delegate is 64 bytes.
         await Assert.That(perFrame).IsLessThanOrEqualTo(384);
