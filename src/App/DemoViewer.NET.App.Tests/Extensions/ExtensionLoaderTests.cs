@@ -102,8 +102,7 @@ public class ExtensionLoaderTests
         {
             byte[] zip = UpdateFixtures.ExtensionZip(FakeId, "1.0.1");
             FakeFeeds.Entry entry = new("1.0.1", zip);
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Zips[entry.Url] = zip;
+            UpdateFixtures.FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
             ExtensionUpdateService updater = new(root, [UpdateFixtures.Status()], _host, _trustAll, client,
                 UpdateFixtures.FeedUrl);
 
@@ -111,7 +110,7 @@ public class ExtensionLoaderTests
                 await updater.DownloadAndStageAsync(ExtensionFeed.Parse(FakeFeeds.Json(entry)).Entries.Single());
             string inFlight = Path.Combine(root, "extensions", ExtensionStaging.StagingDirectoryName, FakeId, "1.0.2");
             Directory.CreateDirectory(inFlight);
-            File.WriteAllText(Path.Combine(inFlight, ExtensionManifest.FileName), ManifestJson(FakeId, "1.0.2"));
+            await File.WriteAllTextAsync(Path.Combine(inFlight, ExtensionManifest.FileName), ManifestJson(FakeId, "1.0.2"));
 
             ExtensionLoader.Discovery found = ExtensionLoader.Discover(Path.Combine(root, "extensions"));
             ExtensionLoader.Selection selection =
@@ -144,7 +143,7 @@ public class ExtensionLoaderTests
         {
             string outside = Path.Combine(root, "outside", "1.5.0");
             Directory.CreateDirectory(outside);
-            File.WriteAllText(Path.Combine(outside, ExtensionManifest.FileName), ManifestJson(FakeId, "1.5.0"));
+            await File.WriteAllTextAsync(Path.Combine(outside, ExtensionManifest.FileName), ManifestJson(FakeId, "1.5.0"));
             string idDir = Path.Combine(root, "extensions", FakeId);
             Directory.CreateDirectory(idDir);
             try
@@ -158,7 +157,7 @@ public class ExtensionLoaderTests
 
             string linkedManifestDir = Path.Combine(idDir, "1.6.0");
             Directory.CreateDirectory(linkedManifestDir);
-            File.WriteAllText(Path.Combine(root, "loose.json"), ManifestJson(FakeId, "1.6.0"));
+            await File.WriteAllTextAsync(Path.Combine(root, "loose.json"), ManifestJson(FakeId, "1.6.0"));
             File.CreateSymbolicLink(Path.Combine(linkedManifestDir, ExtensionManifest.FileName),
                 Path.Combine(root, "loose.json"));
 
@@ -510,7 +509,7 @@ public class ExtensionLoaderTests
         try
         {
             ExtensionCandidate staged = StageRealCopy(root, versionOverride: null);
-            File.WriteAllText(Path.Combine(staged.Directory, ExtensionSignature.FileName),
+            await File.WriteAllTextAsync(Path.Combine(staged.Directory, ExtensionSignature.FileName),
                 ExtensionSignature.Sign(staged.Directory, key));
             ShippedPack shipped = new(StratBookPack.PackId, static () => new StratBookPack(),
                 WriteShippedManifest(root, OlderThanBuilt));
@@ -541,11 +540,11 @@ public class ExtensionLoaderTests
         try
         {
             ExtensionCandidate staged = StageRealCopy(root, versionOverride: null);
-            File.WriteAllText(Path.Combine(staged.Directory, ExtensionSignature.FileName),
+            await File.WriteAllTextAsync(Path.Combine(staged.Directory, ExtensionSignature.FileName),
                 ExtensionSignature.Sign(staged.Directory, key));
-            byte[] dllBytes = File.ReadAllBytes(staged.AssemblyPath);
+            byte[] dllBytes = await File.ReadAllBytesAsync(staged.AssemblyPath);
             dllBytes[^1] ^= 0xFF;
-            File.WriteAllBytes(staged.AssemblyPath, dllBytes);
+            await File.WriteAllBytesAsync(staged.AssemblyPath, dllBytes);
             ShippedPack shipped = new(StratBookPack.PackId, static () => new StratBookPack(),
                 WriteShippedManifest(root, OlderThanBuilt));
 
@@ -618,7 +617,7 @@ public class ExtensionLoaderTests
         List<string> offenders = [];
         foreach (string file in Directory.EnumerateFiles(extension, "*.axaml", SearchOption.AllDirectories))
         {
-            string text = File.ReadAllText(file);
+            string text = await File.ReadAllTextAsync(file);
             if (text.Contains("avares://", StringComparison.Ordinal)
                 || text.Contains(";assembly=", StringComparison.Ordinal))
             {
@@ -634,7 +633,7 @@ public class ExtensionLoaderTests
                 continue;
             }
 
-            string text = File.ReadAllText(file);
+            string text = await File.ReadAllTextAsync(file);
             if (text.Contains("Type.GetType(", StringComparison.Ordinal)
                 || text.Contains("Assembly.Load(", StringComparison.Ordinal)
                 || text.Contains("Assembly.LoadFrom(", StringComparison.Ordinal)

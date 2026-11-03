@@ -62,9 +62,9 @@ public class CollisionSoupTests
         string plain = Path.Combine(Path.GetTempPath(), $"soup-{Guid.NewGuid():N}.tris");
         try
         {
-            using (FileStream src = File.OpenRead(gz))
-            using (GZipStream inflate = new(src, CompressionMode.Decompress))
-            using (FileStream dst = File.Create(plain))
+            await using (FileStream src = File.OpenRead(gz))
+            await using (GZipStream inflate = new(src, CompressionMode.Decompress))
+            await using (FileStream dst = File.Create(plain))
             {
                 await inflate.CopyToAsync(dst);
             }

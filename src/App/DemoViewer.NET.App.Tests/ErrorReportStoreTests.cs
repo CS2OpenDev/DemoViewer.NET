@@ -307,7 +307,7 @@ public class ErrorReportStoreTests
                 await Assert.That(read!.Notes).IsEqualTo("round 18 never closes");
                 await Assert.That(read.CreatedUtcTicks).IsEqualTo(_first.Ticks);
                 await Assert.That(read.UpdatedUtcTicks).IsEqualTo(_first.Ticks);
-                await Assert.That(read.Snapshot?.DemoPath).IsEqualTo(demo)
+                await Assert.That(read.Snapshot.DemoPath).IsEqualTo(demo)
                     .Because("the snapshot is the half that makes a report reproducible");
             }
         }

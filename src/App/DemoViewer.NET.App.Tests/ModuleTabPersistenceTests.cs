@@ -213,7 +213,6 @@ public class ModuleTabPersistenceTests
     {
         public FakeState State { get; set; } = new([], 0);
         public int RestoreCalls { get; private set; }
-        public object? LastRestorePayload { get; private set; }
 
         public void OnActivated(IModuleContext context)
         {
@@ -228,7 +227,6 @@ public class ModuleTabPersistenceTests
         public void RestoreState(object? state)
         {
             RestoreCalls++;
-            LastRestorePayload = state;
 
             // The contract: what comes back is a JsonElement, not the record that went in.
             if (state is JsonElement element

@@ -72,7 +72,7 @@ public class TutorialSettingsReplayTests
         {
             int started = 0;
             (SettingsViewModel vm, ServiceProvider sp) = NewVm(dir, () => started++);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(vm.CanReplayWalkthrough).IsTrue()
                     .Because("a starter action was wired (the desktop host)");
@@ -102,7 +102,7 @@ public class TutorialSettingsReplayTests
         try
         {
             (SettingsViewModel vm, ServiceProvider sp) = NewVm(dir, null);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(vm.CanReplayWalkthrough).IsFalse()
                     .Because("no starter was wired — the affordance is hidden (WASM / degraded host)");

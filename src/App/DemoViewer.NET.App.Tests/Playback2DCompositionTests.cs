@@ -281,7 +281,7 @@ public class Playback2DCompositionTests
         }
 
         return ctors[0].GetParameters()
-            .Where(p => p is { IsOptional: true, HasDefaultValue: true } && p.DefaultValue is null)
+            .Where(p => p is { IsOptional: true, HasDefaultValue: true, DefaultValue: null })
             .ToArray();
     }
 

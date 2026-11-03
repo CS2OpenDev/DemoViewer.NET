@@ -29,7 +29,7 @@ public class SprayDrilldownTests
     [Test]
     public async Task Drilldown_OffersWeaponsAndRuns_ForAPlayerWhoSprayed()
     {
-        (StatsTabViewModel vm, _) = BuildTab();
+        StatsTabViewModel vm = BuildTab();
 
         // Pick a player the sampler actually found sprays for, rather than assuming row 0 did.
         SprayModel model = SpraySampler.Sample(vm.LoadedDemo!);
@@ -43,7 +43,7 @@ public class SprayDrilldownTests
         vm.OpenPlayerDetailsCommand.Execute(row);
         PlayerDetailsViewModel details = vm.PlayerDetails!;
 
-        await details.Spray.UntilAsync(() => !details.Spray.IsBusy && details.Spray.Weapons.Count > 0);
+        await details.Spray.UntilAsync(() => details.Spray is { IsBusy: false, Weapons.Count: > 0 });
 
         await Assert.That(details.Spray.HasData).IsTrue()
             .Because($"slot {slot} has {model.Players.First(p => p.Slot == slot).Runs.Count} runs");
@@ -58,18 +58,18 @@ public class SprayDrilldownTests
     [Test]
     public async Task Drilldown_TrackTarget_ChangesTheGeometry()
     {
-        (StatsTabViewModel vm, _) = BuildTab();
+        StatsTabViewModel vm = BuildTab();
 
         SprayModel anchored = SpraySampler.Sample(vm.LoadedDemo!);
         int slot = anchored.Players.OrderByDescending(p => p.Runs.Count).First().Slot;
         vm.OpenPlayerDetailsCommand.Execute(vm.GameRows.First(r => r.PlayerSlot == slot));
         PlayerDetailsViewModel details = vm.PlayerDetails!;
 
-        await details.Spray.UntilAsync(() => !details.Spray.IsBusy && details.Spray.Weapons.Count > 0);
+        await details.Spray.UntilAsync(() => details.Spray is { IsBusy: false, Weapons.Count: > 0 });
         float anchoredFirst = details.Spray.Shots[0].OffsetYawDeg;
 
         details.Spray.TrackTarget = true;
-        await details.Spray.UntilAsync(() => !details.Spray.IsBusy && details.Spray.Weapons.Count > 0);
+        await details.Spray.UntilAsync(() => details.Spray is { IsBusy: false, Weapons.Count: > 0 });
 
         // The anchored mode's first shot IS the origin, so its offset is zero by construction. The
         // tracking mode measures from the victim, so it cannot also be zero unless the bullet landed
@@ -89,7 +89,7 @@ public class SprayDrilldownTests
             .Because("the run list must be rebuilt from the tracking model, not left on the anchored one");
     }
 
-    private static (StatsTabViewModel Vm, ParsedDemo Demo) BuildTab()
+    private static StatsTabViewModel BuildTab()
     {
         string path = DemoTestHelper.RequireDemo();
         ParsedDemo demo = DemoTestHelper.GetOrParse(path);
@@ -107,6 +107,6 @@ public class SprayDrilldownTests
         AnalysisRun run = DemoAnalysis.Evaluate(demo, build, new AnalysisOptions());
         StatsTabViewModel vm = new(null, () => path);
         vm.UpdateFromRun(run, demo);
-        return (vm, demo);
+        return vm;
     }
 }

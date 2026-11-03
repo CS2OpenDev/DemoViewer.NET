@@ -81,11 +81,11 @@ public class RuleLayersTests
         string user = Directory.CreateTempSubdirectory("dv-layers-user-").FullName;
         try
         {
-            File.WriteAllText(Path.Combine(user, "override.rules.yaml"), Yaml(Id("kills"), "layer_kills", "UserKills"));
+            await File.WriteAllTextAsync(Path.Combine(user, "override.rules.yaml"), Yaml(Id("kills"), "layer_kills", "UserKills"));
             RuleConfigLoadResult overridden = Load(user, Contributed(Id("kills"), Yaml(Id("kills"), "layer_kills")));
             RulesetDoc doc = overridden.Rulesets.Single(r => r.Id == Id("kills"));
 
-            File.WriteAllText(Path.Combine(user, "override.rules.yaml"), $"ruleset: {Id("kills")}\nenabled: false\n");
+            await File.WriteAllTextAsync(Path.Combine(user, "override.rules.yaml"), $"ruleset: {Id("kills")}\nenabled: false\n");
             RuleConfigLoadResult disabled = Load(user, Contributed(Id("kills"), Yaml(Id("kills"), "layer_kills")));
 
             using (Assert.Multiple())

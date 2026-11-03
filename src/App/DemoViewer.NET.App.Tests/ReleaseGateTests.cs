@@ -147,7 +147,7 @@ public class ReleaseGateTests
             // The user tier: two additive v2 rulesets with constant compute stats (deterministic
             // assertions), plus a leftover retired-v1 `chains:` file (the containment case: it
             // must error loudly and legibly without breaking the rest of the tier).
-            File.WriteAllText(Path.Combine(userDir, "journey-check.rules.yaml"), """
+            await File.WriteAllTextAsync(Path.Combine(userDir, "journey-check.rules.yaml"), """
                 ruleset: journey_check_rs
                 for: each_player
                 stats:
@@ -159,7 +159,7 @@ public class ReleaseGateTests
                   scoreboard:
                     - { stat: journey_check, label: JourneyCheck }
                 """);
-            File.WriteAllText(Path.Combine(userDir, "journey-new.rules.yaml"), """
+            await File.WriteAllTextAsync(Path.Combine(userDir, "journey-new.rules.yaml"), """
                                                                                ruleset: journey_new
                                                                                for: each_player
                                                                                stats:
@@ -176,7 +176,7 @@ public class ReleaseGateTests
                                                                                      columns:
                                                                                        - { stat: journey_new_stat, label: JourneyOut }
                                                                                """);
-            File.WriteAllText(Path.Combine(userDir, "broken.yaml"),
+            await File.WriteAllTextAsync(Path.Combine(userDir, "broken.yaml"),
                 "chains:\n  - id: journey_broken\n    scope: per_player\n    rules:\n      - id: r1\n        type: bool\n");
 
             // Resolution plumbing: with both env overrides set, the locator points at exactly

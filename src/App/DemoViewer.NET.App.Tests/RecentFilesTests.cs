@@ -178,7 +178,7 @@ public class RecentFilesTests
         string dir = NewConfigDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), """
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), """
                                                                   {
                                                                     "Recents": [
                                                                       { "Path": "/demos/old.dem", "MapName": "de_inferno", "OpenedAtUtc": "2026-09-01T10:00:00Z" }
@@ -209,7 +209,7 @@ public class RecentFilesTests
         string dir = NewConfigDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), """
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), """
                                                                   {
                                                                     "Recents": [
                                                                       { "Path": "/smb/m.dem", "MapName": null, "OpenedAtUtc": "2026-09-02T10:00:00Z", "Sha256": "sha-m" },
@@ -236,7 +236,7 @@ public class RecentFilesTests
         string file = Path.Combine(dir, "settings.json");
         try
         {
-            File.WriteAllText(file, """
+            await File.WriteAllTextAsync(file, """
                                     {
                                       "Theme": "Light",
                                       "Recents": [
@@ -249,15 +249,15 @@ public class RecentFilesTests
                                     """);
 
             _ = NewStore(dir);
-            JsonObject migrated = (JsonObject)JsonNode.Parse(File.ReadAllText(file))!;
+            JsonObject migrated = (JsonObject)JsonNode.Parse(await File.ReadAllTextAsync(file))!;
             await Assert.That((int)migrated["RecentsVersion"]!).IsEqualTo(SettingsService.RecentsFormatVersion);
             await Assert.That(migrated["Recents"]!.AsArray().Select(r => (string)r!["Path"]!))
                 .IsEquivalentTo(["/smb/m.dem", "/nfs/X.dem"], CollectionOrdering.Matching);
             await Assert.That((string)migrated["Theme"]!).IsEqualTo("Light");
 
-            string after = File.ReadAllText(file);
+            string after = await File.ReadAllTextAsync(file);
             _ = NewStore(dir);
-            await Assert.That(File.ReadAllText(file)).IsEqualTo(after).Because("a stamped section is not rewritten");
+            await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(after).Because("a stamped section is not rewritten");
         }
         finally
         {
@@ -287,7 +287,7 @@ public class RecentFilesTests
         string dir = NewConfigDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "recent-files.json"), """
+            await File.WriteAllTextAsync(Path.Combine(dir, "recent-files.json"), """
                                                                       [ { "Path": "/demos/legacy.dem", "MapName": "de_nuke", "OpenedAtUtc": "2026-09-01T10:00:00Z" } ]
                                                                       """);
 
@@ -315,9 +315,9 @@ public class RecentFilesTests
             await Assert.That(new SettingsService(dir).LoadRecentsVersion())
                 .IsEqualTo(SettingsService.RecentsFormatVersion);
 
-            JsonObject newer = (JsonObject)JsonNode.Parse(File.ReadAllText(file))!;
+            JsonObject newer = (JsonObject)JsonNode.Parse(await File.ReadAllTextAsync(file))!;
             newer["RecentsVersion"] = SettingsService.RecentsFormatVersion + 1;
-            File.WriteAllText(file, newer.ToJsonString());
+            await File.WriteAllTextAsync(file, newer.ToJsonString());
             NewStore(dir).RecordOpen("/demos/b.dem", null);
             await Assert.That(new SettingsService(dir).LoadRecentsVersion())
                 .IsEqualTo(SettingsService.RecentsFormatVersion + 1);
@@ -358,7 +358,7 @@ public class RecentFilesTests
     {
         string dir = NewConfigDir();
         string realDemo = TempFilePath(); // any real file: OpenRecent only File.Exists-checks it
-        File.WriteAllText(realDemo, "x");
+        await File.WriteAllTextAsync(realDemo, "x");
         try
         {
             RecentFilesStore store = NewStore(dir);
@@ -394,7 +394,7 @@ public class RecentFilesTests
     {
         string dir = NewConfigDir();
         string realDemo = TempFilePath();
-        File.WriteAllText(realDemo, "x");
+        await File.WriteAllTextAsync(realDemo, "x");
         try
         {
             RecentFilesStore store = NewStore(dir);
@@ -459,7 +459,7 @@ public class RecentFilesTests
     {
         string dir = NewConfigDir();
         string moved = TempFilePath();
-        File.WriteAllText(moved, "x");
+        await File.WriteAllTextAsync(moved, "x");
         const string Gone = "/nfs/demos/gone.dem";
         try
         {

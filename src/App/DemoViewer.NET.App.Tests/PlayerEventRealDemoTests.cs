@@ -36,7 +36,7 @@ public class PlayerEventRealDemoTests
                     ["steam_id"] =
                         FactValue.Of(string.Create(CultureInfo.InvariantCulture, $"765611900000000{slot:00}"))
                 };
-                rows.Add(new FactRow(dimensions, real.Values));
+                rows.Add(real with { Dimensions = dimensions });
             }
 
             string path = PlayerEventFacetTests.SamplePath(repo, table.Key.Output);

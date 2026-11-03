@@ -467,9 +467,9 @@ public class DemoCachePackPayloadTests
     {
         DemoCacheRecord record = AllFacets(1, roundFacts, roundIndex, suggestions);
         JsonObject json = JsonSerializer.SerializeToNode(record)!.AsObject();
-        JsonNode? payload = json["Packs"]!["net.demoviewer.pack.stratbook"]!.DeepClone();
+        JsonNode payload = json["Packs"]!["net.demoviewer.pack.stratbook"]!.DeepClone();
         json.Remove("Packs");
-        JsonObject old = OldShape(json, record.PackStamps, payload!.AsObject());
+        JsonObject old = OldShape(json, record.PackStamps, payload.AsObject());
         return (Gzip(old.ToJsonString()), Gzip(JsonSerializer.Serialize(record)));
     }
 
@@ -656,8 +656,8 @@ public class DemoCachePackPayloadTests
 
     private sealed class FakePayload
     {
-        public string Name { get; set; } = "";
-        public List<int> Values { get; set; } = [];
+        public string Name { get; init; } = "";
+        public List<int> Values { get; init; } = [];
     }
 
     private sealed class NoRows : IRoundFactsRowSource
@@ -667,7 +667,7 @@ public class DemoCachePackPayloadTests
 
     private sealed class FixedIdentity(string value) : IRoundFactsRulesetIdentity
     {
-        public string? Fingerprint(int tickRate) => value;
+        public string Fingerprint(int tickRate) => value;
     }
 
     // A pack evaluator as core sees one: it wants a demo from the index row's stamp and stamps on its write.

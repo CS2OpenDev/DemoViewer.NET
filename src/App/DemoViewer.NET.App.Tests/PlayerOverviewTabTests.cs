@@ -216,7 +216,7 @@ public class PlayerOverviewTabTests
                 svc.Write(s => s.UserCategory = UserCategory.Consumer);
                 ServiceCollection services = new();
                 services.Configure<AppSettings>(svc.Configuration);
-                using ServiceProvider sp = services.BuildServiceProvider();
+                await using ServiceProvider sp = services.BuildServiceProvider();
                 using FeatureGate gate = new(sp.GetRequiredService<IOptionsMonitor<AppSettings>>(), false);
                 using IdentityService identity = Identity(Me);
                 MainViewModel vm = new(null, new ModuleRegistry(), TestLibraries.Empty(), gate: gate,
@@ -585,7 +585,7 @@ public class PlayerOverviewTabTests
         using PlayerOverviewTabViewModel vm = Shown(Library(2, 1), identity, new FakeQueue());
         vm.ShowPage(PlayerOverviewPageKind.Achievements);
         vm.OpenPlayer(Other);
-        object? blob = JsonSerializer.SerializeToElement(vm.SnapshotState());
+        object blob = JsonSerializer.SerializeToElement(vm.SnapshotState());
 
         using PlayerOverviewTabViewModel restored = Shown(Library(2, 1), identity, new FakeQueue());
         restored.RestoreState(blob);
@@ -689,7 +689,7 @@ public class PlayerOverviewTabTests
         using PlayerOverviewTabViewModel vm = Shown(TwinLibrary(), identity);
         vm.SearchText = "twin";
         await Assert.That(vm.Candidates.Select(c => c.SteamId64).ToArray())
-            .IsEquivalentTo(new[] { Other, Alt }, CollectionOrdering.Matching);
+            .IsEquivalentTo([Other, Alt], CollectionOrdering.Matching);
         await Assert.That(vm.Candidates[0].Demos).IsEqualTo("3 demos");
         vm.SubmitSearchCommand.Execute(null);
         await Assert.That(vm.SubjectSteamId64).IsEqualTo(Me).Because("two candidates are not opened by Enter");
@@ -757,8 +757,8 @@ public class PlayerOverviewTabTests
         public int MaxQueueSize { get; set; } = 200;
         public bool BackgroundEnabled { get; set; } = true;
         public bool IsPaused { get; private set; }
-        public int QueuedCount { get; set; }
-        public int RunningCount { get; set; }
+        public int QueuedCount { get; init; }
+        public int RunningCount { get; }
 
         public void SetPaused(bool paused)
         {

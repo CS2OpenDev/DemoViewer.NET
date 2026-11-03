@@ -237,7 +237,7 @@ public class DemoLibraryCacheRepairTests
 
             // Launch 2: press the button.
             int parses = 0;
-            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), path =>
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), _ =>
             {
                 Interlocked.Increment(ref parses);
                 return ScorelessDemo();
@@ -299,7 +299,7 @@ public class DemoLibraryCacheRepairTests
         {
             File.WriteAllBytes(Path.Combine(dir, "warmup.dem"), [1, 2, 3]);
             string dataPath = Path.Combine(dir, "library.json");
-            File.WriteAllText(dataPath,
+            await File.WriteAllTextAsync(dataPath,
                 JsonSerializer.Serialize(new DemoLibraryData
                 {
                     SchemaVersion = DemoLibraryCacheEntry.CurrentSchema, Folders = [dir], Cache = []
@@ -459,7 +459,7 @@ public class DemoLibraryCacheRepairTests
         {
             File.WriteAllBytes(Path.Combine(dir, "rounds.dem"), [1, 2, 3]);
             string dataPath = Path.Combine(dir, "library.json");
-            File.WriteAllText(dataPath,
+            await File.WriteAllTextAsync(dataPath,
                 JsonSerializer.Serialize(new DemoLibraryData
                 {
                     SchemaVersion = DemoLibraryCacheEntry.CurrentSchema, Folders = [dir], Cache = []

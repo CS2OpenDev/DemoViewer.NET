@@ -117,7 +117,7 @@ public class BackgroundPlanRealDemoTests
         List<string> players =
         [
             .. parsed.Players.Values
-                .Where(p => !p.IsBot && !p.IsHltv && !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct()
+                .Where(p => p is { IsBot: false, IsHltv: false } && !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct()
         ];
         (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coaches) =
             DemoLibraryService.ExtractFinalState(parsed);

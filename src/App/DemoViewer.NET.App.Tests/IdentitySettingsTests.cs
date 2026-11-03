@@ -74,12 +74,12 @@ public class IdentitySettingsTests
         try
         {
             WriteSample(new SettingsService(dir));
-            string json = SectionOf(File.ReadAllText(Path.Combine(dir, "settings.json")));
+            string json = SectionOf(await File.ReadAllTextAsync(Path.Combine(dir, "settings.json")));
             string path = Path.Combine(repo, "tests", "fixtures", "identity", "settings.identity.sample.json");
             if (Environment.GetEnvironmentVariable("IDENTITY_GOLDEN_UPDATE") == "1")
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                File.WriteAllText(path, json);
+                await File.WriteAllTextAsync(path, json);
             }
 
             if (!File.Exists(path))
@@ -87,9 +87,9 @@ public class IdentitySettingsTests
                 throw new SkipTestException("missing the identity sample; regenerate with IDENTITY_GOLDEN_UPDATE=1");
             }
 
-            string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
             // The committed sample as a whole settings file, read through the binder the app reads it with.
-            File.WriteAllText(Path.Combine(back, "settings.json"), committed);
+            await File.WriteAllTextAsync(Path.Combine(back, "settings.json"), committed);
             SettingsService settings = new(back);
             using IdentityService identity = new(settings);
             IdentityAccount account = identity.Accounts.Single();
@@ -113,7 +113,7 @@ public class IdentitySettingsTests
             // A write through the service over the read-back file leaves the section as committed.
             identity.SetActive(Main);
             identity.SetAccounts([.. identity.Accounts]);
-            await Assert.That(SectionOf(File.ReadAllText(Path.Combine(back, "settings.json")))).IsEqualTo(committed)
+            await Assert.That(SectionOf(await File.ReadAllTextAsync(Path.Combine(back, "settings.json")))).IsEqualTo(committed)
                 .Because("round trip");
         }
         finally

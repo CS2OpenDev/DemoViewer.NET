@@ -214,7 +214,7 @@ public class DemoCacheStoreTests
             // Sidecars are written eagerly by Upsert; the index is deferred (that is the whole point of the
             // split), so a pass must close with SaveIndex or its rows are not on disk to reload.
             store.SaveIndex();
-            File.WriteAllText(store.SidecarPathFor("/demos/d.dem")!, "{ this is not json");
+            await File.WriteAllTextAsync(store.SidecarPathFor("/demos/d.dem")!, "{ this is not json");
 
             DemoCacheStore reopened = new(root);
             using (Assert.Multiple())
@@ -239,7 +239,7 @@ public class DemoCacheStoreTests
             DemoCacheStore store = new(root);
             store.Upsert(Record("/demos/e.dem"));
             store.SaveIndex();
-            File.WriteAllText(Path.Combine(root, "index.json"), "]]not json[[");
+            await File.WriteAllTextAsync(Path.Combine(root, "index.json"), "]]not json[[");
 
             DemoCacheStore reopened = new(root);
             await Assert.That(reopened.Count).IsEqualTo(1);
@@ -310,7 +310,7 @@ public class DemoCacheStoreTests
         {
             DemoCacheStore store = new(root);
             List<string?> paths = [];
-            store.Changed += p => paths.Add(p);
+            store.Changed += paths.Add;
 
             store.Upsert(Record("/demos/one.dem"));
             store.Upsert(Record("/demos/two.dem"));
@@ -356,7 +356,7 @@ public class DemoCacheStoreTests
             }
 
             // Mutating what a reader was given must not reach the store or any later reader.
-            first!.Players.Clear();
+            first.Players.Clear();
             first.CtScore = 999;
 
             DemoCacheRecord? third = store.TryLoadRecord("/demos/iso.dem");

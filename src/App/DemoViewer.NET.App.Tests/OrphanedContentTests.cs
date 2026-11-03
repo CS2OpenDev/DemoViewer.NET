@@ -400,7 +400,7 @@ public class OrphanedContentTests
                 .IsEqualTo(1);
             foreach ((string file, byte[] bytes) in kept)
             {
-                File.WriteAllBytes(file, bytes);
+                await File.WriteAllBytesAsync(file, bytes);
             }
 
             DemoCacheStore reopened = new(root);
@@ -445,7 +445,7 @@ public class OrphanedContentTests
             string index = Path.Combine(root, "index.json");
             if (corrupt)
             {
-                File.WriteAllText(index, "{ \"Version\": 6, \"Entr");
+                await File.WriteAllTextAsync(index, "{ \"Version\": 6, \"Entr");
             }
             else
             {
@@ -510,15 +510,15 @@ public class OrphanedContentTests
             first.Upsert(Analysed("/m/a.dem", "sha-a"));
             first.SaveIndex();
             string index = Path.Combine(root, "index.json");
-            string v5 = File.ReadAllText(index).Replace("\"Version\":6", "\"Version\":5", StringComparison.Ordinal);
-            File.WriteAllText(index, v5);
+            string v5 = (await File.ReadAllTextAsync(index)).Replace("\"Version\":6", "\"Version\":5", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(index, v5);
 
             DemoCacheStore store = new(root);
             await Assert.That(store.TryGetByContentId("sha-a")).IsNotNull();
             store.Detach("/m/a.dem");
             store.SaveIndex();
 
-            using JsonDocument saved = JsonDocument.Parse(File.ReadAllText(index));
+            using JsonDocument saved = JsonDocument.Parse(await File.ReadAllTextAsync(index));
             using (Assert.Multiple())
             {
                 await Assert.That(saved.RootElement.GetProperty("Version").GetInt32()).IsEqualTo(6);

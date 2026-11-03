@@ -135,7 +135,7 @@ public class ExtensionIdentityTests
 
             service.SetAccounts([Account(A), Account(B)]);
             string[] inSettings = [.. new SettingsService(dir).Current.Identity.Accounts.Select(a => a.SteamId64)];
-            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(teamsPath), TeamsFile.JsonOptions)!;
+            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(teamsPath), TeamsFile.JsonOptions)!;
             using (Assert.Multiple())
             {
                 await Assert.That(inSettings).IsEquivalentTo([A, B], CollectionOrdering.Matching);
@@ -146,7 +146,7 @@ public class ExtensionIdentityTests
             }
 
             service.SetAccounts([Account(B)]);
-            file = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(teamsPath), TeamsFile.JsonOptions)!;
+            file = JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(teamsPath), TeamsFile.JsonOptions)!;
             using (Assert.Multiple())
             {
                 await Assert.That(file.Me.SteamIds).IsEquivalentTo([B], CollectionOrdering.Matching);

@@ -40,12 +40,12 @@ public class SceneViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
             await Assert.That(host.CurrentSceneFrame).IsSameReferenceAs(source.Frame);
-            Scene2DFrame next = Frame(2);
+            Scene2DFrame next = FrameAt(2);
             source.Publish(next);
             Playback2DTimelineHarness.Pump();
 
@@ -74,7 +74,7 @@ public class SceneViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
@@ -107,7 +107,7 @@ public class SceneViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
@@ -150,7 +150,7 @@ public class SceneViewTests
                 // this assembly being what the rig's scope owns.
                 SceneViewHost.Factory = () => new HostedSceneView(rig.Faults);
                 FakeSource source = new();
-                source.Publish(Frame(1));
+                source.Publish(FrameAt(1));
                 (Window window, SceneView view) = Mount(source);
                 Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
@@ -181,7 +181,7 @@ public class SceneViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
@@ -214,7 +214,7 @@ public class SceneViewTests
         {
             SdkSceneHosts.Install();
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             SceneView view = new() { Source = source };
             int arranged = 0;
             view.PanesArranged += (_, _) => arranged++;
@@ -242,7 +242,7 @@ public class SceneViewTests
         {
             SdkSceneHosts.Install();
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
 
             RecordingMapTool tool = new();
@@ -303,7 +303,7 @@ public class SceneViewTests
             SdkSceneHosts.Install();
             SceneView view = new() { Source = new FakeSource() };
             ArgumentException refused =
-                Assert.Throws<ArgumentException>(() => view.AddLayer(id, () => new InertLayer(id)))!;
+                Assert.Throws<ArgumentException>(() => view.AddLayer(id, () => new InertLayer(id)));
             await Assert.That(refused.ParamName).IsEqualTo("id");
         });
     }
@@ -487,7 +487,7 @@ public class SceneViewTests
         return (window, view);
     }
 
-    private static Scene2DFrame Frame(int tick) => new()
+    private static Scene2DFrame FrameAt(int tick) => new()
     {
         Time = new SceneTime(tick, tick, tick / 64.0, 1 / 64.0, true),
         Markers =
@@ -593,13 +593,13 @@ public class SceneViewTests
     {
         public Scene2DFrame Frame => throw new InvalidOperationException("frame");
 
-        public IMapAsset? MapAsset => throw new InvalidOperationException("map");
+        public IMapAsset MapAsset => throw new InvalidOperationException("map");
 
-        public AnnotationSession? Ink => throw new InvalidOperationException("ink");
+        public AnnotationSession Ink => throw new InvalidOperationException("ink");
 
         public bool ShowViewCones => throw new InvalidOperationException("cones");
 
-        public ITokenEditor? TokenEditor => throw new InvalidOperationException("tokens");
+        public ITokenEditor TokenEditor => throw new InvalidOperationException("tokens");
 
         public event Action? FrameUpdated
         {

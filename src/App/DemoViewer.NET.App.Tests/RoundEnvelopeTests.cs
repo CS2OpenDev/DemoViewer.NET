@@ -148,10 +148,11 @@ public class RoundEnvelopeTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            Playback2DFakeContext ctx = new() { Gate = new FakeModuleFeatureGate() };
-
             // The name is indexed (AvailableEventNames unions both maps) but no decoded event exists.
-            ctx.Frames[RoundTrack.FreezeEndEvent] = [50, 350];
+            Playback2DFakeContext ctx = new()
+            {
+                Gate = new FakeModuleFeatureGate(), Frames = { [RoundTrack.FreezeEndEvent] = [50, 350] }
+            };
 
             Playback2DTabViewModel vm = new();
             vm.OnActivated(ctx);
@@ -262,12 +263,11 @@ public class RoundEnvelopeTests
     // event TIMELINE (not the frame index), so the rounds have to be here and not only in ctx.Frames.
     private static Playback2DTabViewModel RoundedTab()
     {
-        Playback2DFakeContext ctx = new() { Gate = new FakeModuleFeatureGate() };
-
-        ctx.Timelines[RoundTrack.FreezeEndEvent] =
-        [
-            Freeze(Round1), Freeze(Round2), Freeze(Round3)
-        ];
+        Playback2DFakeContext ctx = new()
+        {
+            Gate = new FakeModuleFeatureGate(),
+            Timelines = { [RoundTrack.FreezeEndEvent] = [Freeze(Round1), Freeze(Round2), Freeze(Round3)] }
+        };
 
         Playback2DTabViewModel vm = new();
         vm.OnActivated(ctx);

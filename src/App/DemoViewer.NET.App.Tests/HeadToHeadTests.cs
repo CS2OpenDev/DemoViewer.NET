@@ -174,9 +174,9 @@ public class HeadToHeadTests
         }
 
         public DemoCacheStore Store { get; }
-        public PlayerDirectory Directory { get; }
-        public IdentityService Identity { get; }
-        public PlayerOverviewServices Services { get; }
+        private PlayerDirectory Directory { get; }
+        private IdentityService Identity { get; }
+        private PlayerOverviewServices Services { get; }
         public HeadToHeadSectionViewModel Section { get; }
         public ConcurrentQueue<string> Reads { get; } = new();
 

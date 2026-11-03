@@ -303,17 +303,12 @@ public class Playback2DLaneHostingTests
     {
         (Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab();
         int aRuns = 0;
-        int bRuns = 0;
         ToolbarItem a = new("a", "A", "tip a", _ =>
         {
             aRuns++;
             return true;
         }, order: 10);
-        ToolbarItem b = new("b", "B", "tip b", _ =>
-        {
-            bRuns++;
-            return true;
-        }, order: 0);
+        ToolbarItem b = new("b", "B", "tip b", _ => true, order: 0);
 
         IDisposable regA = vm.Surface.AddToolbarItem(a);
         using (Assert.Multiple())
@@ -519,8 +514,6 @@ public class Playback2DLaneHostingTests
             [.. bands.Select(b => new TimelineBand(id, b.Start, b.End, id, id, 0u))];
 
         public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
-
-        public void Raise() => _changed?.Invoke();
     }
 
     private sealed class FakeBehaviour(string name) : IHostLaneBehaviour
@@ -532,14 +525,12 @@ public class Playback2DLaneHostingTests
         public void OnBandPressed(TimelineBandViewModel band, ITimelineData data) => Pressed.Add(band.StartFrameIndex);
 
         public IEnumerable<MenuEntry> MenuFor(TimelineBandViewModel band, ITimelineData data) =>
-            [new MenuEntry($"{name}:{band.StartFrameIndex}", () => { })];
+            [new($"{name}:{band.StartFrameIndex}", () => { })];
 
         public void OnLabelRequested(int frame) => Labels.Add(frame);
 
         public void OnEditSpanDragged(int startFrame, int endFrame) => Dragged.Add((startFrame, endFrame));
     }
 
-    private sealed class FakePanelViewModel : ViewModelBase
-    {
-    }
+    private sealed class FakePanelViewModel : ViewModelBase;
 }

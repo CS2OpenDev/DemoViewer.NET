@@ -165,7 +165,7 @@ public class AnalysisFactsRealDemoTests
                     .Because("it loads, so this reaches the build");
                 await Assert.That(wanted).IsTrue();
                 await Assert.That(first)
-                    .IsEquivalentTo(new[] { RoundFactsFingerprint.RulesetId, AnalysisFactsTests.FactsTable },
+                    .IsEquivalentTo([RoundFactsFingerprint.RulesetId, AnalysisFactsTests.FactsTable],
                         CollectionOrdering.Matching)
                     .Because("the broken ruleset has no fingerprint, so nothing reads for it");
                 await Assert.That(library.Declared).Contains(key);

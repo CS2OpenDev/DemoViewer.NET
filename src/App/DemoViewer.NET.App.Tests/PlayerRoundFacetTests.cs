@@ -46,7 +46,7 @@ public class PlayerRoundFacetTests
                 ["steam_id"] =
                     FactValue.Of(string.Create(CultureInfo.InvariantCulture, $"765611900000000{slot:00}"))
             };
-            rows.Add(new FactRow(dimensions, real.Values));
+            rows.Add(real with { Dimensions = dimensions });
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -90,7 +90,7 @@ public class PlayerRoundFacetTests
         }
 
         MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, null));
-        string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         FactTable? table = FactsCodec.Decode(PlayerMatchFacetTests.Gzip(committed));
         IReadOnlyList<string> declared =
         [

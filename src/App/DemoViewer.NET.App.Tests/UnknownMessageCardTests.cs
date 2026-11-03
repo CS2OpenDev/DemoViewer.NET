@@ -197,7 +197,7 @@ public sealed class DemoCensus
         // the bag is concurrent.
         ConcurrentBag<UnknownMessageInfo> bag = new();
         ParsedDemo demo =
-            DemoParser.Parse(bytes.AsMemory(), new ParseOptions { OnUnknownMessage = info => bag.Add(info) });
+            DemoParser.Parse(bytes.AsMemory(), new ParseOptions { OnUnknownMessage = bag.Add });
 
         Dictionary<int, List<UnknownMessageInfo>> census = new();
         Dictionary<int, (string Name, int First, int Size, int Count)> byType = new();

@@ -37,7 +37,7 @@ public class MatchMetaTests
         if (Environment.GetEnvironmentVariable("MATCH_META_GOLDEN_UPDATE") == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, json);
+            await File.WriteAllTextAsync(path, json);
         }
 
         if (!File.Exists(path))
@@ -45,7 +45,7 @@ public class MatchMetaTests
             throw new SkipTestException("missing the match-meta sample; regenerate with MATCH_META_GOLDEN_UPDATE=1");
         }
 
-        string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         DemoMatchMeta? back = JsonSerializer.Deserialize<DemoMatchMeta>(committed);
         using (Assert.Multiple())
         {

@@ -125,7 +125,7 @@ public class Playback2DFeatureWiringTests
                     continue;
                 }
 
-                string text = File.ReadAllText(file);
+                string text = await File.ReadAllTextAsync(file);
                 foreach (string token in banned.Where(t => text.Contains(t, StringComparison.Ordinal)))
                 {
                     hits.Add($"{Path.GetFileName(file)} → {token}");

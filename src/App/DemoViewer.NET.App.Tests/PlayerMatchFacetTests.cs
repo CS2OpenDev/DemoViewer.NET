@@ -95,7 +95,7 @@ public class PlayerMatchFacetTests
                 $"missing the player_match sample; regenerate with {SampleUpdateVar}=1 through PlayerMatchParityRealDemoTests");
         }
 
-        string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         FactTable? table = FactsCodec.Decode(Gzip(committed));
         MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, null));
         IReadOnlyList<string> declared =

@@ -84,7 +84,7 @@ public class PlayerMatchParityRealDemoTests
                 ["player_name"] = FactValue.Of(team == 3 ? "player_a" : "player_b"),
                 ["steam_id"] = FactValue.Of(team == 3 ? "76561190000000001" : "76561190000000002")
             };
-            rows.Add(new FactRow(dimensions, real.Values));
+            rows.Add(real with { Dimensions = dimensions });
         }
 
         FactTable sample = facet with { Fingerprint = "sample", Rows = rows };

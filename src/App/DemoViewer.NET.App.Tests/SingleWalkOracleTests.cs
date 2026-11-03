@@ -126,12 +126,12 @@ public partial class SingleWalkOracleTests
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(fixture)!);
-                File.WriteAllText(fixture, digest);
+                await File.WriteAllTextAsync(fixture, digest);
                 Console.WriteLine($"wrote {fixture}");
                 return;
             }
 
-            Dictionary<string, string> expected = Lines(File.ReadAllText(fixture));
+            Dictionary<string, string> expected = Lines(await File.ReadAllTextAsync(fixture));
             Dictionary<string, string> actual = Lines(digest);
             string[] moved =
             [
@@ -329,7 +329,7 @@ public partial class SingleWalkOracleTests
             return;
         }
 
-        JsonNode? canonical = Normalize(json, demo, configDir, null);
+        JsonNode? canonical = Normalize(json, demo, configDir);
         if (canonical is JsonObject obj)
         {
             foreach ((string prop, JsonNode? value) in obj)
@@ -353,7 +353,7 @@ public partial class SingleWalkOracleTests
         || key.Equals("Engine", StringComparison.OrdinalIgnoreCase)
         || key.Equals("ExtensionVersion", StringComparison.OrdinalIgnoreCase);
 
-    private static JsonNode? Normalize(JsonNode? node, string demo, string configDir, string? key)
+    private static JsonNode? Normalize(JsonNode? node, string demo, string configDir)
     {
         switch (node)
         {
@@ -363,7 +363,7 @@ public partial class SingleWalkOracleTests
                              .Select(kv => (Mask(kv.Key, demo, configDir), kv.Key, kv.Value))
                              .OrderBy(e => e.Item1, StringComparer.Ordinal))
                 {
-                    sorted[name] = Masked(k) ? JsonValue.Create("<masked>") : Normalize(v, demo, configDir, k);
+                    sorted[name] = Masked(k) ? JsonValue.Create("<masked>") : Normalize(v, demo, configDir);
                 }
 
                 return sorted;
@@ -371,7 +371,7 @@ public partial class SingleWalkOracleTests
                 JsonArray copy = [];
                 foreach (JsonNode? item in array)
                 {
-                    copy.Add(Normalize(item, demo, configDir, key));
+                    copy.Add(Normalize(item, demo, configDir));
                 }
 
                 return copy;

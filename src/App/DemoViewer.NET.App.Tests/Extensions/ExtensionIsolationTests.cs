@@ -99,7 +99,7 @@ public class ExtensionIsolationTests
             await Assert.That(App.RegisterOverride(pack,
             [
                 ServiceDescriptor.KeyedSingleton<IExtensionLifecycle>(pack.Id, (_, _) => null!),
-                ServiceDescriptor.Singleton<StubExtension>(pack)
+                ServiceDescriptor.Singleton(pack)
             ], existing)).IsNull().Because("its own lifecycle and its own types are its to register");
         }
     }

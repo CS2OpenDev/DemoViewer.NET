@@ -59,7 +59,7 @@ public class DemoSchedulerTests
             });
         Fake a = new("a");
         Fake b = new("b");
-        using DemoScheduler scheduler = new([a, b], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a, b], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/demo.dem");
         release.Set();
@@ -73,7 +73,7 @@ public class DemoSchedulerTests
     {
         using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline, _ => Synthetic());
         Fake a = new("a");
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         queue.Pause();
         scheduler.DemoChanged("/x/one.dem");
@@ -102,7 +102,7 @@ public class DemoSchedulerTests
             });
         Fake wants = new("wants");
         Fake skips = new("skips", _ => false);
-        using DemoScheduler scheduler = new([wants, skips], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([wants, skips], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/demo.dem");
 
@@ -117,7 +117,7 @@ public class DemoSchedulerTests
     {
         RecordingQueue queue = new() { Defer = true };
         Fake a = new("a");
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/demo.dem");
 
@@ -135,7 +135,7 @@ public class DemoSchedulerTests
     {
         RecordingQueue queue = new();
         Fake a = new("a");
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/backlog.dem");
         scheduler.Request("/x/forced.dem");
@@ -158,7 +158,7 @@ public class DemoSchedulerTests
         using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline, _ => Synthetic());
         Fake thrower = new("thrower", onEvaluate: _ => throw new InvalidOperationException("boom"));
         Fake ok = new("ok");
-        using DemoScheduler scheduler = new([thrower, ok], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([thrower, ok], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/demo.dem");
 
@@ -199,10 +199,8 @@ public class DemoSchedulerTests
         using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline, _ => Synthetic());
         Fake thrower = new("thrower", onEvaluate: _ => throw new InvalidOperationException("boom"));
         ConcurrentQueue<(string Id, string? Path)> reported = new();
-        using DemoScheduler scheduler = new([thrower], queue, () => _oneDemo)
-        {
-            Faulted = (id, path, _) => reported.Enqueue((id, path))
-        };
+        using DemoScheduler scheduler = new([thrower], queue, () => _oneDemo);
+        scheduler.Faulted = (id, path, _) => reported.Enqueue((id, path));
 
         scheduler.DemoChanged("/x/demo.dem");
         await WaitFor(() => !reported.IsEmpty && !scheduler.HasOutstanding("thrower"), "the throwing run");
@@ -218,7 +216,7 @@ public class DemoSchedulerTests
     {
         using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline, _ => Synthetic());
         Fake cancelled = new("cancelled", onEvaluate: _ => throw new OperationCanceledException());
-        using DemoScheduler scheduler = new([cancelled], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([cancelled], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/demo.dem");
         await WaitFor(() => cancelled.Count == 1 && !scheduler.HasOutstanding("cancelled"), "the cancelled run");
@@ -260,7 +258,7 @@ public class DemoSchedulerTests
                 throw new InvalidOperationException("boom");
             }
         });
-        using DemoScheduler scheduler = new([thrower], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([thrower], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/bad.dem");
         await WaitFor(() => thrower.Count == 1 && !scheduler.HasOutstanding("thrower"), "the throwing run");
@@ -276,7 +274,7 @@ public class DemoSchedulerTests
         using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline,
             _ => throw new InvalidOperationException("corrupt"));
         Fake a = new("a");
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/demo.dem");
 
@@ -366,7 +364,8 @@ public class DemoSchedulerTests
             parsed.Add(path);
             release.Wait(3000);
             return Synthetic();
-        }) { MaxQueueSize = 1 };
+        });
+        queue.MaxQueueSize = 1;
         HashSet<string> done = new(StringComparer.Ordinal);
         Fake a = new("a", p =>
         {
@@ -381,7 +380,7 @@ public class DemoSchedulerTests
                 done.Add(p);
             }
         });
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/first.dem");
         await WaitFor(() => parsed.Count == 1, "the first demo occupies the worker");
@@ -406,7 +405,8 @@ public class DemoSchedulerTests
         {
             release.Wait(5000);
             return Synthetic();
-        }) { MaxQueueSize = 1 };
+        });
+        queue.MaxQueueSize = 1;
         int asks = 0;
         HashSet<string> done = new(StringComparer.Ordinal);
         Fake a = new("a", p =>
@@ -423,7 +423,7 @@ public class DemoSchedulerTests
                 done.Add(p);
             }
         });
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/first.dem");
         await WaitFor(() => queue.RunningCount == 1 && queue.ActiveCount(QueueJobKind.Scheduling) == 0,
@@ -454,15 +454,14 @@ public class DemoSchedulerTests
     public async Task AUserRequest_IsPlanned_WhileTheBackgroundTierIsFull()
     {
         using ManualResetEventSlim release = new(false);
-        ConcurrentBag<string> parsed = [];
-        using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline, path =>
+        using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline, _ =>
         {
-            parsed.Add(path);
             release.Wait(5000);
             return Synthetic();
-        }) { MaxQueueSize = 1 };
+        });
+        queue.MaxQueueSize = 1;
         Fake a = new("a");
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/first.dem");
         await WaitFor(() => queue.RunningCount == 1, "the first demo running");
@@ -565,7 +564,7 @@ public class DemoSchedulerTests
 
             return true;
         });
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/1.dem");
         scheduler.DemoChanged("/x/2.dem");
@@ -592,7 +591,7 @@ public class DemoSchedulerTests
     {
         RecordingQueue queue = new() { Defer = true };
         Fake a = new("a");
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>(), SameBytes);
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>, SameBytes);
 
         scheduler.DemoChanged("/nfs/demo.dem");
         scheduler.DemoChanged("/smb/demo.dem");
@@ -630,7 +629,7 @@ public class DemoSchedulerTests
                 return Synthetic();
             });
         Fake thrower = new("thrower", onEvaluate: _ => throw new InvalidOperationException("boom"));
-        using DemoScheduler scheduler = new([thrower], queue, () => Array.Empty<string>(), SameBytes);
+        using DemoScheduler scheduler = new([thrower], queue, Array.Empty<string>, SameBytes);
 
         scheduler.DemoChanged("/nfs/demo.dem");
         await WaitFor(() => thrower.Count == 1 && !scheduler.HasOutstanding("thrower"), "the throwing run");
@@ -689,7 +688,7 @@ public class DemoSchedulerTests
     {
         using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline, _ => Synthetic());
         Fake thrower = new("thrower", onEvaluate: _ => throw new InvalidOperationException("boom"));
-        using DemoScheduler scheduler = new([thrower], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([thrower], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/demo.dem");
         await WaitFor(() => thrower.Count == 1 && !scheduler.HasOutstanding("thrower"), "the throwing run");
@@ -704,7 +703,7 @@ public class DemoSchedulerTests
     {
         RecordingQueue queue = new();
         Fake a = new("a");
-        using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
         scheduler.DemoChanged("/x/demo.dem");
         scheduler.Request("/X/Demo.DEM");
@@ -955,7 +954,7 @@ public class DemoSchedulerTests
         Action<string>? onEvaluate = null)
         : IDemoEvaluator
     {
-        private readonly object _gate = new();
+        private readonly Lock _gate = new();
         private readonly Func<string, bool> _wants = wants ?? (_ => true);
         public List<string> Evaluated { get; } = [];
         public List<string> Failed { get; } = [];

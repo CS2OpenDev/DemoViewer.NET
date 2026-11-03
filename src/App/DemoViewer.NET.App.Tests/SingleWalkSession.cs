@@ -39,10 +39,10 @@ internal static class SingleWalkSession
     public const string Recheck = "recheck";
 
     /// <summary>The shell's own rules run on an open, numbered after the seven analysis sites.</summary>
-    public const int ShellRulesSite = 8;
+    private const int ShellRulesSite = 8;
 
     /// <summary>The engine's decode meter: one rules run's entity scan, and every caller-owned tracker that folds.</summary>
-    public static readonly (string Meter, string Instrument)[] DecodeInstruments =
+    private static readonly (string Meter, string Instrument)[] DecodeInstruments =
     [
         ("CS2DemoKit.Analysis.Evaluator", "analysis.entity_scan.started"),
         ("CS2DemoKit.Parser.Entities", "parser.entity_decode.started")
@@ -96,7 +96,7 @@ internal static class SingleWalkSession
         Func<ServiceProvider, Task<T>> body)
     {
         Directory.CreateDirectory(configDir);
-        File.WriteAllText(Path.Combine(configDir, "settings.json"), settingsJson);
+        await File.WriteAllTextAsync(Path.Combine(configDir, "settings.json"), settingsJson);
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, configDir);
         try
@@ -112,7 +112,7 @@ internal static class SingleWalkSession
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             }, TimeSpan.FromMinutes(30));
             return result;

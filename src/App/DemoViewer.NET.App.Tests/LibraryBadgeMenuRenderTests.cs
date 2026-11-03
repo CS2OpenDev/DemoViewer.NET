@@ -35,10 +35,10 @@ public class LibraryBadgeMenuRenderTests
 
         public LibraryFilter? Filter => null;
         public bool HasBadge => true;
-        public LibraryBadge? BadgeFor(LibraryDemo demo) => new(_pinned ?? "unlabeled", null, _pinned is not null);
+        public LibraryBadge BadgeFor(LibraryDemo demo) => new(_pinned ?? "unlabeled", null, _pinned is not null);
         public IReadOnlyList<string> BadgeLabels => ["official", "scrim", "our scrim", "matchmaking"];
-        public string? BadgeResetLabel => "Automatic";
-        public string? BadgeResetTooltip => "Let the clan tags, the header and Team Identity decide";
+        public string BadgeResetLabel => "Automatic";
+        public string BadgeResetTooltip => "Let the clan tags, the header and Team Identity decide";
 
         public void SetLabel(LibraryDemo demo, string? label)
         {

@@ -131,7 +131,7 @@ public class PlayerRowCacheTests
         await Assert.That(cache.TryGet(Grim)).IsNull();
         PlayerRows rows = await cache.LoadAsync(Grim, progress);
         int cold = reads.Count;
-        List<PlayerAggregate> pools = [.. Filters().Select(f => rows.Aggregate(f))];
+        List<PlayerAggregate> pools = [.. Filters().Select(rows.Aggregate)];
         PlayerRows? again = cache.TryGet(Grim);
         PlayerRows reloaded = await cache.LoadAsync(Grim);
 

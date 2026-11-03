@@ -164,12 +164,10 @@ public class Playback2DAnnotationToolsTests
         using IDisposable watch = ChangeToken.OnChange(root.GetReloadToken,
             () => Interlocked.Increment(ref reloads));
 
-        using AnnotationSessionController controller = new(null, settings)
-        {
-            // Long enough that only an explicit flush can land it: the assertion is about coalescing,
-            // not about how fast a timer runs on a loaded CI box.
-            StylePersistDelay = TimeSpan.FromSeconds(30)
-        };
+        using AnnotationSessionController controller = new(null, settings);
+        // Long enough that only an explicit flush can land it: the assertion is about coalescing,
+        // not about how fast a timer runs on a loaded CI box.
+        controller.StylePersistDelay = TimeSpan.FromSeconds(30);
 
         // What one second of dragging through the picker's spectrum looks like from here.
         for (int i = 0; i < 200; i++)

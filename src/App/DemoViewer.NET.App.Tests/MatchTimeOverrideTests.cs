@@ -209,7 +209,7 @@ public class MatchTimeOverrideTests
         string path = Path.Combine(repo, "tests", "fixtures", "match-meta", "match-meta.override.sample.json");
         if (Environment.GetEnvironmentVariable("MATCH_META_GOLDEN_UPDATE") == "1")
         {
-            File.WriteAllText(path, json);
+            await File.WriteAllTextAsync(path, json);
         }
 
         if (!File.Exists(path))
@@ -217,7 +217,7 @@ public class MatchTimeOverrideTests
             throw new SkipTestException("missing the override sample; regenerate with MATCH_META_GOLDEN_UPDATE=1");
         }
 
-        string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         using (Assert.Multiple())
         {
             await Assert.That(json).IsEqualTo(committed);

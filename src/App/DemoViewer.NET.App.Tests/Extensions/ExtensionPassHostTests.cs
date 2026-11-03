@@ -164,7 +164,7 @@ public class ExtensionPassHostTests
         scheduler.DemoChanged(Demo);
         await WaitForAsync(
             () => inner.Runs == 1 && queue.Snapshot().Any(s =>
-                s.Kind == QueueJobKind.DemoProcessing && s.State == DemoQueueItemState.Completed),
+                s is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Completed }),
             "the visit");
 
         await Assert.That(host.LevelFor(new VisitedDemo(Demo))).IsEqualTo(PassLevel.Backlog);

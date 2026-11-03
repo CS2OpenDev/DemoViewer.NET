@@ -18,9 +18,8 @@ public class PlayerAttributesTests
     {
         // IsT / IsCt drive the theme-aware team-chip colour CLASS in the view (Pb2dTeamT / Pb2dTeamCt token);
         // neutral (spectator/unassigned) is neither class → the default neutral token.
-        PlayerAttributes a = new(0);
+        PlayerAttributes a = new(0) { Team = 2 }; // T
 
-        a.Team = 2; // T
         await Assert.That(a.TeamLabel).IsEqualTo("T");
         await Assert.That(a.IsT).IsTrue();
         await Assert.That(a.IsCt).IsFalse();

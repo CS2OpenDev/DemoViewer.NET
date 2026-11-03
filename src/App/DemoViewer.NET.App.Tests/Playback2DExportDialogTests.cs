@@ -593,7 +593,7 @@ public class Playback2DExportDialogTests
     ///     off a demo with no query or overlay document, so neither front end names them
     ///     (<c>ExportCommand.BuildLayerIds</c> adds the HUD ids and the ink by name for the same reason).
     /// </summary>
-    internal static IEnumerable<string> FullOverlaySet() =>
+    private static IEnumerable<string> FullOverlaySet() =>
         SceneLayerCatalog.SceneStackIds
             .Where(id => !string.Equals(id, SceneLayerIds.Vision, StringComparison.Ordinal) &&
                          !string.Equals(id, SceneLayerIds.Zones, StringComparison.Ordinal) &&
@@ -601,7 +601,7 @@ public class Playback2DExportDialogTests
                          !string.Equals(id, SceneLayerIds.Overlay, StringComparison.Ordinal));
 
     /// <summary>Every non-opt-in scene-stack id except vision: bare `dv2d export`.</summary>
-    internal static IEnumerable<string> BareSceneSet() =>
+    private static IEnumerable<string> BareSceneSet() =>
         SceneLayerCatalog.SceneStackIds
             .Where(id => !SceneLayerIds.OptIn.Contains(id) &&
                          !string.Equals(id, SceneLayerIds.Vision, StringComparison.Ordinal));

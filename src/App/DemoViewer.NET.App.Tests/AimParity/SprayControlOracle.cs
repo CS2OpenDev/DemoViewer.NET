@@ -113,8 +113,8 @@ public static class SprayControlOracle
             // population; the direction it would otherwise be added to already carries it.
             double? punchPitch = PlausiblePunch(shot.PunchPitch);
             double? punchYaw = PlausiblePunch(shot.PunchYaw);
-            bool haveAim = shot.ShotPitch.HasValue && shot.ShotYaw.HasValue
-                                                   && punchPitch.HasValue && punchYaw.HasValue;
+            bool haveAim = shot is { ShotPitch: not null, ShotYaw: not null }
+                           && punchPitch.HasValue && punchYaw.HasValue;
 
             double shotPitch = haveAim ? shot.ShotPitch!.Value : 0.0;
             double shotYaw = haveAim ? shot.ShotYaw!.Value : 0.0;
@@ -157,7 +157,7 @@ public static class SprayControlOracle
     /// </summary>
     /// <param name="raw">The raw component, or <c>null</c> when the column read nothing.</param>
     /// <returns>The normalised punch, or <c>null</c>.</returns>
-    public static double? PlausiblePunch(float? raw)
+    private static double? PlausiblePunch(float? raw)
     {
         if (raw is not { } value)
         {
@@ -182,7 +182,7 @@ public static class SprayControlOracle
     /// <param name="pitchB">Second pitch, degrees.</param>
     /// <param name="yawB">Second yaw, degrees.</param>
     /// <returns>The angle between the two directions, in [0, 180].</returns>
-    public static double AngleDeltaDegrees(double pitchA, double yawA, double pitchB, double yawB)
+    private static double AngleDeltaDegrees(double pitchA, double yawA, double pitchB, double yawB)
     {
         const double ToRad = Math.PI / 180.0;
         double pa = pitchA * ToRad;
@@ -204,7 +204,7 @@ public static class SprayControlOracle
     /// <summary>Wraps an angle in degrees to (-180, 180].</summary>
     /// <param name="degrees">The angle.</param>
     /// <returns>The wrapped angle.</returns>
-    public static double WrapDegrees(double degrees)
+    private static double WrapDegrees(double degrees)
     {
         double wrapped = degrees % 360.0;
         if (wrapped > 180.0)
@@ -231,8 +231,7 @@ public static class SprayControlOracle
         // A missing recoil column is not evidence of a new run, so the gap decides alone. Reading
         // an absent column as "recoil dropped" would split every spray into single-shot runs and
         // make every shot look like a first bullet.
-        bool continues = state.ShotsInRun > 0
-                         && state.LastShotTick >= 0
+        bool continues = state is { ShotsInRun: > 0, LastShotTick: >= 0 }
                          && gap >= 0
                          && gap <= gapBound
                          && (recoil is null || recoil.Value >= state.LastRecoil - SprayRecoilEpsilon);

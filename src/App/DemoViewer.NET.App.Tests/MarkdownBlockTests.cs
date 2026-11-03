@@ -54,7 +54,7 @@ public class MarkdownBlockTests
             // The hard-wrapped source joins to a single paragraph (markdown soft-wrap semantics).
             TextBlock paragraph = (TextBlock)panel.Children[1];
             AssertContains(InlineText(paragraph), "Hard-wrapped lines join into one paragraph.");
-            if (!paragraph.Inlines!.OfType<Run>().Any(r => r.FontWeight == FontWeight.SemiBold))
+            if (paragraph.Inlines!.OfType<Run>().All(r => r.FontWeight != FontWeight.SemiBold))
             {
                 throw new InvalidOperationException("Bold inline lost in paragraph");
             }

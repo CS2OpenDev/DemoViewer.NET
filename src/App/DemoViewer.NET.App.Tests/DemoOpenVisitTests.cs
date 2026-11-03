@@ -23,30 +23,16 @@ public class DemoOpenVisitTests
     private const string Demo = "/d/match.dem";
     private static readonly byte[] _bytes = [1];
 
-    private static async Task WaitForAsync(Func<bool> condition, string what, int timeoutMs = 5000)
-    {
-        DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (!condition())
-        {
-            if (DateTime.UtcNow > deadline)
-            {
-                throw new TimeoutException($"timed out waiting for {what}");
-            }
-
-            await Task.Delay(5);
-        }
-    }
-
     private sealed class Rig : IDisposable
     {
-        public readonly HeavyJobGate Gate = new();
+        private readonly HeavyJobGate _gate = new();
         public readonly DemoProcessingQueue Queue;
         public readonly ParsedDemo OpenParse = SyntheticParsedDemo.Create();
         public int FileParses;
         public int ByteParses;
 
         public Rig(Action<ParsedDemo>? parseReleased = null) =>
-            Queue = new DemoProcessingQueue(Gate, a => a(),
+            Queue = new DemoProcessingQueue(_gate, a => a(),
                 parseBytes: _ =>
                 {
                     Interlocked.Increment(ref ByteParses);
@@ -63,7 +49,7 @@ public class DemoOpenVisitTests
         public void Dispose()
         {
             Queue.Dispose();
-            Gate.Dispose();
+            _gate.Dispose();
         }
     }
 

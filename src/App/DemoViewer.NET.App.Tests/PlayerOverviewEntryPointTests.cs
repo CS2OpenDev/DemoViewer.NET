@@ -25,8 +25,8 @@ public class PlayerOverviewEntryPointTests
 {
     internal const ulong Neo = 76561198000000011;
     internal const ulong Trin = 76561198000000012;
-    internal const ulong Coach = 76561198000000013;
-    internal const string Demo = "/demos/entry_de_nuke.dem";
+    private const ulong Coach = 76561198000000013;
+    private const string Demo = "/demos/entry_de_nuke.dem";
 
     [Test]
     public async Task Entry_OpensItsAccount_AndANoAccountEntryDoesNothing()
@@ -52,7 +52,7 @@ public class PlayerOverviewEntryPointTests
     }
 
     // Neo and Bob (no SteamID) on CT, a bot, a coach and Trin on T; the stored scoreboard has rows for four of them.
-    internal static DemoCacheRecord Cached()
+    private static DemoCacheRecord Cached()
     {
         DemoCacheRecord r = new()
         {
@@ -206,7 +206,7 @@ public class PlayerOverviewEntryPointTests
         {
             await Assert.That(vm.PlayerStats.Count).IsGreaterThan(0);
             await Assert.That(opened.Select(o => o.Item1).Distinct())
-                .IsEquivalentTo(new[] { FocusPlayerTests.Alice }, CollectionOrdering.Matching);
+                .IsEquivalentTo([FocusPlayerTests.Alice], CollectionOrdering.Matching);
             await Assert.That(vm.PlayerStats.Single(r => r.Name == "Bob").PlayerOverview.CanOpen).IsFalse();
             await Assert.That(vm.CounterTerrorists.Concat(vm.Terrorists).Single(p => p.Name == "Coach").PlayerOverview
                     .CanOpen).IsFalse()
@@ -281,7 +281,7 @@ public class PlayerOverviewEntryPointTests
         }
     }
 
-    internal static DemoEntry LibraryEntry(string file, params string[] players) => new()
+    private static DemoEntry LibraryEntry(string file, params string[] players) => new()
     {
         FilePath = "/demos/" + file,
         FileName = file,
@@ -295,7 +295,7 @@ public class PlayerOverviewEntryPointTests
         State = DemoIndexState.Indexed
     };
 
-    internal static LibraryDemo Indexed(DemoEntry e, params LibrarySidePlayer[] ct) =>
+    private static LibraryDemo Indexed(DemoEntry e, params LibrarySidePlayer[] ct) =>
         new(e.FilePath, e.FileName, e.MapName, e.Modified, e.FileSizeBytes) { CtPlayers = ct };
 
     // A library of four demos: Neo is one account throughout, Smith is two (Coach's slot account and Trin), and the
@@ -314,7 +314,7 @@ public class PlayerOverviewEntryPointTests
             [d.FilePath] = new LibraryDemo(d.FilePath, d.FileName, d.MapName, d.Modified, d.FileSizeBytes)
         };
         LibraryTabViewModel vm = new(svc, _ => Task.CompletedTask, () => Task.FromResult<IReadOnlyList<string>>([]),
-            findDemo: path => index.GetValueOrDefault(path))
+            findDemo: index.GetValueOrDefault)
         {
             PlayerOverviewOpener = (id, name) => opened.Add((id, name))
         };
@@ -368,7 +368,7 @@ public class PlayerOverviewEntryPointTests
             [b.FilePath] = Indexed(b, new LibrarySidePlayer(0, "Neo"))
         };
         LibraryTabViewModel vm = new(svc, _ => Task.CompletedTask, () => Task.FromResult<IReadOnlyList<string>>([]),
-            findDemo: path => index.GetValueOrDefault(path))
+            findDemo: index.GetValueOrDefault)
         {
             PlayerOverviewOpener = (id, name) => opened.Add((id, name))
         };

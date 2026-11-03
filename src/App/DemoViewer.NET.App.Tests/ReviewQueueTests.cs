@@ -226,8 +226,10 @@ public class ReviewQueueTests
 
         HighlightScanService scanner = new(store, new NoHarvester(), () => [.. rows.Select(r => r.Path)], () => false);
         HighlightsTabViewModel vm = new(store, scanner, isLiveSyncSessionActive: () => false, fileExists: _ => true,
-            reviewQueue: queue);
-        vm.ReelConfig.OutputFolder = "/out";
+            reviewQueue: queue)
+        {
+            ReelConfig = { OutputFolder = "/out" }
+        };
         return (store, vm);
     }
 

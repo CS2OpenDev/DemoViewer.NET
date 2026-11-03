@@ -19,7 +19,7 @@ public class RoundFactsProjectionTests
     private const int T = 2;
     private const int Ct = 3;
 
-    private static readonly IReadOnlyList<ClipRound> _twoRounds = [new ClipRound(1, 1000), new ClipRound(2, 5000)];
+    private static readonly IReadOnlyList<ClipRound> _twoRounds = [new(1, 1000), new(2, 5000)];
 
     private static Dictionary<string, object?> Row(int round, int side, int freezeEnd,
         params (string Column, object? Value)[] cells)

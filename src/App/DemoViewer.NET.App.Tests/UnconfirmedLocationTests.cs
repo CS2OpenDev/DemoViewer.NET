@@ -96,7 +96,7 @@ public class UnconfirmedLocationTests
             await Assert.That(store.LocationOf(B)).IsEqualTo((Sha,
                 new DemoLocation(B, false, 1000, 3000, store.LocationOf(B)!.Value.Location.LastSeenUtcTicks)));
             await Assert.That(atB?.Map).IsEqualTo("de_mirage");
-            await Assert.That(atB?.Scoreboard?.Count).IsEqualTo(1);
+            await Assert.That(atB?.Scoreboard.Count).IsEqualTo(1);
             await Assert.That(store.HoldsContent(Sha)).IsTrue();
             await Assert.That(store.IsOrphaned(Sha)).IsFalse();
         }
@@ -206,7 +206,7 @@ public class UnconfirmedLocationTests
         string file = Path.Combine(Path.GetTempPath(), $"dv-content-id-{Guid.NewGuid():N}.dem");
         try
         {
-            File.WriteAllBytes(file, new byte[1000]);
+            await File.WriteAllBytesAsync(file, new byte[1000]);
             DemoCacheStore store = Attached();
             store.NoteContentRead(file, "sha-read", null, 1000, File.GetLastWriteTimeUtc(file));
 
@@ -217,7 +217,7 @@ public class UnconfirmedLocationTests
                 await Assert.That(store.ContentIdOf(B)).IsNull().Because("only a fingerprint placed it");
             }
 
-            File.WriteAllBytes(file, new byte[1001]);
+            await File.WriteAllBytesAsync(file, new byte[1001]);
             await Assert.That(store.ContentIdOf(file)).IsNull().Because("the file changed since it was read");
         }
         finally
@@ -242,7 +242,7 @@ public class UnconfirmedLocationTests
             await Assert.That(store.DemoKeyOf(B)).IsEqualTo(Sha);
             await Assert.That(store.RowsForContentId(Sha).Select(r => r.Path))
                 .IsEquivalentTo([A, B], CollectionOrdering.Matching);
-            await Assert.That(store.TryLoadRecord(B)?.Scoreboard?.Count).IsEqualTo(1);
+            await Assert.That(store.TryLoadRecord(B)?.Scoreboard.Count).IsEqualTo(1);
             await Assert.That(store.TryLoadRecord(A)?.Server).IsEqualTo("from b");
         }
     }
@@ -268,7 +268,7 @@ public class UnconfirmedLocationTests
             await Assert.That(atB?.Scoreboard).IsEmpty();
             await Assert.That(atB?.Analysis.IsPresent).IsFalse();
             await Assert.That(atB?.Map).IsEqualTo("de_mirage");
-            await Assert.That(store.TryLoadRecord(A)?.Scoreboard?.Count).IsEqualTo(1);
+            await Assert.That(store.TryLoadRecord(A)?.Scoreboard.Count).IsEqualTo(1);
             await Assert.That(store.TryGetByContentId(Sha)?.Locations.Select(l => l.Path))
                 .IsEquivalentTo([A], CollectionOrdering.Matching);
         }

@@ -136,7 +136,7 @@ public class IdentityServiceTests
         string dir = NewTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), $$"""
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), $$"""
                                                                     {
                                                                       "Identity": {
                                                                         "Accounts": [ { "SteamId64": "{{A}}" }, { "SteamId64": "{{A}}" }, { "SteamId64": "junk" }, { "SteamId64": "{{B}}", "Label": "" } ],
@@ -184,7 +184,7 @@ public class IdentityServiceTests
                               "teams": [ { "id": "not a guid this build could bind" } ],
                             }
                             """;
-            File.WriteAllText(teams, json);
+            await File.WriteAllTextAsync(teams, json);
             SettingsService settings = new(dir);
 
             await Assert.That(IdentityService.ImportTeamsJson(settings, teams)).IsEqualTo(2);
@@ -194,10 +194,10 @@ public class IdentityServiceTests
                 await Assert.That(Ids(identity)).IsEquivalentTo([B, A], CollectionOrdering.Matching);
                 await Assert.That(identity.ActiveSteamId64).IsEqualTo(B).Because("the first id is active");
                 await Assert.That(settings.Current.Identity.MigratedFromTeamsJson).IsTrue();
-                await Assert.That(File.ReadAllText(teams)).IsEqualTo(json).Because("the file is only read");
+                await Assert.That(await File.ReadAllTextAsync(teams)).IsEqualTo(json).Because("the file is only read");
             }
 
-            File.WriteAllText(teams, $$"""{ "me": { "steamIds": [ "{{C}}" ] } }""");
+            await File.WriteAllTextAsync(teams, $$"""{ "me": { "steamIds": [ "{{C}}" ] } }""");
             await Assert.That(IdentityService.ImportTeamsJson(settings, teams)).IsEqualTo(0)
                 .Because("the import runs once");
             await Assert.That(Ids(new IdentityService(settings))).IsEquivalentTo([B, A], CollectionOrdering.Matching);
@@ -215,7 +215,7 @@ public class IdentityServiceTests
         try
         {
             string teams = Path.Combine(dir, "teams.json");
-            File.WriteAllText(teams, $$"""{ "me": { "steamIds": [ "{{A}}" ] } }""");
+            await File.WriteAllTextAsync(teams, $$"""{ "me": { "steamIds": [ "{{A}}" ] } }""");
             SettingsService settings = new(dir);
             IdentityService.ImportTeamsJson(settings, teams);
             using (IdentityService identity = new(settings))
@@ -257,7 +257,7 @@ public class IdentityServiceTests
                     .Because("there was nothing to read yet");
             }
 
-            File.WriteAllText(teams, "{ \"me\": ");
+            await File.WriteAllTextAsync(teams, "{ \"me\": ");
             await Assert.That(IdentityService.ImportTeamsJson(settings, teams)).IsEqualTo(0);
             using (Assert.Multiple())
             {
@@ -278,7 +278,7 @@ public class IdentityServiceTests
         try
         {
             string teams = Path.Combine(dir, "teams.json");
-            File.WriteAllText(teams, $$"""{ "me": { "steamIds": [ "{{B}}" ] } }""");
+            await File.WriteAllTextAsync(teams, $$"""{ "me": { "steamIds": [ "{{B}}" ] } }""");
             SettingsService settings = new(dir);
             settings.Write(s => s.Identity.Accounts =
                 [new IdentityAccountSettings { SteamId64 = A, AddedUtc = _added }]);

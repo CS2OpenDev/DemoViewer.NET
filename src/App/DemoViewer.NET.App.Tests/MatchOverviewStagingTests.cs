@@ -62,7 +62,7 @@ public class MatchOverviewStagingTests
     };
 
     private static MatchOverviewTabViewModel Overview(HighlightsTabViewModel tray) => new(
-        stageClip: (d, r, h, t, s) => tray.StageFromCache(d, r, h, t, s),
+        stageClip: tray.StageFromCache,
         unstageClip: (d, r, h, t, s) => tray.Unstage(new HighlightKey(d, r, h, t, s)),
         isClipStaged: (d, r, h, t, s) => tray.IsStaged(new HighlightKey(d, r, h, t, s)));
 
@@ -228,13 +228,12 @@ public class MatchOverviewStagingTests
     [Test]
     public async Task SelectAll_StagesEveryHighlightInTheSection_AndIsAddOnly()
     {
-        (HighlightsTabViewModel tray, _) = Tray();
         DemoCacheStore multi = new(null);
         multi.Upsert(MultiRecord());
         HighlightScanService scanner = new(multi, new NoopHarvester(), () => [], () => false);
         HighlightsTabViewModel multiTray = new(multi, scanner);
         MatchOverviewTabViewModel vm = new(
-            stageClip: (d, r, h, t, s) => multiTray.StageFromCache(d, r, h, t, s),
+            stageClip: multiTray.StageFromCache,
             unstageClip: (d, r, h, t, s) => multiTray.Unstage(new HighlightKey(d, r, h, t, s)),
             isClipStaged: (d, r, h, t, s) => multiTray.IsStaged(new HighlightKey(d, r, h, t, s)));
         vm.SetCachedRecord(MultiRecord());

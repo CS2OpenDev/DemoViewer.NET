@@ -52,7 +52,7 @@ public class IconKeyReferenceTests
 
         foreach (string file in Sources(root))
         {
-            string text = File.ReadAllText(file);
+            string text = await File.ReadAllTextAsync(file);
             bool xaml = file.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase);
 
             foreach (Match m in (xaml ? _xamlKey : _csharpKey).Matches(text))

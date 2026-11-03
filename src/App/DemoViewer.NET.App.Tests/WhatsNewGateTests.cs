@@ -73,7 +73,7 @@ public class WhatsNewGateTests
         string dir = NewTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 """{ "FirstRunCompleted": true, "LastSeenVersion": "0.0.1" }""");
             await HeadlessSession.RunOnUi(async () =>
             {
@@ -108,7 +108,7 @@ public class WhatsNewGateTests
         string dir = NewTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 $$"""{ "FirstRunCompleted": true, "LastSeenVersion": "{{AppVersionInfo.CurrentReleaseVersion}}" }""");
             await HeadlessSession.RunOnUi(async () =>
             {
@@ -191,7 +191,7 @@ public class WhatsNewGateTests
         {
             CountingUpdateService updater = new();
             UpdateViewModel.Shared = new UpdateViewModel(updater);
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 $$"""{ "FirstRunCompleted": true, "Updates": { "CheckAutomatically": {{(automatic ? "true" : "false")}} } }""");
             await HeadlessSession.RunOnUi(async () =>
             {
@@ -236,7 +236,7 @@ public class WhatsNewGateTests
         string dir = NewTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 """{ "FirstRunCompleted": true, "LastSeenVersion": "0.0.1", "Updates": { "CheckAutomatically": false } }""");
             await HeadlessSession.RunOnUi(async () =>
             {
@@ -285,7 +285,7 @@ public class WhatsNewGateTests
     {
         public int Checks { get; private set; }
 
-        public string? CurrentVersion => "0.5.1";
+        public string CurrentVersion => "0.5.1";
 
         public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default)
         {
@@ -302,7 +302,6 @@ public class WhatsNewGateTests
     {
         public List<WhatsNewViewModel> WhatsNews { get; } = [];
         public List<UpdateNoticeViewModel> UpdateNotices { get; } = [];
-        public List<ErrorReportViewModel> ErrorReports { get; } = [];
 
         public void OpenParseChainInspector(object dataContext)
         {
@@ -312,7 +311,9 @@ public class WhatsNewGateTests
         {
         }
 
-        public void ShowErrorReport(ErrorReportViewModel viewModel) => ErrorReports.Add(viewModel);
+        public void ShowErrorReport(ErrorReportViewModel viewModel)
+        {
+        }
 
         public void ShowFirstRunWizard(FirstRunWizardViewModel viewModel)
         {

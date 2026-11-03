@@ -105,7 +105,7 @@ public class LegacyCacheMigrationTests
 
             // Simulate the dual-write having already run for a DIFFERENT demo.
             DemoCacheStore seeded = new(cacheDir);
-            seeded.Update("/demos/fresh.dem", 10, 20, r => DemoCacheStore.StampParse(r));
+            seeded.Update("/demos/fresh.dem", 10, 20, DemoCacheStore.StampParse);
             seeded.SaveIndex();
             await Assert.That(File.Exists(Path.Combine(cacheDir, "index.json"))).IsTrue();
 
@@ -287,7 +287,7 @@ public class LegacyCacheMigrationTests
         try
         {
             string bad = Path.Combine(dir, "library.json");
-            File.WriteAllText(bad, "{{{ not json");
+            await File.WriteAllTextAsync(bad, "{{{ not json");
 
             DemoCacheStore store = new(Path.Combine(dir, "cache"));
             LegacyCacheMigration.MigrationResult result =

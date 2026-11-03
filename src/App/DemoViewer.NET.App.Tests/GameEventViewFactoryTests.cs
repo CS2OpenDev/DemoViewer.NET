@@ -59,8 +59,7 @@ public class GameEventViewFactoryTests
         int msgFrameTick = -1;
         foreach (DemoFrame f in demo.Frames)
         {
-            if (f.InnerMessages.Any(m => m is GameEventMessage g &&
-                                         g.DecodedEvent.Name == "player_death"))
+            if (f.InnerMessages.Any(m => m is GameEventMessage { DecodedEvent.Name: "player_death" }))
             {
                 msgFrameTick = f.ServerTick;
                 break;

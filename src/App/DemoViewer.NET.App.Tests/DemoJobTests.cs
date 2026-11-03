@@ -46,20 +46,6 @@ public class DemoJobTests
         string path = Demo) =>
         new(path, "clips", "ext.sample", level, work);
 
-    private static async Task WaitForAsync(Func<bool> condition, string what, int timeoutMs = 5000)
-    {
-        DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (!condition())
-        {
-            if (DateTime.UtcNow > deadline)
-            {
-                throw new TimeoutException($"timed out waiting for {what}");
-            }
-
-            await Task.Delay(5);
-        }
-    }
-
     [Test]
     public async Task AJob_JoinsTheQueuedVisit_AndRunsAfterItsPasses_OnOneRead()
     {
@@ -333,7 +319,7 @@ public class DemoJobTests
         public IHeldParse? TryHold(string demo) =>
             string.Equals(demo, path, StringComparison.OrdinalIgnoreCase) ? new Hold(parsed) : null;
 
-        public string? LoadedPath => path;
+        public string LoadedPath => path;
 
         private sealed class Hold(ParsedDemo parsed) : IHeldParse
         {

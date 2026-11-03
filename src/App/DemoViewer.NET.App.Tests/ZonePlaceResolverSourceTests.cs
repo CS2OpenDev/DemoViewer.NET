@@ -73,7 +73,7 @@ public class ZonePlaceResolverSourceTests
     {
         RequireBundle();
         using TempDir noZones = new();
-        File.WriteAllText(Path.Combine(noZones.Path, "bundle.json"), "{}");
+        await File.WriteAllTextAsync(Path.Combine(noZones.Path, "bundle.json"), "{}");
         using AssetZonePlaceResolverSource source = new(Leases(
             map => string.Equals(map, Map, StringComparison.OrdinalIgnoreCase)
                 ? MapAssetBundleReader.FindBundleDirectory(map)
@@ -115,7 +115,7 @@ public class ZonePlaceResolverSourceTests
         await Assert.That(before!.ZonesVersion).IsEqualTo(baked);
 
         string file = Path.Combine(overlays.Path, Map + ZoneAssetPipeline.OverlaySuffix);
-        File.WriteAllText(file, """
+        await File.WriteAllTextAsync(file, """
                                 {
                                   "schemaVersion": 1,
                                   "mapName": "de_nuke",

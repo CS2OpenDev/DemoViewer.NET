@@ -55,7 +55,7 @@ public class FeatureGateTests
             SettingsService svc = new(dir);
             ServiceCollection services = new();
             services.Configure<AppSettings>(svc.Configuration);
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
 
             using FeatureGate gate = new(monitor, false);
@@ -219,7 +219,7 @@ public class FeatureGateTests
 
             svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
 
-            int expected = FeatureCatalog.All.Count(d => d.OwnerPackId == StratBookPack.PackFeatureId && !d.Required);
+            int expected = FeatureCatalog.All.Count(d => d is { OwnerPackId: StratBookPack.PackFeatureId, Required: false });
             await Assert.That(expected).IsGreaterThan(0).Because("the catalog pins at least one pack-owned row");
             await Assert.That(gate.HiddenCount).IsEqualTo(expected)
                 .Because("the pack row itself is excluded; only its cascaded children count");
@@ -295,7 +295,7 @@ public class FeatureGateTests
             SettingsService svc = new(dir);
             ServiceCollection services = new();
             services.Configure<AppSettings>(svc.Configuration);
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             // The scope owns this test assembly, so both handlers below count as extension code.
             Extensions.FaultRig rig = new();
             using FeatureGate gate = new(sp.GetRequiredService<IOptionsMonitor<AppSettings>>(), false, rig.Faults);

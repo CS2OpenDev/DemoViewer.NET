@@ -371,7 +371,7 @@ public class LiveSyncStatusViewModelTests
 
         public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
         public long? LastCs2DemoTick { get; set; }
-        public LiveSyncVersionInfo? Versions { get; set; }
+        public LiveSyncVersionInfo? Versions { get; }
         public LiveSyncCapabilities? Capabilities { get; set; }
 
         public event EventHandler<LiveSyncStateChangedEventArgs>? StateChanged;

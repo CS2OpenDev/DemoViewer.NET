@@ -317,7 +317,7 @@ public class Scene2DHostFrameHostTests
             await Assert.That(contributed).IsTypeOf<StubLayer>();
 
             ArgumentException refused =
-                Assert.Throws<ArgumentException>(() => host.AddLayer("ext.pack.heat", () => new StubLayer("mine")))!;
+                Assert.Throws<ArgumentException>(() => host.AddLayer("ext.pack.heat", () => new StubLayer("mine")));
 
             using (Assert.Multiple())
             {

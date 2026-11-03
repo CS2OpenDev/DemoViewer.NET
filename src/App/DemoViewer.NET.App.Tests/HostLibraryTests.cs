@@ -131,7 +131,7 @@ public class HostLibraryTests
             writer.Upsert(Parsed("/d/old.dem"));
             writer.SaveIndex();
             string indexPath = Path.Combine(root, "index.json");
-            JsonObject index = JsonNode.Parse(File.ReadAllText(indexPath))!.AsObject();
+            JsonObject index = JsonNode.Parse(await File.ReadAllTextAsync(indexPath))!.AsObject();
             index["Version"] = 2;
             foreach (JsonNode? row in index["Entries"]!.AsArray())
             {
@@ -139,7 +139,7 @@ public class HostLibraryTests
                 row.AsObject().Remove("TPlayers");
             }
 
-            File.WriteAllText(indexPath, index.ToJsonString());
+            await File.WriteAllTextAsync(indexPath, index.ToJsonString());
 
             DemoCacheStore store = new(root);
             HostLibrary library = new(store, null, () => false);

@@ -90,7 +90,7 @@ public class MatchOverviewScoreSourceTests
         {
             // The Library card's source, computed directly: CCSTeam.m_iScore replayed to the last frame.
             ParsedDemo parsed = DemoParser.Parse(await File.ReadAllBytesAsync(demo));
-            (int? libCt, int? libT, string? ctClan, string? tClan) = DemoLibraryService.ExtractFinalScore(parsed);
+            (int? libCt, int? libT, string? ctClan, _) = DemoLibraryService.ExtractFinalScore(parsed);
             if (libCt is null || libT is null)
             {
                 continue; // warmup-only / team-less demo: the card omits the score, so there is nothing to match

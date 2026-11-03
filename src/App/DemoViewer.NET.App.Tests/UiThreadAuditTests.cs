@@ -52,14 +52,14 @@ public class UiThreadAuditTests
         string dir = Path.Combine(Path.GetTempPath(), $"dv-ui-audit-{Guid.NewGuid():N}");
         CopyTree(source, dir);
         string settingsFile = Path.Combine(dir, "settings.json");
-        if (File.Exists(settingsFile) && JsonNode.Parse(File.ReadAllText(settingsFile)) is JsonObject settings)
+        if (File.Exists(settingsFile) && JsonNode.Parse(await File.ReadAllTextAsync(settingsFile)) is JsonObject settings)
         {
             settings["ProcessingQueue"] = new JsonObject
             {
                 ["BackgroundProcessingEnabled"] = false, ["MaxQueueSize"] = 500, ["MaxConcurrency"] = 1
             };
             settings["Idle"] = new JsonObject { ["Enabled"] = false };
-            File.WriteAllText(settingsFile, settings.ToJsonString());
+            await File.WriteAllTextAsync(settingsFile, settings.ToJsonString());
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -84,16 +84,19 @@ public class UiThreadAuditTests
                     Console.WriteLine(
                         $"[ui-audit] library entries={provider.GetRequiredService<Modules.Library.DemoLibraryService>().Entries.Count} "
                         + $"cache index={provider.GetRequiredService<Services.DemoCache.DemoCacheStore>().Index.Count}");
-                    await Bursts(provider, vm, "library");
+                    await Bursts(provider, "library");
                     vm.TrySelectTab("stratbook.browser");
                     Settle();
-                    await Bursts(provider, vm, "strats");
+                    await Bursts(provider, "strats");
 
                     await GrenadeMerges(provider, vm);
 
-                    List<string> ids = [.. vm.Tabs.Select(t => t.TabId)];
-                    ids.AddRange(vm.StratBookHub().Sections.Sections.Select(s => s.TabId));
-                    ids.AddRange(vm.LibraryTab.Sections.Sections.Select(s => s.TabId));
+                    List<string> ids =
+                    [
+                        .. vm.Tabs.Select(t => t.TabId),
+                        .. vm.StratBookHub().Sections.Sections.Select(s => s.TabId),
+                        .. vm.LibraryTab.Sections.Sections.Select(s => s.TabId)
+                    ];
                     string[] skip =
                     [
                         "builtin.parser", "builtin.entity", "builtin.analysis", "builtin.diagnostics",
@@ -144,7 +147,7 @@ public class UiThreadAuditTests
                             {
                                 Console.WriteLine(
                                     $"[ui-audit]   {id} list {heavy.GetType().Name} items={heavy.ItemCount} "
-                                    + $"visuals={heavy.GetVisualDescendants().Count()} first={heavy.Items.Cast<object?>().FirstOrDefault()?.GetType().Name}");
+                                    + $"visuals={heavy.GetVisualDescendants().Count()} first={(heavy.Items.Count > 0 ? heavy.Items[0] : null)?.GetType().Name}");
                             }
 
                             Console.WriteLine($"[ui-audit] {id} scroll: extent={scroller.Extent.Height:F0}px "
@@ -216,7 +219,7 @@ public class UiThreadAuditTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -363,7 +366,7 @@ public class UiThreadAuditTests
 
     // Store Changed events the way an indexing pass raises them: one per demo, each run as its own
     // dispatcher job. Prints the UI cost per event.
-    private static async Task Bursts(ServiceProvider provider, MainViewModel vm, string label)
+    private static async Task Bursts(ServiceProvider provider, string label)
     {
         Services.DemoCache.DemoCacheStore cache = provider.GetRequiredService<Services.DemoCache.DemoCacheStore>();
         string[] paths = [.. cache.Index.Take(40).Select(e => e.Path)];
@@ -545,14 +548,14 @@ public class UiThreadAuditTests
         string dir = Path.Combine(Path.GetTempPath(), $"dv-ui-ttr-{Guid.NewGuid():N}");
         CopyTree(source, dir);
         string settingsFile = Path.Combine(dir, "settings.json");
-        if (JsonNode.Parse(File.ReadAllText(settingsFile)) is JsonObject settings)
+        if (JsonNode.Parse(await File.ReadAllTextAsync(settingsFile)) is JsonObject settings)
         {
             settings["ProcessingQueue"] = new JsonObject
             {
                 ["BackgroundProcessingEnabled"] = false, ["MaxQueueSize"] = 500, ["MaxConcurrency"] = 1
             };
             settings["Idle"] = new JsonObject { ["Enabled"] = false };
-            File.WriteAllText(settingsFile, settings.ToJsonString());
+            await File.WriteAllTextAsync(settingsFile, settings.ToJsonString());
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -650,7 +653,7 @@ public class UiThreadAuditTests
                 finally
                 {
                     Services.DemoProcessing.QueueWork.Bypass = false;
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -803,7 +806,7 @@ public class UiThreadAuditTests
         File.Copy(Path.Combine(source, "cache", "team-index.json"),
             Path.Combine(teamsRoot, "cache", "team-index.json"));
         sw.Restart();
-        DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService teams = new(
+        _ = new DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService(
             new DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityFiles(
                 DemoViewer.NET.Extensions.StratBook.StoredFile.At(Path.Combine(teamsRoot, "teams.json")),
                 DemoViewer.NET.Extensions.StratBook.StoredFile.At(Path.Combine(teamsRoot, "cache", "team-index.json"))),

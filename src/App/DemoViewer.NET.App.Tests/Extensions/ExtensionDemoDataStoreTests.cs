@@ -70,7 +70,7 @@ public class ExtensionDemoDataStoreTests
                 await Assert.That(store.Stamps("rounds").Single().DemoPath).IsEqualTo(Demo);
                 await Assert.That(store.ReadAny(Demo, "rounds")!.ExtensionVersion).IsEqualTo("1.2.3");
                 await Assert.That(File.Exists(Path.Combine(store.Root, "rounds", "aaaa.json.gz"))).IsTrue();
-                await Assert.That(told.Count == 1 && told[0] == Demo).IsTrue();
+                await Assert.That(told is [Demo]).IsTrue();
             }
         }
         finally
@@ -230,7 +230,7 @@ public class ExtensionDemoDataStoreTests
                 await Assert.That(Encoding.UTF8.GetString(store.Read(Demo, "rounds", 1, "fp-1", "positions")!))
                     .IsEqualTo("one-positions");
                 await Assert.That(Directory.GetFiles(Path.Combine(store.Root, "rounds"))
-                        .Select(f => Path.GetFileName(f)!).Order(StringComparer.Ordinal))
+                        .Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal))
                     .IsEquivalentTo(["cccc.json.gz", "cccc.positions.json.gz"], CollectionOrdering.Matching);
             }
         }
@@ -378,7 +378,7 @@ public class ExtensionDemoDataStoreTests
         string demo = Path.Combine(root, "replaced.dem");
         try
         {
-            File.WriteAllBytes(demo, new byte[64]);
+            await File.WriteAllBytesAsync(demo, new byte[64]);
             DemoCacheStore library = new(null);
             Seed(library, demo, "aaaa");
             Seed(library, Other, "aaaa");

@@ -23,7 +23,7 @@ public class ReelJobStatusViewModelTests
         return new ReelJobStatusViewModel(job, openFolder);
     }
 
-    private static ReelJobStatus Status(
+    private static ReelJobStatus StatusOf(
         ReelJobPhase phase, int completed = 0, int total = 0, string? current = null,
         string? error = null, string? output = null, int[]? failed = null) =>
         new(phase, completed, total, current, error, output, failed ?? []);
@@ -42,7 +42,7 @@ public class ReelJobStatusViewModelTests
     public async Task StartingSession_PulsesWorking_CancelEnabled()
     {
         ReelJobStatusViewModel vm = New(out FakeReelJob job);
-        job.Raise(Status(ReelJobPhase.StartingSession, 0, 3));
+        job.Raise(StatusOf(ReelJobPhase.StartingSession, 0, 3));
 
         await Assert.That(vm.Chip.DotState).IsEqualTo(StatusChipDotState.Working);
         await Assert.That(vm.Chip.IsPulsing).IsTrue();
@@ -57,7 +57,7 @@ public class ReelJobStatusViewModelTests
     public async Task Capturing_LabelsKofN_AndBuildsPerClipList()
     {
         ReelJobStatusViewModel vm = New(out FakeReelJob job);
-        job.Raise(Status(ReelJobPhase.Capturing, 1, 3, "s1mple · ace"));
+        job.Raise(StatusOf(ReelJobPhase.Capturing, 1, 3, "s1mple · ace"));
 
         await Assert.That(vm.Chip.Label).IsEqualTo("Reel · 2 of 3");
         await Assert.That(vm.Clips.Count).IsEqualTo(3);
@@ -73,7 +73,7 @@ public class ReelJobStatusViewModelTests
     {
         string? opened = null;
         ReelJobStatusViewModel vm = New(out FakeReelJob job, p => opened = p);
-        job.Raise(Status(ReelJobPhase.Completed, 3, 3, output: "/out/reel.mp4"));
+        job.Raise(StatusOf(ReelJobPhase.Completed, 3, 3, output: "/out/reel.mp4"));
 
         await Assert.That(vm.Chip.DotState).IsEqualTo(StatusChipDotState.Good);
         await Assert.That(vm.Chip.Label).IsEqualTo("Reel · done");
@@ -90,7 +90,7 @@ public class ReelJobStatusViewModelTests
     public async Task Failed_IsError_MarksFailedClip_AndRetries()
     {
         ReelJobStatusViewModel vm = New(out FakeReelJob job);
-        job.Raise(Status(ReelJobPhase.Failed, 2, 4, error: "OBS dropped the capture",
+        job.Raise(StatusOf(ReelJobPhase.Failed, 2, 4, error: "OBS dropped the capture",
             failed: [2]));
 
         await Assert.That(vm.Chip.DotState).IsEqualTo(StatusChipDotState.Error);
@@ -112,10 +112,10 @@ public class ReelJobStatusViewModelTests
     {
         ReelJobStatusViewModel vm = New(out FakeReelJob job);
 
-        job.Raise(Status(ReelJobPhase.Capturing, 1, 4));
+        job.Raise(StatusOf(ReelJobPhase.Capturing, 1, 4));
         await Assert.That(vm.HasError).IsFalse().Because("a running job has no error to copy");
 
-        job.Raise(Status(ReelJobPhase.Failed, 2, 4, "s1mple · ace",
+        job.Raise(StatusOf(ReelJobPhase.Failed, 2, 4, "s1mple · ace",
             "Capture provider is configured but not available.", failed: [2]));
 
         await Assert.That(vm.HasError).IsTrue();
@@ -132,11 +132,11 @@ public class ReelJobStatusViewModelTests
     public async Task Cancelled_IsOff_AndCancelRoutesToService()
     {
         ReelJobStatusViewModel vm = New(out FakeReelJob job);
-        job.Raise(Status(ReelJobPhase.Capturing, 0, 2));
+        job.Raise(StatusOf(ReelJobPhase.Capturing, 0, 2));
         vm.CancelCommand.Execute(null);
         await Assert.That(job.CancelCalled).IsTrue();
 
-        job.Raise(Status(ReelJobPhase.Cancelled));
+        job.Raise(StatusOf(ReelJobPhase.Cancelled));
         await Assert.That(vm.Chip.DotState).IsEqualTo(StatusChipDotState.Off);
         await Assert.That(vm.Chip.Label).IsEqualTo("Reel · cancelled");
         await Assert.That(vm.IsCancelled).IsTrue();
@@ -149,7 +149,7 @@ public class ReelJobStatusViewModelTests
         ReelJobStatusViewModel vm = New(out FakeReelJob job);
         foreach (ReelJobPhase phase in Enum.GetValues<ReelJobPhase>())
         {
-            job.Raise(Status(phase, 1, 3, failed: phase == ReelJobPhase.Failed ? [1] : null));
+            job.Raise(StatusOf(phase, 1, 3, failed: phase == ReelJobPhase.Failed ? [1] : null));
             int visible = new[] { vm.IsRunning, vm.IsCompleted, vm.IsFailed, vm.IsCancelled }.Count(b => b);
             await Assert.That(visible).IsLessThanOrEqualTo(1).Because($"at most one section for {phase}");
         }
@@ -160,7 +160,7 @@ public class ReelJobStatusViewModelTests
     public async Task Dismiss_RaisesDismissRequested()
     {
         ReelJobStatusViewModel vm = New(out FakeReelJob job);
-        job.Raise(Status(ReelJobPhase.Completed, 2, 2, output: "/out"));
+        job.Raise(StatusOf(ReelJobPhase.Completed, 2, 2, output: "/out"));
         bool dismissed = false;
         vm.DismissRequested += (_, _) => dismissed = true;
 

@@ -114,7 +114,7 @@ public class PackBoundaryTests
         List<(string FilePath, string Namespace)> violations = new();
         foreach (string file in SourceFiles(appRoot))
         {
-            string content = File.ReadAllText(file);
+            string content = await File.ReadAllTextAsync(file);
             string relPath = Path.GetRelativePath(repoRoot, file).Replace('\\', '/');
 
             foreach (string ns in packOwnedNamespaces)
@@ -199,7 +199,7 @@ public class PackBoundaryTests
         }
 
         // 2. xmlns attribute in XAML: xmlns="clr-namespace:Namespace;..." or "using:Namespace".
-        if (content.Contains(@$"clr-namespace:{ns}", StringComparison.Ordinal)
+        if (content.Contains($"clr-namespace:{ns}", StringComparison.Ordinal)
             || content.Contains(@$"using:{ns}""", StringComparison.Ordinal))
         {
             return true;

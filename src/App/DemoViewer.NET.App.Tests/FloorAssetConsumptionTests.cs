@@ -16,10 +16,10 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class FloorAssetConsumptionTests
 {
-    private static readonly List<FloorSlice> _nukeLikeFloors = new()
-    {
+    private static readonly List<FloorSlice> _nukeLikeFloors =
+    [
         new FloorSlice(-100_000, -528), new FloorSlice(-528, 100_000)
-    };
+    ];
 
     [Test]
     public async Task AuthoritativeFloors_OverrideHistogram_AndClassifyByZ()

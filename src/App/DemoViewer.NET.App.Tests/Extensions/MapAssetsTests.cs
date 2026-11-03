@@ -91,11 +91,11 @@ public class MapAssetsTests
         using (CpuSurfaceProvider provider = new())
         using (SceneCompositor compositor =
                SceneLayerCatalog.CreateSceneStack([SceneLayerIds.Radar, SceneLayerIds.Markers]))
-        using (HeadlessSceneRenderer renderer = new(provider, compositor)
-               {
-                   Palette = ScenePalette.Dark, Purpose = RenderPurpose.Export, Camera = camera
-               })
+        using (HeadlessSceneRenderer renderer = new(provider, compositor))
         {
+            renderer.Palette = ScenePalette.Dark;
+            renderer.Purpose = RenderPurpose.Export;
+            renderer.Camera = camera;
             renderer.Levels.SetAuthoritativeFloors(asset.Floors);
             renderer.Levels.RadarBinder = new MapRadarBinder(asset);
             SceneTime time = frame.Time;

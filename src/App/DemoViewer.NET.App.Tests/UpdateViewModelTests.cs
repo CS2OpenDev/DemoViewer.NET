@@ -186,7 +186,7 @@ public class UpdateViewModelTests
         public bool DownloadSucceeds { get; init; }
         public int DownloadCalls { get; private set; }
 
-        public string? CurrentVersion => "0.5.1";
+        public string CurrentVersion => "0.5.1";
 
         public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) => Task.FromResult(CheckResult);
 

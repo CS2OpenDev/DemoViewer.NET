@@ -29,7 +29,7 @@ public class TutorialControllerTests
         int seen = 0;
         TutorialController controller = new(
             TutorialSteps.Default,
-            tabId => tabs.Add(tabId),
+            tabs.Add,
             demoLoaded ?? (() => false),
             () => seen++,
             demoAvailable ?? (() => false),

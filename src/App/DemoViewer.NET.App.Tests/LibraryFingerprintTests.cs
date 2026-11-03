@@ -721,7 +721,7 @@ internal sealed class CountingContentReader : ILibraryContentReader
     private readonly ConcurrentDictionary<string, int> _windows = new(StringComparer.OrdinalIgnoreCase);
     private int _blocked;
 
-    public int WindowBytes { get; init; } = 256;
+    public int WindowBytes { get; } = 256;
 
     public Func<string, bool>? Block { get; init; }
 

@@ -293,9 +293,9 @@ public class VisibilityAnalyzerTests
             if (couldSeeNo)
             {
                 synthCandidates++;
-                Vector3 chest = new(vv.Feet.X, vv.Feet.Y, vv.Feet.Z + 48f);
+                Vector3 chest = vv.Feet with { Z = vv.Feet.Z + 48f };
                 Vector3 mid = (kv.Eye + chest) * 0.5f;
-                Vector4[] inject = new[] { new Vector4(mid, SmokeVolumes.DefaultRadius) };
+                Vector4[] inject = [new Vector4(mid, SmokeVolumes.DefaultRadius)];
                 (_, bool couldSeeInj) = VisibilityAnalyzer.EvaluatePair(engine, kv, vv, 53f, 37f, inject);
                 if (!couldSeeInj)
                 {
@@ -555,7 +555,7 @@ public class VisibilityAnalyzerTests
                     // Eye of the higher player → chest of the lower (a straight stacked sightline).
                     (VisibilityAnalyzer.Vantage upper, VisibilityAnalyzer.Vantage lower) =
                         a.Feet.Z > b.Feet.Z ? (a, b) : (b, a);
-                    Vector3 lowerChest = new(lower.Feet.X, lower.Feet.Y, lower.Feet.Z + 48f);
+                    Vector3 lowerChest = lower.Feet with { Z = lower.Feet.Z + 48f };
                     crossFloorPairs++;
                     if (!engine.IsVisible(upper.Eye, lowerChest))
                     {

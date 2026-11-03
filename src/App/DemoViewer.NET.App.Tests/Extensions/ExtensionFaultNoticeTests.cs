@@ -58,11 +58,13 @@ public class ExtensionFaultNoticeTests
         {
             for (int i = 0; i < ExtensionFaults.WindowLimit; i++)
             {
-                Action body = () => throw new InvalidOperationException("boom");
-                Faults.Run(_stratBook, "library filter", body);
+                Faults.Run(_stratBook, "library filter", Body);
             }
 
             Posts.Drain();
+            return;
+
+            static void Body() => throw new InvalidOperationException("boom");
         }
 
         public void Dispose()
@@ -79,7 +81,7 @@ public class ExtensionFaultNoticeTests
         }
     }
 
-    private static SettingsViewModel Settings(Rig rig)
+    private static SettingsViewModel SettingsFor(Rig rig)
     {
         SettingsViewModel vm = new(rig.Settings, rig.Monitor, rig.Gate, new ThemeRegistry(), () => false);
         vm.AttachExtensionFaults(rig.Faults, null);
@@ -93,7 +95,7 @@ public class ExtensionFaultNoticeTests
     public async Task TheMasterRow_SaysTheExtensionWasTurnedOff_AndTurnOnAgainLiftsIt()
     {
         using Rig rig = new();
-        using SettingsViewModel vm = Settings(rig);
+        using SettingsViewModel vm = SettingsFor(rig);
         FeatureToggleRow master = Master(vm);
         await Assert.That(master.Fault!.IsShown).IsFalse();
 
@@ -120,7 +122,7 @@ public class ExtensionFaultNoticeTests
     public async Task KeepOff_WritesTheSwitchOff_AndClearsTheNotice()
     {
         using Rig rig = new();
-        using SettingsViewModel vm = Settings(rig);
+        using SettingsViewModel vm = SettingsFor(rig);
         FeatureToggleRow master = Master(vm);
 
         rig.Trip();
@@ -140,7 +142,7 @@ public class ExtensionFaultNoticeTests
     {
         using Rig rig = new();
         rig.Settings.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = true);
-        using SettingsViewModel vm = Settings(rig);
+        using SettingsViewModel vm = SettingsFor(rig);
         FeatureToggleRow master = Master(vm);
 
         rig.Trip();
@@ -163,7 +165,7 @@ public class ExtensionFaultNoticeTests
         using Rig rig = new();
         rig.Faults.FailStartup(_stratBook, "register", new InvalidOperationException("no"));
         rig.Posts.Drain();
-        using SettingsViewModel vm = Settings(rig);
+        using SettingsViewModel vm = SettingsFor(rig);
         FeatureToggleRow master = Master(vm);
         await Assert.That(master.Fault!.CanTurnOnAgain).IsFalse();
 
@@ -195,8 +197,7 @@ public class ExtensionFaultNoticeTests
                     .IsEqualTo("Strat Book: Turned off for this session after 3 errors (last: library filter).");
 
                 shell.DismissExtensionFaultBannerCommand.Execute(null);
-                Action late = () => throw new InvalidOperationException("after");
-                rig.Faults.Run(_stratBook, "library filter", late);
+                rig.Faults.Run(_stratBook, "library filter", Late);
                 rig.Posts.Drain();
                 await Assert.That(shell.HasExtensionFaultBanner).IsFalse()
                     .Because("the same switch-off is not announced twice");
@@ -217,5 +218,9 @@ public class ExtensionFaultNoticeTests
             {
                 shell.Dispose();
             }
+
+            return;
+
+            static void Late() => throw new InvalidOperationException("after");
         });
 }

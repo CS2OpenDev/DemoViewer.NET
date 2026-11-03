@@ -44,10 +44,10 @@ public class HighlightsTabViewModelTests
     // CA1869 (the analyser rejects a per-call JsonSerializerOptions).
     private static readonly JsonSerializerOptions _webCase = new(JsonSerializerDefaults.Web);
 
-    // NOTE: name/steam are no longer stored ON the event. The unified record keeps each player once and
-    // references them by SLOT, so they must match a roster entry passed to Row(). They stay in this
-    // signature because they seed the rendered title, which IS captured at emission.
-    private static CachedHighlightEvent Ev(string name, string steam, int slot, int round, int tick, string type)
+    // NOTE: the player name is no longer stored ON the event. The unified record keeps each player once and
+    // references them by SLOT, so it must match a roster entry passed to Row(). It stays in this
+    // signature because it seeds the rendered title, which IS captured at emission.
+    private static CachedHighlightEvent Ev(string name, int slot, int round, int tick, string type)
     {
         int dot = type.IndexOf('.');
         return new CachedHighlightEvent
@@ -115,19 +115,16 @@ public class HighlightsTabViewModelTests
 
     private static HighlightsTabViewModel Vm(
         DemoCacheStore store, HighlightScanService scanner,
-        IReelJobService? job = null, bool demosExist = true, Action? addClips = null,
-        bool noticeAcknowledged = true)
+        IReelJobService? job = null, bool demosExist = true, bool noticeAcknowledged = true)
     {
-        AppSettings settings = new();
-        settings.LiveSync.LaunchNoticeAcknowledged = noticeAcknowledged;
+        AppSettings settings = new() { LiveSync = { LaunchNoticeAcknowledged = noticeAcknowledged } };
+        // The reel defaults are unseeded in a test host; without an output folder every plan is blocked by
+        // the "choose an output folder" banner and the ordering assertions below can never reach Start.
         HighlightsTabViewModel vm = new(store, scanner,
             new StubMonitor(settings),
             reelJob: job,
             isLiveSyncSessionActive: () => false,
-            fileExists: _ => demosExist);
-        // The reel defaults are unseeded in a test host; without an output folder every plan is blocked by
-        // the "choose an output folder" banner and the ordering assertions below can never reach Start.
-        vm.ReelConfig.OutputFolder = "/out";
+            fileExists: _ => demosExist) { ReelConfig = { OutputFolder = "/out" } };
         return vm;
     }
 
@@ -149,9 +146,9 @@ public class HighlightsTabViewModelTests
     public async Task Staging_IsIdempotent_SpansDemos_And_IsStagedIsExact()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         DemoCacheRecord b = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
-            [Ev("ZywOo", "2", 0, 2, 1500, "clutch.retake")]);
+            [Ev("ZywOo", 0, 2, 1500, "clutch.retake")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a, b);
         HighlightsTabViewModel vm = Vm(store, scanner);
 
@@ -171,7 +168,7 @@ public class HighlightsTabViewModelTests
     public async Task Toggle_And_Unstage_RoundTrip()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
         HighlightsTabViewModel vm = Vm(store, scanner);
 
@@ -189,7 +186,7 @@ public class HighlightsTabViewModelTests
     public async Task StageFromCache_ResolvesTheRow_And_RefusesUnknownIdentities()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
         HighlightsTabViewModel vm = Vm(store, scanner);
 
@@ -211,7 +208,7 @@ public class HighlightsTabViewModelTests
     {
         // Two highlights, same player + round, windows overlapping at the default 15s lead-in → one clip.
         DemoCacheRecord a = Row("/d/faceit_dust2.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace"), Ev("s1mple", "1", 0, 7, 5600, "clutch.plant")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace"), Ev("s1mple", 0, 7, 5600, "clutch.plant")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
         HighlightsTabViewModel vm = Vm(store, scanner);
         StageAll(vm, a);
@@ -236,7 +233,7 @@ public class HighlightsTabViewModelTests
     public async Task EditingLeadIn_ReflowsTheTray_Live()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace"), Ev("s1mple", "1", 0, 7, 6000, "clutch.plant")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace"), Ev("s1mple", 0, 7, 6000, "clutch.plant")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
         HighlightsTabViewModel vm = Vm(store, scanner);
         StageAll(vm, a);
@@ -253,9 +250,9 @@ public class HighlightsTabViewModelTests
     public async Task Reorder_Changes_TheEmittedClipSequence_ButNotTheMerge()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace"), Ev("s1mple", "1", 0, 7, 5600, "clutch.plant")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace"), Ev("s1mple", 0, 7, 5600, "clutch.plant")]);
         DemoCacheRecord b = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
-            [Ev("ZywOo", "2", 0, 2, 20000, "clutch.retake")]);
+            [Ev("ZywOo", 0, 2, 20000, "clutch.retake")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a, b);
         FakeReelJob job = new();
         HighlightsTabViewModel vm = Vm(store, scanner, job);
@@ -293,9 +290,9 @@ public class HighlightsTabViewModelTests
         // Interleaving demos is the expensive case: ReelJobService issues a LoadDemoAsync whenever
         // clip.DemoPath changes, so the tray normalises to group-contiguous order however it was built.
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 3, 3000, "clutch.ace"), Ev("s1mple", "1", 0, 9, 40000, "clutch.plant")]);
+            [Ev("s1mple", 0, 3, 3000, "clutch.ace"), Ev("s1mple", 0, 9, 40000, "clutch.plant")]);
         DemoCacheRecord b = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
-            [Ev("ZywOo", "2", 0, 2, 20000, "clutch.retake")]);
+            [Ev("ZywOo", 0, 2, 20000, "clutch.retake")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a, b);
         FakeReelJob job = new();
         HighlightsTabViewModel vm = Vm(store, scanner, job);
@@ -316,7 +313,7 @@ public class HighlightsTabViewModelTests
     public async Task Generate_AsksForLaunchNotice_UntilSettingsRecordConsent()
     {
         DemoCacheRecord b = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
-            [Ev("ZywOo", "2", 0, 2, 20000, "clutch.retake")]);
+            [Ev("ZywOo", 0, 2, 20000, "clutch.retake")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(b);
         FakeReelJob job = new();
         HighlightsTabViewModel vm = Vm(store, scanner, job, noticeAcknowledged: false);
@@ -336,9 +333,9 @@ public class HighlightsTabViewModelTests
     public async Task Remove_Works_PerClip_And_PerGroup()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace"), Ev("s1mple", "1", 0, 7, 5600, "clutch.plant")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace"), Ev("s1mple", 0, 7, 5600, "clutch.plant")]);
         DemoCacheRecord b = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
-            [Ev("ZywOo", "2", 0, 2, 20000, "clutch.retake")]);
+            [Ev("ZywOo", 0, 2, 20000, "clutch.retake")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a, b);
         HighlightsTabViewModel vm = Vm(store, scanner);
         StageAll(vm, a, b);
@@ -357,7 +354,7 @@ public class HighlightsTabViewModelTests
     public async Task ClearTray_Requires_Confirmation()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
         HighlightsTabViewModel vm = Vm(store, scanner);
 
@@ -386,7 +383,7 @@ public class HighlightsTabViewModelTests
     public async Task MovedDemo_Surfaces_Inline_At_StagingTime_And_Blocks_Generate()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
         HighlightsTabViewModel vm = Vm(store, scanner, demosExist: false);
         StageAll(vm, a);
@@ -405,9 +402,9 @@ public class HighlightsTabViewModelTests
     public async Task Snapshot_Restores_TheTray_InOrder_And_Drops_VanishedKeys()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         DemoCacheRecord b = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
-            [Ev("ZywOo", "2", 0, 2, 20000, "clutch.retake")]);
+            [Ev("ZywOo", 0, 2, 20000, "clutch.retake")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a, b);
         HighlightsTabViewModel vm = Vm(store, scanner);
         StageAll(vm, b, a); // deliberately NOT store order: the snapshot must carry the user's sequence
@@ -441,9 +438,9 @@ public class HighlightsTabViewModelTests
         // test above would stay green while the tray silently evaporated on every restart, which is exactly
         // the loss tray persistence exists to prevent.
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         DemoCacheRecord b = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
-            [Ev("ZywOo", "2", 0, 2, 20000, "clutch.retake")]);
+            [Ev("ZywOo", 0, 2, 20000, "clutch.retake")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a, b);
         HighlightsTabViewModel vm = Vm(store, scanner);
         StageAll(vm, b, a);
@@ -478,10 +475,10 @@ public class HighlightsTabViewModelTests
     public async Task Backlog_ProjectsStaleAndFailedRows_AndIsATabSeam()
     {
         DemoCacheRecord indexed = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         // Pending WITH events = the stale case: the row still shows its previous harvest everywhere.
         DemoCacheRecord stale = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
-            [Ev("ZywOo", "2", 0, 2, 20000, "clutch.retake")], DemoAnalysisState.Pending);
+            [Ev("ZywOo", 0, 2, 20000, "clutch.retake")], DemoAnalysisState.Pending);
         DemoCacheRecord failed = Row("/d/c.dem", "de_mirage", 0, [("b1t", "3", 2, 0)], [],
             DemoAnalysisState.Failed);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(indexed, stale, failed);
@@ -541,7 +538,7 @@ public class HighlightsTabViewModelTests
     {
         // Library HAS highlights, tray is empty → the tray's own empty state, and NO "scan my library" line.
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
         HighlightsTabViewModel withLibrary = Vm(store, scanner);
         await Assert.That(withLibrary.ShowEmptyTray).IsTrue();
@@ -564,7 +561,7 @@ public class HighlightsTabViewModelTests
     public async Task AddClips_Opens_TheTabOwnedPicker_And_Closes_Back()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
         HighlightsTabViewModel vm = Vm(store, scanner);
 
@@ -588,8 +585,8 @@ public class HighlightsTabViewModelTests
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
         [
-            Ev("s1mple", "1", 0, 7, 5000, "clutch.ace"),
-            Ev("s1mple", "1", 0, 9, 9000, "clutch.retake")
+            Ev("s1mple", 0, 7, 5000, "clutch.ace"),
+            Ev("s1mple", 0, 9, 9000, "clutch.retake")
         ]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a);
         HighlightsTabViewModel vm = Vm(store, scanner);
@@ -698,9 +695,9 @@ public class HighlightsTabViewModelTests
     public async Task StoreChange_Reresolves_TheTray_And_Drops_WhatIsGone()
     {
         DemoCacheRecord a = Row("/d/a.dem", "de_dust2", 2, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         DemoCacheRecord b = Row("/d/b.dem", "de_nuke", 1, [("ZywOo", "2", 3, 0)],
-            [Ev("ZywOo", "2", 0, 2, 20000, "clutch.retake")]);
+            [Ev("ZywOo", 0, 2, 20000, "clutch.retake")]);
         (DemoCacheStore store, HighlightScanService scanner) = NewStore(a, b);
         HighlightsTabViewModel vm = Vm(store, scanner);
         StageAll(vm, a, b);
@@ -708,7 +705,7 @@ public class HighlightsTabViewModelTests
         // A rescan replaces the row with a DIFFERENT tick rate. Every window in the plan is computed from
         // that row, so a tray still pointing at the detached snapshot computes silently wrong clips.
         DemoCacheRecord rescanned = Row("/d/a.dem", "de_dust2", 9, [("s1mple", "1", 2, 0)],
-            [Ev("s1mple", "1", 0, 7, 5000, "clutch.ace")]);
+            [Ev("s1mple", 0, 7, 5000, "clutch.ace")]);
         rescanned.TickRate = 128;
         store.Upsert(rescanned);
 

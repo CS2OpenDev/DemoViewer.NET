@@ -129,7 +129,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
 
         VisibilityEngine before = await cache.GetOrLoadAsync(bake);
         DateTime originalWrite = File.GetLastWriteTimeUtc(bake);
-        File.WriteAllBytes(bake, new byte[64]);
+        await File.WriteAllBytesAsync(bake, new byte[64]);
         File.SetLastWriteTimeUtc(bake, originalWrite.AddMinutes(1));
         VisibilityEngine after = await cache.GetOrLoadAsync(bake);
 
@@ -147,7 +147,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
 
         VisibilityEngine before = await cache.GetOrLoadAsync(bake);
         DateTime originalWrite = File.GetLastWriteTimeUtc(bake);
-        File.WriteAllBytes(bake, new byte[128]);
+        await File.WriteAllBytesAsync(bake, new byte[128]);
         File.SetLastWriteTimeUtc(bake, originalWrite);
         VisibilityEngine after = await cache.GetOrLoadAsync(bake);
 
@@ -199,7 +199,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         string overrideDir = Path.Combine(_dir, "override");
         Directory.CreateDirectory(Path.Combine(overrideDir, Map));
         string overridden = Path.Combine(overrideDir, Map, "collision.tris" + CollisionSoup.CompressedSuffix);
-        File.WriteAllBytes(overridden, new byte[64]);
+        await File.WriteAllBytesAsync(overridden, new byte[64]);
 
         // Stands in for what a loaded bundle names: a different directory entirely, which is exactly
         // the disagreement an override used to produce.
@@ -392,7 +392,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         using CancellationTokenSource cts = new();
         Task<VisibilityEngine> abandoned = cache.GetOrLoadAsync(bake, cts.Token);
         await WaitForAsync(() => Volatile.Read(ref entered) >= 1, "the build to start");
-        cts.Cancel();
+        await cts.CancelAsync();
         try
         {
             await abandoned;

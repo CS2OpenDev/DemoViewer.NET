@@ -176,7 +176,7 @@ public static class LiveAimStats
     /// </summary>
     /// <param name="path">The demo file.</param>
     /// <returns>The hash.</returns>
-    public static string Sha256OfFile(string path)
+    private static string Sha256OfFile(string path)
     {
         using FileStream stream = File.OpenRead(path);
         return Convert.ToHexStringLower(SHA256.HashData(stream));
@@ -195,7 +195,7 @@ public static class LiveAimStats
     /// </summary>
     /// <param name="mapName">The map, for example <c>de_nuke</c>.</param>
     /// <returns>The path, or <c>null</c>.</returns>
-    public static string? FindCollisionBake(string? mapName) => CollisionSoup.Find(mapName);
+    private static string? FindCollisionBake(string? mapName) => CollisionSoup.Find(mapName);
 
     private static VisibilityEngine? TryLoadCollision(string? mapName) =>
         FindCollisionBake(mapName) is { } path ? CollisionSoup.Load(path) : null;
@@ -258,13 +258,7 @@ public sealed record AimRunResult(
     string? MapName,
     double TickRate,
     bool VisibilityAvailable,
-    IReadOnlyDictionary<string, AimPlayerRow> Players)
-{
-    /// <summary>Whether a stat's tier is actually supported by this run.</summary>
-    /// <param name="tier">The tier to test.</param>
-    /// <returns><c>true</c> when the tier can produce a real measurement on this run.</returns>
-    public bool Supports(AimTier tier) => tier != AimTier.Visibility || VisibilityAvailable;
-}
+    IReadOnlyDictionary<string, AimPlayerRow> Players);
 
 /// <summary>
 ///     Raised when a per-player entity provider the aim ruleset needs names a field the demo's
@@ -318,7 +312,7 @@ public sealed class AimSchemaDriftException : Exception
     /// <param name="inner">The provider guard's exception.</param>
     /// <returns>The exception.</returns>
     public static AimSchemaDriftException For(string demoFileName, Exception inner) =>
-        new($"'{demoFileName}' cannot feed the aim ruleset: {inner?.Message}", demoFileName, inner!);
+        new($"'{demoFileName}' cannot feed the aim ruleset: {inner.Message}", demoFileName, inner);
 
     /// <summary>
     ///     Whether an exception is the provider schema guard rather than any other invalid-operation
@@ -328,6 +322,6 @@ public sealed class AimSchemaDriftException : Exception
     /// <param name="ex">The exception.</param>
     /// <returns><c>true</c> when it is the schema guard.</returns>
     public static bool LooksLikeDrift(Exception ex) =>
-        ex?.Message.Contains("does not exist on", StringComparison.Ordinal) == true
+        ex.Message.Contains("does not exist on", StringComparison.Ordinal)
         && ex.Message.Contains("provider '", StringComparison.Ordinal);
 }

@@ -155,7 +155,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 // Baseline: everything visible (desktop gates), Features group collapsed by default.
                 await Assert.That(vm.ShowSectionTheme).IsTrue();
@@ -195,7 +195,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 vm.SelectCategoryCommand.Execute(UserCategory.Developer);
 
@@ -222,7 +222,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 // AddFolders is the exact write path AddFolderCommand feeds after the OS picker.
                 vm.AddFolders(["/demos/aim", "/demos/retake"]);
@@ -255,7 +255,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 vm.SelectedTheme = vm.Themes.First(t => t.Id == "system");
 
@@ -282,7 +282,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(vm.Themes.Any(t => t.Id == "light")).IsTrue();
 
@@ -310,7 +310,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(vm.Themes.Any(t => t.Id == "midnight")).IsFalse();
 
@@ -347,7 +347,7 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     // A DIFFERENT writer changes settings (simulating another surface / a hand-edited file).
                     // A legacy CAPITALIZED "System" proves the id lookup is case-insensitive (back-compat with
@@ -383,7 +383,7 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     await Assert.That(vm.SubscribeToBeta).IsFalse();
                     await Assert.That(svc.Current.Updates.SubscribeToBeta).IsFalse();
@@ -417,7 +417,7 @@ public class SettingsViewModelTests
             {
                 (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                     NewVm(dir, isBrowser: () => false);
-                using (sp)
+                await using (sp)
                 {
                     await Assert.That(vm.CheckForUpdatesAutomatically).IsTrue();
                     await Assert.That(svc.Current.Updates.CheckAutomatically).IsTrue();
@@ -435,7 +435,7 @@ public class SettingsViewModelTests
 
                 (SettingsViewModel browser, SettingsService _, IFeatureGate _, ServiceProvider sp2) =
                     NewVm(dir, isBrowser: () => true);
-                using (sp2)
+                await using (sp2)
                 {
                     await Assert.That(browser.ShowAutomaticUpdateChecks).IsFalse();
                     browser.Dispose();
@@ -457,8 +457,8 @@ public class SettingsViewModelTests
         {
             await HeadlessSession.RunOnUi(async () =>
             {
-                (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
+                await using (sp)
                 {
                     vm.AddFolders(["/demos/one"]);
 
@@ -503,7 +503,7 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     vm.SettingsFilterText = "extension"; // selects and auto-expands the Extensions group
 
@@ -587,7 +587,7 @@ public class SettingsViewModelTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -633,7 +633,7 @@ public class SettingsViewModelTests
                 () => new FakePageViewModel(), () => new Border(), StratBookPack.PackFeatureId);
             SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), OperatingSystem.IsBrowser,
                 null, [fake]);
-            using (sp)
+            await using (sp)
             {
                 try
                 {
@@ -696,7 +696,7 @@ public class SettingsViewModelTests
                 () => new Border(), StratBookPack.PackFeatureId);
             SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), OperatingSystem.IsBrowser,
                 null, [fake]);
-            using (sp)
+            await using (sp)
             {
                 try
                 {
@@ -739,7 +739,7 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     using MainViewModel shell = new(library: TestLibraries.Empty());
                     BrowserWindowService windowService = new() { OnOpenSettings = shell.ShowSettingsOverlay };
@@ -772,7 +772,7 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     ViewLocator locator = new();
                     await Assert.That(locator.Match(vm)).IsTrue();
@@ -803,7 +803,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate gate, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow row = Row(vm, "tab.parser");
                 await Assert.That(row.IsEnabled).IsTrue().Because("Parser is PowerUser-default-on");
@@ -839,7 +839,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow row = Row(vm, "tab.library");
                 await Assert.That(row.IsRequired).IsTrue();
@@ -868,7 +868,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 Row(vm, "tab.parser").IsEnabled = false; // override a default-on tab off
                 Row(vm, "tab.diagnostics").IsEnabled = true; // override a (power) default-off tab on
@@ -902,7 +902,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(Row(vm, "tab.parser").IsEnabled).IsTrue().Because("PowerUser default shows Parser");
                 int hiddenAsPower = vm.HiddenCount;
@@ -933,7 +933,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow row = Row(vm, "tab.playback2d"); // default-on for all, not Required
                 await Assert.That(row.IsOverridden).IsFalse();
@@ -964,7 +964,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate gate, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 // chrome.debugger is a non-leader member of graphDebug (leader = analysis.breakpoints).
                 FeatureToggleRow follower = Row(vm, "chrome.debugger");
@@ -1006,7 +1006,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 await Assert.That(master.Scope).IsEqualTo(FeatureScope.Pack);
@@ -1049,7 +1049,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 FeatureToggleRow child = Row(vm, "tab.situations");
@@ -1093,7 +1093,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 FeatureToggleRow child = Row(vm, "tab.situations");
@@ -1140,7 +1140,7 @@ public class SettingsViewModelTests
 
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, packStatuses: [staged]);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 using (Assert.Multiple())
@@ -1178,7 +1178,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 FeatureToggleRow child = Row(vm, "tab.situations");
@@ -1218,7 +1218,7 @@ public class SettingsViewModelTests
 
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, packStatuses: statuses);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow row = Row(vm, pack.FeatureId);
                 using (Assert.Multiple())
@@ -1269,13 +1269,13 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate gate, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 vm.SelectCategoryCommand.Execute(UserCategory.Developer);
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
 
                 int expected =
-                    FeatureCatalog.All.Count(d => d.OwnerPackId == StratBookPack.PackFeatureId && !d.Required);
+                    FeatureCatalog.All.Count(d => d is { OwnerPackId: StratBookPack.PackFeatureId, Required: false });
                 await Assert.That(expected).IsGreaterThan(0);
                 await Assert.That(gate.HiddenCount).IsEqualTo(expected);
                 await Assert.That(vm.HiddenCount).IsEqualTo(expected);
@@ -1299,7 +1299,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 vm.SettingsFilterText = "extension";
                 await Assert.That(vm.ShowSectionExtensions).IsTrue();
@@ -1339,7 +1339,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(vm.StratBookToggleNotice).IsNull();
                 vm.Dispose();
@@ -1364,7 +1364,7 @@ public class SettingsViewModelTests
             TaskCompletionSource<int> tcs = new();
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, new FakeReindexEstimate(() => tcs.Task));
-            using (sp)
+            await using (sp)
             {
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
                 svc.Write(s => s.Features.Overrides.Remove(StratBookPack.PackFeatureId)); // off -> on
@@ -1393,7 +1393,7 @@ public class SettingsViewModelTests
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, new FakeReindexEstimate(() => Task.FromResult(0)));
-            using (sp)
+            await using (sp)
             {
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
 
@@ -1421,11 +1421,11 @@ public class SettingsViewModelTests
         {
             TaskCompletionSource<int> probeA = new();
             TaskCompletionSource<int> probeB = new();
-            Queue<Func<Task<int>>> probes = new(new[] { () => probeA.Task, () => probeB.Task });
+            Queue<Func<Task<int>>> probes = new([() => probeA.Task, () => probeB.Task]);
 
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, new FakeReindexEstimate(() => probes.Dequeue()()));
-            using (sp)
+            await using (sp)
             {
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
                 svc.Write(s => s.Features.Overrides.Remove(StratBookPack.PackFeatureId)); // on: starts probe A
@@ -1478,7 +1478,7 @@ public class SettingsViewModelTests
             ExtensionDataRemovalResult result = new(true, inventory, 1);
             FakePackDataRemoval fake = new(inventory, result);
             (SettingsViewModel vm, SettingsService svc, _, ServiceProvider sp) = NewVm(dir, dataRemoval: fake);
-            using (sp)
+            await using (sp)
             {
                 svc.Write(s =>
                     s.Features.Overrides[StratBookPack.PackFeatureId] = false); // the pack stays off throughout
@@ -1531,7 +1531,7 @@ public class SettingsViewModelTests
         {
             FakePackDataRemoval fake = new(ExtensionDataInventory.Empty, ExtensionDataRemovalResult.NotRun);
             (SettingsViewModel vm, _, _, ServiceProvider sp) = NewVm(dir, dataRemoval: fake);
-            using (sp)
+            await using (sp)
             {
                 ExtensionDataActionViewModel row = vm.ExtensionDataActions.Single();
                 await row.ArmCommand.ExecuteAsync(null);
@@ -1565,7 +1565,7 @@ public class SettingsViewModelTests
             TaskCompletionSource<ExtensionDataRemovalResult> gate = new();
             FakePackDataRemoval fake = new(ExtensionDataInventory.Empty, ExtensionDataRemovalResult.NotRun, gate);
             (SettingsViewModel vm, _, _, ServiceProvider sp) = NewVm(dir, dataRemoval: fake);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 ExtensionDataActionViewModel row = vm.ExtensionDataActions.Single();
@@ -1613,7 +1613,7 @@ public class SettingsViewModelTests
             TaskCompletionSource<ExtensionDataRemovalResult> gate = new();
             FakePackDataRemoval fake = new(ExtensionDataInventory.Empty, ExtensionDataRemovalResult.NotRun, gate);
             (SettingsViewModel vm, _, _, ServiceProvider sp) = NewVm(dir, dataRemoval: fake);
-            using (sp)
+            await using (sp)
             {
                 ExtensionDataActionViewModel row = vm.ExtensionDataActions.Single();
 
@@ -1649,16 +1649,18 @@ public class SettingsViewModelTests
             string next = new SemVersion(running.Major, running.Minor, running.Patch + 1).ToString();
             byte[] zip = UpdateFixtures.ExtensionZip(StratBookPack.PackId, next);
             FakeFeeds.Entry offered = new(next, zip);
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Zips[offered.Url] = zip;
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(offered);
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Zips = { [offered.Url] = zip },
+                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(offered) }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
             // Checked a minute ago: opening Settings must not check again on its own.
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
                 extensionUpdates: updater,
                 seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow.AddMinutes(-1));
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 ExtensionUpdateRow line = master.Update
@@ -1726,15 +1728,16 @@ public class SettingsViewModelTests
             string next = new SemVersion(running.Major, running.Minor, running.Patch + 1).ToString();
             string future = new SemVersion(running.Major + 1, 0, 0).ToString();
             byte[] zip = UpdateFixtures.ExtensionZip(StratBookPack.PackId, next);
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] =
-                StratBookFeed(new FakeFeeds.Entry(future, RequiresHost: "^9.0"));
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(future, RequiresHost: "^9.0")) }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
                 extensionUpdates: updater,
                 seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
-            using (sp)
+            await using (sp)
             {
                 ExtensionUpdateRow line = Row(vm, StratBookPack.PackFeatureId).Update!;
 
@@ -1790,14 +1793,15 @@ public class SettingsViewModelTests
         try
         {
             SemVersion running = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId).Manifest!.Version;
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] =
-                StratBookFeed(new FakeFeeds.Entry(running.ToString()));
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(running.ToString())) }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
             (SettingsViewModel first, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, extensionUpdates: updater);
-            using (sp)
+            await using (sp)
             {
                 // Never checked: opening Settings asks the feed. The check is fire-and-forget, so wait for its record.
                 DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(10);
@@ -1827,7 +1831,7 @@ public class SettingsViewModelTests
                 // Opened again within the hour: no second fetch, and the row shows the remembered verdict.
                 (SettingsViewModel second, SettingsService _, IFeatureGate _, ServiceProvider sp2) =
                     NewVm(dir, extensionUpdates: updater);
-                using (sp2)
+                await using (sp2)
                 {
                     await Task.Delay(100);
                     ExtensionUpdateRow again = Row(second, StratBookPack.PackFeatureId).Update!;
@@ -1867,15 +1871,16 @@ public class SettingsViewModelTests
         try
         {
             SemVersion running = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId).Manifest!.Version;
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] =
-                StratBookFeed(new FakeFeeds.Entry(running.ToString()));
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(running.ToString())) }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
                 extensionUpdates: updater,
                 seed: s => s.Updates.CheckAutomatically = false);
-            using (sp)
+            await using (sp)
             {
                 await Task.Delay(100);
                 ExtensionUpdateRow line = Row(vm, StratBookPack.PackFeatureId).Update!;
@@ -1913,7 +1918,7 @@ public class SettingsViewModelTests
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, isBrowser: () => true);
-            using (sp)
+            await using (sp)
             {
                 ExtensionUpdateRow? line = Row(vm, StratBookPack.PackFeatureId).Update;
                 using (Assert.Multiple())
@@ -1930,7 +1935,7 @@ public class SettingsViewModelTests
             }
 
             (SettingsViewModel desktop, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir);
-            using (sp2)
+            await using (sp2)
             {
                 await Assert.That(Row(desktop, StratBookPack.PackFeatureId).HasUpdate).IsFalse()
                     .Because("a desktop with no updater shows no line");
@@ -1953,8 +1958,10 @@ public class SettingsViewModelTests
         {
             SemVersion running = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId).Manifest!.Version;
             string next = new SemVersion(running.Major, running.Minor, running.Patch + 1).ToString();
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(next));
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(next)) }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
             await updater.CheckAsync();
 
@@ -1963,7 +1970,7 @@ public class SettingsViewModelTests
                 (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
                     extensionUpdates: updater,
                     seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
-                using (sp)
+                await using (sp)
                 {
                     vm.SettingsFilterText = "extension";
                     SettingsView view = new() { DataContext = vm };
@@ -2006,7 +2013,7 @@ public class SettingsViewModelTests
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, isBrowser: () => false);
-            using (sp)
+            await using (sp)
             using (IdentityService identity = new(svc, IdentityServiceTests.Library(20, 15)))
             {
                 await Assert.That(vm.CanManageIdentity).IsFalse().Because("nothing is attached yet");
@@ -2070,7 +2077,7 @@ public class SettingsViewModelTests
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, isBrowser: () => true);
-            using (sp)
+            await using (sp)
             using (IdentityService identity = new(svc))
             {
                 vm.AttachIdentity(identity, null);
@@ -2101,7 +2108,7 @@ public class SettingsViewModelTests
             {
                 (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                     NewVm(dir, isBrowser: () => false);
-                using (sp)
+                await using (sp)
                 using (IdentityService identity = new(svc, IdentityServiceTests.Library(20, 15)))
                 {
                     identity.SetAccounts([

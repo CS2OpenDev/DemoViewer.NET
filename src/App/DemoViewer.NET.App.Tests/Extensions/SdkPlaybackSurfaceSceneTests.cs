@@ -661,10 +661,10 @@ public class SdkPlaybackSurfaceSceneTests
         public bool IsAvailable(ITimelineData data) => true;
 
         public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
-            [new TimelineBand("round", 10, 20, "3", "", 0xFF00FF00)];
+            [new("round", 10, 20, "3", "", 0xFF00FF00)];
 
         public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) =>
-            [new TimelineMarker("round", 15, 30, TimelineMarkerKind.Kill, "*", "a mark", 0xFFFF0000)];
+            [new("round", 15, 30, TimelineMarkerKind.Kill, "*", "a mark", 0xFFFF0000)];
     }
 
     // One labelled band, so two of these from two owners are told apart in the lane row.
@@ -683,7 +683,7 @@ public class SdkPlaybackSurfaceSceneTests
         public bool IsAvailable(ITimelineData data) => true;
 
         public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
-            [new TimelineBand(id, 10, 20, label, "", 0)];
+            [new(id, 10, 20, label, "", 0)];
 
         public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
     }

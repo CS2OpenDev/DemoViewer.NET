@@ -120,7 +120,7 @@ public class ExtensionPlaybackFaultTests
     [Test]
     public async Task APanelWhoseFactoriesThrow_ShowsThePlaceholder()
     {
-        (Playback2DTabViewModel vm, FaultRig rig, SdkPlaybackContribution hosted, ThrowingContribution fake) = Attach();
+        (Playback2DTabViewModel vm, _, SdkPlaybackContribution hosted, ThrowingContribution fake) = Attach();
 
         fake.Panel!.Open();
         object? content = vm.Surface.Panels.Single().View;

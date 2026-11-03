@@ -54,13 +54,13 @@ public class LibraryContributionTests
     // BadgesForCalls distinguish a per-entry read from the full-refresh batch hook.
     private sealed class FakeContribution : ILibraryContribution
     {
-        public string? FeatureId { get; set; }
+        public string? FeatureId { get; init; }
         public LibraryFilter? FilterValue { get; set; }
-        public bool HasBadgeValue { get; set; }
-        public Func<LibraryDemo, LibraryBadge?>? BadgeForFunc { get; set; }
-        public IReadOnlyList<string> BadgeLabelsValue { get; set; } = [];
-        public string? BadgeResetLabelValue { get; set; }
-        public string? BadgeResetTooltipValue { get; set; }
+        public bool HasBadgeValue { get; init; }
+        public Func<LibraryDemo, LibraryBadge?>? BadgeForFunc { get; init; }
+        public IReadOnlyList<string> BadgeLabelsValue { get; init; } = [];
+        public string? BadgeResetLabelValue { get; init; }
+        public string? BadgeResetTooltipValue { get; init; }
         public int BadgeForCalls { get; private set; }
         public int BadgesForCalls { get; private set; }
         public List<(LibraryDemo Entry, string? Label)> SetLabelCalls { get; } = [];
@@ -172,7 +172,7 @@ public class LibraryContributionTests
     // assert the host never calls into it while its gate is off.
     private sealed class ThrowingContribution : ILibraryContribution
     {
-        public string? FeatureId => "pack.fake";
+        public string FeatureId => "pack.fake";
 
         public event Action? Changed
         {
@@ -180,18 +180,18 @@ public class LibraryContributionTests
             remove => throw new InvalidOperationException("Changed unsubscribed while off");
         }
 
-        public LibraryFilter? Filter => throw new InvalidOperationException("Filter read while off");
+        public LibraryFilter Filter => throw new InvalidOperationException("Filter read while off");
         public bool HasBadge => throw new InvalidOperationException("HasBadge read while off");
 
-        public LibraryBadge? BadgeFor(LibraryDemo demo) =>
+        public LibraryBadge BadgeFor(LibraryDemo demo) =>
             throw new InvalidOperationException("BadgeFor called while off");
 
         public IReadOnlyDictionary<string, LibraryBadge?> BadgesFor(IEnumerable<LibraryDemo> demos) =>
             throw new InvalidOperationException("BadgesFor called while off");
 
         public IReadOnlyList<string> BadgeLabels => throw new InvalidOperationException("BadgeLabels read while off");
-        public string? BadgeResetLabel => throw new InvalidOperationException("BadgeResetLabel read while off");
-        public string? BadgeResetTooltip => throw new InvalidOperationException("BadgeResetTooltip read while off");
+        public string BadgeResetLabel => throw new InvalidOperationException("BadgeResetLabel read while off");
+        public string BadgeResetTooltip => throw new InvalidOperationException("BadgeResetTooltip read while off");
 
         public void SetLabel(LibraryDemo demo, string? label) =>
             throw new InvalidOperationException("SetLabel called while off");
@@ -359,7 +359,7 @@ public class LibraryContributionTests
             HasBadgeValue = true,
             BadgeForFunc = e => new LibraryBadge(e.FileName, null, false)
         };
-        LibraryTabViewModel vm = NewVm(lib, [c], _ => true);
+        _ = NewVm(lib, [c], _ => true);
 
         using (Assert.Multiple())
         {
@@ -451,7 +451,7 @@ public class LibraryContributionTests
             HasBadgeValue = true,
             BadgeForFunc = e => new LibraryBadge(e.FileName, null, false)
         };
-        LibraryTabViewModel vm = NewVm(lib, [filterOnly, badge], _ => true);
+        _ = NewVm(lib, [filterOnly, badge], _ => true);
         int before = badge.BadgesForCalls;
         await Assert.That(before).IsEqualTo(1).Because("construction's own refresh");
 
@@ -471,7 +471,7 @@ public class LibraryContributionTests
             HasBadgeValue = true,
             BadgeForFunc = e => new LibraryBadge(e.FileName, null, false)
         };
-        LibraryTabViewModel vm = NewVm(lib, [badge], _ => true);
+        _ = NewVm(lib, [badge], _ => true);
         int before = badge.BadgesForCalls;
 
         badge.RaiseChanged();

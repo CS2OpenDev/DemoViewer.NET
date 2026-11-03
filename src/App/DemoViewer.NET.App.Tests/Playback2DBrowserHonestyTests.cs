@@ -50,7 +50,7 @@ public class Playback2DBrowserHonestyTests
         try
         {
             (SettingsViewModel browser, ServiceProvider spB) = NewVm(dir, true);
-            using (spB)
+            await using (spB)
             {
                 Console.WriteLine($"[wasm-honesty] browser note='{browser.KeybindPersistenceNote}'");
 
@@ -65,7 +65,7 @@ public class Playback2DBrowserHonestyTests
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
-            using (spD)
+            await using (spD)
             {
                 await Assert.That(desktop.KeybindsPersist).IsTrue();
                 await Assert.That(desktop.KeybindPersistenceNote).IsEmpty()
@@ -90,7 +90,7 @@ public class Playback2DBrowserHonestyTests
         try
         {
             (SettingsViewModel browser, ServiceProvider spB) = NewVm(dir, true);
-            using (spB)
+            await using (spB)
             {
                 Console.WriteLine($"[wasm-honesty] browser rejection='{browser.KeybindRejectionSource}'");
                 await Assert.That(browser.KeybindRejectionSource).DoesNotContain("settings.json");
@@ -99,7 +99,7 @@ public class Playback2DBrowserHonestyTests
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
-            using (spD)
+            await using (spD)
             {
                 await Assert.That(desktop.KeybindRejectionSource).Contains("settings.json")
                     .Because("on desktop the file IS the answer to 'where do I fix this'");
@@ -133,7 +133,7 @@ public class Playback2DBrowserHonestyTests
 
             (SettingsViewModel browser, ServiceProvider spB, SettingsService svc) =
                 NewVmWithService(dir, true);
-            using (spB)
+            await using (spB)
             {
                 FeatureToggleRow row = Row(browser, ExportId);
                 Console.WriteLine($"[wasm-honesty] browser row: enabled={row.IsEnabled} "
@@ -155,7 +155,7 @@ public class Playback2DBrowserHonestyTests
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
-            using (spD)
+            await using (spD)
             {
                 FeatureToggleRow row = Row(desktop, ExportId);
                 await Assert.That(row.IsPlatformUnavailable).IsFalse();

@@ -61,16 +61,6 @@ public class RoundFactsSourceTests
         Extra = new Dictionary<string, object?>(StringComparer.Ordinal) { ["pace"] = "slow" }
     };
 
-    private sealed class NoRowsSource : IRoundFactsRowSource
-    {
-        public RoundFactsTable Rows(CS2DemoKit.Parser.ParsedDemo parsed) => RoundFactsTable.Unavailable("test");
-    }
-
-    private sealed class NullIdentity : IRoundFactsRulesetIdentity
-    {
-        public string? Fingerprint(int tickRate) => null;
-    }
-
     private static DemoCacheStore Store()
     {
         DemoCacheStore store = new(null);
@@ -294,7 +284,7 @@ public class RoundFactsSourceTests
 
     private sealed class FixedIdentity(string value) : IRoundFactsRulesetIdentity
     {
-        public string? Fingerprint(int tickRate) => value;
+        public string Fingerprint(int tickRate) => value;
     }
 
     private sealed class FixedSource(RoundFactsTable table) : IRoundFactsRowSource

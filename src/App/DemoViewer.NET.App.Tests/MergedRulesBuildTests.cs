@@ -521,8 +521,7 @@ public class MergedRulesBuildTests
     {
         bool fixtureOn = true;
         List<StampedRuleset> stamped =
-            [.. Enumerable.Range(0, 70).Select(i => new StampedRuleset($"absent_{i}", Extension, () => i % 2 == 0))];
-        stamped.Add(GatedBy(() => fixtureOn));
+            [.. Enumerable.Range(0, 70).Select(i => new StampedRuleset($"absent_{i}", Extension, () => i % 2 == 0)), GatedBy(() => fixtureOn)];
         MergedRulesBuild build = new(FixtureRules, () => stamped);
 
         IReadOnlyList<string> on = Ids(build.Docs);
@@ -782,8 +781,10 @@ public class MergedRulesBuildTests
     public async Task NothingStale_TheOpenRunsTheCoreRulesetsAlone() => await WithFactsFixture(async fixture =>
     {
         MergedRulesBuild build = new(() => AnalysisFactsTests.WithFixture(fixture),
-            () => [StampedRuleset.Core(RoundFacts), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)]);
-        build.OutputsFor = _ => new HashSet<string>();
+            () => [StampedRuleset.Core(RoundFacts), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)])
+        {
+            OutputsFor = _ => new HashSet<string>()
+        };
         ParsedDemo parsed = TwoFrameDemo();
 
         (OpenRunPlan plan, AnalysisRun run) = OpenRun(build, fixture, parsed);
@@ -807,10 +808,12 @@ public class MergedRulesBuildTests
     {
         CollectorSet registered = CollectorSet.Of([CollectorKit.Register(CollectorKit.Counting("count.a"))]);
         MergedRulesBuild build = new(() => AnalysisFactsTests.WithFixture(fixture),
-            () => [StampedRuleset.Core(RoundFacts), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)]);
-        build.OutputsFor = _ => new HashSet<string>();
-        build.OpenCollectors = () => registered;
-        build.CollectorsFor = _ => registered;
+            () => [StampedRuleset.Core(RoundFacts), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)])
+        {
+            OutputsFor = _ => new HashSet<string>(),
+            OpenCollectors = () => registered,
+            CollectorsFor = _ => registered
+        };
         ParsedDemo parsed = TwoFrameDemo();
 
         OpenRunPlan plan = build.PlanOpen(AnalysisFactsTests.WithFixture(fixture).Rulesets, OpenPath);
@@ -928,7 +931,7 @@ public class MergedRulesBuildTests
         MergedRulesBuild build = FactsBuild(fixture, () => true);
         _ = build.Docs;
         string kast = Path.Combine(fixture, "kast.rules.yaml");
-        File.WriteAllText(kast, File.ReadAllText(Path.Combine(_shipped, "kast.rules.yaml"))
+        await File.WriteAllTextAsync(kast, (await File.ReadAllTextAsync(Path.Combine(_shipped, "kast.rules.yaml")))
             .Replace("title: ", "title: Edited ", StringComparison.Ordinal));
 
         OpenRunPlan plan = build.PlanOpen(AnalysisFactsTests.WithFixture(fixture).Rulesets, OpenPath);

@@ -35,7 +35,7 @@ public class PlayerOverviewRankTests
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
     // Demo i of PlayerOverviewHistoryTests on the given map, with Grim's rank row stamped as the evaluator writes it.
-    internal static DemoCacheRecord Ranked(int i, string map, MatchRankRow? rank, long computedAt = 1)
+    private static DemoCacheRecord Ranked(int i, string map, MatchRankRow? rank, long computedAt = 1)
     {
         DemoCacheRecord record = PlayerOverviewHistoryTests.Demo(i);
         record.Map = map;
@@ -100,7 +100,6 @@ public class PlayerOverviewRankTests
                 Gate.Reset();
             }
 
-            Store = store;
             PlayerDirectory directory = new(store, _ => true);
             Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts([new IdentityAccount(Id(Grim), null, DateTime.UtcNow)]);
@@ -115,9 +114,8 @@ public class PlayerOverviewRankTests
             Tab.OnActivated(null!);
         }
 
-        public DemoCacheStore Store { get; }
-        public IdentityService Identity { get; }
-        public PlayerRankCache Ranks { get; }
+        private IdentityService Identity { get; }
+        private PlayerRankCache Ranks { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public ConcurrentQueue<string> Reads { get; } = new();
 
@@ -383,7 +381,7 @@ public class PlayerOverviewRankRenderTests
             {
                 await Assert.That(view.IsVisible).IsTrue();
                 await Assert.That(bars.Length).IsEqualTo(2);
-                await Assert.That(bars.All(b => b.Mode == SparklineMode.Bars && b.Bounds.Width > 0)).IsTrue();
+                await Assert.That(bars.All(b => b is { Mode: SparklineMode.Bars, Bounds.Width: > 0 })).IsTrue();
                 await Assert.That(badges.Select(b => b.Key)).IsEquivalentTo(
                     vm.Reveal<HeaderSectionViewModel>().Ranks.Select(r => r.BadgeKey), CollectionOrdering.Matching);
                 await Assert.That(badges.All(b => b.Bounds.Width > 0)).IsTrue();
@@ -486,7 +484,7 @@ public class PlayerOverviewRankRenderTests
             MapsSectionView view = window.GetVisualDescendants().OfType<MapsSectionView>().Single();
             Point[] corners =
             [
-                .. view.GetVisualDescendants().OfType<GameIcon>().Where(i => i.Name == "MapRankBadge" && i.IsVisible)
+                .. view.GetVisualDescendants().OfType<GameIcon>().Where(i => i is { Name: "MapRankBadge", IsVisible: true })
                     .Select(i => i.TranslatePoint(new Point(i.Bounds.Width, 0), i.FindAncestorOfType<Border>()!)!.Value)
             ];
             Border[] cards = [.. view.GetVisualDescendants().OfType<Border>().Where(b => b.Name == "MapCard")];

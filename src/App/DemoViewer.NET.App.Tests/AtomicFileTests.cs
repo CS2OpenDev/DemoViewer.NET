@@ -51,7 +51,7 @@ public class AtomicFileTests
             {
                 AtomicFile.Write(path, stream =>
                 {
-                    stream.Write(Encoding.UTF8.GetBytes("half"));
+                    stream.Write("half"u8);
                     throw new IOException("disk gone");
                 });
                 return Task.CompletedTask;
@@ -133,7 +133,7 @@ public class AtomicFileTests
             string path = Path.Combine(root, "file.json");
             AtomicFile.WriteAllText(path, "one");
 
-            using (HoldWithoutShareDelete(path))
+            await using (HoldWithoutShareDelete(path))
             {
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
                 {

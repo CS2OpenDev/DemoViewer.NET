@@ -127,7 +127,6 @@ public class PlayerOverviewHistoryTests
     {
         public Shell(DemoCacheStore store, HashSet<string>? onDisk = null, params ulong[] me)
         {
-            Store = store;
             Directory = new PlayerDirectory(store, onDisk is null ? _ => true : onDisk.Contains);
             Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts(me.Select(a => new IdentityAccount(Id(a), null, _added)));
@@ -137,8 +136,7 @@ public class PlayerOverviewHistoryTests
             Tab.OnActivated(null!);
         }
 
-        public DemoCacheStore Store { get; }
-        public PlayerDirectory Directory { get; }
+        private PlayerDirectory Directory { get; }
         public IdentityService Identity { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public ConcurrentQueue<string> Reads { get; } = new();

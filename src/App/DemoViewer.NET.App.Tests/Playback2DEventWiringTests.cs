@@ -148,7 +148,7 @@ public class Playback2DEventWiringTests
     ///     every raise and subscribe found in <paramref name="scope" /> to one.
     /// </summary>
     private static (List<EventContract> Contracts, List<string> Unanalysable) Analyse(
-        IEnumerable<Type> types, IEnumerable<SysAssembly> scope)
+        IEnumerable<Type> types, IReadOnlyList<SysAssembly> scope)
     {
         List<string> unanalysable = [];
 
@@ -267,7 +267,7 @@ public class Playback2DEventWiringTests
 
     // True when the type's own add_<name> calls add_<name> on another type: the event forwards, and the
     // inner type is where a raise and a backing field live.
-    private static bool Forwards(Type type, string name, IEnumerable<SysAssembly> scope)
+    private static bool Forwards(Type type, string name, IReadOnlyList<SysAssembly> scope)
     {
         string add = "add_" + name;
         return Playback2DWholeGraph.Scan(scope, (_, member) => string.Equals(member, add, StringComparison.Ordinal))

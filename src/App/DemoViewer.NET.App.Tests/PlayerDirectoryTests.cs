@@ -127,7 +127,7 @@ public class PlayerDirectoryTests
     [Test]
     public async Task TheFacet_LeavesOutAnAccountTheRosterHasOnlyAsACoach()
     {
-        FactRow Row(long slot, string steamId) => new(
+        FactRow FacetRow(long slot, string steamId) => new(
             new Dictionary<string, FactValue>
             {
                 ["player_slot"] = FactValue.Of(slot), ["steam_id"] = FactValue.Of(steamId)
@@ -136,7 +136,7 @@ public class PlayerDirectoryTests
 
         CachedPlayerInfo[] roster = [Player(1, "grim", Grim, 3), Player(3, "coach", 76561190000000009, 3, coach: true)];
 
-        List<FacetPlayer> players = PlayerMatchFacet.Players([Row(1, Id(Grim)), Row(3, "76561190000000009")], roster);
+        List<FacetPlayer> players = PlayerMatchFacet.Players([FacetRow(1, Id(Grim)), FacetRow(3, "76561190000000009")], roster);
 
         await Assert.That(players.Select(p => p.SteamId64)).IsEquivalentTo([Id(Grim)], CollectionOrdering.Matching);
     }

@@ -558,7 +558,7 @@ public class StatsComponentRenderTests
             [
                 new(0, 0, 0.1f, -0.2f), new(1, 1, 0.5f, -1.4f), new(2, 2, 1.1f, -2.9f)
             ];
-            SpraySample[] poisoned = [.. landed, new SpraySample(3, 3, float.NaN, float.NaN)];
+            SpraySample[] poisoned = [.. landed, new(3, 3, float.NaN, float.NaN)];
 
             byte[] clean = CaptureControl(Spray(pattern, landed), "stats-spray-clean");
             byte[] withNaN = CaptureControl(Spray(pattern, poisoned), "stats-spray-nan");
@@ -830,7 +830,7 @@ public class StatsComponentRenderTests
 
     /// <summary>The inputs that break a naive draw path.</summary>
     private static StackPanel EdgeCases() =>
-        new StackPanel
+        new()
         {
             Spacing = 6,
             Children =

@@ -78,7 +78,7 @@ public class SettingsSchemaPageTests
             Pack pack = new("dev.example.page." + Guid.NewGuid().ToString("N")[..8]);
             ServiceCollection services = new();
             services.AddSingleton<ExtensionShellHub>();
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             ExtensionContext context = new(pack, sp);
             PackContributions contributions = new(pack, () => context);
             contributions.SettingsSchema(_schema);

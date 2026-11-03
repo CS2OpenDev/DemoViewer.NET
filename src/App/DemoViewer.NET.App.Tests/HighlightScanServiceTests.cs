@@ -143,7 +143,7 @@ public class HighlightScanServiceTests
         // The fingerprint stamps this literal while the real build composes with
         // RuleChainBuilder.Profile.GetType().Name. A profile-class rename must break HERE,
         // loudly, instead of silently invalidating every cached fingerprint.
-        await Assert.That(typeof(Cs2GotvProfile).Name)
+        await Assert.That(nameof(Cs2GotvProfile))
             .IsEqualTo(RulesHighlightHarvester.GotvProfileId);
     }
 
@@ -354,7 +354,7 @@ public class HighlightScanServiceTests
         store.Upsert(new DemoCacheRecord { Path = "/d/mid.dem", ModifiedTicks = 5 });
 
         scanner.EnsureBackfillRunning();
-        await WaitForAsync(() => scanner.QueueLength == 0 && !scanner.IsScanning, "queue drained");
+        await WaitForAsync(() => scanner is { QueueLength: 0, IsScanning: false }, "queue drained");
 
         await Assert.That(processed)
             .IsEquivalentTo(["/d/newest.dem", "/d/mid.dem", "/d/old.dem"], CollectionOrdering.Matching)
@@ -372,7 +372,7 @@ public class HighlightScanServiceTests
         using HighlightScanService scanner = NewScanner(store, new FakeHarvester(),
             () => [],
             () => false,
-            (path, _) =>
+            (_, _) =>
             {
                 Interlocked.Increment(ref processedCount);
                 return Harvest();
@@ -491,7 +491,7 @@ public class HighlightScanServiceTests
         store.Upsert(new DemoCacheRecord { Path = "/d/good.dem", ModifiedTicks = 1 });
 
         scanner.EnsureBackfillRunning();
-        await WaitForAsync(() => scanner.QueueLength == 0 && !scanner.IsScanning, "drain");
+        await WaitForAsync(() => scanner is { QueueLength: 0, IsScanning: false }, "drain");
 
         await Assert.That(store.TryLoadRecord("/d/bad.dem")!.AnalysisState).IsEqualTo(DemoAnalysisState.Failed);
         await Assert.That(store.TryLoadRecord("/d/good.dem")!.AnalysisState).IsEqualTo(DemoAnalysisState.Indexed);
@@ -506,7 +506,7 @@ public class HighlightScanServiceTests
         using HighlightScanService scanner = NewScanner(store, new FakeHarvester(),
             () => [],
             () => true,
-            (path, _) =>
+            (_, _) =>
             {
                 Interlocked.Increment(ref processedCount);
                 return Harvest();
@@ -526,7 +526,7 @@ public class HighlightScanServiceTests
 
     private sealed class FakeHarvester : IHighlightHarvester
     {
-        public readonly string CurrentFingerprint = "fp-A";
+        private const string CurrentFingerprint = "fp-A";
         public int RunBareAnalysisCalls;
 
         public (string Fingerprint, IReadOnlyDictionary<string, string> Hashes) ComputeFingerprint(int tickRate) =>

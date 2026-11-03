@@ -183,7 +183,7 @@ public class RoundFactsRealDemoTests
         // alone reads round 3 CT as semi; the money read makes it force: the CT
         // side lost round 2 and holds $600 across five players at freeze end, under the $2,000 line.
         string path = DemoTestHelper.RequireDemo("match730_003844252717140672725_0377894676_389.dem");
-        ParsedDemo parsed = DemoParser.Parse(File.ReadAllBytes(path).AsMemory());
+        ParsedDemo parsed = DemoParser.Parse((await File.ReadAllBytesAsync(path)).AsMemory());
         RoundFactsRows rows = RowsFor(parsed, path);
         RoundFacts Round(int n) => rows.Rounds.Single(r => r.Number == n);
 

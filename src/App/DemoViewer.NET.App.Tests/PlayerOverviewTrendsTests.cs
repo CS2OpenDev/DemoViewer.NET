@@ -78,7 +78,7 @@ public class PlayerOverviewTrendsTests
             Tab.OnActivated(null!);
         }
 
-        public IdentityService Identity { get; }
+        private IdentityService Identity { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public TrendsSectionViewModel Trends => Tab.Reveal<TrendsSectionViewModel>();
 
@@ -231,7 +231,7 @@ public class PlayerOverviewTrendsRenderTests
                 await Assert.That(lines.Length).IsEqualTo(3);
                 await Assert.That(lines.All(l => l.Bounds.Width > 0)).IsTrue();
                 await Assert.That(bars.Length).IsEqualTo(3);
-                await Assert.That(bars.All(b => b.Positive > 0 && b.Extent == TrendsSectionViewModel.FormExtent))
+                await Assert.That(bars.All(b => b is { Positive: > 0, Extent: TrendsSectionViewModel.FormExtent }))
                     .IsTrue();
             }
 

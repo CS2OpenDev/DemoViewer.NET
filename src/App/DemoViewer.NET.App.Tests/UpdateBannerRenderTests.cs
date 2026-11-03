@@ -160,7 +160,7 @@ public class UpdateBannerRenderTests
 
     private sealed class StubService : IUpdateService
     {
-        public string? CurrentVersion => "0.5.1";
+        public string CurrentVersion => "0.5.1";
 
         public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) =>
             Task.FromResult(UpdateCheckResult.UpdateAvailable("0.5.2"));

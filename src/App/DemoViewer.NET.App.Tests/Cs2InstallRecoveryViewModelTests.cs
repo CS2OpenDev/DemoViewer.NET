@@ -208,7 +208,7 @@ public class Cs2InstallRecoveryViewModelTests
     internal sealed class FakeLiveSync(Cs2InstallProbe probe) : ILiveSyncService
     {
         public Cs2InstallProbe Probe { get; set; } = probe;
-        public Exception? RestoreFailure { get; set; }
+        public Exception? RestoreFailure { get; init; }
         public int ProbeCalls { get; private set; }
         public int RestoreCalls { get; private set; }
 

@@ -77,7 +77,7 @@ public class PlayerEventFacetTests
                     $"missing the {key.Output} sample; regenerate with {SampleUpdateVar}=1 through PlayerEventRealDemoTests");
             }
 
-            string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
             FactTable? table = FactsCodec.Decode(PlayerMatchFacetTests.Gzip(committed));
             IReadOnlyList<string> declared =
             [

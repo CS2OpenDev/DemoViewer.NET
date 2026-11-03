@@ -294,7 +294,7 @@ public class ExternalExtensionTests
             {
                 Microsoft.Extensions.DependencyInjection.ServiceCollection services =
                     App.ComposeServices(new Services.DesktopWindowService(() => null), [hello]);
-                using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
+                await using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
                     Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions
                         .BuildServiceProvider(services);
                 PackContributions contributed = Microsoft.Extensions.DependencyInjection
@@ -440,7 +440,7 @@ public class ExternalExtensionTests
             {
                 Microsoft.Extensions.DependencyInjection.ServiceCollection services =
                     App.ComposeServices(new Services.DesktopWindowService(() => null), [hello]);
-                using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
+                await using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
                     Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions
                         .BuildServiceProvider(services);
                 PackContributions contributed = Microsoft.Extensions.DependencyInjection
@@ -507,7 +507,7 @@ public class ExternalExtensionTests
         {
             Microsoft.Extensions.DependencyInjection.ServiceCollection services =
                 App.ComposeServices(new Services.DesktopWindowService(() => null), [pack]);
-            using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
+            await using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
                 Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions
                     .BuildServiceProvider(services);
             ExtensionFaults faults = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions

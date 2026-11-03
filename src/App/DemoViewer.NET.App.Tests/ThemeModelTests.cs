@@ -114,7 +114,7 @@ public class ThemeModelTests
                 foreach (string token in ThemeTokens.All)
                 {
                     Application.Current!.TryGetResource(token, variant, out object? compiled);
-                    object? model = palette.Colors.TryGetValue(token, out Color c)
+                    object model = palette.Colors.TryGetValue(token, out Color c)
                         ? new SolidColorBrush(c)
                         : palette.Gradients[token].ToBrush();
                     if (!ThemeSampleFileTests.SameBrush(compiled, model))
@@ -233,7 +233,7 @@ public class ThemeModelTests
         {
             registry.Install(Application.Current!);
             Application.Current!.TryGetResource("PanelBg", theme.Variant, out live);
-            registry.Uninstall(Application.Current!);
+            registry.Uninstall(Application.Current);
             return Task.CompletedTask;
         });
         await Assert.That(((ISolidColorBrush)live!).Color).IsEqualTo(BuiltInThemes.Light.Colors["PanelBg"]);

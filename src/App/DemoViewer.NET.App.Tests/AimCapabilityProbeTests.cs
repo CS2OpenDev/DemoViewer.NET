@@ -30,8 +30,7 @@ public class AimCapabilityProbeTests
     [Test]
     public async Task Probe_WithNoBulletDamageButPlayerHurtPresent_DegradesAccuracyRatherThanSupportingIt()
     {
-        List<GameEvent> events = [];
-        events.AddRange(Shots(40));
+        List<GameEvent> events = [.. Shots(40)];
         events.AddRange(Hurts(12, varyHitGroup: true));
         events.AddRange(Rounds(4, closed: true));
 
@@ -52,8 +51,7 @@ public class AimCapabilityProbeTests
     [Test]
     public async Task Probe_WithBulletDamagePresent_SupportsAccuracyAndDamagePerShot()
     {
-        List<GameEvent> events = [];
-        events.AddRange(Shots(40));
+        List<GameEvent> events = [.. Shots(40)];
         events.AddRange(BulletDamages(18));
         events.AddRange(Hurts(12, varyHitGroup: true));
         events.AddRange(Rounds(4, closed: true));

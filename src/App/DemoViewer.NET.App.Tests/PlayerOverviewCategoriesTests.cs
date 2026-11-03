@@ -128,7 +128,7 @@ public class PlayerOverviewCategoriesTests
             Tab.OnActivated(null!);
         }
 
-        public IdentityService Identity { get; }
+        private IdentityService Identity { get; }
         public PlayerRowCache Rows { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public CategoriesSectionViewModel Categories => Tab.Reveal<CategoriesSectionViewModel>();
@@ -184,7 +184,7 @@ public class PlayerOverviewCategoriesTests
             string[] expected =
             [
                 .. ColumnCatalogue.All
-                    .Where(m => category.Groups.Contains(m.Group) && !m.Hidden && !m.RequiresVisibility)
+                    .Where(m => category.Groups.Contains(m.Group) && m is { Hidden: false, RequiresVisibility: false })
                     .Where(m => ColumnRules.For(m.Key) is not ColumnRule.NotAggregable)
                     .Select(m => m.Key)
             ];

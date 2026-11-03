@@ -203,7 +203,8 @@ public class HeavyJobGateTests
     [Test]
     public async Task Resize_ShrinkWhileIdle_TakesEffectImmediately()
     {
-        using HeavyJobGate gate = new() { MaxConcurrency = 3 };
+        using HeavyJobGate gate = new();
+        gate.MaxConcurrency = 3;
 
         // Idle, then shrink to 1: the very next acquire pair must serialize (only one holder).
         gate.MaxConcurrency = 1;
@@ -221,7 +222,8 @@ public class HeavyJobGateTests
     [Test]
     public async Task Resize_ShrinkWhileRunning_DrainsExcessBeforeAdmittingNew()
     {
-        using HeavyJobGate gate = new() { MaxConcurrency = 3 };
+        using HeavyJobGate gate = new();
+        gate.MaxConcurrency = 3;
 
         IDisposable a = await gate.AcquireBackgroundAsync();
         IDisposable b = await gate.AcquireBackgroundAsync();
@@ -257,7 +259,7 @@ public class HeavyJobGateTests
         await AssertStaysBlockedAsync(bg2, "background yielding to the pending interactive");
 
         // Cancel the interactive: its pending flag must clear so the yielded background can proceed.
-        cts.Cancel();
+        await cts.CancelAsync();
         await AssertThrowsAsync<OperationCanceledException>(async () => await interactive);
         await WaitForAsync(() => !gate.IsInteractivePending, "pending cleared after cancel");
 

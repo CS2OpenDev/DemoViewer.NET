@@ -87,7 +87,7 @@ public class PlayerAggregateTests
 
         FactTable table =
             FactsCodec.Decode(
-                PlayerMatchFacetTests.Gzip(File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal)))!;
+                PlayerMatchFacetTests.Gzip((await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal)))!;
         List<string> mismatches = [];
         foreach (FactRow row in table.Rows)
         {

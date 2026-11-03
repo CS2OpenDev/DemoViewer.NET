@@ -31,7 +31,7 @@ namespace DemoViewer.NET.AppTests;
 public class TeammatesTests
 {
     internal const ulong Grim = 76561190000000003;
-    internal const ulong Mate = 76561190000000012;
+    private const ulong Mate = 76561190000000012;
     private const ulong Rival = 76561190000000007;
     private static readonly string _matchStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
@@ -134,10 +134,10 @@ public class TeammatesTests
             Tab.OnActivated(null!);
         }
 
-        public DemoCacheStore Store { get; }
-        public PlayerDirectory Directory { get; }
-        public IdentityService Identity { get; }
-        public PlayerRowCache Cache { get; }
+        private DemoCacheStore Store { get; }
+        private PlayerDirectory Directory { get; }
+        private IdentityService Identity { get; }
+        private PlayerRowCache Cache { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public TeammatesSectionViewModel Section => Tab.Reveal<TeammatesSectionViewModel>();
         public ConcurrentQueue<string> Reads { get; } = new();

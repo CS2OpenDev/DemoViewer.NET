@@ -86,7 +86,7 @@ public class VisibilityEngineTests
         int compared = 0, mismatches = 0;
         foreach (Vector3 f in fx.Feet)
         {
-            Vector3 o = new(f.X, f.Y, f.Z + EyeStanding);
+            Vector3 o = f with { Z = f.Z + EyeStanding };
             bool eHit = fx.Engine.RayDownDistance(o, 100_000f, out float eT);
             bool bHit = BruteRayDown(fx.V, fx.TriCount, o, out float bT);
             compared++;

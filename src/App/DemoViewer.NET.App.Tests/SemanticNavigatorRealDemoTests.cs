@@ -71,7 +71,7 @@ public class SemanticNavigatorRealDemoTests
         // ── (2) NextRound from start lands on the FIRST round boundary; symmetric back-step. ──
         controller.SeekToFrame(0);
         navigator.NextRound();
-        int firstRound = navigator.RoundBoundaryFrames.First(f => f > 0);
+        _ = navigator.RoundBoundaryFrames.First(f => f > 0);
         // From frame 0, NextRound finds the first boundary strictly > 0. If frame 0 itself is a round
         // boundary it is correctly skipped; assert the landing is a real round boundary > 0.
         await Assert.That(navigator.RoundBoundaryFrames).Contains(controller.CurrentFrameIndex);

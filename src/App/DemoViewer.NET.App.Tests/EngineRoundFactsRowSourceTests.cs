@@ -152,7 +152,7 @@ public class EngineRoundFactsRowSourceTests
     }
 
     private static readonly IReadOnlyList<ClipRound> _clipRounds =
-        [new ClipRound(1, 1000), new ClipRound(2, 5000), new ClipRound(3, 9000)];
+        [new(1, 1000), new(2, 5000), new(3, 9000)];
 
     private static IReadOnlyDictionary<string, object?> Cell(RoundFactsTable table, int round, int side) =>
         table.Rows.Single(r => RoundFactsValues.ToInt(r[RoundFactsColumns.RoundNumber]) == round

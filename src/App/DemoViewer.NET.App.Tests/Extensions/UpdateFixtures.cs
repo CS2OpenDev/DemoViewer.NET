@@ -71,8 +71,6 @@ internal static class UpdateFixtures
 
     public static ITrustPolicy TrustAll { get; } = new RecordingTrust(true);
 
-    public static ITrustPolicy TrustNothing { get; } = new RecordingTrust(false);
-
     /// <summary>Serves what the test puts in it; counts and gates downloads so a test can cancel one mid-way.</summary>
     public sealed class FakeFeedClient : IExtensionFeedClient
     {
@@ -84,7 +82,7 @@ internal static class UpdateFixtures
         public Exception? FeedFailure { get; set; }
 
         /// <summary>When set, a download writes the first half, reports it, then waits here before the rest.</summary>
-        public TaskCompletionSource? HalfwayGate { get; set; }
+        public TaskCompletionSource? HalfwayGate { get; init; }
 
         /// <summary>Completes when a gated download has written its first half.</summary>
         public TaskCompletionSource Halfway { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

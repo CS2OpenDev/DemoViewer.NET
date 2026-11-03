@@ -74,7 +74,7 @@ public class CommandRegistryTests
 
         await Assert.That(registry.Conflicts).IsNotEmpty();
         await Assert.That(registry.Conflicts.Single()).Contains("pack.fake");
-        await Assert.That(registry.EffectiveBindings.Single(b => b.Key == Key.E && b.Modifiers == KeyModifiers.None
+        await Assert.That(registry.EffectiveBindings.Single(b => b is { Key: Key.E, Modifiers: KeyModifiers.None }
             && b.Scope == Playback2DBindingScope.Always).CoreAction).IsEqualTo(Playback2DAction.NextRound);
         await Assert.That(registry.EffectiveBindings.Any(b => b.ActionId == Fake + "AddStep")).IsFalse();
 

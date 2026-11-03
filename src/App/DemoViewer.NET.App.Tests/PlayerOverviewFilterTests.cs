@@ -71,7 +71,7 @@ public class PlayerOverviewFilterTests
             ["TFK"] = FactValue.Of(1L),
             ["TFD"] = FactValue.Of(1L + (i % 2))
         };
-        return facet with { Rows = [new FactRow(row.Dimensions, values)] };
+        return facet with { Rows = [row with { Values = values }] };
     }
 
     // Grim's rounds in demo i: two CT rounds with 2 kills, a death, 150 damage and KAST each; two T rounds with a
@@ -131,8 +131,8 @@ public class PlayerOverviewFilterTests
         }
 
         public DemoCacheStore Store { get; }
-        public PlayerDirectory Directory { get; }
-        public IdentityService Identity { get; }
+        private PlayerDirectory Directory { get; }
+        private IdentityService Identity { get; }
         public PlayerRowCache Cache { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public ConcurrentQueue<string> Reads { get; } = new();
@@ -554,7 +554,7 @@ public class PlayerOverviewFilterTests
         {
             await Assert.That(inferno.MatchesText).IsEqualTo("1");
             await Assert.That(cells.All(c => c == "–")).IsTrue();
-            await Assert.That(shell.Maps.Sides.All(s => s.RoundsText == "–" && s.OpeningText == "–")).IsTrue();
+            await Assert.That(shell.Maps.Sides.All(s => s is { RoundsText: "–", OpeningText: "–" })).IsTrue();
         }
     }
 }

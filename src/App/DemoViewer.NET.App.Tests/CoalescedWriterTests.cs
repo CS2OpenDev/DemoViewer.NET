@@ -84,7 +84,7 @@ public class CoalescedWriterTests
         {
             entered.Set();
             release.Wait();
-        }, _ => { }, drain => Task.Run(drain));
+        }, _ => { }, Task.Run);
 
         writer.Post("slow");
         entered.Wait(TimeSpan.FromSeconds(5));

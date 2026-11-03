@@ -77,7 +77,7 @@ public class Playback2DHudLayoutTests
                 for (int j = i + 1; j < boxes.Count; j++)
                 {
                     Rect intersection = boxes[i].Bounds.Intersect(boxes[j].Bounds);
-                    if (intersection.Width > 0.5 && intersection.Height > 0.5)
+                    if (intersection is { Width: > 0.5, Height: > 0.5 })
                     {
                         overlaps.Add(
                             $"{boxes[i].Name} ∩ {boxes[j].Name} = "

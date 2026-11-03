@@ -258,13 +258,11 @@ public class StatusChipContributionTests
 
         public StatusChipDotState Dot { get; set; }
 
-        public ICommand? Action { get; set; }
+        public ICommand? Action { get; init; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public bool IsShown => Shown;
-
-        private string _label = "";
 
         public int LabelReads;
 
@@ -273,10 +271,10 @@ public class StatusChipContributionTests
             get
             {
                 Interlocked.Increment(ref LabelReads);
-                return ThrowOnRead ? throw new InvalidOperationException("chip label") : _label;
+                return ThrowOnRead ? throw new InvalidOperationException("chip label") : field;
             }
-            set => _label = value;
-        }
+            set;
+        } = "";
 
         public StatusChipDotState DotState => Dot;
 
