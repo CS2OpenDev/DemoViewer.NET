@@ -761,8 +761,8 @@ public static partial class Variants
     /// </summary>
     private static HarvestFrameListControl FrameList()
     {
-        List<HarvestFrameRowViewModel> rows = new()
-        {
+        List<HarvestFrameRowViewModel> rows =
+        [
             new HarvestFrameRowViewModel
             {
                 FrameNumber = 1, FrameType = "DEM_FileHeader", MessageCount = 0, ByteSize = 320
@@ -795,7 +795,7 @@ public static partial class Variants
             {
                 FrameNumber = 7, FrameType = "DEM_Packet", MessageCount = 19, ByteSize = 9600
             }
-        };
+        ];
 
         MainViewModel vm = new() { HasFile = true };
         HarvestFrameListControl ctl = new()
