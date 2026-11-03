@@ -281,15 +281,6 @@ internal sealed class FloorSplitter
         _dirty = true;
     }
 
-    /// <summary>Folds a batch of observed Z values (one push of player positions).</summary>
-    public void Observe(IEnumerable<double> zs)
-    {
-        foreach (double z in zs)
-        {
-            Observe(z);
-        }
-    }
-
     /// <summary>
     ///     Assigns a Z value to a slice index (0 = lowest floor). Returns the nearest slice when Z falls in
     ///     a gap (e.g. a player on a ramp between floors) so a player is always drawn somewhere

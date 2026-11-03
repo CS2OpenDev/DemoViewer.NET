@@ -424,7 +424,7 @@ public sealed class PlaceResolver
     }
 
     private static List<int>? CellList(Dictionary<long, List<int>> cells, double x, double y) =>
-        cells.TryGetValue(Key(Cell(x), Cell(y)), out List<int>? list) ? list : null;
+        cells.GetValueOrDefault(Key(Cell(x), Cell(y)));
 
     private static int Cell(double v) => (int)Math.Floor(v / GridCell);
 
