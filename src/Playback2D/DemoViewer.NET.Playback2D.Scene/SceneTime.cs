@@ -16,6 +16,7 @@ namespace DemoViewer.NET.Playback2D;
 /// <param name="DemoSeconds">ServerTick / tickRate − clockBase.</param>
 /// <param name="DeltaSeconds">Real frame dt when interactive; exactly 1/fps on export.</param>
 /// <param name="IsDiscontinuity">A seek or jump: layers reset smoothing and clear trails.</param>
+[PublicAPI]
 public readonly record struct SceneTime(
     int Tick,
     int FrameIndex,

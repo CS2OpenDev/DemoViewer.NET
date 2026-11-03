@@ -21,6 +21,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         <c>MapSpaceFactory</c>).
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class Scene2DFrame
 {
     /// <summary>The empty frame a consumer holds before the first build. Safe to render.</summary>

@@ -28,6 +28,7 @@ namespace DemoViewer.NET.Playback2D.Compositing;
 /// </param>
 /// <param name="Palette">Resolved theme colours and stroke widths.</param>
 /// <param name="RenderScaling">Device pixels per DIP; exactly 1.0 offscreen.</param>
+[PublicAPI]
 public readonly record struct SceneRenderContext(
     Scene2DFrame Frame,
     SceneTime Time,

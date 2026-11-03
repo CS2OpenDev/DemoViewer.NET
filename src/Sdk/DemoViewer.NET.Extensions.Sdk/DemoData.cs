@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Extensions.Sdk;
 
 /// <summary>How the last write of a demo's facet ended.</summary>
+[PublicAPI]
 public enum DemoDataState
 {
     /// <summary>Not written yet, or marked for a rebuild.</summary>
@@ -27,6 +28,7 @@ public enum DemoDataState
 /// <param name="State">How the last write ended.</param>
 /// <param name="WrittenAtTicks">When the facet was last written, in UTC ticks; 0 when it never was.</param>
 /// <param name="Count">The extension's own count for the facet (rows, items), or 0.</param>
+[PublicAPI]
 public sealed record DemoDataStamp(
     string DemoPath,
     string? Sha256,
@@ -56,6 +58,7 @@ public sealed record DemoDataStamp(
 ///     fingerprint reads the facet as absent.
 /// </param>
 /// <param name="Payload">The facet's main content.</param>
+[PublicAPI]
 public sealed record DemoDataWrite(string Facet, int Schema, string? Fingerprint, ReadOnlyMemory<byte> Payload)
 {
     /// <summary>
@@ -76,6 +79,7 @@ public sealed record DemoDataWrite(string Facet, int Schema, string? Fingerprint
 /// <param name="ExtensionVersion">The extension's version that wrote it.</param>
 /// <param name="WrittenAtTicks">When it was written, in UTC ticks.</param>
 /// <param name="Content">The payload, or the part asked for.</param>
+[PublicAPI]
 public sealed record DemoDataRecord(
     int Schema,
     string? Fingerprint,
@@ -122,6 +126,7 @@ public sealed record DemoDataRecord(
 ///         keep nothing.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IExtensionDemoData
 {
     /// <summary>False in the browser build, where nothing is kept.</summary>

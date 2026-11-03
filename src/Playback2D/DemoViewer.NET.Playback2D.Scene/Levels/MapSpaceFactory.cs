@@ -11,6 +11,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 ///     radar layers), so Core states the seam and <c>MapRadarBinder</c> implements it. The same
 ///     Core-declares/Pipeline-solves split as <c>IVisionSolver</c>.
 /// </summary>
+[PublicAPI]
 public interface ILevelRadarBinder
 {
     /// <summary>Binds one image (or none) per band.</summary>
@@ -36,6 +37,7 @@ public interface ILevelRadarBinder
 ///         derivation happens: once per push, rebuilding the space only when the band list moved.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class MapSpaceFactory
 {
     private readonly List<SKImage?> _radarImages = [];

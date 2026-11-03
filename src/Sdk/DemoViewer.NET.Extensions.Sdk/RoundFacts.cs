@@ -11,6 +11,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     The five buy classes plus the one a row carries when the inputs were not there. Values are the
 ///     <c>round_facts</c> ruleset's <c>buy_type</c> vocabulary; labels lower-case the name.
 /// </summary>
+[PublicAPI]
 public enum BuyType
 {
     /// <summary>The inputs were missing.</summary>
@@ -33,6 +34,7 @@ public enum BuyType
 }
 
 /// <summary>Which half a round belongs to. Defined from the match round number, never observed.</summary>
+[PublicAPI]
 public enum RoundHalf
 {
     /// <summary>The round number was missing.</summary>
@@ -49,6 +51,7 @@ public enum RoundHalf
 }
 
 /// <summary>Where the bomb went down, as a letter. <see cref="Unknown" /> keeps the raw entity index beside it.</summary>
+[PublicAPI]
 public enum BombSite
 {
     /// <summary>No plant, or a site the map did not name.</summary>
@@ -62,6 +65,7 @@ public enum BombSite
 }
 
 /// <summary>Which signal produced <see cref="RoundFacts.EndTick" />.</summary>
+[PublicAPI]
 public enum RoundEndSource
 {
     /// <summary>No end at all: a truncated last round, or a freeze end that never resolved.</summary>
@@ -78,6 +82,7 @@ public enum RoundEndSource
 ///     The <c>m_eRoundWinReason</c> values under the names every parser uses. The hostage and VIP values never
 ///     occur in a defusal match but are kept so a raw value always has a name.
 /// </summary>
+[PublicAPI]
 public enum RoundEndReason
 {
     /// <summary>No reason recorded.</summary>
@@ -145,6 +150,7 @@ public enum RoundEndReason
 }
 
 /// <summary>The phase a tick falls in. <see cref="RoundPhases" /> computes the intervals.</summary>
+[PublicAPI]
 public enum RoundPhase
 {
     /// <summary>A round that is not live.</summary>
@@ -176,6 +182,7 @@ public enum RoundPhase
 ///     The parameter values that produced a <see cref="SideFacts.BuyType" />. HLTV's bands are the defaults,
 ///     scaled per player on the side; every value is a <c>params:</c> entry of the <c>round_facts</c> ruleset.
 /// </summary>
+[PublicAPI]
 public sealed record BuyThresholds
 {
     /// <summary>The shipped defaults: HLTV's "full eco" and "full buy" bands at five players.</summary>
@@ -205,6 +212,7 @@ public sealed record BuyThresholds
 }
 
 /// <summary>One side of one round. Slots are the join to the roster; nothing here names a team.</summary>
+[PublicAPI]
 public sealed class SideFacts
 {
     /// <summary>2 = T, 3 = CT.</summary>
@@ -239,6 +247,7 @@ public sealed class SideFacts
 }
 
 /// <summary>One kill in the round's live window, with the alive counts after it.</summary>
+[PublicAPI]
 public sealed class KillStep
 {
     /// <summary>Frame clock.</summary>
@@ -265,6 +274,7 @@ public sealed class KillStep
 ///     not say"; <see cref="RoundFactsSourceKind.Unavailable" /> in <see cref="Sources" /> means "the engine did
 ///     not provide the column".
 /// </summary>
+[PublicAPI]
 public sealed class RoundFacts
 {
     /// <summary>The clip round number: the join key with <see cref="LibraryRound.Number" />.</summary>
@@ -353,6 +363,7 @@ public sealed class RoundFacts
 }
 
 /// <summary>The two values a <see cref="RoundFacts.Sources" /> entry can hold.</summary>
+[PublicAPI]
 public static class RoundFactsSourceKind
 {
     /// <summary>The engine provided the column.</summary>
@@ -363,6 +374,7 @@ public static class RoundFactsSourceKind
 }
 
 /// <summary>Every round of one demo, with the frame-clock header the rows were read under.</summary>
+[PublicAPI]
 public sealed class RoundFactsRows
 {
     /// <summary>The library fact the rows are stamped under (<see cref="LibraryDemo.Fact" />).</summary>
@@ -392,6 +404,7 @@ public sealed class RoundFactsRows
 ///     server ticks of its first and last frames. A store whose header does not match the demo's was written
 ///     against another read.
 /// </summary>
+[PublicAPI]
 public sealed class RoundFactsClock
 {
     /// <summary>The kind of clock the host's stores carry.</summary>
@@ -446,6 +459,7 @@ public sealed class RoundFactsClock
 /// <param name="Group">The vocabulary group: <c>side</c>, <c>buy</c>, <c>score</c>, <c>end</c>, <c>plant</c>, <c>contact</c>, <c>phase</c> or <c>extra</c>.</param>
 /// <param name="Key">The label, absolute per side (<c>buy.ct</c>, never <c>buy.us</c>).</param>
 /// <param name="Value">The value as text.</param>
+[PublicAPI]
 public sealed record FactLabel(string Group, string Key, string Value);
 
 /// <summary>The clock bands a tick-anchored filter names, in seconds since the freeze end.</summary>
@@ -462,6 +476,7 @@ public enum ClockBand
 }
 
 /// <summary>The relative man count at a tick, absolute per side like every other fact.</summary>
+[PublicAPI]
 public enum ManCountState
 {
     /// <summary>Both sides have as many alive.</summary>
@@ -478,6 +493,7 @@ public enum ManCountState
 ///     The score situation before the round, absolute per side. <see cref="MatchPoint" /> is a side one round
 ///     from the regulation win; overtime has no fixed match point in the row, so it is a regulation-only answer.
 /// </summary>
+[PublicAPI]
 public enum ScoreSituation
 {
     /// <summary>Level.</summary>
@@ -498,6 +514,7 @@ public enum ScoreSituation
 ///     (<see cref="Phase" />, <see cref="ClockBand" />, <see cref="ManCount" />, <see cref="CtAlive" />,
 ///     <see cref="TAlive" />) are read at a tick through <see cref="RoundFactsRules.MatchesAt" />.
 /// </summary>
+[PublicAPI]
 public sealed class RoundFactsFilter
 {
     /// <summary>Restrict to these demo paths; null means every demo with rows.</summary>
@@ -565,6 +582,7 @@ public sealed class RoundFactsFilter
 ///     <c>PostPlant</c> or <c>Retake</c> from the plant to the end, named by the side asking; <c>PostRound</c>
 ///     from the end on. A round with no end runs its last phase to the last frame.
 /// </summary>
+[PublicAPI]
 public static class RoundPhases
 {
     /// <summary>The phase of <paramref name="tick" /> within <paramref name="round" />.</summary>
@@ -634,6 +652,7 @@ public static class RoundPhases
 }
 
 /// <summary>The round lookups, labels and filter rules every reader of Round Facts shares.</summary>
+[PublicAPI]
 public static class RoundFactsRules
 {
     /// <summary>Where <see cref="ClockBand.Early" /> ends, in seconds since the freeze end.</summary>
@@ -964,6 +983,7 @@ public static class RoundFactsRules
 ///     Round Facts: the per-round, per-side rows the core <c>round_facts</c> ruleset writes for every demo, read
 ///     through <see cref="IAnalysisFacts.RoundFacts" />. Values are absolute per side (<c>ct</c> / <c>t</c>).
 /// </summary>
+[PublicAPI]
 public interface IRoundFacts
 {
     /// <summary>The shape rows are written at now: <see cref="RoundFactsRows.CurrentSchema" />.</summary>

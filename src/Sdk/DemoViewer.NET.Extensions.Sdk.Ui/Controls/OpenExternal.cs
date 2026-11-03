@@ -12,6 +12,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///     migrated from <c>ParseChainEntry</c> for reuse by future link-rendering surfaces
 ///     (entity class links, field decode errors).
 /// </summary>
+[PublicAPI]
 public static class OpenExternal
 {
     /// <summary>

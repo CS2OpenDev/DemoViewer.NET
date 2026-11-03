@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 namespace DemoViewer.NET.Extensions.Sdk.Playback;
 
 /// <summary>A toolbar button a contribution adds. Its label and tooltip may change; refresh them on <see cref="IPlaybackSurface.KeymapChanged" />.</summary>
+[PublicAPI]
 public sealed class ToolbarItem : INotifyPropertyChanged
 {
     private string _label;

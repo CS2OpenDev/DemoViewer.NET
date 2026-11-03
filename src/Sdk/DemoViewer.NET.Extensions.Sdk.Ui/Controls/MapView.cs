@@ -26,6 +26,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         Outside the app (a designer, a bare test) there is no host to draw the map and the control is empty.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class MapView : Control
 {
     /// <summary>Defines the <see cref="MapName" /> property.</summary>
@@ -213,6 +214,7 @@ public sealed class MapView : Control
 ///     A scene layer added to a <see cref="MapView" /> or a <see cref="SceneView" />: the id it was filed
 ///     under, and its removal.
 /// </summary>
+[PublicAPI]
 public interface ILayerHandle : IDisposable
 {
     /// <summary>

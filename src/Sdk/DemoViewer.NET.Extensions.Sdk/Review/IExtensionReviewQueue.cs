@@ -25,6 +25,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Review;
 /// </summary>
 [SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix",
     Justification = "It is a queue a reviewer walks, the host's own name for the feature, not a Queue<T>.")]
+[PublicAPI]
 public interface IExtensionReviewQueue
 {
     /// <summary>The queue in order, title cards and clips together. A snapshot; the caller may hold it.</summary>

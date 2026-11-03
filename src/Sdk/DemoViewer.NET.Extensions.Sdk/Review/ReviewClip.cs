@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Extensions.Sdk.Review;
 
 /// <summary>What a row of the review queue is: a clip to watch, or the title card that opens a section.</summary>
+[PublicAPI]
 public enum ReviewClipKind
 {
     /// <summary>A clip: one demo and one tick range.</summary>
@@ -14,6 +15,7 @@ public enum ReviewClipKind
 ///     Where a clip came from. Plain strings rather than an enum, so a surface that lands later adds a value
 ///     without a schema bump and a queue the host wrote on a newer build still reads.
 /// </summary>
+[PublicAPI]
 public static class ReviewSources
 {
     /// <summary>Staged from the host's highlight tray, Match Overview or its add-clips picker.</summary>
@@ -50,6 +52,7 @@ public static class ReviewSources
 ///         here is settable, and <see cref="Clip" /> is how a surface makes one to send.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class ReviewClip
 {
     internal ReviewClip()

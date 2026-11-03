@@ -16,6 +16,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         of each other.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public static class TrailGeometry
 {
     /// <summary>

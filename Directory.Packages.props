@@ -152,5 +152,6 @@
         <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.13"/>
         <!-- The extension SDK's public surface is pinned by a shipped/unshipped list. -->
         <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0"/>
+        <PackageVersion Include="JetBrains.Annotations" Version="2025.2.4"/>
     </ItemGroup>
 </Project>

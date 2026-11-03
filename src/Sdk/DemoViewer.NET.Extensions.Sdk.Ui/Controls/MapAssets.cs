@@ -17,6 +17,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///     Safe to call from any thread. Outside the app nothing is installed: <see cref="Acquire" /> and
 ///     <see cref="Describe" /> answer null and <see cref="RenderPng" /> throws.
 /// </summary>
+[PublicAPI]
 public static class MapAssets
 {
     /// <summary>What the app installs at startup; null outside it.</summary>
@@ -77,6 +78,7 @@ public static class MapAssets
 ///         Disposing is idempotent and callable from any thread. Read nothing off a lease after disposing it.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IMapAssetLease : IMapAsset, IDisposable
 {
     /// <summary>The map the hold is on, as it was acquired.</summary>
@@ -95,6 +97,7 @@ public interface IMapAssetLease : IMapAsset, IDisposable
 }
 
 /// <summary>What a map's bundle says about itself with nothing decoded.</summary>
+[PublicAPI]
 public sealed class MapDescription
 {
     /// <param name="radarBounds">The world rectangle the radar images cover.</param>
@@ -117,6 +120,7 @@ public sealed class MapDescription
 ///     Game icons for a layer that draws them, such as weapon and grenade art, rasterised at the height asked
 ///     for. Dispose releases the rasterised images. Outside the app every lookup answers null.
 /// </summary>
+[PublicAPI]
 public sealed class MapIcons : IIconSource, IDisposable
 {
     private readonly IIconSource? _inner = MapAssets.Backend?.CreateIcons();

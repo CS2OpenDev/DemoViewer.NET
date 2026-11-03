@@ -6,6 +6,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     the projection, so a module never re-derives them, and a module is never handed the shell's
 ///     <c>IFeatureGate</c> itself (it would then see tabs / chrome that are none of its business).
 /// </summary>
+[PublicAPI]
 public interface IModuleFeatureGate
 {
     /// <summary>

@@ -25,6 +25,7 @@ namespace DemoViewer.NET.Playback2D.Layers;
 ///         a Z band test: a token stores the level key it was dropped on and has no world Z of its own.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class QueryTokenLayer : ISceneLayer
 {
     /// <summary>Disc radius in screen pixels: a little larger than a player marker so the two never read as one.</summary>

@@ -12,6 +12,7 @@ namespace DemoViewer.NET.Playback2D;
 /// <param name="Z">Marker Z, which picks its floor pane.</param>
 /// <param name="Team">2 = T, 3 = CT.</param>
 /// <param name="Label">The token's letter, or empty.</param>
+[PublicAPI]
 public readonly record struct GuideToken(float X, float Y, float Z, int Team, string Label);
 
 /// <summary>Where a step sends one token, and the way there.</summary>
@@ -25,6 +26,7 @@ public sealed record GuidePin(GuideToken At, IReadOnlyList<GrenadeTrailPoint> Ro
 ///     take, the place under the pointer) and the selected step's destination pins and via marks. Not part of a frame, so
 ///     an export, a fixture and a golden never carry one: the host hands them to <c>GuideLayer</c> directly.
 /// </summary>
+[PublicAPI]
 public sealed class SceneGuides
 {
     /// <summary>No guides.</summary>

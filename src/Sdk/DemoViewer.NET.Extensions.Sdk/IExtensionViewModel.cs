@@ -9,4 +9,5 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     <c>MyExtension.ViewModels.StatsPaneViewModel</c> resolves to <c>MyExtension.Views.StatsPaneView</c>, which
 ///     needs a public parameterless constructor. <c>ExtensionViewModel</c> in the UI kit implements this.
 /// </remarks>
+[PublicAPI]
 public interface IExtensionViewModel;

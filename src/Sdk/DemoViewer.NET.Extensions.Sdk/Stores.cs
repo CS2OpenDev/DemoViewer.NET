@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Extensions.Sdk;
 
 /// <summary>Which root a <see cref="StoreDescriptor" />'s paths are under.</summary>
+[PublicAPI]
 public enum StoreRoot
 {
     /// <summary>The user's config folder.</summary>
@@ -16,6 +17,7 @@ public enum StoreRoot
 /// <param name="Root">The root the paths are relative to.</param>
 /// <param name="Paths">Files or folders under the root.</param>
 /// <param name="IsUserWork">True for what the user made and cannot rebuild; the confirmation names these.</param>
+[PublicAPI]
 public sealed record StoreDescriptor(
     string Id,
     string Label,
@@ -27,6 +29,7 @@ public sealed record StoreDescriptor(
 /// <param name="Descriptor">The store.</param>
 /// <param name="FileCount">Files found.</param>
 /// <param name="Bytes">Their total size.</param>
+[PublicAPI]
 public sealed record StoreInventoryItem(StoreDescriptor Descriptor, int FileCount, long Bytes);
 
 /// <summary>Everything an extension holds on disk.</summary>
@@ -49,6 +52,7 @@ public sealed record ExtensionDataInventory(IReadOnlyList<StoreInventoryItem> It
 /// <param name="RecordsUpdated">Shared records (such as cache entries) the delete rewrote.</param>
 /// <param name="Skipped">Files it could not delete.</param>
 /// <param name="FirstSkippedPath">The first of those, for the message.</param>
+[PublicAPI]
 public sealed record ExtensionDataRemovalResult(
     bool Ran,
     ExtensionDataInventory Removed,
@@ -64,6 +68,7 @@ public sealed record ExtensionDataRemovalResult(
 ///     The extension's own "Delete extension data". Without one, the host deletes the extension's folders, its
 ///     per-demo data and the declared stores.
 /// </summary>
+[PublicAPI]
 public interface IExtensionDataRemoval
 {
     /// <summary>The extension's master switch.</summary>
@@ -77,6 +82,7 @@ public interface IExtensionDataRemoval
 }
 
 /// <summary>The count behind Settings' "N demos will be re-indexed" notice.</summary>
+[PublicAPI]
 public interface IReindexEstimate
 {
     /// <summary>The extension's master switch.</summary>

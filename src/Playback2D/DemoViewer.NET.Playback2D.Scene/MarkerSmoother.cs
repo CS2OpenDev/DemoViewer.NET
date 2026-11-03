@@ -7,6 +7,7 @@ using DemoViewer.NET.Playback2D.Levels;
 namespace DemoViewer.NET.Playback2D;
 
 /// <summary>Reads a slot's smoothed draw position. Implemented by <see cref="MarkerSmoother" />.</summary>
+[PublicAPI]
 public interface ISmoothedPositionSource
 {
     /// <summary>The smoothed draw position for a slot, or false when the slot is not tracked.</summary>
@@ -27,6 +28,7 @@ public interface ISmoothedPositionSource
 ///         would drift apart within a frame.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class MarkerSmoother : ISmoothedPositionSource
 {
     /// <summary>Exponential-decay rate; snappier than the camera's, so a dot never trails its ring.</summary>

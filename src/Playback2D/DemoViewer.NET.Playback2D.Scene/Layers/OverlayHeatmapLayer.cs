@@ -36,6 +36,7 @@ namespace DemoViewer.NET.Playback2D.Layers;
 ///         a golden, so an overlay fixture is judged at the unrelaxed pixel gate.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class OverlayHeatmapLayer : ISceneLayer
 {
     /// <summary>Kernel radius in world units: about three player widths, the spot a stationary player warms.</summary>

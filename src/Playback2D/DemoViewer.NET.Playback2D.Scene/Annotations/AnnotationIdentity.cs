@@ -8,6 +8,7 @@ namespace DemoViewer.NET.Playback2D.Annotations;
 /// <param name="Sha256">Lowercase-hex SHA-256 of the demo file's bytes.</param>
 /// <param name="FileName">The demo's file name, for a human reading the sidecar.</param>
 /// <param name="SizeBytes">The demo's size in bytes, for a human reading the sidecar.</param>
+[PublicAPI]
 public sealed record DemoIdentity(string Sha256, string FileName, long SizeBytes);
 
 /// <summary>
@@ -24,6 +25,7 @@ public sealed record DemoIdentity(string Sha256, string FileName, long SizeBytes
 /// <param name="FrameCount">Total demo frames in that parse.</param>
 /// <param name="FirstTick">First tick in that parse.</param>
 /// <param name="LastTick">Last tick in that parse.</param>
+[PublicAPI]
 public sealed record ClockIdentity(string Kind, int TickRate, int FrameCount, int FirstTick, int LastTick)
 {
     /// <summary>The only clock kind that exists today.</summary>

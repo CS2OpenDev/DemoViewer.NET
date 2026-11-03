@@ -20,6 +20,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         Outside the app there is no host to draw it, so it holds nothing and raises nothing.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class SceneTimeline : IDisposable
 {
     private readonly ITimelineBackend? _backend;
@@ -83,6 +84,7 @@ public sealed class SceneTimeline : IDisposable
 }
 
 /// <summary>Shows a <see cref="SceneTimeline" />. Set <see cref="Timeline" />, or bind it to the view model's.</summary>
+[PublicAPI]
 public sealed class TimelineView : Control
 {
     /// <summary>Defines the <see cref="Timeline" /> property.</summary>

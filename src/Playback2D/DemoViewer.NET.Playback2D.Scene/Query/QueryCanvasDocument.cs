@@ -13,6 +13,7 @@ namespace DemoViewer.NET.Playback2D.Query;
 ///         a fixture can carry one and <c>dv2d</c> can draw it with no window.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class QueryCanvasDocument
 {
     /// <summary>Rail slots per side: a full five-stack.</summary>

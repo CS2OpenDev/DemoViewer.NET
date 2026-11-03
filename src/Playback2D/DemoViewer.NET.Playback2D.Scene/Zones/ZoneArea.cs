@@ -5,6 +5,7 @@ namespace DemoViewer.NET.Playback2D.Zones;
 ///     as the baker wrote them; the bounding box and centroid are derived once here because the
 ///     resolver's grid and the outline layer both need them.
 /// </summary>
+[PublicAPI]
 public sealed class ZoneArea
 {
     /// <summary>Creates an area.</summary>

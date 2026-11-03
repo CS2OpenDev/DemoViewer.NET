@@ -337,6 +337,7 @@ internal sealed class WetStroke
 ///         direct-execution test with no dispatcher.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class AnnotationSession
 {
     /// <summary>Default eraser radius in world units. About a player disc wide at fit zoom.</summary>

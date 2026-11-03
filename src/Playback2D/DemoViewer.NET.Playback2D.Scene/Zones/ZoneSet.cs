@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Playback2D.Zones;
 
 /// <summary>Where a place in the effective vocabulary came from.</summary>
+[PublicAPI]
 public enum PlaceOrigin
 {
     /// <summary>Valve's own <c>env_cs_place</c> volume set, as the baker wrote it.</summary>
@@ -17,6 +18,7 @@ public enum PlaceOrigin
 /// <param name="Key">The quantized lower Z that keys this band.</param>
 /// <param name="MinZ">Lower world Z, inclusive.</param>
 /// <param name="MaxZ">Upper world Z, exclusive.</param>
+[PublicAPI]
 public readonly record struct ZoneFloor(double Key, double MinZ, double MaxZ)
 {
     /// <summary>Whether a world Z falls in this band's half-open range.</summary>
@@ -28,6 +30,7 @@ public readonly record struct ZoneFloor(double Key, double MinZ, double MaxZ)
 /// <param name="Id">The place id.</param>
 /// <param name="Name">The raw place name (<c>BombsiteA</c>, <c>TopofMid</c>) or the custom zone's name.</param>
 /// <param name="Origin">Baked or custom.</param>
+[PublicAPI]
 public sealed record ZonePlace(int Id, string Name, PlaceOrigin Origin);
 
 /// <summary>
@@ -40,6 +43,7 @@ public sealed record ZonePlace(int Id, string Name, PlaceOrigin Origin);
 ///         one does, so an edit to the overlay re-resolves every cached place on the next read.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class ZoneSet
 {
     /// <summary>Creates a set. Every list is retained as given.</summary>

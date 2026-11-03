@@ -16,6 +16,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 ///         Keyed by roster <c>Slot</c>, which every layer already has.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class LevelCrossingTracker
 {
     private readonly HashSet<int> _crossed = new(8);

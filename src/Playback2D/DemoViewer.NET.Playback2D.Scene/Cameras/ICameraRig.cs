@@ -19,6 +19,7 @@ namespace DemoViewer.NET.Playback2D.Cameras;
 ///         <c>TryComputeTarget</c> returning false, and it is not an error.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface ICameraRig
 {
     /// <summary>Stable key, for diagnostics and export camera scripts.</summary>

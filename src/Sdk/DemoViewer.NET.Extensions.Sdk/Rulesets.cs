@@ -19,6 +19,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="Id">The extension's own name for the ruleset: lowercase letters, digits and underscores.</param>
 /// <param name="Yaml">Opens the YAML, for example an embedded resource. Called once per rules read.</param>
 /// <param name="FeatureId">The feature that switches the ruleset; null for the extension's master switch.</param>
+[PublicAPI]
 public sealed record RulesetContribution(string Id, Func<Stream> Yaml, string? FeatureId = null)
 {
     private const string Separator = "__";

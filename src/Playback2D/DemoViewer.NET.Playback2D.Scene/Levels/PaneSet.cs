@@ -21,6 +21,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 ///         reaches the layout policy.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class PaneSet
 {
     private readonly List<LevelPane> _panes = [];

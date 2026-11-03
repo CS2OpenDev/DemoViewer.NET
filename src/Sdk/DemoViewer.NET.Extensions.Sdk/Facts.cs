@@ -6,6 +6,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     Something a record pass reads and waits on, named in <see cref="IExtensionContributions.RecordPass" />: a
 ///     ruleset's output (<see cref="FactKey" />) or a facet a pass writes per demo (<see cref="DemoDataKey" />).
 /// </summary>
+[PublicAPI]
 public abstract record RecordInput
 {
     private protected RecordInput()
@@ -16,6 +17,7 @@ public abstract record RecordInput
 /// <summary>Names one output of one ruleset: a table its <c>show: tables:</c> declares, or its scoreboard.</summary>
 /// <param name="RulesetId">The ruleset's id, as its <c>ruleset:</c> key spells it.</param>
 /// <param name="Output">The table's name, or <see cref="ScoreboardOutput" />.</param>
+[PublicAPI]
 public sealed record FactKey(string RulesetId, string Output) : RecordInput
 {
     /// <summary>
@@ -35,6 +37,7 @@ public sealed record FactKey(string RulesetId, string Output) : RecordInput
 /// </summary>
 /// <param name="Owner">The writing extension's <see cref="IExtension.Id" />, or <see cref="HostIds.RoundFactsPass" /> for <see cref="RoundFacts" />.</param>
 /// <param name="Facet">The facet, as the owner writes it.</param>
+[PublicAPI]
 public sealed record DemoDataKey(string Owner, string Facet) : RecordInput
 {
     /// <summary>The Round Facts rows the host writes for every parsed demo.</summary>
@@ -45,6 +48,7 @@ public sealed record DemoDataKey(string Owner, string Facet) : RecordInput
 }
 
 /// <summary>Where one output of a demo stands.</summary>
+[PublicAPI]
 public enum FactStatus
 {
     /// <summary>
@@ -67,6 +71,7 @@ public enum FactStatus
 }
 
 /// <summary>What a <see cref="FactValue" /> holds.</summary>
+[PublicAPI]
 public enum FactValueKind
 {
     /// <summary>No value.</summary>
@@ -89,6 +94,7 @@ public enum FactValueKind
 }
 
 /// <summary>One cell of a <see cref="FactTable" />: null, a whole number, a number, a boolean, text, or a list of those.</summary>
+[PublicAPI]
 public sealed class FactValue : IEquatable<FactValue>
 {
     private readonly bool _boolean;
@@ -192,6 +198,7 @@ public sealed class FactValue : IEquatable<FactValue>
 /// <summary>One row of a <see cref="FactTable" />.</summary>
 /// <param name="Dimensions">The row's key columns, such as <c>round_number</c> and <c>side</c>.</param>
 /// <param name="Values">The row's value columns.</param>
+[PublicAPI]
 public sealed record FactRow(
     IReadOnlyDictionary<string, FactValue> Dimensions,
     IReadOnlyDictionary<string, FactValue> Values);
@@ -205,6 +212,7 @@ public sealed record FactRow(
 /// <param name="Values">The value columns, in declared order.</param>
 /// <param name="ColumnClocks">Per tick column, the clock it is on: <c>"frame"</c> or <c>"server"</c>.</param>
 /// <param name="Rows">The rows.</param>
+[PublicAPI]
 public sealed record FactTable(
     FactKey Key,
     string Fingerprint,
@@ -224,6 +232,7 @@ public sealed record FactTable(
 /// <param name="Title">The rendered title.</param>
 /// <param name="Score">The authored score.</param>
 /// <param name="Kind">The authored kind, by name.</param>
+[PublicAPI]
 public sealed record LibraryHighlight(
     string RulesetId,
     string HighlightId,
@@ -245,6 +254,7 @@ public sealed record LibraryHighlight(
 ///         <see cref="IExtensionLibrary.Changed" /> for it.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IAnalysisFacts
 {
     /// <summary>

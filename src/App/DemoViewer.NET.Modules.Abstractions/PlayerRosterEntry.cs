@@ -8,6 +8,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     <see cref="Slot" /> for name / SteamID. This makes the two <c>Players</c> surfaces
 ///     non-redundant by construction.
 /// </summary>
+[PublicAPI]
 public sealed class PlayerRosterEntry
 {
     /// <summary>Stable 0-based player slot.</summary>

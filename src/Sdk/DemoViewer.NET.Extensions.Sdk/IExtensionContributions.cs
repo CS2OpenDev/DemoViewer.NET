@@ -7,6 +7,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     What an extension adds to the app, handed over in <see cref="IExtension.Contribute" />. Each item is
 ///     shown only while the extension's master switch is on, and the item's own feature id when it names one.
 /// </summary>
+[PublicAPI]
 public interface IExtensionContributions
 {
     /// <summary>The calling extension's host context.</summary>

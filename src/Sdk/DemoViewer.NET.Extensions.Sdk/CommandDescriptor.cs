@@ -25,6 +25,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="DefaultChord">The shipped gesture, or null for a command with no default binding.</param>
 /// <param name="Run">Runs the command. True when it acted; false leaves the key unhandled.</param>
 /// <param name="CanRun">Optional: whether the command can act right now.</param>
+[PublicAPI]
 public sealed record CommandDescriptor(
     string Id,
     string Label,
@@ -35,6 +36,7 @@ public sealed record CommandDescriptor(
 
 /// <summary>What a command's <see cref="CommandDescriptor.Run" /> or <see cref="CommandDescriptor.CanRun" /> receives.</summary>
 /// <param name="Target">The view model the key resolved against .</param>
+[PublicAPI]
 public sealed record CommandContext(object Target);
 
 /// <summary>
@@ -44,4 +46,5 @@ public sealed record CommandContext(object Target);
 /// </summary>
 /// <param name="Id">Stable id, prefixed with the extension's id and a dot, e.g. <c>"dev.example.hello.panel"</c>.</param>
 /// <param name="Label">How the keybind settings list names it, e.g. <c>"while tagging"</c>.</param>
+[PublicAPI]
 public sealed record CommandScope(string Id, string Label);

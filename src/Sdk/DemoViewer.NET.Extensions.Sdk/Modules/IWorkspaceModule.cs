@@ -6,6 +6,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     placement. Implemented by the first-party <c>BuiltInTabsModule</c> (the four existing tabs) and,
 ///     later, by third-party runtime-loaded modules (the 2D pilot).
 /// </summary>
+[PublicAPI]
 public interface IWorkspaceModule
 {
     /// <summary>

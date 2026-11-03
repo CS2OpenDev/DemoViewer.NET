@@ -78,6 +78,7 @@ internal sealed class SingleLayout : ILevelLayoutPolicy
 }
 
 /// <summary>The factory the host, the export session and <c>dv2d</c> all go through.</summary>
+[PublicAPI]
 public static class LevelLayouts
 {
     /// <summary>A fresh policy for a display mode.</summary>

@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Playback2D;
 
 /// <summary>The kind of grenade area effect drawn on the viewport.</summary>
+[PublicAPI]
 public enum AreaEffectKind
 {
     /// <summary>An active smoke cloud (one big translucent gray disc at the detonation centre).</summary>
@@ -26,6 +27,7 @@ public enum AreaEffectKind
 ///     Drawn under the player markers, on the floor slice it sits on. A demo sets only the smoke and fire
 ///     kinds at full <see cref="Alpha" />; a strat preview also draws the pops and fades them.
 /// </summary>
+[PublicAPI]
 public readonly record struct AreaEffect(
     AreaEffectKind Kind,
     float WorldX,

@@ -7,6 +7,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     public parameterless constructor, reads the DI-free members, calls <see cref="Register" /> while it
 ///     builds its container, and calls <see cref="Contribute" /> once the container exists.
 /// </summary>
+[PublicAPI]
 public interface IExtension
 {
     /// <summary>Reverse-DNS id, equal to the manifest's <c>id</c>. A persisted key: never rename it.</summary>

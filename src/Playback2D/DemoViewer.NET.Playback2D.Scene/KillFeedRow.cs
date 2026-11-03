@@ -34,6 +34,7 @@ namespace DemoViewer.NET.Playback2D;
 ///     </para>
 /// </param>
 /// <param name="VictimTeam">The victim's side at the kill's own tick, same encoding.</param>
+[PublicAPI]
 public readonly record struct KillFeedRow(
     int Tick,
     string Attacker,

@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Modules.Abstractions;
 
 /// <summary>Severity for <see cref="IModuleHost.Log" />: routed to the shell's Output panel channel.</summary>
+[PublicAPI]
 public enum ModuleLogLevel
 {
     /// <summary>Diagnostic detail.</summary>
@@ -22,6 +23,7 @@ public enum ModuleLogLevel
 ///     separate from <see cref="IModuleContext" /> so the creation-time surface (context, capability
 ///     query, logging) is distinct from the runtime surface (clock + state).
 /// </summary>
+[PublicAPI]
 public interface IModuleHost
 {
     /// <summary>The runtime read-only context the module's tabs subscribe to.</summary>

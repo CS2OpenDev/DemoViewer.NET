@@ -6,6 +6,7 @@ namespace DemoViewer.NET.Playback2D;
 ///     position (on the floor slice the bomb sits on), plus a second depleting ring during an active defuse:
 ///     the defuse-vs-detonation race made spatial. Reuses the bomb data the game-info panel already reads.
 /// </summary>
+[PublicAPI]
 public readonly record struct BombMarker(
     float WorldX,
     float WorldY,

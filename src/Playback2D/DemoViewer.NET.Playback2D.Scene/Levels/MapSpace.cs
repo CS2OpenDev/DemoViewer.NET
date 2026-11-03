@@ -24,6 +24,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 ///         intact. See <see cref="Rebuild" /> and <see cref="MapLevelId" />.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class MapSpace
 {
     /// <summary>

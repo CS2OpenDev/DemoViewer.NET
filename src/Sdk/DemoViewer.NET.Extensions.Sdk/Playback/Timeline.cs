@@ -3,6 +3,7 @@ using DemoViewer.NET.Playback2D.Timeline;
 namespace DemoViewer.NET.Extensions.Sdk.Playback;
 
 /// <summary>What a lane does with presses.</summary>
+[PublicAPI]
 public interface ILaneBehaviour
 {
     /// <summary>A band was pressed, before the playhead seeks to it.</summary>
@@ -25,6 +26,7 @@ public interface ILaneBehaviour
 }
 
 /// <summary>A lane. Dispose removes it.</summary>
+[PublicAPI]
 public interface ILaneHandle : IDisposable
 {
     /// <summary>The track it draws, as handed to <see cref="IPlaybackSurface.AddLane" />.</summary>

@@ -5,6 +5,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="FirstSeen">The <see cref="LibraryPlayerMatch.Time" /> of the oldest demo with the name.</param>
 /// <param name="LastSeen">The <see cref="LibraryPlayerMatch.Time" /> of the newest demo with the name.</param>
 /// <param name="Demos">How many demos carry the name.</param>
+[PublicAPI]
 public sealed record LibraryPlayerAlias(string Name, DateTime FirstSeen, DateTime LastSeen, int Demos);
 
 /// <summary>One account across the library: every name it played under and how many demos hold it.</summary>
@@ -13,6 +14,7 @@ public sealed record LibraryPlayerAlias(string Name, DateTime FirstSeen, DateTim
 /// <param name="DemoCount">How many demos hold the account, a demo with several copies once.</param>
 /// <param name="FirstSeen">The <see cref="LibraryPlayerMatch.Time" /> of its oldest demo.</param>
 /// <param name="LastSeen">The <see cref="LibraryPlayerMatch.Time" /> of its newest demo.</param>
+[PublicAPI]
 public sealed record LibraryPlayerAccount(
     ulong SteamId64,
     IReadOnlyList<LibraryPlayerAlias> Aliases,
@@ -34,6 +36,7 @@ public sealed record LibraryPlayerAccount(
 ///     When the match was played, in UTC, when the demo says; else the file's last write time, local. The
 ///     <see cref="DateTime.Kind" /> tells which. History is ordered by it.
 /// </param>
+[PublicAPI]
 public sealed record LibraryPlayerMatch(
     LibraryDemo Demo,
     int? Side,
@@ -47,6 +50,7 @@ public sealed record LibraryPlayerMatch(
 ///     memory, opens no file and is safe on any thread. An account is in a demo when the demo's sides have it
 ///     (no bot, no coach, a real SteamID) or the demo's player stats do: one only the stats have left early.
 /// </summary>
+[PublicAPI]
 public interface IPlayerDirectory
 {
     /// <summary>Every account, the one in the most demos first, then the most recently seen. The same list until the library changes.</summary>

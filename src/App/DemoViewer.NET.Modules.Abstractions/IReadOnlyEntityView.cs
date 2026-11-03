@@ -5,6 +5,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     thin wrapper over the live <c>EntitySet</c> (no copy) inside the <c>Advanced</c> callback, and
 ///     over a captured snapshot for on-activation resync. Exposes no mutators.
 /// </summary>
+[PublicAPI]
 public interface IReadOnlyEntityView
 {
     /// <summary>All live entities (in-PVS and dormant).</summary>

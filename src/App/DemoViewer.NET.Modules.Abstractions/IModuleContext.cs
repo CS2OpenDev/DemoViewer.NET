@@ -6,6 +6,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     <c>EntityTracker</c>, the raw byte buffer, the <c>DemoParser</c>, or any mutator. A module
 ///     simply has no API to corrupt state (the primary, real guardrail).
 /// </summary>
+[PublicAPI]
 public interface IModuleContext
 {
     // ── Identity / lifecycle ──

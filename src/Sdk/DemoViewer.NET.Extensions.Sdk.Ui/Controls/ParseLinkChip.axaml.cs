@@ -32,6 +32,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///     When neither a command nor any path is set the chip renders as plain
 ///     (non-clickable) text.
 /// </summary>
+[PublicAPI]
 public partial class ParseLinkChip : UserControl
 {
     /// <summary>Command property.</summary>

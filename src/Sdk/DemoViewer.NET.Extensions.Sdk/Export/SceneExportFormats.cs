@@ -7,6 +7,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Export;
 ///         <b>Persisted keys</b>: they reach saved defaults and command lines, so they are never renamed.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public static class SceneExportFormats
 {
     /// <summary>WebM / VP9. The default: an LGPL ffmpeg produces it, so the managed download suffices.</summary>

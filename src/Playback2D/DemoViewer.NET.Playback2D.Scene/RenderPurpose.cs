@@ -17,6 +17,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         apart.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public enum RenderPurpose
 {
     /// <summary>

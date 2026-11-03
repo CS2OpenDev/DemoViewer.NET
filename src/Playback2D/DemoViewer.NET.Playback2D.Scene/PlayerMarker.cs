@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Playback2D;
 
 /// <summary>The event-driven ring state of a marker, highest precedence first.</summary>
+[PublicAPI]
 public enum RingState
 {
     /// <summary>None of the event states apply; ring is the team colour.</summary>
@@ -25,6 +26,7 @@ public enum RingState
 ///     (scalars only; never retain the pooled entity), then handed to the custom-drawn viewport. Plain
 ///     value type: no Avalonia dependency, trivially testable.
 /// </summary>
+[PublicAPI]
 public readonly record struct PlayerMarker(
     int Slot,
     int Team,

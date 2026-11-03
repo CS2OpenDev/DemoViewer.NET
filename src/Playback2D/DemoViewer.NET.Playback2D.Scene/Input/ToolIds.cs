@@ -9,6 +9,7 @@ namespace DemoViewer.NET.Playback2D.Input;
 ///         is reachable from an extension and two extensions picking the same local id still get two tools.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public static class ToolIds
 {
     private const string PanZoom = "panzoom";

@@ -26,6 +26,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         mutation happens.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class TextBlobCache : IDisposable
 {
     /// <summary>The manifest name of the embedded face. Public so a test can assert it is present.</summary>
@@ -351,6 +352,7 @@ public sealed class TextBlobCache : IDisposable
 /// <param name="Advance">The run's advance width: where the next glyph would start.</param>
 /// <param name="Ascent">The font's ascent, negative (above the baseline).</param>
 /// <param name="Descent">The font's descent, positive (below the baseline).</param>
+[PublicAPI]
 public readonly record struct ShapedText(
     SKTextBlob Blob,
     SKRect Bounds,

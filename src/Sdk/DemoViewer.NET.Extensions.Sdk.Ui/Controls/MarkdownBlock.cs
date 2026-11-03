@@ -23,6 +23,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         because the release bodies are authored wrapped at ~100 columns.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed partial class MarkdownBlock : ContentControl
 {
     /// <summary>The Markdown source to render. Null/empty clears the content.</summary>

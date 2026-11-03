@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///     carries the state in words. Click or Enter opens the flyout when there is
 ///     <see cref="StatusChipViewModel.FlyoutContent" /> to show, else runs <see cref="StatusChipViewModel.PrimaryAction" />.
 /// </summary>
+[PublicAPI]
 public partial class StatusChip : UserControl
 {
     private StatusChipViewModel? _viewModel;

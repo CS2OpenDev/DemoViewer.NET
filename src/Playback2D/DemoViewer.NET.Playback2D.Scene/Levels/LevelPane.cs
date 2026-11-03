@@ -17,6 +17,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 ///         manual override.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class LevelPane
 {
     /// <summary>
@@ -135,6 +136,7 @@ public sealed class LevelPane
 /// <param name="Transform">World → pane-local screen for this frame.</param>
 /// <param name="ViewportRect">Host-space rectangle of the band.</param>
 /// <param name="CameraEpoch">Cache key component for <c>PerCamera</c> pictures.</param>
+[PublicAPI]
 public readonly record struct LevelPaneSnapshot(
     MapLevelId LevelId,
     int LevelIndex,

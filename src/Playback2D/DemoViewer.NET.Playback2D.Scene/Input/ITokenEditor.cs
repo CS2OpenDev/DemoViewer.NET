@@ -8,6 +8,7 @@ using SkiaSharp;
 namespace DemoViewer.NET.Playback2D.Input;
 
 /// <summary>Which part of a token a press landed on.</summary>
+[PublicAPI]
 public enum TokenGrip
 {
     /// <summary>The disc: a drag moves the token.</summary>
@@ -27,6 +28,7 @@ public enum TokenGrip
 ///         <see cref="BeginDrag" />; forty moves and an end are one edit, never forty.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface ITokenEditor
 {
     /// <summary>The strat frame-clock tick of the active step: where a drag writes its keyframe.</summary>
@@ -78,6 +80,7 @@ public interface ITokenEditor
 ///     <see cref="SceneDefaults.MarkerHeadingLength" /> pixels beyond it. Shared so the canvas's
 ///     <see cref="ITokenEditor.TryHitToken" /> and the drawn marker cannot disagree.
 /// </summary>
+[PublicAPI]
 public static class TokenHitTest
 {
     // A third of the radius either side: 3 px at the default size, the shape tools' tap slop.

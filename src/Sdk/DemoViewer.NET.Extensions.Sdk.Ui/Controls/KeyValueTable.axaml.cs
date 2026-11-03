@@ -18,6 +18,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///     </para>
 ///     Consumed by the Entity-tracking tab's field view (with the "Δ only" toggle).
 /// </summary>
+[PublicAPI]
 public partial class KeyValueTable : UserControl
 {
     /// <summary>Rows property.</summary>
@@ -71,4 +72,5 @@ public partial class KeyValueTable : UserControl
 }
 
 /// <summary>One row in a <see cref="KeyValueTable" />.</summary>
+[PublicAPI]
 public sealed record KvpRow(string Key, string Value, bool IsDelta, string? PreviousValue);

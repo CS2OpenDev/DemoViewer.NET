@@ -21,6 +21,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         Frames are decoded one at a time into a single bitmap: a 12 s clip decoded whole is about 220 MB.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class GifView : Control, IDisposable
 {
     /// <summary>Defines the <see cref="Source" /> property.</summary>

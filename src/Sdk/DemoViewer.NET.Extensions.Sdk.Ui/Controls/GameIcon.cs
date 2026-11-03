@@ -37,6 +37,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         <see cref="Fallback" />.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class GameIcon : Control
 {
     // Decoded bitmaps are shared process-wide and never evicted: the whole catalogue at both scales is

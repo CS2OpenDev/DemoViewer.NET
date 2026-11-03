@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 namespace DemoViewer.NET.Extensions.Sdk.Playback;
 
 /// <summary>A mode of the 2D Playback tab that a contribution owns. The toolbar shows it while available.</summary>
+[PublicAPI]
 public sealed class ModeToggle : INotifyPropertyChanged
 {
     private bool _isAvailable = true;

@@ -30,6 +30,7 @@ namespace DemoViewer.NET.Playback2D.Annotations;
     Justification = "The gesture handle is owned by the CALLER that opened it (the pointer tool); the " +
                     "document only tracks which one is currently open, and disposing it from here " +
                     "would commit an undo entry the caller never asked to commit.")]
+[PublicAPI]
 public sealed class AnnotationDocument
 {
     /// <summary>

@@ -10,6 +10,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Export;
 /// <param name="Label">What the user picks, e.g. <c>"Square (640x640)"</c>.</param>
 /// <param name="Width">Width in pixels.</param>
 /// <param name="Height">Height in pixels.</param>
+[PublicAPI]
 public sealed record SceneExportSize(string Label, int Width, int Height);
 
 /// <summary>
@@ -19,6 +20,7 @@ public sealed record SceneExportSize(string Label, int Width, int Height);
 /// <param name="Label">What the user picks, e.g. <c>"First step to last + 2 s  (1:50 to 1:08)"</c>.</param>
 /// <param name="Start">First unit, inclusive.</param>
 /// <param name="End">Last unit, inclusive.</param>
+[PublicAPI]
 public sealed record SceneExportRange(string Label, int Start, int End);
 
 /// <summary>An extension's own starting choices for the export pane over its scene.</summary>
@@ -30,6 +32,7 @@ public sealed record SceneExportRange(string Label, int Start, int End);
 /// <param name="IncludeHudClock">Whether the round clock starts on.</param>
 /// <param name="IncludeAnnotations">Whether the ink starts on.</param>
 /// <param name="IncludeVision">Whether the vision cones start on.</param>
+[PublicAPI]
 public sealed record SceneExportChoices(
     string FormatId,
     int Fps,
@@ -53,6 +56,7 @@ public sealed record SceneExportChoices(
 /// <param name="End">Last unit, inclusive.</param>
 /// <param name="Fps">The output frame rate chosen for the run.</param>
 /// <param name="Speed">The playback-rate multiplier chosen for the run; 1 is realtime.</param>
+[PublicAPI]
 public sealed record SceneFramesRequest(IMapAsset? Map, int Start, int End, int Fps, double Speed);
 
 /// <summary>
@@ -64,6 +68,7 @@ public sealed record SceneFramesRequest(IMapAsset? Map, int Start, int End, int 
 ///     </para>
 /// </summary>
 /// <param name="request">The run's range, rate, speed and map art.</param>
+[PublicAPI]
 public delegate ISceneFrames SceneFramesFactory(SceneFramesRequest request);
 
 /// <summary>How many output frames a range renders to at a rate and a speed.</summary>
@@ -71,6 +76,7 @@ public delegate ISceneFrames SceneFramesFactory(SceneFramesRequest request);
 /// <param name="end">Last unit, inclusive.</param>
 /// <param name="fps">Output frame rate.</param>
 /// <param name="speed">Playback-rate multiplier; 1 is realtime.</param>
+[PublicAPI]
 public delegate int SceneExportFrameCount(int start, int end, int fps, double speed);
 
 /// <summary>
@@ -83,6 +89,7 @@ public delegate int SceneExportFrameCount(int start, int end, int fps, double sp
 ///         <see cref="Source" /> is an export over frames the caller already holds, and stands in for both.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed record SceneExportScene
 {
     /// <summary>
@@ -121,6 +128,7 @@ public sealed record SceneExportScene
 }
 
 /// <summary>Why an export did not produce a file. <see cref="None" /> is the one success value.</summary>
+[PublicAPI]
 public enum SceneExportRefusal
 {
     /// <summary>It produced the file.</summary>
@@ -148,6 +156,7 @@ public enum SceneExportRefusal
 /// <param name="Refusal">Why it did not produce a file, or <see cref="SceneExportRefusal.None" />.</param>
 /// <param name="Message">User-facing copy for a refusal or a failure; null on success.</param>
 /// <param name="OutputPath">The file written, or null when none was.</param>
+[PublicAPI]
 public sealed record SceneExportOutcome(SceneExportRefusal Refusal, string? Message = null, string? OutputPath = null)
 {
     /// <summary>True when the file at <see cref="OutputPath" /> exists and is finished.</summary>
@@ -159,6 +168,7 @@ public sealed record SceneExportOutcome(SceneExportRefusal Refusal, string? Mess
 ///     size and the file name, and nothing is watching it. Rendered on the calling job's thread, so a caller
 ///     that wants the host's heavy-job gate takes it itself.
 /// </summary>
+[PublicAPI]
 public sealed record SceneExportClip
 {
     /// <summary>What to render.</summary>
@@ -209,6 +219,7 @@ public sealed record SceneExportClip
 ///     The export pane the host opens over an extension's scene: the ranges, the sizes, the rate, the format,
 ///     the output folder, the encoder acquisition and the status chip, all the host's.
 /// </summary>
+[PublicAPI]
 public sealed record SceneExportPaneRequest
 {
     /// <summary>The pane's heading.</summary>
@@ -257,6 +268,7 @@ public sealed record SceneExportPaneRequest
 ///     An open export pane. Dispose it to close the pane; an export that has started keeps running, and its
 ///     progress stays on the host's status chip.
 /// </summary>
+[PublicAPI]
 public interface ISceneExportPane : IDisposable
 {
     /// <summary>
@@ -279,6 +291,7 @@ public interface ISceneExportPane : IDisposable
 ///         outcome.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IExtensionSceneExport
 {
     /// <summary>The output size presets the host's own export offers, the default first.</summary>

@@ -11,6 +11,7 @@ namespace DemoViewer.NET.Playback2D.Layers;
 ///         these ids use <c>when</c> clauses rather than constant patterns.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public static class SceneLayerIds
 {
     /// <summary>Baked radar image, falling back to the synthetic grid.</summary>

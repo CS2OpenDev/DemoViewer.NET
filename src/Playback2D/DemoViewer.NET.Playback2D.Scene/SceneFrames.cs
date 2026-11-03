@@ -14,6 +14,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         frame at a time, which is what makes that safe to promise.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface ISceneFrames
 {
     /// <summary>How many frames this sequence can produce.</summary>

@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Playback2D.Query;
 
 /// <summary>Which side of the rail a token belongs to. The value is the side's row on the rail, never a CS2 team number.</summary>
+[PublicAPI]
 public enum QuerySide
 {
     /// <summary>The counter-terrorist row.</summary>
@@ -32,6 +33,7 @@ public enum QuerySide
 /// <param name="WorldY">World Y of the drop.</param>
 /// <param name="LevelMinZ">The quantized lower Z of the level the token sits on.</param>
 /// <param name="Place">The resolved raw place name, or null when unresolved.</param>
+[PublicAPI]
 public readonly record struct QueryToken(
     QuerySide Side,
     int Slot,

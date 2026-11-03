@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui;
 ///     every bound consumer (filter re-application, ItemsControl container generation) run once per
 ///     entry: O(N²) total. One Reset = one rebuild.
 /// </summary>
+[PublicAPI]
 public sealed class BulkObservableCollection<T> : ObservableCollection<T>
 {
     /// <summary>Replaces the whole contents with <paramref name="items" /> under a single Reset notification.</summary>

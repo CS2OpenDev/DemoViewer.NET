@@ -11,6 +11,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Playback;
 ///     One 2D Playback tab, as a contribution sees it. Every <c>Add</c> returns a handle; disposing it removes
 ///     what was added. Call from the UI thread.
 /// </summary>
+[PublicAPI]
 public interface IPlaybackSurface
 {
     /// <summary>The mounted map's floors, lowest first; empty before a map is shown.</summary>
@@ -178,6 +179,7 @@ public interface IPlaybackSurface
 /// <param name="Name">The floor's name.</param>
 /// <param name="ZMin">Lowest world Z on the floor.</param>
 /// <param name="ZMax">Highest world Z on the floor.</param>
+[PublicAPI]
 public sealed record PlaybackLevel(string Name, double ZMin, double ZMax);
 
 /// <summary>A band on the timeline.</summary>
@@ -189,6 +191,7 @@ public sealed record PlaybackLevel(string Name, double ZMin, double ZMax);
 /// <param name="EndFrameIndex">Its last frame.</param>
 /// <param name="Label">Its label; a round band's is the round number.</param>
 /// <param name="Tooltip">Its tooltip.</param>
+[PublicAPI]
 public sealed record PlaybackBand(string TrackId, int StartFrameIndex, int EndFrameIndex, string Label, string Tooltip)
 {
     /// <summary>True for a band the rounds track drew for a round.</summary>
@@ -199,6 +202,7 @@ public sealed record PlaybackBand(string TrackId, int StartFrameIndex, int EndFr
 /// <summary>A context-menu entry.</summary>
 /// <param name="Header">The entry text.</param>
 /// <param name="Run">What it does.</param>
+[PublicAPI]
 public sealed record MenuEntry(string Header, Action Run);
 
 /// <summary>A press on the map.</summary>
@@ -211,6 +215,7 @@ public sealed record MenuEntry(string Header, Action Run);
 /// <param name="Tick">The tick shown.</param>
 /// <param name="PlaceAt">The map's named place at the press, or null where the map has no zones. Read it only if you need it.</param>
 /// <param name="Frame">The frame on screen. Valid only during the call: the tab refills it for the next one.</param>
+[PublicAPI]
 public sealed record PlaybackPointer(
     string? Level,
     double WorldX,
@@ -226,6 +231,7 @@ public sealed record PlaybackPointer(
 /// <param name="Tick">The tick shown.</param>
 /// <param name="FrameIndex">The frame shown.</param>
 /// <param name="Frame">The frame on screen. Valid only during the call: the tab refills it for the next one.</param>
+[PublicAPI]
 public sealed record PlaybackMoment(int Tick, int FrameIndex, Scene2DFrame Frame);
 
 /// <summary>Where a pane docks.</summary>
@@ -239,6 +245,7 @@ public enum PanePlacement
 }
 
 /// <summary>A pane. Dispose removes it; <see cref="Close" /> only hides it.</summary>
+[PublicAPI]
 public interface IPaneHandle : IDisposable
 {
     /// <summary>True while open.</summary>
@@ -255,6 +262,7 @@ public interface IPaneHandle : IDisposable
 }
 
 /// <summary>A right-column panel.</summary>
+[PublicAPI]
 public interface IPanelHandle : IPaneHandle
 {
     /// <summary>Open, its feature on, its mode on, and the column showing panels.</summary>

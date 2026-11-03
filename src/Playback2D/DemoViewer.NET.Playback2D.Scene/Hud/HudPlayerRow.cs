@@ -32,6 +32,7 @@ namespace DemoViewer.NET.Playback2D.Hud;
 /// <param name="Kills">Match-total kills.</param>
 /// <param name="Deaths">Match-total deaths.</param>
 /// <param name="Assists">Match-total assists.</param>
+[PublicAPI]
 public readonly record struct HudPlayerRow(
     int Slot,
     int Team,

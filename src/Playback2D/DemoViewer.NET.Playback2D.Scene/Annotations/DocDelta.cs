@@ -12,6 +12,7 @@ namespace DemoViewer.NET.Playback2D.Annotations;
 ///     inverse needs the element that was removed, which the delta itself does not carry), so a delta
 ///     never has to describe both directions.
 /// </summary>
+[PublicAPI]
 public abstract record DocDelta
 {
     /// <summary>Inserts an element at an index. An index past the end appends.</summary>
@@ -19,6 +20,7 @@ public abstract record DocDelta
     /// <param name="Index">Insertion position; clamped into range on apply.</param>
     [SuppressMessage("Design", "CA1034:Nested types should not be visible",
         Justification = "Closed discriminated union; the nesting is the contract.")]
+    [PublicAPI]
     public sealed record Add(AnnotationElement Element, int Index) : DocDelta;
 
     /// <summary>Removes the element with this id. A no-op when it is absent.</summary>
@@ -32,6 +34,7 @@ public abstract record DocDelta
     /// <param name="Element">Its replacement. Its own <c>Id</c> is what the document keys on afterwards.</param>
     [SuppressMessage("Design", "CA1034:Nested types should not be visible",
         Justification = "Closed discriminated union; the nesting is the contract.")]
+    [PublicAPI]
     public sealed record Replace(Guid Id, AnnotationElement Element) : DocDelta;
 
     /// <summary>Applies several deltas as one unit. Inverted in reverse order.</summary>

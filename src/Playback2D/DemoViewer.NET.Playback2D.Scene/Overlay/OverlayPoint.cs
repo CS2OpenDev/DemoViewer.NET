@@ -15,4 +15,5 @@ namespace DemoViewer.NET.Playback2D.Overlay;
 /// <param name="WorldY">World Y.</param>
 /// <param name="WorldZ">World Z, kept for the pane assignment on a multi-floor map.</param>
 /// <param name="Side">The side, so the two teams' density can be tinted apart.</param>
+[PublicAPI]
 public readonly record struct OverlayPoint(float WorldX, float WorldY, float WorldZ, QuerySide Side);

@@ -7,6 +7,7 @@ using System.Numerics;
 namespace DemoViewer.NET.Playback2D.Zones;
 
 /// <summary>Which step of the resolver's cascade answered.</summary>
+[PublicAPI]
 public enum PlaceHitKind
 {
     /// <summary>A place volume contains the point: the game's own rule, exact.</summary>
@@ -24,6 +25,7 @@ public enum PlaceHitKind
 /// <param name="Name">The raw place name, or null.</param>
 /// <param name="Kind">Which cascade step answered.</param>
 /// <param name="SnapDistance">XY distance to the area that answered; 0 for a volume hit, infinite for a miss.</param>
+[PublicAPI]
 public readonly record struct PlaceHit(int PlaceId, string? Name, PlaceHitKind Kind, double SnapDistance)
 {
     /// <summary>The miss.</summary>
@@ -43,6 +45,7 @@ public readonly record struct PlaceHit(int PlaceId, string? Name, PlaceHitKind K
 /// <param name="Origin">Baked or custom, so the layer can style the two apart.</param>
 /// <param name="Edges">World-XY segments.</param>
 /// <param name="LabelAt">Where the label goes, world XY.</param>
+[PublicAPI]
 public sealed record PlaceOutline(
     int PlaceId,
     string Name,

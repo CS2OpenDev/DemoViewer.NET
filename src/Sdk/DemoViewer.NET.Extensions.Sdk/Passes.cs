@@ -3,6 +3,7 @@ using CS2DemoKit.Parser;
 namespace DemoViewer.NET.Extensions.Sdk;
 
 /// <summary>A pass's answer to "does this demo need you".</summary>
+[PublicAPI]
 public enum DemoInterest
 {
     /// <summary>Nothing to do for this demo.</summary>
@@ -19,6 +20,7 @@ public enum DemoInterest
 }
 
 /// <summary>How a pass reads the demo.</summary>
+[PublicAPI]
 public enum PassRead
 {
     /// <summary>The whole parse, held in memory for the pass's turn.</summary>
@@ -34,6 +36,7 @@ public enum PassRead
 /// <summary>One round of the demo, opened by its <c>round_freeze_end</c>.</summary>
 /// <param name="Number">Sequential from 1 in demo order, warmup and restarts included.</param>
 /// <param name="FreezeEndTick">The round's freeze end in the frame clock (<c>GameEvent.GameTick</c>), not the server tick.</param>
+[PublicAPI]
 public sealed record PassRound(int Number, int FreezeEndTick);
 
 /// <summary>What a pass gets when its turn comes on a demo's visit.</summary>
@@ -98,6 +101,7 @@ public interface IPassContext
 ///         extension. A pass that keeps overrunning its time budget is switched off for the session.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IExtensionPass
 {
     /// <summary>Unique across the app, and the id other passes name in <c>after</c>.</summary>
@@ -142,6 +146,7 @@ public interface IExtensionPass
 }
 
 /// <summary>The scheduling of an extension's own passes.</summary>
+[PublicAPI]
 public interface IExtensionPasses
 {
     /// <summary>
@@ -171,6 +176,7 @@ public interface IExtensionPasses
 ///         extension. A pass is not run twice on the same row: it runs again once the row changes.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IExtensionRecordPass
 {
     /// <summary>Unique across the extension's record passes.</summary>

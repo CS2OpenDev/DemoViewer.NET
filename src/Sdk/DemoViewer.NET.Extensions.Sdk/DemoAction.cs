@@ -4,6 +4,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     A button Match Overview offers for the open demo while <see cref="IsAvailable" /> answers true. Call
 ///     <see cref="NotifyChanged" /> when the answer may have changed.
 /// </summary>
+[PublicAPI]
 public sealed class DemoAction
 {
     /// <summary>Creates the action.</summary>

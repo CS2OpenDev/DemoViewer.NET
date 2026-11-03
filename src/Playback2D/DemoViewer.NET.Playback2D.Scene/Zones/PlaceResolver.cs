@@ -23,6 +23,7 @@ namespace DemoViewer.NET.Playback2D.Zones;
 ///         anything outside it, and two overlapping baked volumes resolve to the first.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class PlaceResolver
 {
     /// <summary>The XY grid cell edge, in world units.</summary>

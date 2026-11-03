@@ -20,6 +20,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="Order">The strip position among the main tabs; the host's own tabs sit below 10.</param>
 /// <param name="RailLabel">The band over the section rail.</param>
 /// <param name="FeatureId">Shown only while this feature is on; null for while the extension is on.</param>
+[PublicAPI]
 public sealed record HubTabContribution(string Id, string Header, int Order, string RailLabel, string? FeatureId = null)
 {
     /// <summary>
@@ -34,6 +35,7 @@ public sealed record HubTabContribution(string Id, string Header, int Order, str
 ///     A small piece of an extension's state the host writes into the user's session file and hands back on
 ///     the next launch. For layout and view choices, never for the user's work: a session file can be lost.
 /// </summary>
+[PublicAPI]
 public interface IExtensionSessionState
 {
     /// <summary>The state to keep, or null to keep nothing. Called on the UI thread when the session is saved.</summary>
@@ -51,6 +53,7 @@ public interface IExtensionSessionState
 ///     The dot's meaning on a status chip. The host maps each value to a theme colour; the chip's label
 ///     carries the same meaning in words.
 /// </summary>
+[PublicAPI]
 public enum StatusChipDotState
 {
     /// <summary>Idle or suspended.</summary>
@@ -74,6 +77,7 @@ public enum StatusChipDotState
 ///     thread after each <see cref="INotifyPropertyChanged.PropertyChanged" />, which may be raised from any
 ///     thread. Any member name, or a null or empty one, re-reads them all.
 /// </summary>
+[PublicAPI]
 public interface IStatusChipSource : INotifyPropertyChanged
 {
     /// <summary>True while the chip belongs on the status strip.</summary>
@@ -111,4 +115,5 @@ public interface IStatusChipSource : INotifyPropertyChanged
 /// <param name="Id">Unique across the app. Never shown. Starts with the extension's id and a dot; a third-party id that does not is left out and logged.</param>
 /// <param name="Source">The chip's state.</param>
 /// <param name="FeatureId">Shown only while this feature is on; null for while the extension is on.</param>
+[PublicAPI]
 public sealed record StatusChipContribution(string Id, IStatusChipSource Source, string? FeatureId = null);

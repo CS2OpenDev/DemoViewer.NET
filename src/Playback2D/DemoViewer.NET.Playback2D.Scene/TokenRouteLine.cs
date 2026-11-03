@@ -4,6 +4,7 @@ namespace DemoViewer.NET.Playback2D;
 ///     The rest of a strat token's current move: its position now, then each corner to where the move ends, in world
 ///     space. Pooled by the frame source and refilled in place, as <see cref="GrenadeTrail" /> is.
 /// </summary>
+[PublicAPI]
 public sealed class TokenRouteLine
 {
     /// <summary>The token's side, 2 = T and 3 = CT, which colours the line.</summary>

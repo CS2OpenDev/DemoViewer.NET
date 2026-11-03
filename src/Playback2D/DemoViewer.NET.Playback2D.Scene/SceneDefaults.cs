@@ -4,6 +4,7 @@ namespace DemoViewer.NET.Playback2D;
 ///     Constants the pre-v2 control held as private consts and that more than one
 ///     layer now needs. Values are unchanged: every one of them is visible in a golden image.
 /// </summary>
+[PublicAPI]
 public static class SceneDefaults
 {
     /// <summary>Half-extent of the fixed rectangle drawn before any position is observed.</summary>

@@ -7,6 +7,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Playback;
 ///     the extension is switched back on; <see cref="Detach" /> must undo exactly what <see cref="Attach" /> added,
 ///     which disposing every handle the surface returned does.
 /// </summary>
+[PublicAPI]
 public interface IPlaybackContribution
 {
     /// <summary>Adds the contribution to one tab. <paramref name="context" /> is that tab's playback.</summary>

@@ -9,6 +9,7 @@ namespace DemoViewer.NET.Playback2D.Hud;
 ///         timeline queried by tick, not per-frame world state, and does not belong in the frame record.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IHudDataSource
 {
     /// <summary>The HUD state at a tick.</summary>
@@ -46,6 +47,7 @@ public interface IHudDataSource
 ///     one list serves both edges of the frame. Empty when the source was built without a roster reader,
 ///     which is what a fixture render and a HUD-less export both look like.
 /// </param>
+[PublicAPI]
 public readonly record struct HudSnapshot(
     int Tick,
     string RoundNumber,

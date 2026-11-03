@@ -10,6 +10,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="ViewModelFactory">Builds the page's view model, the view's DataContext.</param>
 /// <param name="ViewFactory">Builds the page's view.</param>
 /// <param name="FeatureId">Shown only while this feature is on; null for while the extension is on.</param>
+[PublicAPI]
 public sealed record SettingsPageContribution(
     string Id,
     string Header,

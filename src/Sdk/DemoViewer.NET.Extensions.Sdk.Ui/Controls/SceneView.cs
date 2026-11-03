@@ -29,6 +29,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         app (a designer, a bare test) there is no host to draw the scene and the control is empty.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class SceneView : Control
 {
     /// <summary>Defines the <see cref="Source" /> property.</summary>
@@ -233,6 +234,7 @@ public sealed class SceneView : Control
 }
 
 /// <summary>A pointer tool added to a <see cref="SceneView" />: the id it was filed under, and its removal.</summary>
+[PublicAPI]
 public interface IToolHandle : IDisposable
 {
     /// <summary>

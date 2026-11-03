@@ -14,6 +14,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         are the user gestures. Recompute only on fit / pan / zoom, never per tick.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public readonly struct ViewportTransform
 {
     /// <summary>Viewport width in device-independent pixels.</summary>

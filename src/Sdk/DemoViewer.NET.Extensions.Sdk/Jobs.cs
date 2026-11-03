@@ -3,6 +3,7 @@ using CS2DemoKit.Parser;
 namespace DemoViewer.NET.Extensions.Sdk;
 
 /// <summary>How urgent a job is.</summary>
+[PublicAPI]
 public enum JobPriority
 {
     /// <summary>Opt-in sweeps and anything the user did not ask for. Pausable, runs when the app is idle.</summary>
@@ -23,6 +24,7 @@ public enum JobPriority
 }
 
 /// <summary>Where a job is, or how it ended.</summary>
+[PublicAPI]
 public enum JobStatus
 {
     /// <summary>Waiting for its turn.</summary>
@@ -47,6 +49,7 @@ public enum JobStatus
 /// <summary>How a job ended.</summary>
 /// <param name="Status">One of the ended states: completed, failed, cancelled or rejected.</param>
 /// <param name="Error">What the job threw, when it failed.</param>
+[PublicAPI]
 public sealed record JobResult(JobStatus Status, Exception? Error = null);
 
 /// <summary>A queued job: its state, its end, and a way to cancel it.</summary>
@@ -69,6 +72,7 @@ public interface IJobHandle
 }
 
 /// <summary>What a job that names a demo gets: the demo's parse for as long as the job runs.</summary>
+[PublicAPI]
 public interface IDemoJobContext : IJobContext
 {
     /// <summary>The demo the job named.</summary>
@@ -86,6 +90,7 @@ public interface IDemoJobContext : IJobContext
 ///     demo is read once for it and every pass that wants the demo, on the parse the shell holds when the demo
 ///     is open, and the job runs after those passes.
 /// </summary>
+[PublicAPI]
 public sealed class JobRequest
 {
     /// <summary>A job that needs no demo.</summary>
@@ -153,6 +158,7 @@ public sealed class JobRequest
 /// <param name="Label">The short chip the queue list shows.</param>
 /// <param name="IsLight">True for small jobs that may run beside a demo parse.</param>
 /// <param name="Rank">Order among queued jobs of the same priority; lower runs first. The host's own range is 0 to 4.</param>
+[PublicAPI]
 public sealed record ExtensionJobKind(string Id, string Label, bool IsLight, int Rank = 4);
 
 /// <summary>The built-in job kinds.</summary>
@@ -174,6 +180,7 @@ public static class BuiltInJobKinds
 /// <param name="Key">One queued job per key: a newer submit replaces the queued one.</param>
 /// <param name="Preemptible">True when the job checks its token at natural boundaries, so a user's job may stop it and requeue it.</param>
 /// <param name="Serial">Jobs sharing a serial never run at the same time.</param>
+[PublicAPI]
 public sealed record JobOptions(
     string Kind = BuiltInJobKinds.Compute,
     JobPriority Priority = JobPriority.Background,
@@ -182,6 +189,7 @@ public sealed record JobOptions(
     string? Serial = null);
 
 /// <summary>What a running job gets.</summary>
+[PublicAPI]
 public interface IJobContext
 {
     /// <summary>Fires when the user removes the job or the extension is switched off.</summary>
@@ -202,6 +210,7 @@ public interface IJobContext
 ///     sees it and can pause or remove it. Jobs carry the extension's id, and switching the extension off
 ///     cancels the queued ones. Neither a handle nor <see cref="CancelAll" /> reaches another owner's work.
 /// </summary>
+[PublicAPI]
 public interface IExtensionJobs
 {
     /// <summary>Queues <paramref name="request" /> and returns its handle.</summary>
@@ -225,6 +234,7 @@ public interface IExtensionJobs
 ///     The job the calling code runs in, for code that has no job context at hand: a section build several
 ///     calls deep, a click handler that queues through a shared runner. The host enters every job it runs.
 /// </summary>
+[PublicAPI]
 public static class JobScope
 {
     private static readonly AsyncLocal<bool> _userAction = new();

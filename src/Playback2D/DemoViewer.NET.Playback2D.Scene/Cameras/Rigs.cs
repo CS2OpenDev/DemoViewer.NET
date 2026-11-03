@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Playback2D.Cameras;
 ///         <see cref="FitMapRig" /> because it fits <i>continuously</i>. The behaviours are what matter.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class ManualRig : ICameraRig
 {
     /// <summary>The shared instance. Stateless, so one is enough.</summary>

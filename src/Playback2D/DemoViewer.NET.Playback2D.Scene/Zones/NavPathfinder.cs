@@ -4,6 +4,7 @@ namespace DemoViewer.NET.Playback2D.Zones;
 /// <param name="X">World X.</param>
 /// <param name="Y">World Y.</param>
 /// <param name="FloorKey">The floor key of the area the route is in after this point.</param>
+[PublicAPI]
 public readonly record struct NavWaypoint(double X, double Y, double FloorKey);
 
 /// <summary>
@@ -17,6 +18,7 @@ public readonly record struct NavWaypoint(double X, double Y, double FloorKey);
 ///         far area's mean Z is at most <c>maxClimb</c> higher.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class NavPathfinder
 {
     /// <summary>The climb a gap link allows, in world units: a player's jump onto a crate.</summary>

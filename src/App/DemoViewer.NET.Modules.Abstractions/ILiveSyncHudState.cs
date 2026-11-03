@@ -5,6 +5,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     walled-off <c>Pb2d*</c> HUD palette in the view, not the app-chrome ramp (design-system D21),
 ///     so this abstraction stays free of any brush/token.
 /// </summary>
+[PublicAPI]
 public enum LiveSyncHudDot
 {
     /// <summary>
@@ -39,6 +40,7 @@ public enum LiveSyncHudDot
 ///         visibility is a single bound flag.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface ILiveSyncHudState
 {
     /// <summary>

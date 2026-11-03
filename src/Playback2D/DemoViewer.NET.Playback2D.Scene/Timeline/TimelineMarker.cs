@@ -8,6 +8,7 @@ namespace DemoViewer.NET.Playback2D.Timeline;
 ///         consumer can show it or seek by it without re-resolving.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public readonly record struct TimelineMarker(
     string TrackId,
     int FrameIndex,
@@ -21,6 +22,7 @@ public readonly record struct TimelineMarker(
 ///     An inclusive frame range on the timeline (rounds today; segments later). ARGB 0 = track default,
 ///     as for <see cref="TimelineMarker" />.
 /// </summary>
+[PublicAPI]
 public readonly record struct TimelineBand(
     string TrackId,
     int StartFrameIndex,

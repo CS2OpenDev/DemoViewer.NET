@@ -18,6 +18,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         <c>TextMid</c> token.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed partial class StatusChipViewModel : ObservableObject
 {
     /// <summary>The dot's semantic state (drives the state→token class selector).</summary>

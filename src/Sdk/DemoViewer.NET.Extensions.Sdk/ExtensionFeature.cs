@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Extensions.Sdk;
 
 /// <summary>What an <see cref="ExtensionFeature" /> gates.</summary>
+[PublicAPI]
 public enum ExtensionFeatureKind
 {
     /// <summary>The extension's master switch. Exactly one per extension, with no parent.</summary>
@@ -17,6 +18,7 @@ public enum ExtensionFeatureKind
 /// <param name="Consumer">On by default for consumers.</param>
 /// <param name="PowerUser">On by default for power users.</param>
 /// <param name="Developer">On by default for developers.</param>
+[PublicAPI]
 public sealed record AudienceDefaults(bool Consumer, bool PowerUser, bool Developer)
 {
     /// <summary>On for every user.</summary>
@@ -36,6 +38,7 @@ public sealed record AudienceDefaults(bool Consumer, bool PowerUser, bool Develo
 /// <param name="Description">Settings help text.</param>
 /// <param name="ParentId">The feature it turns off with: null for the master switch.</param>
 /// <param name="Defaults">Its starting state per user category.</param>
+[PublicAPI]
 public sealed record ExtensionFeature(
     string Id,
     ExtensionFeatureKind Kind,

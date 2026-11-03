@@ -11,6 +11,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 ///     and its places. Not disposable: one decode is shared by every view of the map, so its lifetime belongs
 ///     to whoever handed it out and a reader must not end it.
 /// </summary>
+[PublicAPI]
 public interface IMapAsset
 {
     /// <summary>The map's floor bands, lowest first.</summary>

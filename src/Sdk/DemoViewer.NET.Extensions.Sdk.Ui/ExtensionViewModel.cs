@@ -11,4 +11,5 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui;
 ///     (<see cref="IExtensionViewModel" />), so a pane, panel, flyout or nested <c>ContentControl</c> shows the view
 ///     without a hand-written factory.
 /// </summary>
+[PublicAPI]
 public abstract class ExtensionViewModel : ObservableObject, IExtensionViewModel;
