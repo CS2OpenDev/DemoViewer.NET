@@ -44,7 +44,7 @@ public sealed class HeavyJobGate : IDisposable
 
     private const int PollIntervalMs = 100;
 
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
     private bool _disposed;
     private int _exportSessions;
     private int _held;

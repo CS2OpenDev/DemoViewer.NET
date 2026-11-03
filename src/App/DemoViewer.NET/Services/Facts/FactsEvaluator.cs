@@ -36,7 +36,7 @@ namespace DemoViewer.NET.Services.Facts;
 public sealed class FactsEvaluator : IDemoEvaluator
 {
     /// <summary>The pass id, and the queue owner tag.</summary>
-    public const string EvaluatorId = HostIds.FactsPass;
+    private const string EvaluatorId = HostIds.FactsPass;
 
     // The rules fingerprint depends on the tick rate; the backlog asks at the rate every supported demo records at.
     private const int BacklogTickRate = 64;

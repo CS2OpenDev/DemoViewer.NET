@@ -22,7 +22,7 @@ namespace DemoViewer.NET.Services.Players;
 /// </summary>
 public sealed class PlayerDirectory
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Func<string, bool> _fileExists;
     private readonly DemoCacheStore _store;
     private Projection _projection = Projection.Empty;
@@ -213,8 +213,7 @@ public sealed class PlayerDirectory
 
     internal sealed class Account(PlayerEntry entry, List<DemoCacheIndexEntry> rows)
     {
-        private readonly object _gate = new();
-        private List<PlayerMatch>? _matches;
+        private readonly Lock _gate = new();
 
         public PlayerEntry Entry { get; } = entry;
 
@@ -225,9 +224,9 @@ public sealed class PlayerDirectory
             {
                 lock (_gate)
                 {
-                    if (_matches is not null)
+                    if (field is not null)
                     {
-                        return _matches;
+                        return field;
                     }
 
                     InDemo.Set inDemo = new();
@@ -241,7 +240,7 @@ public sealed class PlayerDirectory
                             new PlayerMatch(row, here.Side, [.. here.Names], [.. here.Slots], here.Side is null));
                     }
 
-                    return _matches = matches;
+                    return field = matches;
                 }
             }
         }

@@ -41,7 +41,7 @@ public sealed class ExportJobService : IExportJobService, IDisposable
     private readonly HeavyJobGate? _gate;
     private readonly Func<bool>? _isLiveSyncBusy;
     private readonly Func<bool>? _isReelRunning;
-    private readonly object _lifecycle = new();
+    private readonly Lock _lifecycle = new();
     private readonly Action<string>? _log;
     private readonly IExportRunner _runner;
 

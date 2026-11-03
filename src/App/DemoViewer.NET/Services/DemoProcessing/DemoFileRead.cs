@@ -32,7 +32,7 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
 
     /// <summary>True when the read reports hashes and the hash of this path is wanted.</summary>
     /// <param name="path">A demo path.</param>
-    public bool WantsHash(string path) => contentRead is not null && wantsHash?.Invoke(path) == true;
+    private bool WantsHash(string path) => contentRead is not null && wantsHash?.Invoke(path) == true;
 
     /// <summary>
     ///     The bytes to parse <paramref name="path" /> from, or null when the file is to be mapped. Reports the
@@ -87,7 +87,7 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
     private static T Bounded<T>(Func<T> call, string path)
     {
         Task<T> answer = Task.Run(call);
-        if (Task.WaitAny(new Task[] { answer }, NoProgress) < 0)
+        if (Task.WaitAny([answer], NoProgress) < 0)
         {
             _ = answer.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
             throw new IOException($"{path} gave no answer in {NoProgress.TotalSeconds:0.#} s");
@@ -181,7 +181,7 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
         TimeSpan poll = noProgress < TimeSpan.FromSeconds(1) ? noProgress : TimeSpan.FromSeconds(1);
         try
         {
-            while (Task.WaitAny(new Task[] { read }, (int)poll.TotalMilliseconds, cancellationToken) < 0)
+            while (Task.WaitAny([read], (int)poll.TotalMilliseconds, cancellationToken) < 0)
             {
                 long now = Volatile.Read(ref watched)?.Done ?? 0;
                 if (now != seen)
@@ -260,8 +260,8 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
 /// <summary>Whether a path is on a network mount, asked of the mount table and remembered per folder.</summary>
 internal static class NetworkMounts
 {
-    private static readonly TimeSpan Remember = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan Answer = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _remember = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan _answer = TimeSpan.FromSeconds(5);
 
     private static readonly Dictionary<string, (bool Network, DateTime At)> _byFolder =
         new(StringComparer.OrdinalIgnoreCase);
@@ -286,7 +286,7 @@ internal static class NetworkMounts
         lock (_byFolder)
         {
             if (_byFolder.TryGetValue(folder, out (bool Network, DateTime At) known)
-                && DateTime.UtcNow - known.At < Remember)
+                && DateTime.UtcNow - known.At < _remember)
             {
                 return known.Network;
             }
@@ -296,7 +296,7 @@ internal static class NetworkMounts
         // queued behind a busy pool, a local path would time out and be taken for network.
         Task<bool> ask = Task.Factory.StartNew(() => Lookup(folder), CancellationToken.None,
             TaskCreationOptions.LongRunning, TaskScheduler.Default);
-        bool network = !ask.Wait(Answer) || ask.Result;
+        bool network = !ask.Wait(_answer) || ask.Result;
         lock (_byFolder)
         {
             _byFolder[folder] = (network, DateTime.UtcNow);

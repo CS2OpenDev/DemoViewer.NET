@@ -62,7 +62,7 @@ public sealed class DemoCacheStore
 
     // Rows whose files moved key in this session; their old names go after the next index save. Under _gate.
     private readonly HashSet<string> _settleAfterSave = new(StringComparer.Ordinal);
-    private readonly object _indexWriteGate = new();
+    private readonly Lock _indexWriteGate = new();
 
     // Hashes of whole files read by a parse or an open, so a write after the read can settle its path without
     // reading the file again. Under _gate.
@@ -500,7 +500,7 @@ public sealed class DemoCacheStore
                 List<DemoLocation> locations =
                 [
                     .. row.Locations,
-                    new DemoLocation(path, false, size, modifiedTicks, DateTime.UtcNow.Ticks)
+                    new(path, false, size, modifiedTicks, DateTime.UtcNow.Ticks)
                 ];
                 Link(contentId, Shape(row.Copy(), locations, row.SidecarKeys));
             }

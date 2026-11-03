@@ -52,9 +52,6 @@ public sealed class RoundFactsSource : IRoundFactsSource
     }
 
     /// <inheritdoc />
-    public RoundFactsRows? TryGet(DemoCacheRecord record) => record.RoundFacts;
-
-    /// <inheritdoc />
     public RoundFacts? RoundAt(string demoPath, int frameClockTick) =>
         TryGet(demoPath) is { } rows ? RoundFactsRules.FindRound(rows.Rounds, frameClockTick) : null;
 

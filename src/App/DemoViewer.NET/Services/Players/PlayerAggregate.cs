@@ -80,17 +80,17 @@ public sealed record PlayerAggregate(
     private const double HltvConstant = 0.1587 - (0.2372 * 0.41);
     private const double HltvPerKastPercent = 0.73 / 100;
 
-    private static readonly string[] Activity = ["Shots", "TotalD", "EnemyDmg"];
+    private static readonly string[] _activity = ["Shots", "TotalD", "EnemyDmg"];
 
     // The rounds a slot's team won and lost on each side. A slot tallies every round its team finishes, not only
     // the rounds the account held it, so two slots of one account can tally the same round.
-    private static readonly string[] TeamTally = ["CTW", "CTL", "TW", "TL"];
+    private static readonly string[] _teamTally = ["CTW", "CTL", "TW", "TL"];
 
     /// <summary>The demos with stats whose facet carries line-of-sight data: the population of every sight column.</summary>
-    public int WithSight { get; init; }
+    public int WithSight { get; private init; }
 
     /// <summary>The demos with stats whose rounds by side are pooled; fewer than <see cref="WithStats" /> while the library computes the rest.</summary>
-    public int WithSides { get; init; }
+    public int WithSides { get; private init; }
 
     /// <summary>The pooled value of a catalogue column, or null when it does not pool or no demo has stats.</summary>
     /// <param name="key">A catalogue key.</param>
@@ -269,7 +269,7 @@ public sealed record PlayerAggregate(
     ///     ghost row on the old slot, so a row counts only when it ended on a side (team 2 or 3) or shows activity
     ///     (shots, deaths or damage). Counts and sums add up; <c>rounds</c> is the match's on every row; KAST rounds
     ///     and rounds survived add up to at most the match's rounds; HLTV adds up less the constant terms of each
-    ///     extra slot. The side round tallies (<see cref="TeamTally" />) add up only while they fit in the match's
+    ///     extra slot. The side round tallies (<see cref="_teamTally" />) add up only while they fit in the match's
     ///     rounds; past that two slots tallied the same rounds, and the slot with the most shots keeps its four.
     ///     Null when no row of the account counts.
     /// </summary>
@@ -287,7 +287,7 @@ public sealed record PlayerAggregate(
         {
             if (!string.Equals(row.Dimensions.GetValueOrDefault("steam_id")?.AsText(), id, StringComparison.Ordinal)
                 || (row.Dimensions.GetValueOrDefault("team")?.AsInteger() is not (2 or 3)
-                    && !Activity.Any(c => row.Values.GetValueOrDefault(c)?.AsNumber() > 0)))
+                    && !_activity.Any(c => row.Values.GetValueOrDefault(c)?.AsNumber() > 0)))
             {
                 continue;
             }
@@ -318,9 +318,9 @@ public sealed record PlayerAggregate(
         }
 
         double rounds = merged.GetValueOrDefault(ColumnRules.Rounds);
-        if (TeamTally.Sum(c => merged.GetValueOrDefault(c)) > rounds)
+        if (_teamTally.Sum(c => merged.GetValueOrDefault(c)) > rounds)
         {
-            foreach (string column in TeamTally)
+            foreach (string column in _teamTally)
             {
                 merged[column] = Number(busiest!, column);
             }

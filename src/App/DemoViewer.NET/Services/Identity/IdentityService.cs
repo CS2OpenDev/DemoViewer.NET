@@ -43,10 +43,10 @@ public sealed record AccountInput(string? SteamId64, bool FromAccountId, string?
 public sealed class IdentityService : IDisposable
 {
     /// <summary>The fewest demos holding any account before a suggestion is made.</summary>
-    public const int SuggestionMinDemos = 20;
+    private const int SuggestionMinDemos = 20;
 
     private readonly PlayerDirectory? _directory;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly IDisposable _onReload;
     private readonly Action<Action> _post;
     private readonly SettingsService _settings;
@@ -252,7 +252,7 @@ public sealed class IdentityService : IDisposable
 
     // The me.steamIds of a teams.json, read as nodes so a file this build cannot bind still yields them. Keys match
     // without regard to case; an entry that is not a SteamID64 string is skipped.
-    internal static List<string> MeSteamIds(string json)
+    private static List<string> MeSteamIds(string json)
     {
         JsonNode? root;
         try
@@ -374,7 +374,6 @@ public sealed class IdentityService : IDisposable
 
     private void OnReload()
     {
-        State read;
         lock (_gate)
         {
             if (_writing)
@@ -382,7 +381,7 @@ public sealed class IdentityService : IDisposable
                 return;
             }
 
-            read = Read(_settings.Current.Identity);
+            State read = Read(_settings.Current.Identity);
             if (read.SameAs(_state))
             {
                 return;

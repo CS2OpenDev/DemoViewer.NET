@@ -11,21 +11,15 @@ namespace DemoViewer.NET.Services.DemoProcessing;
 ///     for, and the read they need. Owned by <see cref="DemoProcessingQueue" /> and mutated under its lock;
 ///     the ordering and the mode choice here are pure.
 /// </summary>
-internal sealed class DemoVisit
+internal sealed class DemoVisit(VisitedDemo demo, PassLevel level)
 {
     private readonly List<VisitPass> _passes = [];
     private long _arrival;
 
-    public DemoVisit(VisitedDemo demo, PassLevel level)
-    {
-        Demo = demo;
-        Level = level;
-    }
-
-    public VisitedDemo Demo { get; }
+    public VisitedDemo Demo { get; } = demo;
 
     /// <summary>The highest level any joiner asked for.</summary>
-    public PassLevel Level { get; private set; }
+    public PassLevel Level { get; private set; } = level;
 
     public int Count => _passes.Count;
 

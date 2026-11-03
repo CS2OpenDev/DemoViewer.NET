@@ -71,18 +71,18 @@ internal static class RoundFactsValues
                 return flag;
             case string text:
                 return bool.TryParse(text, out bool parsed) ? parsed
-                    : ToInt(text) is int fromText ? fromText != 0 : null;
+                    : ToInt(text) is { } fromText ? fromText != 0 : null;
             case JsonElement element:
                 return element.ValueKind switch
                 {
                     JsonValueKind.True => true,
                     JsonValueKind.False => false,
-                    JsonValueKind.Number => ToInt(element) is int number && number != 0,
+                    JsonValueKind.Number => ToInt(element) is { } number && number != 0,
                     JsonValueKind.String => ToBool(element.GetString()),
                     _ => null
                 };
             default:
-                return ToInt(value) is int i ? i != 0 : null;
+                return ToInt(value) is { } i ? i != 0 : null;
         }
     }
 

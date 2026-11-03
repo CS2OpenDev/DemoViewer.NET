@@ -1,7 +1,3 @@
-#region
-
-#endregion
-
 namespace DemoViewer.NET.Services.DemoProcessing;
 
 /// <summary>
@@ -22,7 +18,7 @@ public sealed class EvaluatorPassAdapter : IDemoPass, IPassScheduling
     }
 
     /// <summary>The wrapped evaluator.</summary>
-    public IDemoEvaluator Evaluator { get; }
+    private IDemoEvaluator Evaluator { get; }
 
     /// <inheritdoc />
     public string Id => Evaluator.Id;

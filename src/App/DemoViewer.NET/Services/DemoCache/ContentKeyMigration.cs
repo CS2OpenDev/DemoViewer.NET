@@ -30,21 +30,20 @@ public static class ContentKeyMigration
 
     /// <summary>
     ///     Queues the pass as a processing queue item, unless the cache is already at <see cref="CurrentVersion" />.
-    ///     Null when nothing was queued.
     /// </summary>
     /// <param name="queue">The processing queue.</param>
     /// <param name="cache">The demo cache.</param>
     /// <param name="batchSize">Rows between steps aside.</param>
-    public static IDemoQueueHandle? Submit(IDemoProcessingQueue queue, DemoCacheStore cache, int batchSize = 64)
+    public static void Submit(IDemoProcessingQueue queue, DemoCacheStore cache, int batchSize = 64)
     {
         ArgumentNullException.ThrowIfNull(queue);
         ArgumentNullException.ThrowIfNull(cache);
         if (cache.CacheRoot is null || cache.ContentKeyMigrationVersion >= CurrentVersion)
         {
-            return null;
+            return;
         }
 
-        return queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "Demo cache: name files by content",
+        queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "Demo cache: name files by content",
             "demo-cache", DemoJobPriority.Background,
             async job =>
             {

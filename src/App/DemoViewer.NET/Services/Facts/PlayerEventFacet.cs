@@ -1,7 +1,3 @@
-#region
-
-#endregion
-
 namespace DemoViewer.NET.Services.Facts;
 
 /// <summary>One kill: who killed whom, when and with what, both accounts named.</summary>

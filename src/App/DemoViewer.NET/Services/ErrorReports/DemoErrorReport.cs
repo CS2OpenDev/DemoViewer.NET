@@ -23,26 +23,26 @@ public sealed class DemoErrorReport
     public const int CurrentSchema = 1;
 
     /// <summary>Schema the payload was written at.</summary>
-    public int Schema { get; set; } = CurrentSchema;
+    public int Schema { get; init; } = CurrentSchema;
 
     /// <summary>What the user wrote.</summary>
-    public string Notes { get; set; } = "";
+    public string Notes { get; init; } = "";
 
     /// <summary>When the report was first created, UTC ticks.</summary>
-    public long CreatedUtcTicks { get; set; }
+    public long CreatedUtcTicks { get; init; }
 
     /// <summary>When the report was last saved, UTC ticks.</summary>
-    public long UpdatedUtcTicks { get; set; }
+    public long UpdatedUtcTicks { get; init; }
 
     /// <summary>
     ///     When the report was sent to the developers, UTC ticks, or null while it never has been. Nothing sets
     ///     this yet: submission is not wired, and the field exists so a submitted report can be told from an
     ///     edited one without a schema bump.
     /// </summary>
-    public long? SubmittedUtcTicks { get; set; }
+    public long? SubmittedUtcTicks { get; init; }
 
     /// <summary>The diagnostic snapshot taken at the last save.</summary>
-    public DemoErrorReportSnapshot Snapshot { get; set; } = new();
+    public DemoErrorReportSnapshot Snapshot { get; init; } = new();
 
     /// <summary>Members a newer app wrote that this one does not know, kept so a round-trip never drops them.</summary>
     [JsonExtensionData]
@@ -62,10 +62,10 @@ public sealed class DemoErrorReport
 public sealed class DemoErrorReportSnapshot
 {
     /// <summary>When the snapshot was taken, UTC ticks.</summary>
-    public long CapturedAtUtcTicks { get; set; }
+    public long CapturedAtUtcTicks { get; init; }
 
     /// <summary>The demo's path on the reporting machine. Differs per machine; <see cref="DemoSha256" /> does not.</summary>
-    public string DemoPath { get; set; } = "";
+    public string DemoPath { get; init; } = "";
 
     /// <summary>Content hash of the demo's bytes, which is how a developer identifies the same demo.</summary>
     public string? DemoSha256 { get; set; }
@@ -177,22 +177,22 @@ public sealed class DemoErrorReportSnapshot
 public sealed class DemoErrorReportRuleset
 {
     /// <summary>The ruleset's id.</summary>
-    public string Id { get; set; } = "";
+    public string Id { get; init; } = "";
 
     /// <summary>Its display name, where it has one.</summary>
-    public string? Name { get; set; }
+    public string? Name { get; init; }
 
     /// <summary>Whether it ships with the app or came from the user's own rules folder.</summary>
-    public string? Origin { get; set; }
+    public string? Origin { get; init; }
 
     /// <summary>Its content hash: the identity its outputs are stamped under.</summary>
-    public string? Hash { get; set; }
+    public string? Hash { get; init; }
 
     /// <summary>The column-catalogue version the ruleset declares, where it declares one.</summary>
-    public string? CatalogVersion { get; set; }
+    public string? CatalogVersion { get; init; }
 
     /// <summary>Whether it was enabled for the run.</summary>
-    public bool Enabled { get; set; }
+    public bool Enabled { get; init; }
 
     /// <summary>
     ///     True when another doc with the same id won, so this one contributed nothing. A same-id override is

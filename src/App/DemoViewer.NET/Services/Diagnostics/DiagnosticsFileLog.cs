@@ -142,7 +142,7 @@ public sealed class DiagnosticsFileLog : IDisposable
                 try
                 {
                     EnsureWriter();
-                    _writer!.WriteLine(line);
+                    await _writer!.WriteLineAsync(line).ConfigureAwait(false);
                     _written += line.Length + Environment.NewLine.Length;
                     if (_written >= _maxBytes())
                     {

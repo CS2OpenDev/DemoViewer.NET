@@ -91,7 +91,7 @@ public static class RoundFactsColumns
     public const string KillAttackerSlot = "kill_attacker_slot";
 
     /// <summary>Columns whose value is the round's, so the two rows of a pair must agree.</summary>
-    public static IReadOnlySet<string> RoundLevel { get; } = new HashSet<string>(StringComparer.Ordinal)
+    private static IReadOnlySet<string> RoundLevel { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
         RoundNumber,
         FreezeEndTick,
@@ -117,7 +117,7 @@ public static class RoundFactsColumns
     };
 
     /// <summary>Columns whose value belongs to the row's side.</summary>
-    public static IReadOnlySet<string> SideLevel { get; } = new HashSet<string>(StringComparer.Ordinal)
+    private static IReadOnlySet<string> SideLevel { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
         Side,
         Slots,

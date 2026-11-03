@@ -23,9 +23,6 @@ public sealed class LoadOnce
     /// <summary>Completes once the load has run.</summary>
     public Task Completion => _done.Task;
 
-    /// <summary>True once the load has run.</summary>
-    public bool IsDone => _done.Task.IsCompleted;
-
     /// <summary>Runs the load if nobody has started it, else waits for the one in progress.</summary>
     public void Ensure()
     {

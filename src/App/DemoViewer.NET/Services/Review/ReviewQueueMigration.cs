@@ -33,7 +33,7 @@ public static partial class ReviewQueueMigration
     ///     it generated ("&lt;title&gt;. setpos x y z; setang p y r").
     /// </summary>
     /// <param name="entry">A queue entry.</param>
-    public static bool IsGeneratedLineupClip(ReviewEntry entry)
+    private static bool IsGeneratedLineupClip(ReviewEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
         return entry.Kind == ReviewEntryKind.Clip

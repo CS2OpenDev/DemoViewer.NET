@@ -12,9 +12,6 @@ namespace DemoViewer.NET.Services.Facts;
 /// </summary>
 public interface IRoundFactsSource : IRoundFacts
 {
-    /// <summary>The rows of a record the caller already holds, so a join reads one snapshot.</summary>
-    RoundFactsRows? TryGet(DemoCacheRecord record) => TryGet(record.Path);
-
     /// <summary>Every round in every demo with rows that matches <paramref name="filter" />. Reads sidecars: call it off the UI thread.</summary>
     IReadOnlyList<(DemoCacheIndexEntry Demo, RoundFacts Round)> Query(RoundFactsFilter filter);
 }

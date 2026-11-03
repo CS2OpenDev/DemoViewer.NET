@@ -60,7 +60,7 @@ public sealed class DemoJobInput
 public sealed class DemoJob
 {
     private readonly TaskCompletionSource _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private CancellationTokenSource? _running;
     private bool _cancelRequested;
     private IDemoProcessingQueue? _queue;
