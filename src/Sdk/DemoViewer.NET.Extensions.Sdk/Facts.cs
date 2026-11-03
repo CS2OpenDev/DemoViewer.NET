@@ -13,7 +13,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 [PublicAPI]
 public abstract record RecordInput
 {
-    private protected RecordInput()
+    protected private RecordInput()
     {
     }
 }

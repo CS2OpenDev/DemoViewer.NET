@@ -23,8 +23,8 @@ public static partial class Variants
 {
     private static Playback2DView Playback2DCreateStratPane()
     {
-        const int freeze = 6400;
-        const int rate = 64;
+        const int Freeze = 6400;
+        const int Rate = 64;
         PaneContext ctx = new();
         CreateStratPlaybackContribution contribution = new();
         StratBookPack pack = new();
@@ -45,14 +45,14 @@ public static partial class Variants
         ];
         List<CapturedPawn> moved =
             [.. spawn.Select(p => p.PlayerSlot == 1 ? p with { X = -900, Y = -1500, Place = "OutsideLong" } : p)];
-        RoundCapture capture = new(7, freeze, freeze + 100 * rate, rate,
+        RoundCapture capture = new(7, Freeze, Freeze + 100 * Rate, Rate,
         [
-            new CaptureMoment(freeze, CaptureTrigger.FreezeEnd, spawn),
-            new CaptureMoment(freeze + 12 * rate, CaptureTrigger.Utility, moved, "smoke", 1, 2,
+            new CaptureMoment(Freeze, CaptureTrigger.FreezeEnd, spawn),
+            new CaptureMoment(Freeze + 12 * Rate, CaptureTrigger.Utility, moved, "smoke", 1, 2,
                 new Vector3(-400, 1200, 0)),
-            new CaptureMoment(freeze + 40 * rate, CaptureTrigger.Plant, moved, null, 3, 2)
+            new CaptureMoment(Freeze + 40 * Rate, CaptureTrigger.Plant, moved, null, 3, 2)
         ]);
-        StratCaptureRequest request = new("de_dust2", 7, freeze, freeze + 120 * rate, "ab",
+        StratCaptureRequest request = new("de_dust2", 7, Freeze, Freeze + 120 * Rate, "ab",
             "match730_capture_dust2.dem", null,
             ["100", "101", "102"], StratOwner.Me(), "me", StratOwner.MeKind, StratFromRound.QuantizedLevel);
 
@@ -75,9 +75,9 @@ public static partial class Variants
         private static readonly int[] _freezeEnds = [.. Enumerable.Range(0, 24).Select(r => 1200 + r * 3700)];
 
         public bool HasDemo => true;
-        public string? DemoPath => "/demos/match730_capture_dust2.dem";
-        public string? MapName => "de_dust2";
-        public string? DemoSha256 => "ab";
+        public string DemoPath => "/demos/match730_capture_dust2.dem";
+        public string MapName => "de_dust2";
+        public string DemoSha256 => "ab";
         public int TickRate => 64;
         public int CurrentFrameIndex => _freezeEnds[6] + 12 * 32;
         public int CurrentTick => CurrentFrameIndex * 2;

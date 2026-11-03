@@ -186,7 +186,7 @@ public sealed class CsvgWebHost : IAsyncDisposable
     private static bool IsAddressInUse(Exception ex) =>
         ex is AddressInUseException
         || ex.InnerException is AddressInUseException
-        || ex is IOException io && io.InnerException is AddressInUseException;
+        || ex is IOException { InnerException: AddressInUseException };
 }
 
 /// <summary>

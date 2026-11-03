@@ -72,7 +72,7 @@ internal sealed class VelopackUpdateService : IUpdateService
         try
         {
             _pending = null;
-            UpdateInfo? best = await Task.Run(() => stable.CheckForUpdatesAsync(), ct).ConfigureAwait(false);
+            UpdateInfo? best = await Task.Run(stable.CheckForUpdatesAsync, ct).ConfigureAwait(false);
             (UpdateManager Manager, UpdateInfo Info, bool IsBeta)?
                 pending = best is null ? null : (stable, best, false);
 

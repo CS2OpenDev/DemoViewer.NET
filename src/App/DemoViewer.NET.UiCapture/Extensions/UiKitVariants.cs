@@ -74,7 +74,7 @@ public static partial class Variants
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         for (int column = 0; column < treatments.Length; column++)
         {
-            grid.Children.Add(Cell(new TextBlock { Text = treatments[column], Classes = { StyleClasses.ColLabel } }, 0,
+            grid.Children.Add(GridCell(new TextBlock { Text = treatments[column], Classes = { StyleClasses.ColLabel } }, 0,
                 column + 1));
         }
 
@@ -82,7 +82,7 @@ public static partial class Variants
         for (int row = 0; row < states.Length; row++)
         {
             grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-            grid.Children.Add(Cell(
+            grid.Children.Add(GridCell(
                 new TextBlock
                 {
                     Text = states[row].ToString(),
@@ -100,7 +100,7 @@ public static partial class Variants
                     IsHollow = column == 2,
                     Label = $"Kit · {states[row].ToString().ToLowerInvariant()}"
                 };
-                grid.Children.Add(Cell(
+                grid.Children.Add(GridCell(
                     new Border
                     {
                         Background = Tok(ThemeTokens.PanelHeaderBg),
@@ -112,7 +112,7 @@ public static partial class Variants
 
         return new Border { Width = 640, Background = Tok(ThemeTokens.ShellBg), Child = grid };
 
-        static Control Cell(Control control, int row, int column)
+        static Control GridCell(Control control, int row, int column)
         {
             Grid.SetRow(control, row);
             Grid.SetColumn(control, column);
@@ -127,13 +127,13 @@ public static partial class Variants
 
         StackPanel root = new() { Margin = new Thickness(16), Spacing = 12 };
 
-        root.Children.Add(Section("MarkdownBlock",
+        root.Children.Add(Captioned("MarkdownBlock",
             new MarkdownBlock
             {
                 Markdown = "## Release notes\n\nA **bold** claim and some `code`.\n\n- first item\n- second item"
             }));
 
-        root.Children.Add(Section("ParseLinkChip",
+        root.Children.Add(Captioned("ParseLinkChip",
             new StackPanel
             {
                 Spacing = 2,
@@ -156,7 +156,7 @@ public static partial class Variants
                 }
             }));
 
-        root.Children.Add(Section("KeyValueTable", new KeyValueTable
+        root.Children.Add(Captioned("KeyValueTable", new KeyValueTable
         {
             Rows =
             [
@@ -166,7 +166,7 @@ public static partial class Variants
             ]
         }));
 
-        root.Children.Add(Section("GameIcon and GifView",
+        root.Children.Add(Captioned("GameIcon and GifView",
             new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -196,7 +196,7 @@ public static partial class Variants
                 }
             }));
 
-        root.Children.Add(Section("StyleClasses",
+        root.Children.Add(Captioned("StyleClasses",
             new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -212,7 +212,7 @@ public static partial class Variants
 
         return WrapInShell(new ScrollViewer { Content = root }, 640, 620);
 
-        static Control Section(string caption, Control body) => new Border
+        static Control Captioned(string caption, Control body) => new Border
         {
             Classes = { StyleClasses.Card },
             Padding = new Thickness(10),
@@ -224,7 +224,7 @@ public static partial class Variants
         };
     }
 
-    private static Border UiKitThirdPartyFake() => new Border
+    private static Border UiKitThirdPartyFake() => new()
     {
         Width = 640,
         Height = 420,

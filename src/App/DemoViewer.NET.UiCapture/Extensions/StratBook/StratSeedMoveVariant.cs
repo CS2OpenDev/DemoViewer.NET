@@ -94,13 +94,13 @@ public static partial class Variants
         static PlaceRef Point(string place, double x, double y) =>
             new() { Place = place, X = x, Y = y, LevelMinZ = Dust2Level };
 
-        static StepPosition At(string slot, double x, double y) =>
+        static StepPosition SlotAt(string slot, double x, double y) =>
             new() { Slot = slot, X = x, Y = y, LevelMinZ = Dust2Level };
 
         static List<StepPosition> Seeded() =>
         [
-            At("A", -750, -790), At("B", -735, -910), At("C", -775, -690), At("D", -865, -735), At("E", -610, -800),
-            .. StratVocabulary.OpponentSlots.Select((s, i) => At(s, 100 + 50 * i, 2250))
+            SlotAt("A", -750, -790), SlotAt("B", -735, -910), SlotAt("C", -775, -690), SlotAt("D", -865, -735), SlotAt("E", -610, -800),
+            .. StratVocabulary.OpponentSlots.Select((s, i) => SlotAt(s, 100 + 50 * i, 2250))
         ];
 
         List<string> watched = ["LongDoors", "OutsideLong", "TopofMid", "Catwalk", "Middle", "MidDoors"];

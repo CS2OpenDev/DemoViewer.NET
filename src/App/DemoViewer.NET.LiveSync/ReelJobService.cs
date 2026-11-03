@@ -34,7 +34,7 @@ public sealed class ReelJobService(
     Action<string>? log = null,
     Func<bool>? isCs2Running = null) : IReelJobService, IDisposable
 {
-    private readonly object _lifecycle = new();
+    private readonly Lock _lifecycle = new();
     private CancellationTokenSource? _cts;
     private Task? _job;
     private ReelRequest? _lastRequest;

@@ -45,7 +45,7 @@ public static class CaptureHost
     private static bool _tracking;
 
     /// <summary>Where capture PNGs land by default (matches the App.Tests convention).</summary>
-    public static string ArtifactDir
+    private static string ArtifactDir
     {
         get
         {
@@ -226,7 +226,7 @@ public static class CaptureHost
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
         Dispatcher.UIThread.RunJobs();
 
-        WriteableBitmap? frame = window.CaptureRenderedFrame()
+        WriteableBitmap frame = window.CaptureRenderedFrame()
                                  ?? throw new InvalidOperationException("CaptureRenderedFrame returned null.");
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPng))!);
         frame.Save(outPng, new PngBitmapEncoderOptions());

@@ -140,7 +140,7 @@ public static partial class Variants
         StratDocument document = vm.Session.Document!;
         double level = document.Steps.SelectMany(s => s.Positions).FirstOrDefault()?.LevelMinZ ?? 0;
 
-        StepPosition At(string slot, (double X, double Y) p) =>
+        StepPosition SlotAt(string slot, (double X, double Y) p) =>
             new() { Slot = slot, X = p.X, Y = p.Y, LevelMinZ = level };
 
         StratStep step = new()
@@ -173,7 +173,7 @@ public static partial class Variants
             ],
             Positions =
             [
-                At("B", Near("PalaceInterior", 0, 0)), At("C", Near("Connector", 0, 0)), At("D", Near("Stairs", 0, 0))
+                SlotAt("B", Near("PalaceInterior", 0, 0)), SlotAt("C", Near("Connector", 0, 0)), SlotAt("D", Near("Stairs", 0, 0))
             ]
         };
         vm.Session.Apply(PatchOp.AddOp("/steps/-",
@@ -464,11 +464,11 @@ public static partial class Variants
         StratBookTabViewModel vm = new(store, null, null, false, layout: layout, spawns: spawns,
             canvasPlaces: places is not null
                 ? _ => Task.FromResult<IZonePlaceResolver?>(places)
-                : map => Task.Run(() =>
+                : canvasMap => Task.Run(() =>
                 {
                     // Disposed per call: the hold is on a process-wide registry and the capture is one shot.
                     using AssetZonePlaceResolverSource source = new();
-                    return source.TryGet(map);
+                    return source.TryGet(canvasMap);
                 }),
             canvasRouting: () => true);
         vm.Session.AutoSaveDelay = TimeSpan.FromHours(1);

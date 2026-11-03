@@ -1,7 +1,3 @@
-#region
-
-#endregion
-
 namespace DemoViewer.NET.RuleAuthoring.Tests;
 
 /// <summary>

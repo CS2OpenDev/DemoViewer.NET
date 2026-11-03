@@ -13,7 +13,7 @@ namespace DemoViewer.NET.GameIconsTests;
 /// </summary>
 public class GameIconsTests
 {
-    private static readonly int[] BakedScales = [32, 96];
+    private static readonly int[] _bakedScales = [32, 96];
 
     /// <summary>An empty catalogue means the bake never ran, and every consumer would silently draw nothing.</summary>
     [Test]
@@ -21,7 +21,7 @@ public class GameIconsTests
     {
         await Assert.That(IconCatalogue.Keys.Count).IsGreaterThan(100);
         await Assert.That(IconCatalogue.SourceHash).IsNotEmpty();
-        await Assert.That(IconCatalogue.Scales).IsEquivalentTo(BakedScales, CollectionOrdering.Matching);
+        await Assert.That(IconCatalogue.Scales).IsEquivalentTo(_bakedScales, CollectionOrdering.Matching);
     }
 
     /// <summary>
@@ -156,10 +156,10 @@ public class GameIconsTests
 /// </summary>
 public class PremierTierTests
 {
-    private static readonly string[] TierHexes =
+    private static readonly string[] _tierHexes =
         ["#b0c3d9", "#8cc6ff", "#6a7dff", "#c166ff", "#f03cff", "#eb4b4b", "#ffd700"];
 
-    private static readonly int[] TierFloors = [0, 5000, 10000, 15000, 20000, 25000, 30000];
+    private static readonly int[] _tierFloors = [0, 5000, 10000, 15000, 20000, 25000, 30000];
 
     /// <summary>All seven tiers, with the colours CS2's own rating_emblem.vcss defines.</summary>
     [Test]
@@ -167,9 +167,9 @@ public class PremierTierTests
     {
         await Assert.That(IconCatalogue.PremierTiers.Count).IsEqualTo(7);
         await Assert.That(IconCatalogue.PremierTiers.Select(t => t.Hex))
-            .IsEquivalentTo(TierHexes, CollectionOrdering.Matching);
+            .IsEquivalentTo(_tierHexes, CollectionOrdering.Matching);
         await Assert.That(IconCatalogue.PremierTiers.Select(t => t.MinRating))
-            .IsEquivalentTo(TierFloors, CollectionOrdering.Matching);
+            .IsEquivalentTo(_tierFloors, CollectionOrdering.Matching);
     }
 
     /// <summary>

@@ -40,7 +40,7 @@ public sealed class GameIcon : Control
 {
     // Decoded bitmaps are shared process-wide and never evicted: the whole catalogue at both scales is
     // well under a megabyte decoded, and a kill feed re-renders the same dozen icons every frame.
-    private static readonly ConcurrentDictionary<string, Bitmap?> Decoded = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, Bitmap?> _decoded = new(StringComparer.Ordinal);
 
     /// <summary>The namespace-qualified icon key, e.g. <c>equipment/ak47</c>.</summary>
     public static readonly StyledProperty<string?> KeyProperty =
@@ -249,7 +249,7 @@ public sealed class GameIcon : Control
         // Pick the master by the height actually being drawn, so a 16 px chip decodes the 32 px file
         // rather than a 96 px one it would only throw away.
         int scale = backend.ScaleFor(drawnHeight);
-        return Decoded.GetOrAdd($"{icon.Key}@{scale}", _ =>
+        return _decoded.GetOrAdd($"{icon.Key}@{scale}", _ =>
         {
             try
             {

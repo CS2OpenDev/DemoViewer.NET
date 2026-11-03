@@ -51,14 +51,14 @@ public sealed class SyncEngine : IAsyncDisposable
     public const int SeekConfirmTolerance = 32;
 
     /// <summary>A tick this far from a provisional seek target revokes the provisional confirm.</summary>
-    public const int SeekContradictionDistance = 128;
+    private const int SeekContradictionDistance = 128;
 
     private readonly LiveSyncCapabilities _capabilities;
 
     private readonly ISyncClient _client;
     private readonly CancellationTokenSource _cts = new();
-    private readonly object _gate = new();
-    private readonly object _publishGate = new();
+    private readonly Lock _gate = new();
+    private readonly Lock _publishGate = new();
     private readonly Task _pumpTask;
 
     private readonly Channel<SyncCommand> _queue =
@@ -127,7 +127,7 @@ public sealed class SyncEngine : IAsyncDisposable
 
     // v1.1 fast paths: acked seeks replace the pre-echo/grace/timeout ledger machinery
     // (the client owns the ack deadline), and engine-truth pause replaces status-echo confirmation.
-    private bool AckedSeeks => _capabilities.SeekAck && _capabilities.CommandAck;
+    private bool AckedSeeks => _capabilities is { SeekAck: true, CommandAck: true };
 
     /// <summary>VerificationPending: reconciliation pauses; the pump reads this too.</summary>
     public bool VerificationInFlight => _verificationInFlight;
@@ -160,10 +160,10 @@ public sealed class SyncEngine : IAsyncDisposable
             // Pump exit is best-effort during teardown.
         }
 
-        _settleTimer.Dispose();
-        _seekGraceTimer.Dispose();
-        _seekTimeoutTimer.Dispose();
-        _toggleTimeoutTimer.Dispose();
+        await _settleTimer.DisposeAsync().ConfigureAwait(false);
+        await _seekGraceTimer.DisposeAsync().ConfigureAwait(false);
+        await _seekTimeoutTimer.DisposeAsync().ConfigureAwait(false);
+        await _toggleTimeoutTimer.DisposeAsync().ConfigureAwait(false);
         _cts.Dispose();
     }
 
@@ -370,16 +370,16 @@ public sealed class SyncEngine : IAsyncDisposable
                 _believedPlaying = true;
             }
 
-            if (isPaused is bool paused && _capabilities.EnginePauseDetection)
+            if (isPaused is { } paused && _capabilities.EnginePauseDetection)
             {
                 _believedPlaying = !paused;
-                if (_pendingToggleTarget is bool toggleTarget && toggleTarget == !paused)
+                if (_pendingToggleTarget is { } toggleTarget && toggleTarget == !paused)
                 {
                     ConfirmToggleLocked();
                 }
             }
 
-            if (_pendingSeekTarget is long target)
+            if (_pendingSeekTarget is { } target)
             {
                 long distance = Math.Abs(tick - target);
                 if (distance <= SeekConfirmTolerance)
@@ -510,9 +510,9 @@ public sealed class SyncEngine : IAsyncDisposable
                 // (enable-sync-mid-play / Re-sync-while-playing land here with believed
                 // {tick 0, paused}): seek, then the Play toggle below. Otherwise CS2 plays from
                 // 0 and the servo hard-resyncs DV back to the demo start.
-                if ((!_desiredPlaying || !_believedPlaying) && _desiredTick is long target)
+                if ((!_desiredPlaying || !_believedPlaying) && _desiredTick is { } target)
                 {
-                    bool closeEnough = _believedTick is long believed
+                    bool closeEnough = _believedTick is { } believed
                                        && Math.Abs(believed - target) <= SeekConfirmTolerance;
                     bool alreadyInFlight = _pendingSeekTarget == target || _seekSlotArmed && _seekSlot == target;
                     if (!closeEnough && !alreadyInFlight)

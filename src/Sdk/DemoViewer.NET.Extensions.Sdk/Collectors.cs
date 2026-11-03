@@ -51,7 +51,7 @@ public sealed record CollectorContribution(
     ///     engine build. A pass folds it into its own fingerprint, so a changed read set or engine re-runs it.
     /// </summary>
     // The informational version: NBGV keeps AssemblyVersion at major.minor.0.0 for every patch and prerelease.
-    private static readonly string EngineBuild =
+    private static readonly string _engineBuild =
         typeof(DemoFrame).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? typeof(DemoFrame).Assembly.GetName().Version?.ToString() ?? "";
 
@@ -73,7 +73,7 @@ public sealed record CollectorContribution(
                 text.Append(";g=").AppendJoin(',', GameEvents.Order(StringComparer.Ordinal));
             }
 
-            text.Append(";e=").Append(EngineBuild);
+            text.Append(";e=").Append(_engineBuild);
             return text.ToString();
         }
     }

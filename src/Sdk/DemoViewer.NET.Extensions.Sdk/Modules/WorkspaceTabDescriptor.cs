@@ -41,7 +41,6 @@ public enum TabPlacement
 [PublicAPI]
 public sealed class WorkspaceTabDescriptor : INotifyPropertyChanged
 {
-    private Control? _activeContent;
     private string? _badge;
 
     /// <summary>Unique id within the module (e.g. <c>"builtin.parser"</c>). Session-persistence key.</summary>
@@ -120,15 +119,15 @@ public sealed class WorkspaceTabDescriptor : INotifyPropertyChanged
     /// </summary>
     public Control? ActiveContent
     {
-        get => _activeContent;
+        get;
         private set
         {
-            if (ReferenceEquals(_activeContent, value))
+            if (ReferenceEquals(field, value))
             {
                 return;
             }
 
-            _activeContent = value;
+            field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveContent)));
         }
     }

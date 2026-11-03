@@ -8,7 +8,9 @@ using DemoViewer.NET.Extensions.StratBook;
 
 #endregion
 
-internal sealed class Program
+namespace DemoViewer.NET.Browser;
+
+internal static class Program
 {
     /// <summary>Build avalonia app.</summary>
     public static AppBuilder BuildAvaloniaApp()
@@ -18,7 +20,7 @@ internal sealed class Program
         return AppBuilder.Configure<App>();
     }
 
-    private static Task Main(string[] args)
+    private static Task Main()
     {
         // Same list as the Desktop head: the browser compile-links the extension it was built with.
         FeaturePacks.Configure([new StratBookPack()]);
