@@ -68,7 +68,7 @@ public static class SuggestedTagsTuning
     ///     greedy pairing takes the largest overlaps first, so two close instances do not both claim the
     ///     same tag.
     /// </summary>
-    public const double OverlapFraction = 0.5;
+    private const double OverlapFraction = 0.5;
 
     /// <summary>
     ///     Every detector's row: the verdict counts from <paramref name="entries" />, and recall/precision

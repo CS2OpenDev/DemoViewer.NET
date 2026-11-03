@@ -41,13 +41,13 @@ public sealed class ReviewPanelsPlaybackContribution(
     public const string ReviewModeId = "stratbook.review";
 
     /// <summary>The palette's order in the column.</summary>
-    public const int PaletteOrder = 0;
+    private const int PaletteOrder = 0;
 
     /// <summary>The review panel's order in the column.</summary>
-    public const int ReviewOrder = 1;
+    private const int ReviewOrder = 1;
 
     /// <summary>The queue's order in the column.</summary>
-    public const int QueueOrder = 2;
+    private const int QueueOrder = 2;
 
     // The tab's own undo and redo, which reach the palette first while it has the keyboard.
     private const string UndoAction = "Undo";

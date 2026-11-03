@@ -119,7 +119,7 @@ public sealed class SuggestedTagsService : IExtensionPass
     // A visit's build and the record pass's rebuild of one demo write the same proposals file, and they run on
     // different queue lanes; striped so the locks stay bounded however large the library is.
     private readonly object[] _buildLocks = [.. Enumerable.Range(0, 32).Select(_ => new object())];
-    private IExtensionRecordPass? _recordPass;
+
     private readonly IZonePlaceResolverSource _zones;
 
     /// <param name="library">The demo library: which demos are parsed and carry Round Facts.</param>
@@ -353,14 +353,6 @@ public sealed class SuggestedTagsService : IExtensionPass
     /// <param name="map">The map, or null.</param>
     public string FingerprintFor(string? map) => SuggestionsFingerprint.Compose(_profile(), TableFor(map));
 
-    /// <summary>Forgets the cached region tables, so the next build reads the learned files again.</summary>
-    public void ReloadRegions()
-    {
-        lock (_gate)
-        {
-            _tables.Clear();
-        }
-    }
 
     /// <summary>
     ///     A demo's proposals merged with its verdicts, in round order. Empty when the demo has no
@@ -477,7 +469,7 @@ public sealed class SuggestedTagsService : IExtensionPass
     /// <param name="edit">What the tagger changed, or null.</param>
     /// <param name="fingerprint">The detector set the proposal was made under.</param>
     /// <param name="utcNow">The creation time.</param>
-    public static TagInstance InstanceFor(TagProposal proposal, TagInstanceEdit? edit, string fingerprint,
+    private static TagInstance InstanceFor(TagProposal proposal, TagInstanceEdit? edit, string fingerprint,
         DateTime utcNow)
     {
         ArgumentNullException.ThrowIfNull(proposal);
@@ -512,7 +504,7 @@ public sealed class SuggestedTagsService : IExtensionPass
             }
         };
 
-        if (!labels.Any(l => l.Group == "side") && proposal.Side is 2 or 3)
+        if (labels.All(l => l.Group != "side") && proposal.Side is 2 or 3)
         {
             instance.Labels.Add(new TagLabel("side", ProposalIds.SideName(proposal.Side)));
         }
@@ -863,7 +855,7 @@ public sealed class SuggestedTagsService : IExtensionPass
     ///     Builds a demo's proposals again without a parse when its Round Facts rows, its round index or its
     ///     stored detonations move after its proposals were written. Registered with those three as its inputs.
     /// </summary>
-    public IExtensionRecordPass RecordPass => _recordPass ??= new ProposalsRecordPass(this);
+    public IExtensionRecordPass RecordPass => field ??= new ProposalsRecordPass(this);
 
     /// <summary>Whether <paramref name="demo" />'s proposals are older than the inputs they would be built from now.</summary>
     /// <param name="demo">The demo's row.</param>
@@ -1008,13 +1000,6 @@ public sealed class SuggestedTagsService : IExtensionPass
     private bool IsOpen(string path) =>
         _openDemo() is { } open && string.Equals(open, path, StringComparison.OrdinalIgnoreCase);
 
-    private bool IsFailed(string path)
-    {
-        lock (_gate)
-        {
-            return _failed.Contains(path);
-        }
-    }
 
     private void ClearForced(string path)
     {

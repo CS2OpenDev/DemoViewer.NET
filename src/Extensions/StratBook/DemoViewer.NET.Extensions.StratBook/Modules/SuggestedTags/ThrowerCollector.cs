@@ -19,16 +19,16 @@ public sealed class ThrowerCollector : IFrameCollector
     public const string CollectorId = "net.demoviewer.pack.stratbook.suggestedtags.thrower";
 
     /// <summary>Bumped when the rows it puts change.</summary>
-    public const int Version = 1;
+    private const int Version = 1;
 
     // Only the two classes whose detonation events lack a thrower slot.
-    private static readonly string[] Classes = [GrenadeProjectileClasses.Molotov, GrenadeProjectileClasses.Decoy];
+    private static readonly string[] _classes = [GrenadeProjectileClasses.Molotov, GrenadeProjectileClasses.Decoy];
 
     private readonly List<RemovedProjectile> _removed = [];
 
     /// <summary>The registration: no providers, the molotov and decoy projectile classes.</summary>
     public static CollectorContribution Contribution { get; } =
-        new(CollectorId, SuggestedTagsService.EvaluatorId, Version, [], Classes, () => new ThrowerCollector());
+        new(CollectorId, SuggestedTagsService.EvaluatorId, Version, [], _classes, () => new ThrowerCollector());
 
     /// <inheritdoc />
     public void OnFrame(IFrameReadView view)
@@ -36,7 +36,7 @@ public sealed class ThrowerCollector : IFrameCollector
         ArgumentNullException.ThrowIfNull(view);
         foreach (ObservedProjectile row in view.Removed)
         {
-            if (Array.IndexOf(Classes, row.ClassName) < 0)
+            if (Array.IndexOf(_classes, row.ClassName) < 0)
             {
                 continue;
             }

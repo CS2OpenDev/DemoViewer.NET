@@ -12,23 +12,23 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 public sealed class GrenadeWalkerHeader
 {
     /// <summary><see cref="GrenadeWalker.Version" />.</summary>
-    public string Version { get; set; } = "";
+    public string Version { get; init; } = "";
 
     /// <summary>The engine package the walk ran on, e.g. <c>CS2DemoKit.Parser 0.13.0-beta0001</c>.</summary>
-    public string Engine { get; set; } = "";
+    public string Engine { get; init; } = "";
 
     /// <summary>The input source's name; a better decoder later is what re-indexes a demo for jump-throw flags.</summary>
-    public string InputDecoder { get; set; } = "";
+    public string InputDecoder { get; init; } = "";
 }
 
 /// <summary>Which demo the rows belong to.</summary>
 public sealed class GrenadeDemoHeader
 {
     /// <summary>Null until Content Identity has hashed the demo; a reader with a hash ignores a mismatching file.</summary>
-    public string? Sha256 { get; set; }
+    public string? Sha256 { get; init; }
 
     /// <summary><c>DemoKeys.StableKey</c> of the path.</summary>
-    public string StableKey { get; set; } = "";
+    public string StableKey { get; init; } = "";
 
     public string FileName { get; set; } = "";
 
@@ -44,9 +44,9 @@ public sealed class GrenadeSourceHeader
     public int Build { get; set; }
 
     /// <summary>Share of the demo's commands that decoded; the jump-throw flag comes from inputs this often.</summary>
-    public double InputCoverage { get; set; }
+    public double InputCoverage { get; init; }
 
-    public int TrajectoryStride { get; set; }
+    public int TrajectoryStride { get; init; }
 }
 
 /// <summary>
@@ -56,16 +56,16 @@ public sealed class GrenadeSourceHeader
 /// </summary>
 public sealed class GrenadeDocument
 {
-    public int SchemaVersion { get; set; } = GrenadeSidecar.CurrentSchema;
+    public int SchemaVersion { get; init; } = GrenadeSidecar.CurrentSchema;
 
-    public GrenadeWalkerHeader Walker { get; set; } = new();
+    public GrenadeWalkerHeader Walker { get; init; } = new();
 
-    public GrenadeDemoHeader Demo { get; set; } = new();
+    public GrenadeDemoHeader Demo { get; init; } = new();
 
     /// <summary>The <c>dv-frame-clock</c> header, the annotation sidecar's block verbatim.</summary>
-    public RoundFactsClock Clock { get; set; } = new();
+    public RoundFactsClock Clock { get; init; } = new();
 
-    public GrenadeSourceHeader Source { get; set; } = new();
+    public GrenadeSourceHeader Source { get; init; } = new();
 
     public List<GrenadeRow> Grenades { get; set; } = [];
 }
@@ -76,15 +76,15 @@ public sealed class GrenadeDocument
 /// </summary>
 public sealed class GrenadePathsDocument
 {
-    public int SchemaVersion { get; set; } = GrenadeSidecar.CurrentSchema;
+    public int SchemaVersion { get; init; } = GrenadeSidecar.CurrentSchema;
 
-    public GrenadeWalkerHeader Walker { get; set; } = new();
+    public GrenadeWalkerHeader Walker { get; init; } = new();
 
-    public GrenadeDemoHeader Demo { get; set; } = new();
+    public GrenadeDemoHeader Demo { get; init; } = new();
 
-    public RoundFactsClock Clock { get; set; } = new();
+    public RoundFactsClock Clock { get; init; } = new();
 
-    public GrenadeSourceHeader Source { get; set; } = new();
+    public GrenadeSourceHeader Source { get; init; } = new();
 
     public Dictionary<string, List<TrajectoryPoint>> Paths { get; set; } = new(StringComparer.Ordinal);
 }

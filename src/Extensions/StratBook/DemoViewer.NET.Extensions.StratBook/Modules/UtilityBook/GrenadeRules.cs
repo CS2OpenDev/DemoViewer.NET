@@ -35,22 +35,22 @@ public static class GrenadeRules
     public const int SpeedWindowTicks = 8;
 
     /// <summary>Under this, units per second, the throw is standing.</summary>
-    public const float StationaryMaxSpeed = 10;
+    private const float StationaryMaxSpeed = 10;
 
     /// <summary>Under this the throw is walking; CS2 walks a grenade at 127 u/s and runs it at 245.</summary>
-    public const float WalkingMaxSpeed = 140;
+    private const float WalkingMaxSpeed = 140;
 
     /// <summary>Left click reads 1.00.</summary>
-    public const float FullStrengthMin = 0.95f;
+    private const float FullStrengthMin = 0.95f;
 
     /// <summary>Both buttons read about 0.5.</summary>
-    public const float HalfStrengthMin = 0.35f;
+    private const float HalfStrengthMin = 0.35f;
 
     /// <summary>Both buttons read about 0.5.</summary>
-    public const float HalfStrengthMax = 0.65f;
+    private const float HalfStrengthMax = 0.65f;
 
     /// <summary>Right click reads 0.00.</summary>
-    public const float UnderhandMax = 0.05f;
+    private const float UnderhandMax = 0.05f;
 
     /// <summary>A fire's <c>inferno_startburn</c> falls within this many ticks of the molotov's last sample.</summary>
     public const int InfernoJoinTicks = 4;
@@ -92,9 +92,6 @@ public static class GrenadeRules
         "CIncendiaryGrenade",
         "CDecoyGrenade"
     };
-
-    /// <summary>The held-weapon classes a throw strength is read from.</summary>
-    public static IReadOnlyCollection<string> GrenadeWeaponClasses => _grenadeWeaponClasses;
 
     /// <summary>The projectile class a grenade <c>weapon_fire</c> produces, or null for any other weapon.</summary>
     /// <param name="weapon"><c>weapon_fire.weapon</c>, e.g. <c>weapon_smokegrenade</c>.</param>

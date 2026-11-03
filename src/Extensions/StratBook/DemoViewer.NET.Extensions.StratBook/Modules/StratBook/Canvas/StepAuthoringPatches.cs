@@ -24,7 +24,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 public static class StepAuthoringPatches
 {
     /// <summary>How far after the active step <see cref="DuplicateStep" /> puts the copy.</summary>
-    public const double DuplicateOffsetSeconds = 5;
+    private const double DuplicateOffsetSeconds = 5;
 
     /// <summary>
     ///     A token drag as one op: a <c>replace</c> of the slot's entry at the step, or an <c>add</c> when the
@@ -130,7 +130,7 @@ public static class StepAuthoringPatches
 
     /// <summary>One <c>remove</c> per stroke, highest index first within a step so each pointer still names its stroke.</summary>
     /// <param name="strokes">Step index and stroke index pairs.</param>
-    public static IReadOnlyList<PatchOp> RemoveStrokes(IEnumerable<(int Step, int Stroke)> strokes)
+    private static IReadOnlyList<PatchOp> RemoveStrokes(IEnumerable<(int Step, int Stroke)> strokes)
     {
         ArgumentNullException.ThrowIfNull(strokes);
         return
@@ -160,7 +160,7 @@ public static class StepAuthoringPatches
     /// <param name="afterIndex">The step it follows, or -1 to insert first.</param>
     /// <param name="atSeconds">The wanted time; clamped between the neighbours.</param>
     /// <param name="id">The new step's id.</param>
-    public static PatchOp AddStep(StratDocument document, int afterIndex, double atSeconds, Guid id)
+    private static PatchOp AddStep(StratDocument document, int afterIndex, double atSeconds, Guid id)
     {
         ArgumentNullException.ThrowIfNull(document);
         StratStep step = new()

@@ -62,7 +62,7 @@ public sealed class CreateStratPlaybackContribution(
     }
 
     /// <summary>The entry for a round band when a capture with a demo is there; nothing otherwise.</summary>
-    internal IEnumerable<MenuEntry> MenuFor(PlaybackBand band)
+    private IEnumerable<MenuEntry> MenuFor(PlaybackBand band)
     {
         if (!band.IsRound || Capture() is null)
         {
@@ -87,10 +87,10 @@ public sealed class CreateStratPlaybackContribution(
     /// </summary>
     /// <param name="startFrame">The band's first frame.</param>
     /// <param name="endFrame">The band's last frame.</param>
-    internal void Open(int startFrame, int endFrame)
+    private void Open(int startFrame, int endFrame)
     {
         if (_context is not { } context || _surface is not { } surface || Capture() is not { } host
-            || host.Demo() is not { Frames: { Count: > 0 } } demo)
+            || host.Demo() is not { Frames.Count: > 0 } demo)
         {
             return;
         }
@@ -168,8 +168,8 @@ public sealed class CreateStratPlaybackContribution(
 
     // Our side's key and book from Team Identity: the side key of our end-of-demo side when the demo has one,
     // else the me accounts; the team's book when that side is a known team, else the user's own.
-    internal static StratCaptureRequest BuildRequest(StratCaptureHost host, IModuleContext context, ClipRound round,
-        int? windowEnd, RoundFacts? facts, string? demoMap, IReadOnlyList<MapLevel> levels)
+    private static StratCaptureRequest BuildRequest(StratCaptureHost host, IModuleContext context, ClipRound round,
+        int? windowEnd, RoundFacts? facts, string? demoMap, List<MapLevel> levels)
     {
         TeamAssignment? assignment = context.DemoPath is { } path ? host.Teams?.GetAssignment(path) : null;
         SideAssignment? ours = assignment?.OurSide is { } side ? assignment.Side(side) : null;

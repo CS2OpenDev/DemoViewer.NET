@@ -63,9 +63,9 @@ public sealed record StratDragTarget(
 {
     public const string NoStepNote = "add a step first: a token is placed at a step";
     public const string ReadOnlyNote = "this step belongs to another strat: open that strat to edit it";
-    public const string LineupNote = "placed by its lineup: pick another lineup or clear it";
-    public const string RunnerTurnNote = "a runner faces its run; turn it on the hold or push after";
-    public static string NothingPlacesNote(string slot) => $"no step places {slot} here to edit: hold Alt to pin it";
+    private const string LineupNote = "placed by its lineup: pick another lineup or clear it";
+    private const string RunnerTurnNote = "a runner faces its run; turn it on the hold or push after";
+    private static string NothingPlacesNote(string slot) => $"no step places {slot} here to edit: hold Alt to pin it";
 
     /// <summary>Why a token's start is not edited: a step on the start's tick places it, and that entry wins.</summary>
     /// <param name="slot">The token.</param>
@@ -385,7 +385,7 @@ public static partial class StratDragPatches
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(target);
         return target.Action == StratDragAction.Start
-               || (!target.IsRefused && target.StepIndex >= 0 && target.StepIndex < document.Steps.Count
+               || (target is { IsRefused: false, StepIndex: >= 0 } && target.StepIndex < document.Steps.Count
                    && (target.StepId == Guid.Empty || document.Steps[target.StepIndex].Id == target.StepId));
     }
 

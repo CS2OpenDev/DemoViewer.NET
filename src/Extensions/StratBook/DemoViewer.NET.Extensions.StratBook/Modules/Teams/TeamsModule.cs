@@ -26,7 +26,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.Teams;
 public sealed class TeamsModule : IWorkspaceModule
 {
     /// <summary>The tab's feature id. A persisted key; never renamed.</summary>
-    public const string TabFeatureId = "tab.teams";
+    private const string TabFeatureId = "tab.teams";
 
     private readonly Func<TeamsTabViewModel> _viewModelFactory;
 

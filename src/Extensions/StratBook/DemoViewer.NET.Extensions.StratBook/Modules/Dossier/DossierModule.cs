@@ -31,7 +31,7 @@ public sealed class DossierModule : IWorkspaceModule
     public const string TabFeatureId = "tab.dossier";
 
     /// <summary>The section's tab id; its descriptor declares <see cref="TabFeatureId" /> directly.</summary>
-    public const string BrowserTabId = "dossier.browser";
+    private const string BrowserTabId = "dossier.browser";
 
     private readonly Func<DossierTabViewModel> _viewModelFactory;
 

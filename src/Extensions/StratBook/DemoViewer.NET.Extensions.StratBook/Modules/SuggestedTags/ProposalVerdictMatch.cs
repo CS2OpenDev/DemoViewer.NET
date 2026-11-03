@@ -63,7 +63,7 @@ public sealed record ProposalSet(
 public static class ProposalVerdictMatch
 {
     /// <summary>How far a re-parsed trigger may move and still be the same proposal.</summary>
-    public const int WindowSeconds = ProposalIds.Quantum;
+    private const int WindowSeconds = ProposalIds.Quantum;
 
     /// <summary>The entries, in the proposals' order.</summary>
     /// <param name="proposals">The proposals.</param>
@@ -78,7 +78,7 @@ public static class ProposalVerdictMatch
     {
         ArgumentNullException.ThrowIfNull(proposals);
         ArgumentNullException.ThrowIfNull(verdicts);
-        ProposalEntry[] entries = new ProposalEntry[proposals.Count];
+        ProposalEntry?[] entries = new ProposalEntry?[proposals.Count];
         HashSet<string> used = new(StringComparer.Ordinal);
 
         // Same parse, same key: the ordinary case. A verdict with no frame count predates nothing and is
@@ -133,12 +133,13 @@ public static class ProposalVerdictMatch
             entries[index] = new ProposalEntry(proposals[index], key, verdicts[key]);
         }
 
+        ProposalEntry[] matched = new ProposalEntry[proposals.Count];
         for (int i = 0; i < proposals.Count; i++)
         {
-            entries[i] ??= new ProposalEntry(proposals[i], null, null);
+            matched[i] = entries[i] ?? new ProposalEntry(proposals[i], null, null);
         }
 
-        return entries;
+        return matched;
     }
 
     private static bool SameParse(SuggestionVerdict verdict, int frameCount) =>

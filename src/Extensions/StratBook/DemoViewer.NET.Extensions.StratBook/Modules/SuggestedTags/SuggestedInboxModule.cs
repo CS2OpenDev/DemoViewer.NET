@@ -17,7 +17,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 public sealed class SuggestedInboxModule : IWorkspaceModule
 {
     /// <summary>The section's tab id. A persisted key; never renamed.</summary>
-    public const string TabId = "suggested.inbox";
+    private const string TabId = "suggested.inbox";
 
     /// <summary>The section's feature id. A persisted key; never renamed.</summary>
     public const string TabFeatureId = "tab.suggested";
@@ -55,7 +55,7 @@ public sealed class SuggestedInboxModule : IWorkspaceModule
     public Version ContractVersion => new(1, 0, 0);
 
     /// <summary>"12", or null with nothing new.</summary>
-    public static string? BadgeFor(int pending) => pending > 0 ? pending.ToString(CultureInfo.InvariantCulture) : null;
+    private static string? BadgeFor(int pending) => pending > 0 ? pending.ToString(CultureInfo.InvariantCulture) : null;
 
     public IEnumerable<WorkspaceTabDescriptor> CreateTabs(IModuleHost host)
     {

@@ -45,7 +45,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     private readonly Dictionary<string, Dictionary<string, List<TrajectoryPoint>>> _flights =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Func<string?> _openDemo;
     private readonly Action<Action> _post;
     private readonly Func<int> _stride;
@@ -92,8 +92,6 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     /// <summary>The scheduling of the extension's passes, so a forced request can ask for the demo again. Null in tests.</summary>
     public IExtensionPasses? Passes { get; set; }
 
-    /// <summary>True while the scheduler has a walk in flight.</summary>
-    public bool IsIndexing => Passes?.IsBusy(EvaluatorId) ?? false;
 
     /// <inheritdoc />
     public string Id => EvaluatorId;

@@ -22,7 +22,7 @@ public sealed class GrenadeStore
     }
 
     /// <summary>The per-demo data the facet lives in.</summary>
-    public IExtensionDemoData Data { get; }
+    private IExtensionDemoData Data { get; }
 
     /// <summary>Raised on the UI thread when a demo's stamp moved, with its path, or null for many.</summary>
     public event Action<string?>? Changed
@@ -35,8 +35,6 @@ public sealed class GrenadeStore
     /// <param name="demoPath">The demo's path.</param>
     public DemoDataStamp? Stamp(string demoPath) => Data.Stamp(demoPath, Facet);
 
-    /// <summary>Every demo's stamp.</summary>
-    public IReadOnlyList<DemoDataStamp> Stamps() => Data.Stamps(Facet);
 
     /// <summary>Are the demo's rows current under the walker in force?</summary>
     /// <param name="demoPath">The demo's path.</param>
@@ -48,7 +46,7 @@ public sealed class GrenadeStore
 
     /// <summary>True when the demo's last walk failed.</summary>
     /// <param name="demoPath">The demo's path.</param>
-    public bool IsFailed(string demoPath) => Stamp(demoPath) is { State: DemoDataState.Failed };
+    private bool IsFailed(string demoPath) => Stamp(demoPath) is { State: DemoDataState.Failed };
 
     /// <summary>Writes a demo's rows as its throw log and stamps them current. Throws on an I/O failure.</summary>
     /// <param name="demoPath">The demo's path.</param>

@@ -78,7 +78,7 @@ public sealed class SetupHeatmapRenderer : IDisposable
     /// </summary>
     /// <param name="overlay">The points.</param>
     /// <param name="asset">The map's bundle, or null.</param>
-    public static Scene2DFrame BuildFrame(OverlayDocument overlay, IMapAsset? asset)
+    private static Scene2DFrame BuildFrame(OverlayDocument overlay, IMapAsset? asset)
     {
         ArgumentNullException.ThrowIfNull(overlay);
 

@@ -40,7 +40,7 @@ public sealed partial class SuggestionRowViewModel : ObservableObject
         State = entry.State;
     }
 
-    public GeneratedState State { get; }
+    private GeneratedState State { get; }
 
     public bool IsNew => State == GeneratedState.New;
 
@@ -81,7 +81,7 @@ public sealed partial class SuggestionRowViewModel : ObservableObject
 
     public bool HasReason => ReasonText.Length > 0;
 
-    public ConfidenceStep Step { get; }
+    private ConfidenceStep Step { get; }
 
     public bool IsHigh => Step == ConfidenceStep.High;
 
@@ -112,7 +112,7 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
     public const string AllDetectors = "all";
 
     /// <summary>The round filter's "no filter" entry.</summary>
-    public const string AllRounds = "all rounds";
+    private const string AllRounds = "all rounds";
 
     private readonly Action<Action> _post;
     private readonly Action<int> _seekToTick;

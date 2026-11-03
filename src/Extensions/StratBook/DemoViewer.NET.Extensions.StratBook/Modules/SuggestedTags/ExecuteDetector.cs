@@ -141,9 +141,9 @@ public sealed class ExecuteDetector : IProposalDetector
         [
             new("occupancy", triggerTick,
                 string.Create(CultureInfo.InvariantCulture, $"{peak} T in {DetectorMath.RegionText(at, fired)}")),
-            new("occupancy", round.TickAt(touchAt), string.Create(CultureInfo.InvariantCulture, $"T in {at}"))
+            new("occupancy", round.TickAt(touchAt), string.Create(CultureInfo.InvariantCulture, $"T in {at}")),
+            .. utility.Select(DetectorMath.Evidence)
         ];
-        evidence.AddRange(utility.Select(DetectorMath.Evidence));
         evidence.Sort((a, b) => a.Tick.CompareTo(b.Tick));
 
         yield return new TagProposal(

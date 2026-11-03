@@ -136,7 +136,7 @@ public static class StratExportJob
         // same frames, and the bundle's floors reach the export through AuthoritativeFloors instead.
         return new StratSceneSpec(capture.Tracks, projection.Schedule, capture.Ink, projection.Labels,
             capture.MapName, asset is null ? [] : asset.DescribeRadars(),
-            asset is null ? capture.FallbackBounds : asset.RadarBounds, null,
+            asset?.RadarBounds ?? capture.FallbackBounds, null,
             projection.Utility, projection.RoundSeconds, startTick, endTick, fps, speed)
         {
             Routes = projection.Routed, CountsUp = projection.CountsUp

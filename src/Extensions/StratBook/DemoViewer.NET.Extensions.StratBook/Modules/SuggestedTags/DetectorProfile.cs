@@ -28,10 +28,10 @@ public sealed record SiteRegionOverride(IReadOnlyList<string> Add, IReadOnlyList
 public sealed class DetectorProfile
 {
     /// <summary>The profile shape version.</summary>
-    public const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 1;
 
     /// <summary>The key of the overrides block.</summary>
-    public const string OverridesKey = "siteRegionOverrides";
+    private const string OverridesKey = "siteRegionOverrides";
 
     private readonly Dictionary<string, Dictionary<string, double>> _values;
 
@@ -333,7 +333,7 @@ public sealed class DetectorProfile
         {
             ["de_inferno"] = new Dictionary<string, SiteRegionOverride>(StringComparer.Ordinal)
             {
-                [SiteRegions.SiteA] = new SiteRegionOverride([], ["Middle"])
+                [SiteRegions.SiteA] = new([], ["Middle"])
             }
         };
         return new DetectorProfile("team-default", [.. ProposalDetection.All.Select(d => d.Id)], values, overrides);

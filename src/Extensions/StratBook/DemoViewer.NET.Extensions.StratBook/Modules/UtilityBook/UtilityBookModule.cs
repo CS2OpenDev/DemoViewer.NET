@@ -30,7 +30,7 @@ public sealed class UtilityBookModule : IWorkspaceModule
     public const string TabFeatureId = "tab.utilitybook";
 
     /// <summary>The section's tab id; its descriptor declares <see cref="TabFeatureId" /> directly.</summary>
-    public const string BrowserTabId = "utilitybook.browser";
+    private const string BrowserTabId = "utilitybook.browser";
 
     private readonly Func<UtilityBookTabViewModel> _viewModelFactory;
 

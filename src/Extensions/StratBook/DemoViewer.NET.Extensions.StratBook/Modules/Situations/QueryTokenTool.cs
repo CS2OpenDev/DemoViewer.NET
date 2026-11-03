@@ -27,7 +27,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 public sealed class QueryTokenTool : IMapTool
 {
     /// <summary>How close to a token's centre a press must land, in screen pixels.</summary>
-    public const float HitRadiusPx = QueryTokenLayer.Radius + 4f;
+    private const float HitRadiusPx = QueryTokenLayer.Radius + 4f;
 
     private readonly QueryCanvasDocument _document;
     private readonly IQueryPlaceResolver _resolver;

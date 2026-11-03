@@ -139,7 +139,7 @@ public readonly record struct StrokeRef(int PathIndex, int StrokeIndex);
 public sealed class StratSceneProjection
 {
     /// <summary>The strat clock's header for anything that serializes the projected document.</summary>
-    public const string ClockKind = "dv-strat-clock";
+    private const string ClockKind = "dv-strat-clock";
 
     /// <summary>
     ///     How fast a token sent by a travel verb runs: a rifle's run speed, along its route when the map's nav is in
@@ -454,7 +454,7 @@ public sealed class StratSceneProjection
 
     /// <summary>Arrivals at <paramref name="centres" />' centre on the token's own floor; null for null.</summary>
     /// <param name="centres">Place centres, or null.</param>
-    public static PlaceArrivalResolver? ArrivalsFrom(PlaceCentreResolver? centres) =>
+    private static PlaceArrivalResolver? ArrivalsFrom(PlaceCentreResolver? centres) =>
         centres is null ? null : (place, level) => centres(place, level) is { } c ? (c.X, c.Y, level) : null;
 
     /// <summary>
@@ -523,7 +523,7 @@ public sealed class StratSceneProjection
     /// </summary>
     /// <param name="start">The strat's start, or null.</param>
     /// <param name="places">Where places are.</param>
-    internal static Dictionary<string, TokenPlacement>? StartsOf(StratStart? start, PlaceSet places)
+    private static Dictionary<string, TokenPlacement>? StartsOf(StratStart? start, PlaceSet places)
     {
         if (start is not { Positions.Count: > 0 })
         {
@@ -565,7 +565,7 @@ public sealed class StratSceneProjection
     ///     its first area and on through the rest; throw, wait and call do not move for it.
     /// </summary>
     /// <param name="verb">A step verb.</param>
-    public static StepMotion MotionOf(string? verb) => StratStepFields.MotionOf(verb);
+    private static StepMotion MotionOf(string? verb) => StratStepFields.MotionOf(verb);
 
     /// <summary>
     ///     Where the step's verb sends <paramref name="slot" />: its <c>to</c> (the line's, or the step's), or for a lurk
@@ -726,7 +726,7 @@ public sealed class StratSceneProjection
             {
                 if (departed == tick)
                 {
-                    events.RemoveAll(e => e.Tick == tick && e.Shaped && e.To is not null);
+                    events.RemoveAll(e => e.Tick == tick && e is { Shaped: true, To: not null });
                     departed = -1;
                 }
 
@@ -796,7 +796,7 @@ public sealed class StratSceneProjection
         StepWatch? watch,
         IReadOnlyList<PlaceRef>? via)
     {
-        events.RemoveAll(e => e.Tick == tick && e.Shaped && e.To is not null);
+        events.RemoveAll(e => e.Tick == tick && e is { Shaped: true, To: not null });
         events.Add(new SlotEvent(tick, order,
             motion == StepMotion.Position ? SlotEventKind.Arrive : SlotEventKind.Travel, to, watch, false, true,
             motion == StepMotion.Lurk, via));
@@ -812,7 +812,7 @@ public sealed class StratSceneProjection
     ///     Per slot, when a laid-out lurk walk is at each of its areas. Such an event stays at each area only until its
     ///     next leg leaves, not until the slot's next destination.
     /// </param>
-    internal static Dictionary<string, SlotPlan> Fanned(Dictionary<string, SlotPlan> plans,
+    private static Dictionary<string, SlotPlan> Fanned(Dictionary<string, SlotPlan> plans,
         IReadOnlyDictionary<string, List<ChainStay>>? chained = null)
     {
         List<(string Slot, int Index, int Area, string Key, int From, int Until)> stays = [];
@@ -1055,7 +1055,7 @@ public sealed class StratSceneProjection
 
         int limit = queue.Skip(index + 1).FirstOrDefault(x => x.To is not null && x.Tick > e.Tick)?.Tick
                     ?? int.MaxValue;
-        if (entries.FirstOrDefault(x => !x.Arrival && x.Placement is not null && x.Step.Tick > e.Tick) is
+        if (entries.FirstOrDefault(x => x is { Arrival: false, Placement: not null } && x.Step.Tick > e.Tick) is
             { Placement: not null } placed)
         {
             limit = Math.Min(limit, placed.Step.Tick);
@@ -1361,7 +1361,7 @@ public sealed class StratSceneProjection
     }
 
     // A lurk's rotate walk: off its step's tick, and not one of the lurk's later area legs.
-    private static bool IsRotate(SlotEvent e) => !e.Shaped && !e.Leg;
+    private static bool IsRotate(SlotEvent e) => e is { Shaped: false, Leg: false };
 
     /// <summary>One bend of a route as a keyframe: when the token is there, where, on which level, facing the next leg.</summary>
     internal readonly record struct Corner(int Tick, float X, float Y, double LevelMinZ, float YawDegrees)
@@ -1535,9 +1535,7 @@ public sealed class StratSceneProjection
             return null;
         }
 
-        List<TokenKeyframe> keys = [a];
-        keys.AddRange(corners.Select(c => new TokenKeyframe(c.Tick, c.X, c.Y, c.LevelMinZ, c.YawDegrees)));
-        keys.Add(b);
+        List<TokenKeyframe> keys = [a, .. corners.Select(c => new TokenKeyframe(c.Tick, c.X, c.Y, c.LevelMinZ, c.YawDegrees)), b];
         return keys;
     }
 
@@ -1638,13 +1636,13 @@ public sealed class StratSceneProjection
     }
 
     // Tried outward in; the first inside the place wins.
-    private static readonly double[] SpotRadii = [160, 120, 80, 48];
+    private static readonly double[] _spotRadii = [160, 120, 80, 48];
 
     private const double RingRadius = 96;
 
     /// <summary>
     ///     Where one of several tokens sent to one place stands: on a ray fixed by its slot letter, so its spot does not
-    ///     move when the group changes, at the widest of <see cref="SpotRadii" /> still inside the place on the arrival's
+    ///     move when the group changes, at the widest of <see cref="_spotRadii" /> still inside the place on the arrival's
     ///     floor, else on a small ring.
     /// </summary>
     /// <param name="place">The place, or null for a point.</param>
@@ -1664,7 +1662,7 @@ public sealed class StratSceneProjection
         (double cos, double sin) = (Math.Cos(angle), Math.Sin(angle));
         if (place is not null && contains is not null)
         {
-            foreach (double r in SpotRadii)
+            foreach (double r in _spotRadii)
             {
                 (double x, double y) = (centre.X + r * cos, centre.Y + r * sin);
                 if (contains(place, x, y, centre.LevelMinZ) && (paths is null || paths.OnMesh(x, y, centre.LevelMinZ)))
@@ -2085,7 +2083,7 @@ public static class StratStrokes
             kind = AnnotationKind.Freehand;
         }
 
-        double levelMinZ = defaultLevelMinZ;
+        double levelMinZ;
         switch (stroke["space"])
         {
             case JsonObject space:
@@ -2103,7 +2101,7 @@ public static class StratStrokes
                 break;
         }
 
-        uint color = Number(stroke["colorArgb"]) is { } argb && argb >= 0 && argb <= uint.MaxValue
+        uint color = Number(stroke["colorArgb"]) is { } argb and >= 0 and <= uint.MaxValue
             ? (uint)argb
             : ParseHex(String(stroke["color"])) ?? AnnotationStyle.Default.ColorArgb;
         float width = (float)(Number(stroke["widthWorld"])

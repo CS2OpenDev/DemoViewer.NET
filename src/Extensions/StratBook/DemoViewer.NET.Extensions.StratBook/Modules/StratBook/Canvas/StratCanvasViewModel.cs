@@ -346,7 +346,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     ///     where it lands), else nothing.
     /// </summary>
     /// <param name="step">The step.</param>
-    public static StratPlaceTarget PlaceTargetFor(StratStep step)
+    private static StratPlaceTarget PlaceTargetFor(StratStep step)
     {
         ArgumentNullException.ThrowIfNull(step);
         if (StratStepFields.Uses(step.Verb, StratStepField.To))
@@ -392,7 +392,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     public AnnotationSession Ink { get; }
 
     /// <inheritdoc />
-    AnnotationSession? ISceneSource.Ink => Ink;
+    AnnotationSession ISceneSource.Ink => Ink;
 
     /// <summary>Each token shows where it looks; on the editing canvas a drag of the cone turns it.</summary>
     public bool ShowViewCones => true;
@@ -549,7 +549,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             return true;
         }
 
-        if (field.Slot is { } slot && !field.IsAllLines)
+        if (field is { Slot: { } slot, IsAllLines: false })
         {
             SelectLine(slot);
         }
@@ -790,7 +790,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     }
 
     /// <summary>The loader the canvas holds its map bundle through; the export takes its own hold with it.</summary>
-    internal Func<string?, IMapAssetLease?> MapLoader { get; }
+    private Func<string?, IMapAssetLease?> MapLoader { get; }
 
     /// <summary>
     ///     The open strat on the selected path as it stands now, for an export, or null
@@ -1004,7 +1004,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
         drag.Modifiers = modifiers;
         EndDragState();
-        if ((!drag.Moved && !drag.Turned) || drag.Target.IsRefused)
+        if (drag is { Moved: false, Turned: false } || drag.Target.IsRefused)
         {
             if (drag.Target.IsRefused && (drag.Moved || drag.Turned))
             {
@@ -1167,7 +1167,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             };
         }
 
-        if (drag.Target is { IsRefused: false, PathIndex: var index } && index >= 0 && index != ActiveStepIndex
+        if (drag.Target is { IsRefused: false, PathIndex: >= 0 and var index } && index != ActiveStepIndex
             && projection.Ticks[index] == Transport.Tick)
         {
             _pinnedStep = projection.Path[index].Step.Id;
@@ -1231,7 +1231,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         {
             StratDragAction.Turn => drag.Yaw,
             StratDragAction.Opponent when drag.Turned => drag.Yaw,
-            StratDragAction.Start when drag.Grip == TokenGrip.Heading && drag.Turned => drag.Yaw,
+            StratDragAction.Start when drag is { Grip: TokenGrip.Heading, Turned: true } => drag.Yaw,
             _ => null
         };
         return drag.Grip == TokenGrip.Heading
@@ -1240,7 +1240,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     }
 
     /// <summary>On screen, how near a place's arrival centre a drop stores the place alone.</summary>
-    public const double SnapPixels = 12;
+    private const double SnapPixels = 12;
 
     // The ops the drop would write, applied to a copy and projected, so the ghost route and the label show what the
     // release stores, not the pointer.
@@ -1269,7 +1269,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
 
         drag.Preview = preview;
-        drag.Drop = drop;
+
         drag.Outline = drop is { Place: { } place, PointOnly: false }
                        && _places is { IsCompletedSuccessfully: true, Result: { } zones }
             ? zones.OutlineOf(place, drag.LevelMinZ)
@@ -2056,7 +2056,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
 
         int index = -1;
-        if (Projection is { } projection && projection.Path.Count > 0)
+        if (Projection is { Path.Count: > 0 } projection)
         {
             index = projection.Schedule.At(Transport.Tick) is { } window
                 ? projection.Schedule.IndexOf(window.StepId)
@@ -2133,7 +2133,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     private List<PlayerMarker> DraggedMarkers(IReadOnlyList<PlayerMarker> pooled)
     {
         List<PlayerMarker> markers = [.. pooled];
-        if (_drag is not { } drag || drag.Target is null || drag.Target.IsRefused || (!drag.Moved && !drag.Turned))
+        if (_drag is not { Target.IsRefused: false } drag || drag is { Moved: false, Turned: false })
         {
             return markers;
         }
@@ -2438,7 +2438,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
     // Only once the map's zones are in memory; until then a watching token keeps its authored facing.
     /// <summary>Where a rotating lurker arrives, or null until the map's zones are in memory.</summary>
-    public PlaceArrivalResolver? CurrentPlaceArrivals =>
+    private PlaceArrivalResolver? CurrentPlaceArrivals =>
         _session.Document is { } document ? PlaceArrivals(document.Map) : null;
 
     private PlaceArrivalResolver? PlaceArrivals(string map) =>
@@ -2594,8 +2594,8 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             return new WorldBounds(-FallbackHalfExtent, -FallbackHalfExtent, FallbackHalfExtent, FallbackHalfExtent);
         }
 
-        const double margin = 512;
-        return new WorldBounds(minX - margin, minY - margin, maxX + margin, maxY + margin);
+        const double Margin = 512;
+        return new WorldBounds(minX - Margin, minY - Margin, maxX + Margin, maxY + Margin);
     }
 
     private IMapAssetLease? SafeLoad(string map)
@@ -2657,7 +2657,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         public StratDragTarget Target { get; set; } = null!;
         public StratLocationField? ShownField { get; set; }
         public StratSceneProjection? Preview { get; set; }
-        public StratDrop? Drop { get; set; }
+
         public IReadOnlyList<(System.Numerics.Vector2 A, System.Numerics.Vector2 B)>? Outline { get; set; }
     }
 }

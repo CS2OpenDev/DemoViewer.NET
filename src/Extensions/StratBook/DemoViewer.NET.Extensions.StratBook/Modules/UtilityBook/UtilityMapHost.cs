@@ -40,7 +40,7 @@ public sealed class UtilityMapHost : Decorator
     }
 
     /// <summary>The map view this map is built on. For tests.</summary>
-    internal MapView Map { get; } = new();
+    private MapView Map { get; } = new();
 
     /// <inheritdoc />
     protected override void OnDataContextChanged(EventArgs e)

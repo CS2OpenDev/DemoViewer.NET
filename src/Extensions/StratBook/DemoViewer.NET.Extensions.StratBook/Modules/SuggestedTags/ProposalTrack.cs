@@ -36,7 +36,7 @@ public enum ConfidenceStep
 public sealed class ProposalTrack : ITimelineTrack
 {
     /// <summary>The track's stable id. Never renamed.</summary>
-    public const string TrackId = "suggested";
+    private const string TrackId = "suggested";
 
     private const int MaxRunTooltipLines = 5;
 
@@ -49,7 +49,7 @@ public sealed class ProposalTrack : ITimelineTrack
     private IReadOnlyList<TagProposal> _proposals = [];
 
     /// <summary>A step's colour as ARGB, or null for the track's own wash. The host maps steps to theme tokens here.</summary>
-    public Func<ConfidenceStep, uint?>? StepColour { get; set; }
+    public Func<ConfidenceStep, uint?>? StepColour { get; init; }
 
     /// <inheritdoc />
     public string Id => TrackId;
@@ -82,7 +82,7 @@ public sealed class ProposalTrack : ITimelineTrack
 
     /// <summary>One line per proposal: label, side, round, confidence.</summary>
     /// <param name="proposal">The proposal.</param>
-    public static string Tooltip(TagProposal proposal)
+    private static string Tooltip(TagProposal proposal)
     {
         ArgumentNullException.ThrowIfNull(proposal);
         return string.Create(CultureInfo.InvariantCulture,
@@ -100,7 +100,7 @@ public sealed class ProposalTrack : ITimelineTrack
 
     /// <inheritdoc />
     public bool IsAvailable(ITimelineData data) =>
-        data is not null && _proposals.Any(p => data.FrameIndexAtTick(p.FromTick) >= 0);
+        _proposals.Any(p => data.FrameIndexAtTick(p.FromTick) >= 0);
 
     /// <inheritdoc />
     public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => Array.Empty<TimelineMarker>();
@@ -173,7 +173,7 @@ public sealed class ProposalTrack : ITimelineTrack
     private List<(List<Span> Run, int End)> Runs(ITimelineData data)
     {
         List<(List<Span>, int)> runs = [];
-        if (data is null || data.TotalFrames <= 0)
+        if (data.TotalFrames <= 0)
         {
             return runs;
         }

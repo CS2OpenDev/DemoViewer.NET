@@ -46,22 +46,22 @@ public sealed record LineupTechnique(
 public static class GrenadeLineups
 {
     /// <summary>A standing, walking or jump-throw spot: two feet in the plane.</summary>
-    public const float SpotRadius = 24f;
+    private const float SpotRadius = 24f;
 
     /// <summary>A running throw releases somewhere along the run.</summary>
-    public const float RunningSpotRadius = 64f;
+    private const float RunningSpotRadius = 64f;
 
     /// <summary>A jump-throw releases up to about 55 units above the floor.</summary>
-    public const float SpotHeight = 64f;
+    private const float SpotHeight = 64f;
 
     /// <summary>Throws of one lineup land within this of its anchor (bounces scatter them).</summary>
-    public const float LineupLandingRadius = 192f;
+    private const float LineupLandingRadius = 192f;
 
     /// <summary>...and this far apart in height, so a ledge and the floor below part.</summary>
-    public const float LandingHeight = 96f;
+    private const float LandingHeight = 96f;
 
     /// <summary>Landing group radius per kind: about a smoke's radius, less for a fire, more for a flash.</summary>
-    public static float GroupRadius(GrenadeKind kind) => kind switch
+    private static float GroupRadius(GrenadeKind kind) => kind switch
     {
         GrenadeKind.Molotov or GrenadeKind.Incendiary => 96f,
         GrenadeKind.Flash => 160f,
@@ -69,7 +69,7 @@ public static class GrenadeLineups
     };
 
     /// <summary>Whether <paramref name="g" /> counts as a running throw for the spot radius.</summary>
-    public static bool IsRunning(IndexedGrenade g) => g.Row.Movement == MovementClass.Running;
+    private static bool IsRunning(IndexedGrenade g) => g.Row.Movement == MovementClass.Running;
 
     /// <summary>The technique key: movement, jump, click.</summary>
     public static string TechniqueKey(GrenadeRow row)
@@ -86,7 +86,7 @@ public static class GrenadeLineups
     }
 
     /// <summary>What a card prints for <see cref="TechniqueKey" />.</summary>
-    public static string TechniqueLabel(string key)
+    private static string TechniqueLabel(string key)
     {
         ArgumentNullException.ThrowIfNull(key);
         string[] parts = key.Split('-');
@@ -112,7 +112,7 @@ public static class GrenadeLineups
     }
 
     /// <summary>A minted anchor's id: the map, the kind and the seed throw's key.</summary>
-    public static Guid AnchorId(string map, GrenadeKind kind, string seed) =>
+    private static Guid AnchorId(string map, GrenadeKind kind, string seed) =>
         Hash(string.Create(CultureInfo.InvariantCulture, $"lineup|{map.ToLowerInvariant()}|{kind}|{seed}"));
 
     /// <summary>A throw in no lineup still needs an id the map can select: one derived from the throw.</summary>

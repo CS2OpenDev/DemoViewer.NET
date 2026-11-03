@@ -13,7 +13,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 /// <summary>What a tag or a suggestion is while it is being edited: every field the editor can change.</summary>
 public sealed class TagEditorDraft
 {
-    public string Code { get; set; } = "";
+    public string Code { get; init; } = "";
 
     /// <summary>Frame-clock start, inclusive.</summary>
     public int FromTick { get; set; }
@@ -22,11 +22,11 @@ public sealed class TagEditorDraft
     public int ToTick { get; set; }
 
     /// <summary>Human labels, in order; a group may repeat.</summary>
-    public List<TagLabel> Labels { get; set; } = [];
+    public List<TagLabel> Labels { get; init; } = [];
 
-    public string? Note { get; set; }
+    public string? Note { get; init; }
 
-    public List<TagPosition> Positions { get; set; } = [];
+    public List<TagPosition> Positions { get; init; } = [];
 
     /// <summary>A deep copy, so an editor never writes through to what it was opened on.</summary>
     public TagEditorDraft Clone() => new()
@@ -88,7 +88,7 @@ public sealed record TagVocabulary(
         ];
         List<(string, IReadOnlyList<string>)> groups = [];
         foreach (IGrouping<string, TagPalettePanel> panel in palette.Panels
-                     .Where(p => p.IsLabels && p.Group is { Length: > 0 })
+                     .Where(p => p is { IsLabels: true, Group.Length: > 0 })
                      .GroupBy(p => p.Group!, StringComparer.Ordinal))
         {
             groups.Add((panel.Key,
@@ -134,8 +134,6 @@ public sealed class TagPositionRow(TagPosition position)
 /// </summary>
 public sealed partial class TagEditorViewModel : ObservableObject
 {
-    /// <summary>Any value, when the chosen group is one the palette does not list.</summary>
-    public const string AnyValue = "";
 
     private readonly Func<TagEditorDraft, int, int, (int From, int To)> _bounds;
     private readonly Action? _cancel;
@@ -147,25 +145,29 @@ public sealed partial class TagEditorViewModel : ObservableObject
     private readonly TagVocabulary _vocabulary;
 
     [ObservableProperty]
-    private string _fromText = "";
+    [NotifyPropertyChangedFor(nameof(CurrentSpan))]
+    private string _fromText;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValuesForGroup))]
     private string _newGroup = "";
 
     [ObservableProperty]
     private string _newValue = "";
 
     [ObservableProperty]
-    private string _note = "";
+    private string _note;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProblem))]
     private string _problem = "";
 
     [ObservableProperty]
     private string? _selectedCode;
 
     [ObservableProperty]
-    private string _toText = "";
+    [NotifyPropertyChangedFor(nameof(CurrentSpan))]
+    private string _toText;
 
     /// <param name="title">What is being edited ("Suggested: execute", "Tag: A execute", "New round label").</param>
     /// <param name="draft">The starting values; copied, never written through.</param>
@@ -361,11 +363,6 @@ public sealed partial class TagEditorViewModel : ObservableObject
     [RelayCommand]
     private void Cancel() => _cancel?.Invoke();
 
-    partial void OnNewGroupChanged(string value) => OnPropertyChanged(nameof(ValuesForGroup));
-
-    partial void OnFromTextChanged(string value) => OnPropertyChanged(nameof(CurrentSpan));
-
-    partial void OnToTextChanged(string value) => OnPropertyChanged(nameof(CurrentSpan));
 
     /// <summary>The span as the boxes stand, in ticks, or null while either box does not parse. The timeline draws it.</summary>
     public (int From, int To)? CurrentSpan =>
@@ -382,7 +379,6 @@ public sealed partial class TagEditorViewModel : ObservableObject
         ToText = Seconds(Math.Max(fromTick, toTick));
     }
 
-    partial void OnProblemChanged(string value) => OnPropertyChanged(nameof(HasProblem));
 
     /// <summary>
     ///     The span a tag may take: inside the parse and, when <paramref name="clampToRound" />, inside the
@@ -441,7 +437,7 @@ public sealed partial class TagEditorViewModel : ObservableObject
             }
         }
 
-        return current is null ? null : (current.Number, current.StartTick, next is null ? null : next.StartTick - 1);
+        return current is null ? null : (current.Number, current.StartTick, next?.StartTick - 1);
     }
 
     private string Seconds(int tick) =>

@@ -30,7 +30,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Timeline;
 public sealed class TagTrack : ITimelineTrack, IDisposable
 {
     /// <summary>The track's stable id. A bare word like <c>round</c> and <c>annotation</c>; never renamed.</summary>
-    public const string TrackId = "tag";
+    private const string TrackId = "tag";
 
     /// <summary>The marker glyph: one flag per instance, at its start.</summary>
     public const string Glyph = "⚑";
@@ -104,7 +104,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
     /// <inheritdoc />
     public bool IsAvailable(ITimelineData data)
     {
-        if (data is null || Session.Document is not { } document)
+        if (Session.Document is not { } document)
         {
             return false;
         }
@@ -230,7 +230,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
 
     /// <summary>The marker tooltip: <c>"{code} · {labels} · r{round}"</c>, empty parts left out.</summary>
     /// <param name="instance">The instance.</param>
-    public static string Tooltip(TagInstance instance)
+    private static string Tooltip(TagInstance instance)
     {
         ArgumentNullException.ThrowIfNull(instance);
 
@@ -292,7 +292,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
     private List<Span> Spans(ITimelineData data)
     {
         List<Span> spans = [];
-        if (data is null || data.TotalFrames <= 0 || Session.Document is not { } document)
+        if (data.TotalFrames <= 0 || Session.Document is not { } document)
         {
             return spans;
         }

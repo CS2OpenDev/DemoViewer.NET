@@ -107,7 +107,7 @@ public static class GrenadeWalker
         foreach (ProjectileFacts p in projectiles)
         {
             known.Add((p.EntityIndex, p.Serial));
-            all.Add(p.ThrowerSlot < 0 && p.AtSpawn is null
+            all.Add(p is { ThrowerSlot: < 0, AtSpawn: null }
                                       && flights.Facts.TryGetValue((p.EntityIndex, p.Serial), out FlightFacts? f)
                 ? p with
                 {
@@ -208,8 +208,8 @@ public static class GrenadeWalker
     ///     The latest unclaimed release of <paramref name="projectileClass" /> by <paramref name="slot" /> in
     ///     <c>[fromTick, toTick]</c>.
     /// </summary>
-    public static ReleaseFacts? LatestRelease(IReadOnlyList<ReleaseFacts> releases, int slot, string projectileClass,
-        int fromTick, int toTick, IReadOnlySet<ReleaseFacts> claimed)
+    private static ReleaseFacts? LatestRelease(IReadOnlyList<ReleaseFacts> releases, int slot, string projectileClass,
+        int fromTick, int toTick, HashSet<ReleaseFacts> claimed)
     {
         ArgumentNullException.ThrowIfNull(releases);
         ArgumentNullException.ThrowIfNull(claimed);
@@ -236,8 +236,8 @@ public static class GrenadeWalker
     ///     The thrower join for a projectile whose thrower never resolved: the unclaimed release of the same family
     ///     in <c>[spawn - 15, spawn - 6]</c>, the one nearest the measured seven-tick gap when several fit.
     /// </summary>
-    public static ReleaseFacts? JoinThrower(IReadOnlyList<ReleaseFacts> releases, string projectileClass, int spawnTick,
-        IReadOnlySet<ReleaseFacts> claimed)
+    private static ReleaseFacts? JoinThrower(IReadOnlyList<ReleaseFacts> releases, string projectileClass, int spawnTick,
+        HashSet<ReleaseFacts> claimed)
     {
         ArgumentNullException.ThrowIfNull(releases);
         ArgumentNullException.ThrowIfNull(claimed);
@@ -419,7 +419,7 @@ public static class GrenadeWalker
                 return (pop - serverStartTick, projectile.SmokeDetonationPosition ?? projectile.LastPosition,
                     DetonationSource.Entity, null);
             case GrenadeProjectileClasses.HEGrenade or GrenadeProjectileClasses.Flashbang
-                when projectile.Removed && projectile.LastPosition is not null:
+                when projectile is { Removed: true, LastPosition: not null }:
                 return (projectile.LastTick, projectile.LastPosition, DetonationSource.LastSample, null);
             default:
                 return (null, null, DetonationSource.None, null);

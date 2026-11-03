@@ -254,8 +254,4 @@ public sealed class ProposalStore
         Data.ReadAny(demoPath, Facet) is { Schema: Schema } record
             ? ProposalDocument.TryDeserialize(System.Text.Encoding.UTF8.GetString(record.Content))
             : null;
-
-    /// <summary>Forgets a demo's proposals.</summary>
-    /// <param name="demoPath">The demo's path.</param>
-    public void Delete(string demoPath) => Data.Delete(demoPath, Facet);
 }

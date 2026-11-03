@@ -30,9 +30,9 @@ public static class GrenadeTables
     /// <summary>The extension's own names for the three rulesets.</summary>
     public const string ProjectilesRuleset = "grenade_projectiles";
 
-    public const string ReleasesRuleset = "grenade_releases";
+    private const string ReleasesRuleset = "grenade_releases";
 
-    public const string EventsRuleset = "grenade_events";
+    private const string EventsRuleset = "grenade_events";
 
     /// <summary>The tables the rulesets declare.</summary>
     public const string ProjectilesTable = "grenade_projectiles";
@@ -41,11 +41,11 @@ public static class GrenadeTables
 
     public const string HeDetonationsTable = "grenade_he_detonations";
 
-    public const string FlashDetonationsTable = "grenade_flash_detonations";
+    private const string FlashDetonationsTable = "grenade_flash_detonations";
 
-    public const string SmokeDetonationsTable = "grenade_smoke_detonations";
+    private const string SmokeDetonationsTable = "grenade_smoke_detonations";
 
-    public const string DecoyStartsTable = "grenade_decoy_starts";
+    private const string DecoyStartsTable = "grenade_decoy_starts";
 
     public const string InfernoStartsTable = "grenade_inferno_starts";
 
@@ -127,8 +127,11 @@ public static class GrenadeTables
     public static GrenadeTableRows Read(Func<string, IEnumerable<GrenadeTableRow>> rows, int serverStartTick)
     {
         ArgumentNullException.ThrowIfNull(rows);
-        List<ProjectileFacts> projectiles = [.. rows(ProjectilesTable).Select(Projectile).OfType<ProjectileFacts>()];
-        projectiles.AddRange(rows(LandingsTable).Select(Landing).OfType<ProjectileFacts>());
+        List<ProjectileFacts> projectiles =
+        [
+            .. rows(ProjectilesTable).Select(Projectile).OfType<ProjectileFacts>(),
+            .. rows(LandingsTable).Select(Landing).OfType<ProjectileFacts>()
+        ];
         projectiles.Sort((a, b) =>
             a.SpawnTick != b.SpawnTick ? a.SpawnTick.CompareTo(b.SpawnTick) : a.EntityIndex.CompareTo(b.EntityIndex));
 

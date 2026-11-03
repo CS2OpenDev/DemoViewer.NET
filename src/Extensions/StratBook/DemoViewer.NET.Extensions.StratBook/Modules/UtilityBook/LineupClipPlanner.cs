@@ -71,22 +71,20 @@ public static class LineupClipPlanner
     public const int Side = 480;
 
     /// <summary>Seconds shown before the release, so the throw is seen from its start.</summary>
-    public const double LeadSeconds = 1.0;
+    private const double LeadSeconds = 1.0;
 
     /// <summary>Seconds shown after the grenade goes off.</summary>
-    public const double TailSeconds = 1.5;
+    private const double TailSeconds = 1.5;
 
     /// <summary>The longest clip, so a flight the walk never saw end still renders short.</summary>
-    public const double MaxSeconds = 12.0;
+    private const double MaxSeconds = 12.0;
 
     /// <summary>
     ///     A lineup has to be thrown this often to get a clip, and a technique other than the lineup's most
     ///     thrown one needs this many throws of its own. A throw seen once is a moment rather than a lineup.
     /// </summary>
-    public const int MinThrows = 2;
+    private const int MinThrows = 2;
 
-    /// <summary>The section title earlier builds queued lineup clips under, with the map after it.</summary>
-    public const string SectionPrefix = "Lineup clips";
 
     /// <summary>The sidecar's extension, after the GIF's stem.</summary>
     public const string SetposExtension = ".setpos.txt";
@@ -288,9 +286,6 @@ public static class LineupClipPlanner
         return (from, Math.Min(to, from + (int)Math.Round(MaxSeconds * rate)));
     }
 
-    /// <summary>The section title earlier builds queued a map's clips under.</summary>
-    /// <param name="map">The map.</param>
-    public static string SectionTitle(string map) => $"{SectionPrefix}, {map}";
 
     /// <summary>The pair a lineup's technique has on disk, or null while either half is missing.</summary>
     /// <param name="directory">Where clips are written.</param>

@@ -68,7 +68,7 @@ public sealed class ReviewQueueModule : IWorkspaceModule
 
     /// <summary>"12", or null with nothing to review.</summary>
     /// <param name="clipCount">Unreviewed clips in the queue.</param>
-    public static string? BadgeFor(int clipCount) =>
+    private static string? BadgeFor(int clipCount) =>
         clipCount > 0 ? clipCount.ToString(CultureInfo.InvariantCulture) : null;
 
     public string Id => "net.demoviewer.review";

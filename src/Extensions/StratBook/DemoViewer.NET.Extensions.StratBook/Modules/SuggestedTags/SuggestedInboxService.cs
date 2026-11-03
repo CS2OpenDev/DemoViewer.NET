@@ -23,7 +23,7 @@ public sealed record SuggestedInboxItem(
 public sealed class SuggestedInboxService : IDisposable
 {
     private readonly IExtensionLibrary _library;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Action<Action> _post;
     private readonly IExtensionJobs? _jobs;
     private readonly Func<Action, Task> _run;
@@ -85,14 +85,13 @@ public sealed class SuggestedInboxService : IDisposable
                 return running;
             }
 
-            _loading = _jobs is null
-                ? _run(ReadAll)
-                : _jobs.Enqueue(new JobRequest("Suggested tags: library", _ =>
+            _loading = _jobs?.Enqueue(new JobRequest("Suggested tags: library", _ =>
                     {
                         ReadAll();
                         return Task.CompletedTask;
                     }, new JobOptions(StratBookJobKinds.SuggestionsInbox, JobPriority.UserRequested, "suggested-inbox")))
-                    .Completion;
+                    .Completion
+                ?? _run(ReadAll);
             return _loading;
         }
     }

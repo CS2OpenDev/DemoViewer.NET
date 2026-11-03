@@ -88,7 +88,7 @@ public static partial class StratDepartureCheck
     /// <param name="field">An issue's field.</param>
     public static (int Step, int Position)? PositionOf(string field)
     {
-        Match m = PositionPointer().Match(field ?? "");
+        Match m = PositionPointer().Match(field);
         return m.Success
             ? (int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
                 int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture))

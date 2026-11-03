@@ -92,9 +92,7 @@ public sealed class DefaultDetector : IProposalDetector
 
         // The default runs until the execute starts, which is its trigger: the execute's own band can
         // reach back to a lurker's first arrival, long before the round stopped defaulting.
-        int to = execute is not null
-            ? execute.TriggerTick
-            : DetectorMath.Lag(round, defaultTick, profile.Get(Id, "lag"));
+        int to = execute?.TriggerTick ?? DetectorMath.Lag(round, defaultTick, profile.Get(Id, "lag"));
         Dictionary<string, string> labels = new(StringComparer.Ordinal) { ["places"] = string.Join(',', places) };
         if (execute is not null && execute.Labels.TryGetValue("site", out string? site))
         {
@@ -105,9 +103,9 @@ public sealed class DefaultDetector : IProposalDetector
         List<ProposalEvidence> evidence =
         [
             new("occupancy", spreadTick,
-                string.Create(CultureInfo.InvariantCulture, $"T in {places.Count} places: {string.Join(", ", places)}"))
+                string.Create(CultureInfo.InvariantCulture, $"T in {places.Count} places: {string.Join(", ", places)}")),
+            .. utility.Select(DetectorMath.Evidence)
         ];
-        evidence.AddRange(utility.Select(DetectorMath.Evidence));
         evidence.Sort((a, b) => a.Tick.CompareTo(b.Tick));
 
         yield return new TagProposal(

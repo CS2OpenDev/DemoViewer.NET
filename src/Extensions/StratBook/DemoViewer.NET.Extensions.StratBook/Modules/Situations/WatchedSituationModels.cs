@@ -27,10 +27,10 @@ public sealed class WatchedSituationsFile
         Converters = { new JsonStringEnumConverter() }
     };
 
-    public int SchemaVersion { get; set; } = CurrentSchema;
+    public int SchemaVersion { get; init; } = CurrentSchema;
 
     /// <summary>The watches in creation order.</summary>
-    public List<WatchedSituation> Watches { get; set; } = [];
+    public List<WatchedSituation> Watches { get; init; } = [];
 }
 
 /// <summary>
@@ -47,29 +47,29 @@ public sealed class WatchedSituationsFile
 /// </summary>
 public sealed class WatchedSituation
 {
-    public Guid Id { get; set; }
+    public Guid Id { get; init; }
 
     public string Name { get; set; } = "";
 
     /// <summary>UTC ticks at creation.</summary>
-    public long CreatedTicks { get; set; }
+    public long CreatedTicks { get; init; }
 
     /// <summary>Index stamps at or below this are seen; marking a watch seen moves it to now.</summary>
     public long WatermarkTicks { get; set; }
 
     /// <summary>The map, as the demo header spells it.</summary>
-    public string Map { get; set; } = "";
+    public string Map { get; init; } = "";
 
-    public SituationTolerance Tolerance { get; set; }
+    public SituationTolerance Tolerance { get; init; }
 
     /// <summary>The placed tokens, resolved or not; an unresolved one is put back hollow and the query leaves it out.</summary>
-    public List<WatchedToken> Tokens { get; set; } = [];
+    public List<WatchedToken> Tokens { get; init; } = [];
 
-    public SearchFilterValues Filters { get; set; } = SearchFilterValues.None;
+    public SearchFilterValues Filters { get; init; } = SearchFilterValues.None;
 
     /// <summary>The resolved places on one side, the input the token encoder takes.</summary>
     /// <param name="side">The rail row.</param>
-    public IReadOnlyList<string> ResolvedPlaces(QuerySide side) =>
+    private IReadOnlyList<string> ResolvedPlaces(QuerySide side) =>
         [.. Tokens.Where(t => t.Side == side && t.Place is not null).OrderBy(t => t.Slot).Select(t => t.Place!)];
 
     /// <summary>

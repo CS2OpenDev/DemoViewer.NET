@@ -27,7 +27,7 @@ public sealed class QueryCanvasHost : Decorator
     }
 
     /// <summary>The map view this surface is built on. For tests.</summary>
-    internal MapView Map { get; } = new();
+    private MapView Map { get; } = new();
 
     /// <inheritdoc />
     protected override void OnDataContextChanged(EventArgs e)

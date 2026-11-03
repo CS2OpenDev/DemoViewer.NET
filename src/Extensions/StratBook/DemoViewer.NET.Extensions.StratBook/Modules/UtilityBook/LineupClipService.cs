@@ -68,7 +68,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     ///     How long a pair must go unplanned before the sweep deletes it. A re-index drops a demo's rows for
     ///     a moment, and its lineups with them.
     /// </summary>
-    public static readonly TimeSpan DefaultOrphanGrace = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan DefaultOrphanGrace = TimeSpan.FromMinutes(10);
 
     private readonly Func<IReadOnlyList<GrenadeCluster>> _clusters;
     private readonly Func<bool> _complete;
@@ -83,7 +83,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     private readonly string? _directory;
     private readonly Func<bool> _enabled;
     private readonly Func<string, bool>? _fileExists;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Action<string>? _log;
     private readonly Func<long> _maxBytes;
     private readonly TimeSpan _orphanGrace;
@@ -97,18 +97,18 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     private readonly Dictionary<string, int> _ranks = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _requested = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILineupClipRenderer _renderer;
-    private readonly object _sweepGate = new();
+    private readonly Lock _sweepGate = new();
 
     // One plan at a time: Plan and Request share _planned, _ranks and the directory listing.
-    private readonly object _planLock = new();
-    private readonly object _soonGate = new();
+    private readonly Lock _planLock = new();
+    private readonly Lock _soonGate = new();
     private readonly TimeSpan _planDebounce;
     private bool _soonScheduled;
     private Task _soon = Task.CompletedTask;
 
     // Held by EnforceCap from its listing to its last delete, and by Request while it saves a pair, so a
     // pair asked for mid-pass is either seen as just used or evicted and then un-evicted.
-    private readonly object _capGate = new();
+    private readonly Lock _capGate = new();
     private readonly Action<string, string> _writeText;
     private bool _disposed;
     private bool _released;
@@ -596,7 +596,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     }
 
     /// <summary>What a pair is guessed to take before any is on disk.</summary>
-    internal const long DefaultPairBytes = 2L * 1024 * 1024;
+    private const long DefaultPairBytes = 2L * 1024 * 1024;
 
     // The candidates, best first, that the cap has room for. Room is guessed at the mean pair size; past it, a
     // lineup goes in only by displacing a lower-ranked pair, never an equal one, so a full cap stops the renders.
@@ -1178,13 +1178,13 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 public sealed class LineupClipRenderer : ILineupClipRenderer
 {
     /// <summary>The refusal when the host exports nothing: the browser head, which plans no clips either.</summary>
-    public const string NoExportRefusal = "This host does not export.";
+    private const string NoExportRefusal = "This host does not export.";
 
     private readonly Action<string>? _log;
     private readonly Func<SceneExportClip, CancellationToken, Task<SceneExportOutcome>> _render;
 
     /// <summary>Where a GIF is written until it is finished; the directory listing never sees it.</summary>
-    public const string PartialDirectoryName = ".rendering";
+    private const string PartialDirectoryName = ".rendering";
 
     /// <param name="export">The host's scene export; null renders nothing.</param>
     /// <param name="log">Line sink for the encoder choice, its own output and a failed clip.</param>

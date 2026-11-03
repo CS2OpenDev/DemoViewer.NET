@@ -66,7 +66,7 @@ public sealed class SituationsModule : IWorkspaceModule
 
     /// <summary>"3 new", or null when nothing is new.</summary>
     /// <param name="newCount">New hits over every watch.</param>
-    public static string? BadgeFor(int newCount) => newCount > 0 ? $"{newCount} new" : null;
+    private static string? BadgeFor(int newCount) => newCount > 0 ? $"{newCount} new" : null;
 
     public string Id => "net.demoviewer.situations";
     public string DisplayName => "Situations";

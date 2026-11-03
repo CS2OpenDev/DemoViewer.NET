@@ -145,21 +145,18 @@ public readonly record struct TrajectoryPoint(int Tick, float X, float Y, float 
 /// </summary>
 public sealed class GrenadeRow
 {
-    // Rows read from the rows file carry no path, so the list is created on first touch.
-    private List<TrajectoryPoint>? _trajectory;
-    private string? _throwerSteamIdText;
 
     /// <summary><c>g{index}-{serial}</c>: unique within a demo; the cross-demo key is the demo's hash plus this.</summary>
-    public string Id { get; set; } = "";
+    public string Id { get; init; } = "";
 
-    public GrenadeKind Kind { get; set; }
+    public GrenadeKind Kind { get; init; }
 
     /// <summary>The thrower's player slot, or -1 when <see cref="ThrowerSource" /> is None.</summary>
-    public int ThrowerSlot { get; set; } = -1;
+    public int ThrowerSlot { get; init; } = -1;
 
     public string? ThrowerSteamId64
     {
-        get => _throwerSteamIdText ?? (ThrowerSteamId is { } id ? id.ToString(CultureInfo.InvariantCulture) : null);
+        get => field ?? (ThrowerSteamId is { } id ? id.ToString(CultureInfo.InvariantCulture) : null);
         set
         {
             // Held as a number; text that would not print back identically is kept verbatim.
@@ -168,12 +165,12 @@ public sealed class GrenadeRow
                 && string.Equals(id.ToString(CultureInfo.InvariantCulture), value, StringComparison.Ordinal))
             {
                 ThrowerSteamId = id;
-                _throwerSteamIdText = null;
+                field = null;
             }
             else
             {
                 ThrowerSteamId = null;
-                _throwerSteamIdText = value;
+                field = value;
             }
         }
     }
@@ -186,16 +183,16 @@ public sealed class GrenadeRow
     public string? ThrowerName { get; set; }
 
     /// <summary>2 = T, 3 = CT, 0 when the thrower's pawn was not read.</summary>
-    public int ThrowerTeam { get; set; }
+    public int ThrowerTeam { get; init; }
 
-    public ThrowerSource ThrowerSource { get; set; }
+    public ThrowerSource ThrowerSource { get; init; }
 
     /// <summary>The <c>ClipRound</c> the throw fell in; 0 before the first freeze end.</summary>
-    public int RoundNumber { get; set; }
+    public int RoundNumber { get; init; }
 
-    public int ReleaseTick { get; set; }
+    public int ReleaseTick { get; init; }
 
-    public ReleaseSource ReleaseSource { get; set; }
+    public ReleaseSource ReleaseSource { get; init; }
 
     /// <summary>The thrower's pawn origin at the release: the <c>setpos</c>.</summary>
     public WorldPoint? ReleasePosition { get; set; }
@@ -206,14 +203,14 @@ public sealed class GrenadeRow
     /// <summary><c>m_angEyeAngles</c> yaw at the release: the <c>setang</c> yaw.</summary>
     public float? ReleaseEyeYaw { get; set; }
 
-    public bool? ReleaseOnGround { get; set; }
+    public bool? ReleaseOnGround { get; init; }
 
-    public bool? ReleaseCrouched { get; set; }
+    public bool? ReleaseCrouched { get; init; }
 
     /// <summary>The held grenade's <c>m_flThrowStrength</c> at the release.</summary>
     public float? ThrowStrength { get; set; }
 
-    public ThrowStrengthClass ThrowStrengthClass { get; set; } = ThrowStrengthClass.Unknown;
+    public ThrowStrengthClass ThrowStrengthClass { get; init; } = ThrowStrengthClass.Unknown;
 
     public MovementClass Movement { get; set; } = MovementClass.Unknown;
 
@@ -232,11 +229,11 @@ public sealed class GrenadeRow
     public WorldPoint? ThrowerPositionAtSpawn { get; set; }
 
     /// <summary>The ground-flag fallback's input: the flag on the spawn frame, not the release one.</summary>
-    public bool? ThrowerOnGroundAtSpawn { get; set; }
+    public bool? ThrowerOnGroundAtSpawn { get; init; }
 
-    public bool JumpThrow { get; set; }
+    public bool JumpThrow { get; init; }
 
-    public JumpThrowSource JumpThrowSource { get; set; } = JumpThrowSource.None;
+    public JumpThrowSource JumpThrowSource { get; init; } = JumpThrowSource.None;
 
     /// <summary>The tick the jump rose, when <see cref="JumpThrowSource" /> is Inputs and one did.</summary>
     public int? JumpPressTick { get; set; }
@@ -245,14 +242,15 @@ public sealed class GrenadeRow
     ///     The flight at the configured stride with every bounce vertex kept; first the spawn point, last
     ///     where it came to rest or went off. Written to the paths sibling, never to the rows file.
     /// </summary>
+    // Rows read from the rows file carry no path, so the list is created on first touch.
     [JsonIgnore]
     public List<TrajectoryPoint> Trajectory
     {
-        get => _trajectory ??= [];
-        set => _trajectory = value;
+        get => field ??= [];
+        set;
     }
 
-    public int BounceCount { get; set; }
+    public int BounceCount { get; init; }
 
     /// <summary>Spawn to the last tick the projectile moved, or to the detonation if that came first.</summary>
     public int AirTimeTicks { get; set; }
@@ -261,12 +259,12 @@ public sealed class GrenadeRow
 
     public WorldPoint? DetonationPosition { get; set; }
 
-    public DetonationSource DetonationSource { get; set; } = DetonationSource.None;
+    public DetonationSource DetonationSource { get; init; } = DetonationSource.None;
 
     /// <summary>The last tick the projectile was seen, or the removal frame's tick.</summary>
     public int EndTick { get; set; }
 
-    public GrenadeEndKind EndKind { get; set; }
+    public GrenadeEndKind EndKind { get; init; }
 
     /// <summary>A molotov's <c>inferno_startburn</c> entity index, for a later fire-area join.</summary>
     public int? InfernoEntityIndex { get; set; }

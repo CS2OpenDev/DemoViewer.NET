@@ -164,13 +164,13 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     public const float LandingCellHeight = 128f;
 
     /// <summary>World units an origin is rounded to before two throws count as the same position.</summary>
-    public const float OriginRounding = 16f;
+    private const float OriginRounding = 16f;
 
     private static ILogger? _diagLog;
 
     private readonly IExtensionLibrary _library;
     private readonly GrenadeIndexEvaluator? _evaluator;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Dictionary<string, LoadedDemo> _loaded = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action<Action> _post;
     private readonly IZonePlaceResolverSource _zones;
@@ -207,7 +207,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         _library = library;
         Store = store ?? evaluator?.Store ?? new GrenadeStore(MemoryDemoData.For(library));
         LineupStore = lineups ?? new GrenadeLineupStore(null);
-        _scheduleSave = scheduleSave ?? (drain => Task.Run(drain));
+        _scheduleSave = scheduleSave ?? Task.Run;
         _zones = zones ?? NoZonePlaceResolverSource.Instance;
         _evaluator = evaluator;
         _post = post ?? (a => a());
@@ -346,8 +346,6 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         return true;
     }
 
-    /// <summary>The startup load on a worker: the composition root calls this and never awaits it on the UI thread.</summary>
-    public Task StartLoadAsync() => Task.Run(Load);
 
     /// <summary>Loads every demo whose index row says its grenades are current. Synchronous; call it off the UI thread.</summary>
     public void Load()
@@ -480,7 +478,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     }
 
     /// <summary>The store key of a lineup technique's representative flight.</summary>
-    public static string PathKey(Guid lineupId, string technique) =>
+    private static string PathKey(Guid lineupId, string technique) =>
         lineupId.ToString("N", CultureInfo.InvariantCulture) + "/" + technique;
 
     /// <summary>The lineup store this index assigns against.</summary>
@@ -570,8 +568,6 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         return changed;
     }
 
-    private static float Distance(WorldPoint a, WorldPoint b) =>
-        MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y) + (a.Z - b.Z) * (a.Z - b.Z));
 
     // Under _gate. Only the copy is taken here; the gzip and write of the whole file (over a second on a
     // big library) run as a scheduled item, outside the lock. The newest copy wins.
@@ -590,10 +586,10 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
     /// <summary>
     ///     Writes any pending lineup save on the calling thread, waiting at most <paramref name="timeout" />
-    ///     for one in progress. Never throws; false when it could not.
+    ///     for one in progress. Never throws; a save it could not write stays lost or pending.
     /// </summary>
     /// <param name="timeout">The wait for a write in progress; infinite when null.</param>
-    public bool FlushLineups(TimeSpan? timeout = null)
+    public void FlushLineups(TimeSpan? timeout = null)
     {
         bool entered = false;
         try
@@ -601,20 +597,17 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
             entered = _saveGate.TryEnter(timeout ?? Timeout.InfiniteTimeSpan);
             if (!entered)
             {
-                return false;
+                return;
             }
 
             if (Interlocked.Exchange(ref _pendingLineups, null) is { } snapshot)
             {
                 LineupStore.Write(snapshot);
             }
-
-            return true;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             GrenadeIndexLog.LineupsNotSaved(Log, ex);
-            return false;
         }
         finally
         {
@@ -644,7 +637,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     /// </summary>
     /// <param name="grenades">The rows to filter.</param>
     /// <param name="query">The filters.</param>
-    public static IEnumerable<IndexedGrenade> Filter(IEnumerable<IndexedGrenade> grenades, GrenadeQuery query)
+    private static IEnumerable<IndexedGrenade> Filter(IEnumerable<IndexedGrenade> grenades, GrenadeQuery query)
     {
         ArgumentNullException.ThrowIfNull(grenades);
         ArgumentNullException.ThrowIfNull(query);
@@ -821,25 +814,25 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     ///     finds 1,243 lineups thrown twice or more covering 3,923 throws; merging within 16 units and 2
     ///     degrees of aim finds 1,408 covering 5,201, with the largest lineup at 40 throws (no chaining).
     /// </summary>
-    public const float OriginMergeRadius = 16f;
+    private const float OriginMergeRadius = 16f;
 
     /// <summary>...and this far apart in height, a crouch plus a step.</summary>
-    public const float OriginMergeHeight = 24f;
+    private const float OriginMergeHeight = 24f;
 
     /// <summary>The same lineup lands within this distance in the plane.</summary>
-    public const float LineupLandingRadius = 128f;
+    private const float LineupLandingRadius = 128f;
 
     /// <summary>...and this far apart in height.</summary>
-    public const float LineupLandingHeight = 96f;
+    private const float LineupLandingHeight = 96f;
 
     /// <summary>The same lineup is aimed within this many degrees of yaw and of pitch.</summary>
-    public const float AimToleranceDegrees = 2f;
+    private const float AimToleranceDegrees = 2f;
 
     /// <summary>Lineups of one kind whose landings are this close in the plane are one landing group on the map.</summary>
-    public const float LandingMergeRadius = 96f;
+    private const float LandingMergeRadius = 96f;
 
     /// <summary>...and this close in height.</summary>
-    public const float LandingMergeHeight = 96f;
+    private const float LandingMergeHeight = 96f;
 
     private static (int X, int Y) BucketOf(WorldPoint point, float size) =>
         ((int)MathF.Floor(point.X / size), (int)MathF.Floor(point.Y / size));

@@ -43,7 +43,7 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
     public const string FileName = "watched-situations.json";
 
     private readonly IExtensionLibrary _library;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly ISituationIndex _index;
 
     // Per watch, per demo stable key: the demo's index stamp and the hits that are new in it.
@@ -429,7 +429,7 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
     // only the rail can look up.
     private static IEnumerable<string> FilterParts(SearchFilterValues filters)
     {
-        if (filters.Side is int side)
+        if (filters.Side is { } side)
         {
             yield return side == 3 ? "us on CT" : "us on T";
         }

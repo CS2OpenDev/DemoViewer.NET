@@ -60,19 +60,16 @@ public sealed record SearchFilterValues
     /// <summary>Nothing set.</summary>
     public static SearchFilterValues None { get; } = new();
 
-    /// <summary>Any field narrows something.</summary>
-    [JsonIgnore]
-    public bool IsActive => HasFactFilter || HasDemoFilter;
 
     /// <summary>A field that reads the Round Facts rows is set.</summary>
     [JsonIgnore]
-    public bool HasFactFilter =>
+    private bool HasFactFilter =>
         Side is not null || BuyCt is not null || BuyT is not null || Phase is not null || Clock is not null
         || ManCount is not null || Score is not null;
 
     /// <summary>A field that narrows the demo set is set.</summary>
     [JsonIgnore]
-    public bool HasDemoFilter => Opponent is not null || Source is not null || From is not null || To is not null;
+    private bool HasDemoFilter => Opponent is not null || Source is not null || From is not null || To is not null;
 
     /// <summary>
     ///     The Round Facts filter the fact fields amount to, or null when none is set. Our side becomes
@@ -88,7 +85,7 @@ public sealed record SearchFilterValues
         }
 
         Func<string, RoundFacts, bool>? where = null;
-        if (Side is int side && teams?.Us is { } us)
+        if (Side is { } side && teams?.Us is { } us)
         {
             Guid usId = us.Id;
             where = (path, round) => teams.SideAtRound(path, usId, round.Number) == side;
@@ -126,7 +123,7 @@ public sealed record SearchFilterValues
         HashSet<string> keep = new(StringComparer.Ordinal);
 
         HashSet<string>? against = null;
-        if (Opponent is Guid opponent && teams is not null)
+        if (Opponent is { } opponent && teams is not null)
         {
             against = new HashSet<string>(teams.DemosAgainst(opponent).Select(d => d.StableKey),
                 StringComparer.Ordinal);

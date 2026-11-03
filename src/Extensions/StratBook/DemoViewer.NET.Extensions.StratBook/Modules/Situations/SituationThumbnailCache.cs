@@ -22,7 +22,7 @@ public readonly record struct SituationThumbnailKey(string StableKey, int Round,
 public sealed class SituationThumbnailCache
 {
     /// <summary>The default bound: a few result sets' worth, about ten megabytes of PNG at most.</summary>
-    public const int DefaultCapacity = 256;
+    private const int DefaultCapacity = 256;
 
     private readonly int _capacity;
 
@@ -30,7 +30,7 @@ public sealed class SituationThumbnailCache
         [];
 
     private readonly LinkedList<(SituationThumbnailKey Key, byte[] Png)> _order = [];
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     /// <param name="capacity">How many thumbnails to hold before the least recently used goes.</param>
     public SituationThumbnailCache(int capacity = DefaultCapacity)

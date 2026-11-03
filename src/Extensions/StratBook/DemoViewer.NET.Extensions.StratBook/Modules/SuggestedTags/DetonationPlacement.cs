@@ -115,7 +115,7 @@ public static class DetonationEvents
 public sealed class DetonationCloud
 {
     /// <summary>One sample in this many is kept.</summary>
-    public const int KeepEvery = 25;
+    private const int KeepEvery = 25;
 
     private readonly List<(Vector3 Position, string Place)> _points = [];
     private int _offered;
@@ -195,7 +195,7 @@ public sealed class DetonationCloud
 public sealed class DetonationPlaceResolver
 {
     /// <summary>World units beyond which no sample or centroid is near enough.</summary>
-    public const double MaxDistance = 400;
+    private const double MaxDistance = 400;
 
     // Utility pops above the floor a player stands on (a flash in the air, a smoke on a ledge), so the
     // centroid band reaches two 64-unit buckets either way of the detonation's own.

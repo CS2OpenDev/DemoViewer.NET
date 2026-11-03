@@ -32,7 +32,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 public sealed class SuggestedTagsTuningService
 {
     /// <summary>How many demos' detection inputs the preview keeps, least recently used out first.</summary>
-    internal const int CacheCapacity = 8;
+    private const int CacheCapacity = 8;
 
     // One queued preview at a time: a newer one replaces a sweep still waiting for its turn.
     private const string PreviewJobKey = "stratbook:suggested-tags-preview";
@@ -325,17 +325,6 @@ public sealed class SuggestedTagsTuningService
         return built;
     }
 
-    /// <summary>The cached demos, most recently used first. For a test.</summary>
-    internal IReadOnlyList<string> CachedPaths
-    {
-        get
-        {
-            lock (_gate)
-            {
-                return [.. _cacheOrder];
-            }
-        }
-    }
 
     // Under _gate.
     private void Touch(string path)

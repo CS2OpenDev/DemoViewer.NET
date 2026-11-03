@@ -50,7 +50,7 @@ public sealed class FakeDetector : IProposalDetector
         ArgumentNullException.ThrowIfNull(profile);
 
         TagProposal? execute =
-            ctx.EarlierProposalsThisRound.FirstOrDefault(p => p.Detector == ExecuteDetector.DetectorId);
+            ctx.EarlierProposalsThisRound.FirstOrDefault(earlier => earlier.Detector == ExecuteDetector.DetectorId);
         if (execute is null || !execute.Labels.TryGetValue("site", out string? real))
         {
             yield break;

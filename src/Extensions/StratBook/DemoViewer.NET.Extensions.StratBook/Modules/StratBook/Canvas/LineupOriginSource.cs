@@ -184,13 +184,14 @@ public sealed class LineupOriginSource : IDisposable
     {
         ArgumentNullException.ThrowIfNull(clusters);
         Dictionary<Guid, GrenadeLineup> byId = [];
-        foreach (GrenadeLineup lineup in clusters.SelectMany(c => c.Lineups))
+        List<GrenadeLineup> lineups = [.. clusters.SelectMany(c => c.Lineups)];
+        foreach (GrenadeLineup lineup in lineups)
         {
             // The primary id wins over another lineup's alias of it.
             byId[lineup.Id] = lineup;
         }
 
-        foreach (GrenadeLineup lineup in clusters.SelectMany(c => c.Lineups))
+        foreach (GrenadeLineup lineup in lineups)
         {
             foreach (Guid alias in lineup.AliasIds)
             {
@@ -204,7 +205,7 @@ public sealed class LineupOriginSource : IDisposable
     /// <summary>Every lineup of a query result once, with its title, keyed by each id that names it.</summary>
     /// <param name="clusters">The map's query result.</param>
     /// <param name="paths">A technique's stored flight (<see cref="GrenadeIndex.PathFor" />), or null for none.</param>
-    public static MapLineups Build(IReadOnlyList<GrenadeCluster> clusters,
+    private static MapLineups Build(IReadOnlyList<GrenadeCluster> clusters,
         Func<GrenadeLineup, LineupTechnique?, IReadOnlyList<TrajectoryPoint>?>? paths = null)
     {
         ArgumentNullException.ThrowIfNull(clusters);
@@ -237,7 +238,7 @@ public sealed class LineupOriginSource : IDisposable
     /// </summary>
     /// <param name="lineup">The lineup.</param>
     /// <param name="paths">A technique's stored flight, or null for none.</param>
-    public static Dictionary<string, LineupThrow> ThrowsOf(GrenadeLineup lineup,
+    private static Dictionary<string, LineupThrow> ThrowsOf(GrenadeLineup lineup,
         Func<GrenadeLineup, LineupTechnique?, IReadOnlyList<TrajectoryPoint>?>? paths)
     {
         ArgumentNullException.ThrowIfNull(lineup);
