@@ -14,20 +14,14 @@ public readonly record struct ThemeGradientStop(double Offset, Color Color);
 ///     A linear gradient token (today only <c>LibraryCardScrim</c>). Held as data so a theme file can set it the
 ///     way it sets a colour, and compared by value: two gradients are equal when their points and stops are.
 /// </summary>
-public sealed class ThemeGradient : IEquatable<ThemeGradient>
+public sealed class ThemeGradient(RelativePoint start, RelativePoint end, IReadOnlyList<ThemeGradientStop> stops)
+    : IEquatable<ThemeGradient>
 {
-    public ThemeGradient(RelativePoint start, RelativePoint end, IReadOnlyList<ThemeGradientStop> stops)
-    {
-        Start = start;
-        End = end;
-        Stops = [.. stops];
-    }
+    public RelativePoint Start { get; } = start;
 
-    public RelativePoint Start { get; }
+    public RelativePoint End { get; } = end;
 
-    public RelativePoint End { get; }
-
-    public IReadOnlyList<ThemeGradientStop> Stops { get; }
+    public IReadOnlyList<ThemeGradientStop> Stops { get; } = [.. stops];
 
     /// <summary>The same gradient with stop <paramref name="index" /> recoloured.</summary>
     public ThemeGradient WithStopColor(int index, Color color)

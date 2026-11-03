@@ -224,19 +224,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // AND the queue has activity (running/queued) or is paused. Null on the designer / tests (no queue).
     private readonly ProcessingQueueStatusViewModel? _processingQueueStatus;
 
-    // Proto source index (built once, immutable) and repo-root path. Created here
-    // for now (still used by file-load + handed to ParserTab via callbacks); both
-    // move to Shell/MainViewModel in 3.5c.
-    private readonly ProtoIndex _protoIndex;
-
     /// <summary>
     ///     Recently-opened-demos store. Every successful open through the shared load core
     ///     records here; the Library landing tab binds its recents to it. Null on the designer / older
     ///     test path, recording then no-ops (fail-safe, like the other optional deps).
     /// </summary>
     private readonly RecentFilesStore? _recentFiles;
-
-    private readonly string? _repoRoot; // absolute path to repo root (for local source links)
 
     // Stateless checkpoint-replay seek core, shared by EntityTab's three seek pipelines.
     private readonly EntitySeekService? _seekService;
@@ -292,10 +285,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private byte[]? _demoBytes;
 
-    // Coarse app-orchestration logging (unified diagnostics pillar). Resolved LAZILY, not in a field
-    // initializer: the shell is constructed during DI composition, BEFORE App wires the real ambient
-    // factory, so a field initializer would cache a NullLogger. First use is a demo load, after wiring.
-    private ILogger? _diagLog;
     private bool _exportChipDismissed;
 
     /// <summary>
@@ -614,10 +603,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             }
         };
         Navigation = new FrameNavigationViewModel();
-        ParserTab = new ParserTabViewModel(Navigation);
-        EntityTab = new EntityTrackingTabViewModel(Navigation);
-        AnalysisTab = new AnalysisTabViewModel(Navigation);
-        ReplayTab = new ReplayTabViewModel(Navigation);
+        ParserTab = new ParserTabViewModel();
+        EntityTab = new EntityTrackingTabViewModel();
+        AnalysisTab = new AnalysisTabViewModel();
+        ReplayTab = new ReplayTabViewModel();
 
         // Unified diagnostics telemetry hub: the single log sink for both the internal ILogger pillar
         // and the CSVG host logs. Ring cap read live from Diagnostics.MaxLogRows so a settings change
@@ -789,15 +778,17 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             _perfTimer.Start();
         }
 
-        _repoRoot = FindRepoRoot();
-        _protoIndex = ProtoIndex.Build();
+        // Proto source index (built once, immutable) and the repo root (for local source links); the
+        // palette and ParserTab read both through callbacks.
+        string? repoRoot = FindRepoRoot();
+        ProtoIndex protoIndex = ProtoIndex.Build();
 
         // Command palette. Sources read live so the palette always reflects
         // the loaded demo: tracker from EntityTab, the startup ProtoIndex, current frame count.
         Palette = new CommandPaletteViewModel(
             Navigation,
             () => EntityTab.CurrentTrackerInternal,
-            () => _protoIndex,
+            () => protoIndex,
             () => Frames.Count);
 
         // The per-tab SeekControls (control + VM) is fully retired: the nav strip
@@ -832,7 +823,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // below let EntityTab drive its async seeks without holding a reference
         // to MainViewModel itself -- same dependency direction as the
         // Analysis.OnFrameSeeked wiring above.
-        EntityTab.CreateTracker = CreateTracker;
         // The shared checkpoint-replay seek core. EntityTab's three pipelines delegate the
         // tracker-build + replay to this; the per-pipeline snapshot policy stays in EntityTab.
         _seekService = new EntitySeekService(CreateTracker);
@@ -899,8 +889,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // without holding a reference to MainViewModel.
         ParserTab.FrameListSource = () => _allFrames;
         ParserTab.DemoBytesSource = () => _demoBytes;
-        ParserTab.ProtoIndexSource = () => _protoIndex;
-        ParserTab.RepoRootSource = () => _repoRoot;
+        ParserTab.ProtoIndexSource = () => protoIndex;
+        ParserTab.RepoRootSource = () => repoRoot;
         ParserTab.EntityTrackerSource = () => EntityTab.CurrentTrackerInternal;
         ParserTab.EntityFieldNodesSource = () => EntityTab.EntityFieldNodes;
         ParserTab.EnrichmentResolver = ResolveEnrichmentHint;
@@ -1059,7 +1049,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             TutorialSteps.Default, SelectTabById, () => HasFile, () => { }, () => _library.Entries.Count > 0,
             // The sample CTA is only spotlightable while it is ON SCREEN: a sample resolved AND the hero
             // (empty-library) state showing, with folders configured the hero (and the CTA) is hidden.
-            () => LibraryTab.HasSampleDemo && LibraryTab.HasNoFolders,
+            () => LibraryTab is { HasSampleDemo: true, HasNoFolders: true },
             // The same gate that filters the tab strip, so no step points at a tab this profile hides.
             new TutorialAudienceFilter(_gate, OperatingSystem.IsBrowser()));
 
@@ -1079,7 +1069,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public static int ProcessId => Environment.ProcessId;
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger(AppLog.ShellCategory);
+    // Coarse app-orchestration logging (unified diagnostics pillar). Resolved LAZILY, not in a field
+    // initializer: the shell is constructed during DI composition, BEFORE App wires the real ambient
+    // factory, so a field initializer would cache a NullLogger. First use is a demo load, after wiring.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger(AppLog.ShellCategory);
 
     /// <summary>
     ///     The shared playback clock. Read-only access for tabs / modules / tests; the only
@@ -2141,18 +2134,15 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         // The facet is read only beside a record that describes this file: a replaced demo's is the old match's.
         FactTable? facet = record is null ? null : Facet(entry.FilePath);
-        if (record is null)
+        // Known to the library but never indexed (or its sidecar is gone). Still worth rendering: the
+        // page's NOT INDEXED state carries the action that fixes it.
+        record ??= new DemoCacheRecord
         {
-            // Known to the library but never indexed (or its sidecar is gone). Still worth rendering: the
-            // page's NOT INDEXED state carries the action that fixes it.
-            record = new DemoCacheRecord
-            {
-                Path = entry.FilePath,
-                Size = entry.FileSizeBytes,
-                ModifiedTicks = entry.Modified.Ticks,
-                Map = entry.MapName
-            };
-        }
+            Path = entry.FilePath,
+            Size = entry.FileSizeBytes,
+            ModifiedTicks = entry.Modified.Ticks,
+            Map = entry.MapName
+        };
 
         MatchOverviewTab.SetCachedRecord(record, facet);
 
@@ -2597,7 +2587,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         List<WorkspaceTabDescriptor> descriptors = new();
         foreach (IWorkspaceModule module in _moduleRegistry.Modules)
         {
-            IEnumerable<string> caps = HostCapabilitiesFor(module);
+            IEnumerable<string> caps = HostCapabilities();
             ModuleHost host = new(_moduleContext, caps, RouteModuleLog);
 
             try
@@ -2632,7 +2622,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 continue;
             }
 
-            HubTabViewModel viewModel = new(hub.Id, hub.Header, hub.RailLabel);
+            HubTabViewModel viewModel = new(hub.Header, hub.RailLabel);
             WorkspaceTabDescriptor tab = new()
             {
                 TabId = hub.Id,
@@ -2934,7 +2924,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     // First-party modules get all capabilities; (future) third-party defaults are read-only +
     // Playback.Observe + UI.Contribute.
-    private static IEnumerable<string> HostCapabilitiesFor(IWorkspaceModule module) =>
+    private static IEnumerable<string> HostCapabilities() =>
         ModuleHost.FirstPartyCapabilities;
 
     // Routes a module log message to the Output panel's decode-errors channel (best-effort).
@@ -3508,22 +3498,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             SelectedFrame = Frames[_selectedFrameIndex + 1];
         }
     }
-
-    // ── Semantic-nav delegating wrappers ───────────────────────────────────────
-    // The six *Frame* methods below delegate to the shell-owned SemanticNavigator, which
-    // binary-searches the precomputed boundary indices from PlaybackController.CurrentFrameIndex and
-    // drives PlaybackController.SeekToFrame. SeekControls still calls these wrappers (behavior-identical
-    // to the legacy per-press scans); the strip calls the navigator directly.
-
-    private void NextFrameByRound() => Navigator.NextRound();
-
-    // ── Frame-list seek helpers (used by SeekControls on Parser Details tab) ──
-
-    private void NextFrameByTick() => Navigator.NextTick();
-
-    // ── Special seek: parser tab (frame-level, reads SeekControls filters) ──────
-
-    private void NextSpecialFrame() => Navigator.NextEvent(SelectedSpecialFilter());
 
     /// <summary>
     ///     Re-evaluate the debugger commands' enabled state. The CommunityToolkit MVVM
@@ -4762,12 +4736,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void PreviousFrameByRound() => Navigator.PrevRound();
-
-    private void PreviousFrameByTick() => Navigator.PrevTick();
-
-    private void PreviousSpecialFrame() => Navigator.PrevEvent(SelectedSpecialFilter());
-
     /// <summary>
     ///     The currently-selected special-seek event names. The single
     ///     filter is now the demo-derived <c>GameEventFilters</c> (the hardcoded 7-event
@@ -5416,7 +5384,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // Counts the queue's holds on the loaded parse; a close awaits the count reaching zero.
     private sealed class ShellDemoHolds
     {
-        private readonly object _gate = new();
+        private readonly Lock _gate = new();
         private int _count;
         private TaskCompletionSource _drained = Completed();
 

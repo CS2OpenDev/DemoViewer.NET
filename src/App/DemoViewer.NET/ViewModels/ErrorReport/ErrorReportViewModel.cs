@@ -76,7 +76,7 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
         Func<DateTime>? now = null)
     {
         ArgumentNullException.ThrowIfNull(openDemo);
-        DemoPath = demoPath ?? "";
+        DemoPath = demoPath;
         _cache = cache;
         _rules = rules;
         _openDemo = openDemo;

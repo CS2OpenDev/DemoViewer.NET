@@ -11,8 +11,4 @@ namespace DemoViewer.NET.ViewModels;
 ///     shorter span wins (innermost in byte terms).
 /// </param>
 /// <param name="Label">Optional human-readable name shown in the status bar.</param>
-public readonly record struct HexSpan(int Start, int Length, int Level = 0, string? Label = null)
-{
-    /// <summary>Contains.</summary>
-    public bool Contains(int byteOffset) => byteOffset >= Start && byteOffset < Start + Length;
-}
+public readonly record struct HexSpan(int Start, int Length, int Level = 0, string? Label = null);

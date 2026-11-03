@@ -93,9 +93,6 @@ public sealed partial class ReplayTabViewModel : ObservableObject
     [ObservableProperty]
     private TickGroup? _selectedTickGroup;
 
-    /// <summary>Initializes a new <see cref="ReplayTabViewModel" /> instance.</summary>
-    public ReplayTabViewModel(FrameNavigationViewModel navigation) => Navigation = navigation;
-
     // navigation-review Phase D: the orphaned ReplaySeekControls + its parallel tick/round/special
     // navigation are gone: the shell NavStrip + SemanticNavigator are the single nav surface. Only
     // this VM's tick-group PRESENTATION state (TickGroups / SelectedTickGroup / FrameGameEvents /
@@ -109,9 +106,6 @@ public sealed partial class ReplayTabViewModel : ObservableObject
     // ── Callback hooks (wired by MainViewModel ctor) ──────────────────────────
     /// <summary>Source of the parsed frame list (full unfiltered list).</summary>
     public Func<List<DemoFrame>?>? FrameSource { get; set; }
-
-    /// <summary>Navigation.</summary>
-    public FrameNavigationViewModel Navigation { get; }
 
     /// <summary>
     ///     Optional notify hook fired after tick-group rebuild and after tick-group selection

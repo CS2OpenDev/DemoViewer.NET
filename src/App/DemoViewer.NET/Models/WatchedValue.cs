@@ -1,6 +1,5 @@
 #region
 
-using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 #endregion
@@ -28,7 +27,4 @@ public partial class WatchedValue : ObservableObject
 
     /// <summary>Label.</summary>
     public string Label { get; init; } = "";
-
-    /// <summary>Remove command.</summary>
-    public ICommand? RemoveCommand { get; init; }
 }

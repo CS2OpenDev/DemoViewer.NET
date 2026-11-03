@@ -31,11 +31,11 @@ public static partial class ThemeTokenCatalog
     [GeneratedRegex(@"\*\*|`|\[([^\]]+)\]\([^)]+\)")]
     private static partial Regex Markup();
 
-    public static IReadOnlyDictionary<string, ThemeTokenInfo> Entries => _entries.Value;
+    private static IReadOnlyDictionary<string, ThemeTokenInfo> Entries => _entries.Value;
 
     public static ThemeTokenInfo? Find(string token) => Entries.GetValueOrDefault(token);
 
-    private static IReadOnlyDictionary<string, ThemeTokenInfo> Load()
+    private static Dictionary<string, ThemeTokenInfo> Load()
     {
         using Stream? stream = typeof(ThemeTokenCatalog).Assembly.GetManifestResourceStream(Resource);
         if (stream is null)
@@ -47,7 +47,7 @@ public static partial class ThemeTokenCatalog
         return Parse(reader.ReadToEnd());
     }
 
-    internal static IReadOnlyDictionary<string, ThemeTokenInfo> Parse(string markdown)
+    private static Dictionary<string, ThemeTokenInfo> Parse(string markdown)
     {
         Dictionary<string, ThemeTokenInfo> entries = new(StringComparer.Ordinal);
         string? family = null;

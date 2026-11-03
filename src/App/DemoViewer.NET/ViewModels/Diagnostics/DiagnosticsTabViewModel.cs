@@ -78,14 +78,14 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
 
     private readonly List<(string Op, double Ms)> _csvgSpans = [];
 
-    private readonly object _csvgTelemetryGate = new();
+    private readonly Lock _csvgTelemetryGate = new();
     private readonly Func<IReadOnlyList<DemoFrame>?> _frames;
     private readonly Func<string?> _loadedDemoPath;
     private readonly Dictionary<string, long> _runtimeCounters = new(StringComparer.Ordinal);
     private readonly List<double> _runtimeFrameDurations = [];
 
     // Runtime listeners: null until the user toggles capture on; disposed on view unload.
-    private readonly object _runtimeGate = new();
+    private readonly Lock _runtimeGate = new();
     private readonly List<(string Name, double Ms, int Depth)> _runtimeSpans = [];
     private readonly DiagnosticsTelemetryHub _telemetry;
     private ActivityListener? _activityListener;
@@ -147,6 +147,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
 
     /// <summary>True while a captured re-run is in flight, disables the re-run button.</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ReRunCapturedCommand))]
     private bool _isReRunning;
 
     // ── Evaluator runtime (always rendered; idle until toggled) ───────────────
@@ -451,7 +452,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
                 _runtimeCounters[inst.Name] = _runtimeCounters.GetValueOrDefault(inst.Name) + measurement;
             }
         });
-        meter.SetMeasurementEventCallback<double>((inst, measurement, _, _) =>
+        meter.SetMeasurementEventCallback<double>((_, measurement, _, _) =>
         {
             lock (_runtimeGate)
             {
@@ -468,7 +469,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
         _activityListener = new ActivityListener
         {
             ShouldListenTo = src => src.Name == AnalysisDiagnostics.SourceName,
-            Sample = static (ref options) => ActivitySamplingResult.AllData,
+            Sample = static (ref _) => ActivitySamplingResult.AllData,
             ActivityStopped = OnSpanStopped
         };
         ActivitySource.AddActivityListener(_activityListener);
@@ -840,8 +841,6 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
     }
 
     private bool CanReRun() => !IsReRunning && _analysisTab.Analysis.LastEvaluatedDemo is not null;
-
-    partial void OnIsReRunningChanged(bool value) => ReRunCapturedCommand.NotifyCanExecuteChanged();
 
     // ── Copy-to-clipboard text builder ────────────────────────────────────────
 

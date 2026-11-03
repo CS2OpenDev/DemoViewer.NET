@@ -90,13 +90,13 @@
                     </Grid>
 
                     <!-- Title -->
-                    <TextBlock Text="{Binding CurrentStep.Title}"
+                    <TextBlock Text="{Binding CurrentStep.Title, FallbackValue=''}"
                                Foreground="{DynamicResource TextCardHeader}"
                                FontSize="17" FontWeight="SemiBold"
                                TextWrapping="Wrap" />
 
                     <!-- Body -->
-                    <TextBlock Text="{Binding CurrentStep.Body}"
+                    <TextBlock Text="{Binding CurrentStep.Body, FallbackValue=''}"
                                Foreground="{DynamicResource TextMid}"
                                FontSize="13" LineHeight="19"
                                TextWrapping="Wrap" />

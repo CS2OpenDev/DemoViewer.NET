@@ -53,9 +53,6 @@ public sealed partial class HarvestPropertyViewModel : ObservableObject
     /// <summary>Field number.</summary>
     public int FieldNumber { get; init; }
 
-    /// <summary>Has byte range.</summary>
-    public bool HasByteRange => ByteOffset.HasValue && ByteLength.HasValue;
-
     /// <summary>Has children.</summary>
     public bool HasChildren => Children.Count > 0;
 

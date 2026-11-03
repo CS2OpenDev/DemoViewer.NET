@@ -85,7 +85,7 @@ public sealed partial class IdleViewModel : ViewModelBase
             parts.Add(t.Minutes == 1 ? "1 minute" : $"{t.Minutes} minutes");
         }
 
-        if (t.Seconds > 0 && t.TotalMinutes < 60)
+        if (t is { Seconds: > 0, TotalMinutes: < 60 })
         {
             parts.Add(t.Seconds == 1 ? "1 second" : $"{t.Seconds} seconds");
         }

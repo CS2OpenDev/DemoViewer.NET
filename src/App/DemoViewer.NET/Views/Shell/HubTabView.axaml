@@ -128,7 +128,7 @@
         <!-- The selected section, or the one line the rail shows when the gate has hidden every section
              (the shell hides the whole tab then, so this is the transient state between the two). -->
         <Panel Grid.Column="2">
-            <ContentControl Content="{Binding Sections.SelectedSection.ActiveContent}" />
+            <ContentControl Content="{Binding Sections.SelectedSection.ActiveContent, FallbackValue={x:Null}}" />
             <TextBlock Text="{Binding EmptyText}"
                        IsVisible="{Binding !Sections.HasSections}"
                        FontSize="12" Foreground="{DynamicResource TextMid}"

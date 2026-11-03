@@ -67,12 +67,12 @@ public static class ThemeJson
 
     /// <summary>
     ///     Parses <paramref name="json" /> into a <see cref="ThemeDefinition" />, or returns <c>null</c> if it is
-    ///     not a usable theme. <paramref name="sourceLabel" /> names the source in a diagnostic.
+    ///     not a usable theme.
     /// </summary>
-    public static ThemeDefinition? TryParse(string json, string sourceLabel) => Parse(json, sourceLabel).Definition;
+    public static ThemeDefinition? TryParse(string json) => Parse(json).Definition;
 
     /// <summary>Parses <paramref name="json" />, saying why when it is not a usable theme.</summary>
-    public static ThemeParseResult Parse(string json, string sourceLabel)
+    public static ThemeParseResult Parse(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {

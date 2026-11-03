@@ -18,9 +18,6 @@ public sealed partial class EntityNode : ObservableObject
     [ObservableProperty]
     private int _deltaCount;
 
-    /// <summary>Flat today; the hierarchical source keeps the grouping door open.</summary>
-    public IReadOnlyList<EntityNode> Children { get; init; } = [];
-
     /// <summary>Class name.</summary>
     public string ClassName { get; init; } = "";
 

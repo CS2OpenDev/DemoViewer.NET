@@ -22,10 +22,7 @@ public sealed partial class ParseChainEntry
     public Thickness Indent => new(IndentLevel * 14.0, 1, 4, 1);
 
     /// <summary>Nesting depth, each level adds left margin.</summary>
-    public int IndentLevel { get; init; }
-
-    /// <summary>Is clickable.</summary>
-    public bool IsClickable => OpenCommand != null;
+    private int IndentLevel { get; init; }
 
     /// <summary>Primary label shown in the monospace column.</summary>
     public string Label { get; init; } = "";
@@ -92,6 +89,7 @@ public sealed partial class ParseChainEntry
             }
             catch
             {
+                // No handler for the file either: fall through to the web link.
             }
         }
 
@@ -103,6 +101,7 @@ public sealed partial class ParseChainEntry
             }
             catch
             {
+                // No browser to hand the link to; the click does nothing.
             }
         }
     }

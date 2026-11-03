@@ -126,6 +126,7 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
     private readonly Action[] _changedHandlers;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsListView))]
     private bool _isCardView = true; // user default: card view
 
     /// <summary>
@@ -482,8 +483,6 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
             DemoPreviewRequested?.Invoke(value);
         }
     }
-
-    partial void OnIsCardViewChanged(bool value) => OnPropertyChanged(nameof(IsListView));
 
     // ── Commands ──────────────────────────────────────────────────────────────
 

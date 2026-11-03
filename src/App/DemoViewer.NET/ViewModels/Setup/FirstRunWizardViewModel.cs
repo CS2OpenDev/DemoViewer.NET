@@ -75,6 +75,17 @@ public sealed partial class FirstRunWizardViewModel : ViewModelBase
 
     /// <summary>The current step index (0..the last step). Bound to the view's step-panel visibility + progress.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsWelcomeStep))]
+    [NotifyPropertyChangedFor(nameof(IsCategoryStep))]
+    [NotifyPropertyChangedFor(nameof(IsFoldersStep))]
+    [NotifyPropertyChangedFor(nameof(IsExtensionsStep))]
+    [NotifyPropertyChangedFor(nameof(IsDoneStep))]
+    [NotifyPropertyChangedFor(nameof(CanGoBack))]
+    [NotifyPropertyChangedFor(nameof(ShowNext))]
+    [NotifyPropertyChangedFor(nameof(ShowFinish))]
+    [NotifyPropertyChangedFor(nameof(ShowSkip))]
+    [NotifyPropertyChangedFor(nameof(StepProgress))]
+    [NotifyPropertyChangedFor(nameof(StepIndicatorText))]
     private int _currentStep;
 
     /// <summary>The selected category card (bound to the ListBox SelectedItem). Applied on Finish.</summary>
@@ -287,21 +298,6 @@ public sealed partial class FirstRunWizardViewModel : ViewModelBase
     /// </summary>
     public void SetStorageProvider(IStorageProvider? provider) => _storageProvider = provider;
 
-    partial void OnCurrentStepChanged(int value)
-    {
-        OnPropertyChanged(nameof(IsWelcomeStep));
-        OnPropertyChanged(nameof(IsCategoryStep));
-        OnPropertyChanged(nameof(IsFoldersStep));
-        OnPropertyChanged(nameof(IsExtensionsStep));
-        OnPropertyChanged(nameof(IsDoneStep));
-        OnPropertyChanged(nameof(CanGoBack));
-        OnPropertyChanged(nameof(ShowNext));
-        OnPropertyChanged(nameof(ShowFinish));
-        OnPropertyChanged(nameof(ShowSkip));
-        OnPropertyChanged(nameof(StepProgress));
-        OnPropertyChanged(nameof(StepIndicatorText));
-    }
-
     partial void OnSelectedCategoryOptionChanged(CategoryOption value)
     {
         OnPropertyChanged(nameof(SelectedCategory));
@@ -443,24 +439,30 @@ public sealed partial class FirstRunWizardViewModel : ViewModelBase
 ///     on/off answer for its CheckBox, seeded from the current override (else the catalog default) and
 ///     written to <c>AppSettings.Features.Overrides[FeatureId]</c> on <see cref="FirstRunWizardViewModel.Finish" />.
 /// </summary>
-public sealed partial class PackOptionViewModel : ObservableObject
+public sealed partial class PackOptionViewModel(
+    string featureId,
+    string title,
+    string copy,
+    bool enabled,
+    IReadOnlyDictionary<UserCategory, bool> defaults,
+    bool hasOverride) : ObservableObject
 {
     /// <summary>The pack's umbrella gate id (e.g. <c>"pack.stratbook"</c>), the persisted override key.</summary>
-    public string FeatureId { get; }
+    public string FeatureId { get; } = featureId;
 
     /// <summary>The pack's catalog label, shown as the question's title.</summary>
-    public string Title { get; }
+    public string Title { get; } = title;
 
     /// <summary>One paragraph of what-it-adds / what-it-costs copy.</summary>
-    public string Copy { get; }
+    public string Copy { get; } = copy;
 
     // The descriptor's own category -> default map, kept so Reseed can answer a later category change
     // without the VM reaching back into FeatureCatalog.
-    private readonly IReadOnlyDictionary<UserCategory, bool> _defaults;
+    private readonly IReadOnlyDictionary<UserCategory, bool> _defaults = defaults;
 
     // True once this question is answered: a persisted override at construction, or an Enabled edit in
     // this session. Reseed is a no-op once true, so it never overwrites either.
-    private bool _answered;
+    private bool _answered = hasOverride;
 
     // Guards OnEnabledChanged while Reseed itself assigns Enabled, so a reseed is not mistaken for the
     // user answering the question.
@@ -468,23 +470,7 @@ public sealed partial class PackOptionViewModel : ObservableObject
 
     /// <summary>The user's answer: on turns the pack on. Bound TwoWay to the step's CheckBox.</summary>
     [ObservableProperty]
-    private bool _enabled;
-
-    public PackOptionViewModel(
-        string featureId,
-        string title,
-        string copy,
-        bool enabled,
-        IReadOnlyDictionary<UserCategory, bool> defaults,
-        bool hasOverride)
-    {
-        FeatureId = featureId;
-        Title = title;
-        Copy = copy;
-        _enabled = enabled;
-        _defaults = defaults;
-        _answered = hasOverride;
-    }
+    private bool _enabled = enabled;
 
     partial void OnEnabledChanged(bool value)
     {

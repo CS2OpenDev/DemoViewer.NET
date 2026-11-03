@@ -87,8 +87,8 @@ public sealed class GraphBreakpointService
     /// <summary>Adds a fully-formed breakpoint (used when loading persisted state).</summary>
     public void Add(GraphBreakpoint bp) => AddInternal(bp);
 
-    /// <summary>Removes the breakpoint with this id; returns true if found.</summary>
-    public bool Remove(int id)
+    /// <summary>Removes the breakpoint with this id, if present.</summary>
+    public void Remove(int id)
     {
         for (int i = 0; i < Breakpoints.Count; i++)
         {
@@ -102,11 +102,9 @@ public sealed class GraphBreakpointService
                 }
 
                 Changed?.Invoke();
-                return true;
+                return;
             }
         }
-
-        return false;
     }
 
     /// <summary>Removes all breakpoints.</summary>

@@ -14,7 +14,7 @@
             <StackPanel Spacing="8">
                 <TextBox x:Name="QueryBox"
                          Text="{Binding Query, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         Watermark="Go to frame, tick, class, .proto…"
+                         PlaceholderText="Go to frame, tick, class, .proto…"
                          FontFamily="Consolas,Menlo,monospace"
                          Background="{DynamicResource PanelBg}" />
                 <ItemsControl ItemsSource="{Binding Results}" MaxHeight="360">

@@ -25,6 +25,7 @@ public partial class DebuggerViewModel : ObservableObject
 
     /// <summary>Frame index captured at the moment the hit fired; -1 when none.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHitFrame))]
     private int _hitFrameIndex = -1;
 
     [ObservableProperty]
@@ -33,6 +34,8 @@ public partial class DebuggerViewModel : ObservableObject
     // ── Add-breakpoint form state (bound from the panel) ──────────────────────
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NewKindUsesInt))]
+    [NotifyPropertyChangedFor(nameof(NewKindUsesString))]
     private BreakpointKind _newKind = BreakpointKind.FrameNumber;
 
     [ObservableProperty]
@@ -42,6 +45,7 @@ public partial class DebuggerViewModel : ObservableObject
     private int _trackerDeltaUnknownCount;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTrackerError))]
     private string _trackerErrorText = "";
 
     /// <summary>
@@ -133,15 +137,6 @@ public partial class DebuggerViewModel : ObservableObject
     [RelayCommand]
     private void Continue() => _service.Continue();
 
-    partial void OnHitFrameIndexChanged(int value)
-        => OnPropertyChanged(nameof(HasHitFrame));
-
-    partial void OnNewKindChanged(BreakpointKind value)
-    {
-        OnPropertyChanged(nameof(NewKindUsesInt));
-        OnPropertyChanged(nameof(NewKindUsesString));
-    }
-
     // ── Internal ─────────────────────────────────────────────────────────────
 
     private void OnStateChanged()
@@ -152,9 +147,6 @@ public partial class DebuggerViewModel : ObservableObject
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(HitFrameText));
     }
-
-    partial void OnTrackerErrorTextChanged(string value)
-        => OnPropertyChanged(nameof(HasTrackerError));
 
     [RelayCommand]
     private void RemoveBreakpoint(Breakpoint? bp)

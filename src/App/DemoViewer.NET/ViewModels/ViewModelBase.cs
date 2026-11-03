@@ -7,6 +7,4 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace DemoViewer.NET.ViewModels;
 
 /// <summary>View model base.</summary>
-public abstract class ViewModelBase : ObservableObject
-{
-}
+public abstract class ViewModelBase : ObservableObject;

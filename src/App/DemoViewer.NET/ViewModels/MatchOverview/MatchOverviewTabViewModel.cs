@@ -56,7 +56,7 @@ public sealed record OverviewStatRow(
 ///     created ONCE in the tab view-model's constructor and only ever have their flags flipped. The strip
 ///     must never add or remove rows, because that is exactly the layout jump this page exists to avoid.
 /// </summary>
-public sealed partial class LoadStageViewModel : ViewModelBase
+public sealed partial class LoadStageViewModel(string label) : ViewModelBase
 {
     [ObservableProperty]
     private bool _isActive;
@@ -64,10 +64,8 @@ public sealed partial class LoadStageViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isDone;
 
-    public LoadStageViewModel(string label) => Label = label;
-
     /// <summary>Display label ("Parsing", "Enriching", "Analysing").</summary>
-    public string Label { get; }
+    public string Label { get; } = label;
 }
 
 /// <summary>
@@ -115,7 +113,6 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     private const double TwoColumnBreakpoint = 1000;
 
     private readonly Action<string>? _computeFullStats;
-    private Action<string>? _errorReportOpener;
     private readonly Func<string, string, string, int, int, bool>? _isClipStaged;
 
     private readonly Func<bool>? _isVerifyPresent;
@@ -201,6 +198,8 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     // The demo's full local path, for the hero band's copy button. Deliberately NOT SubjectKey: that key is
     // opaque and degrades to a bare file name on the browser host, which is not a path to hand a user.
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFilePath))]
+    [NotifyPropertyChangedFor(nameof(CanReportErrors))]
     private string _filePath = string.Empty;
 
     /// <summary>
@@ -222,6 +221,8 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     ///     assert a confident zero.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CtRosterCountDisplay))]
+    [NotifyPropertyChangedFor(nameof(TRosterCountDisplay))]
     private bool _hasRoster;
 
     /// <summary>True once the authoritative score has landed: the score plate's <c>.pending</c> gate.</summary>
@@ -263,6 +264,10 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     private bool _isLoading;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MatchColumnSpan))]
+    [NotifyPropertyChangedFor(nameof(MomentsColumn))]
+    [NotifyPropertyChangedFor(nameof(MomentsRow))]
+    [NotifyPropertyChangedFor(nameof(MomentsColumnSpan))]
     private bool _isNarrow;
 
     /// <summary>
@@ -281,6 +286,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     ///     one-way trip away from the loaded demo.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanReturnToLive))]
     private string? _liveDemoName;
 
     [ObservableProperty]
@@ -349,6 +355,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     private double _stageCeiling;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CompletenessLabel))]
     private string _statusText = string.Empty;
 
     /// <summary>Rounds won by the T SIDE across the whole match (both teams' T halves summed).</summary>
@@ -443,10 +450,10 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     /// </summary>
     public Action<string>? ErrorReportOpener
     {
-        get => _errorReportOpener;
+        get;
         set
         {
-            _errorReportOpener = value;
+            field = value;
             OnPropertyChanged(nameof(CanReportErrors));
         }
     }
@@ -671,10 +678,12 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
 
     /// <summary>When the match was played, local time, or empty while the demo has no time.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MatchDateButtonText))]
     private string _matchDateText = string.Empty;
 
     /// <summary>True when <see cref="MatchDateText" /> is a guess (the file's write time).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MatchDateButtonText))]
     private bool _isMatchDateApproximate;
 
     /// <summary>True when the user set the match time, which is what "Clear" undoes.</summary>
@@ -700,10 +709,6 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     /// <summary>The hero button's text: the time the page shows, else the prompt to set one.</summary>
     public string MatchDateButtonText => MatchDateText.Length == 0 ? "Set match date"
         : IsMatchDateApproximate ? $"~ {MatchDateText}" : MatchDateText;
-
-    partial void OnMatchDateTextChanged(string value) => OnPropertyChanged(nameof(MatchDateButtonText));
-
-    partial void OnIsMatchDateApproximateChanged(bool value) => OnPropertyChanged(nameof(MatchDateButtonText));
 
     /// <summary>Gates the cached render's primary CTA: the one that turns a preview into a real open.</summary>
     public bool CanOpenDemo =>
@@ -731,7 +736,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     ///     key never matches: an unkeyed caller is a caller that cannot prove which demo it is talking about,
     ///     and this page's whole contract is that it does not guess.
     /// </summary>
-    public bool IsSubject(string? subjectKey) =>
+    private bool IsSubject(string? subjectKey) =>
         subjectKey is not null
         && SubjectKey is not null
         && string.Equals(subjectKey, SubjectKey, StringComparison.OrdinalIgnoreCase);
@@ -809,24 +814,8 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         OnPropertyChanged(nameof(HasHighlightsAction));
     }
 
-    partial void OnIsNarrowChanged(bool value)
-    {
-        OnPropertyChanged(nameof(MatchColumnSpan));
-        OnPropertyChanged(nameof(MomentsColumn));
-        OnPropertyChanged(nameof(MomentsRow));
-        OnPropertyChanged(nameof(MomentsColumnSpan));
-    }
-
     /// <summary>Sets the one/two-column layout from the tab's measured width (called by the view).</summary>
-    public void SetViewportWidth(double width) => IsNarrow = width > 0 && width < TwoColumnBreakpoint;
-
-    partial void OnLiveDemoNameChanged(string? value) => OnPropertyChanged(nameof(CanReturnToLive));
-
-    partial void OnFilePathChanged(string value)
-    {
-        OnPropertyChanged(nameof(HasFilePath));
-        OnPropertyChanged(nameof(CanReportErrors));
-    }
+    public void SetViewportWidth(double width) => IsNarrow = width is > 0 and < TwoColumnBreakpoint;
 
     /// <summary>
     ///     Step 1: called the instant an open begins, BEFORE the parse: shows the file name and whatever cheap
@@ -1331,7 +1320,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
 
         RoundCountDisplay = total is { } r && _analysisRounds == r
             ? _analysisRounds.ToString(CultureInfo.InvariantCulture)
-            : total is { } fallback && fallback > 0
+            : total is { } fallback and > 0
                 ? fallback.ToString(CultureInfo.InvariantCulture) // the score itself accounts for every round
                 : Placeholder;
     }
@@ -1699,18 +1688,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         RaiseCtaChanged();
     }
 
-    // The roster header counts are derived from HasRoster (see CtRosterCountDisplay), so they have to be
-    // re-raised whenever it flips, in both directions: the roster fill sets it, ResetValues takes it back
-    // to the placeholder.
-    partial void OnHasRosterChanged(bool value)
-    {
-        OnPropertyChanged(nameof(CtRosterCountDisplay));
-        OnPropertyChanged(nameof(TRosterCountDisplay));
-    }
-
     // The chip's label follows the live status line while a load is running, and its dot follows IsLoading.
-    partial void OnStatusTextChanged(string value) => OnPropertyChanged(nameof(CompletenessLabel));
-
     partial void OnIsLoadingChanged(bool value) => RaiseCompletenessChanged();
 
     partial void OnCompletenessChanged(OverviewCompleteness value) => RaiseCompletenessChanged();

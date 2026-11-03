@@ -69,13 +69,11 @@ public enum OverviewCompleteness
 public sealed partial class OverviewHighlightGroup(string playerName, int team, bool isExpanded = false)
     : ObservableObject
 {
-    private bool _isExpanded = isExpanded;
-
     /// <summary>Sanitized display name: hostile bidi/combining-mark names crash Avalonia's wrap splitter.</summary>
     public string PlayerName { get; } = playerName;
 
     /// <summary>2 = T, 3 = CT (parser convention).</summary>
-    public int Team { get; } = team;
+    private int Team { get; } = team;
 
     /// <summary>Drives the CT variant of the shared team dot.</summary>
     public bool IsCt => Team == 3;
@@ -89,9 +87,9 @@ public sealed partial class OverviewHighlightGroup(string playerName, int team, 
     /// </summary>
     public bool IsExpanded
     {
-        get => _isExpanded;
-        set => SetProperty(ref _isExpanded, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = isExpanded;
 
     /// <summary>Header count, e.g. "4".</summary>
     public string CountDisplay => Highlights.Count.ToString(CultureInfo.InvariantCulture);
@@ -168,7 +166,7 @@ public sealed partial class OverviewHighlightRow : ViewModelBase
     public string RawPlayerName { get; }
 
     public int Tick { get; }
-    public int RoundNumber { get; }
+    private int RoundNumber { get; }
     public string TypeKey { get; }
 
     /// <summary>

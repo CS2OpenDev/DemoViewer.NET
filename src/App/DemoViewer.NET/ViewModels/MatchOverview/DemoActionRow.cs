@@ -26,7 +26,7 @@ public sealed partial class DemoActionRow : ObservableObject
     }
 
     /// <summary>The contributed action.</summary>
-    public DemoAction Action { get; }
+    private DemoAction Action { get; }
 
     /// <summary>The button text.</summary>
     public string Label => Action.Label;

@@ -30,14 +30,6 @@ public sealed partial class ClassBrowserViewModel : ObservableObject
     /// <summary>Fired when the class filter changes (null = show all classes).</summary>
     public event Action<string?>? ClassFilterChanged;
 
-    /// <summary>Clear.</summary>
-    public void Clear()
-    {
-        _allItems = [];
-        SelectedClass = null;
-        Classes.Clear();
-    }
-
     /// <summary>Repopulates the rail from the tracker's class registry (sorted by name).</summary>
     public void Rebuild(EntityTracker? tracker)
     {

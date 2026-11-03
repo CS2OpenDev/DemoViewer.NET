@@ -561,7 +561,7 @@ public class App : Application
         // The file mirror is a launch-time decision (WriteLogFile at startup); caps are read live.
         // TryCreate no-ops on WASM (no filesystem).
         DiagnosticsSettings d0 = monitor.CurrentValue.Diagnostics;
-        DiagnosticsFileLog? file = d0.EnableInternalLogging && d0.WriteLogFile
+        DiagnosticsFileLog? file = d0 is { EnableInternalLogging: true, WriteLogFile: true }
             ? DiagnosticsFileLog.TryCreate(
                 () => monitor.CurrentValue.Diagnostics.FileMaxSizeKilobytes,
                 () => monitor.CurrentValue.Diagnostics.FileMaxCount)
@@ -662,7 +662,7 @@ public class App : Application
     ///     The shell's missing-colours notice, re-checked whenever the themes reload or the selected theme
     ///     changes. Desktop only: the browser head has no theme files.
     /// </summary>
-    internal static void WireThemeWarning(IServiceProvider services, MainViewModel shell)
+    private static void WireThemeWarning(IServiceProvider services, MainViewModel shell)
     {
         if (!ThemeEditorLauncher.IsSupported)
         {
@@ -755,7 +755,7 @@ public class App : Application
     ///     join the <see cref="FeatureCatalog" /> here, once; each pack then registers its services and,
     ///     in <see cref="BuildRegistry" />, contributes its modules.
     /// </summary>
-    internal static ServiceProvider BuildServices(IWindowService windowService, IReadOnlyList<IExtension> packs)
+    private static ServiceProvider BuildServices(IWindowService windowService, IReadOnlyList<IExtension> packs)
     {
         ArgumentNullException.ThrowIfNull(packs);
         FeatureCatalog.Compose(packs);
@@ -1343,15 +1343,15 @@ public class App : Application
             RecordPassRunner? runner = null;
             Lazy<IReadOnlyList<(IExtension Pack, Func<IRecordPass> Factory)>> contributed = new(() =>
             {
-                IReadOnlyList<PackContributions> packs = sp.GetRequiredService<PackContributionSet>().Packs;
+                IReadOnlyList<PackContributions> contributions = sp.GetRequiredService<PackContributionSet>().Packs;
 
                 DemoDataOwner? OwnerOf(string id) =>
-                    packs.FirstOrDefault(c => string.Equals(c.Pack.Id, id, StringComparison.Ordinal)) is { } c
-                        ? new DemoDataOwner(c.Context.Data, () => features?.IsEnabled(c.Pack.FeatureId) ?? true)
+                    contributions.FirstOrDefault(c => string.Equals(c.Pack.Id, id, StringComparison.Ordinal)) is { } hit
+                        ? new DemoDataOwner(hit.Context.Data, () => features?.IsEnabled(hit.Pack.FeatureId) ?? true)
                         : null;
 
                 // A named facet's write lands in its extension's own store, which the cache never hears of.
-                foreach (string owner in packs.SelectMany(c => c.RecordPasses)
+                foreach (string owner in contributions.SelectMany(c => c.RecordPasses)
                              .SelectMany(r => ExtensionRecordPassHost.DataOwnersOf(r.DependsOn))
                              .Distinct(StringComparer.Ordinal))
                 {
@@ -1363,7 +1363,7 @@ public class App : Application
 
                 return
                 [
-                    .. packs.SelectMany(c => c.RecordPasses.Select(r =>
+                    .. contributions.SelectMany(c => c.RecordPasses.Select(r =>
                         (c.Pack,
                             ExtensionRecordPassHost.Cached(r,
                                 () => HostLibrary.For(cache, queue, sp.GetRequiredService<AnalysisFacts>), OwnerOf))))
@@ -1489,7 +1489,7 @@ public class App : Application
         // passed so BuildRegistry can DI-resolve module deps (the Highlights cache/scanner) + defer the
         // shell-bound delegates (never eagerly resolving MainViewModel here, which would recurse through
         // ModuleRegistry).
-        services.AddSingleton(sp => BuildRegistry(sp, packs));
+        services.AddSingleton(sp => BuildRegistry(sp));
 
         // The shell, constructed by an explicit factory so DI does not auto-fill every optional ctor param:
         // only the deps it needs are supplied; the rest default. The feature gate is
@@ -1615,7 +1615,7 @@ public class App : Application
     // real 2D pilot, then asks each pack for its modules. Both hosts use this path (only first-party
     // modules on WASM). This is now invoked exactly once, by the DI factory that HOLDS the resulting
     // registry (see BuildServices).
-    private static ModuleRegistry BuildRegistry(IServiceProvider sp, IReadOnlyList<IExtension> packs)
+    private static ModuleRegistry BuildRegistry(IServiceProvider sp)
     {
         IOptionsMonitor<AppSettings>? settings = sp.GetService<IOptionsMonitor<AppSettings>>();
         ModuleRegistry registry = new();
@@ -1640,16 +1640,8 @@ public class App : Application
             c => workbenchGate?.IsEnabled(c.FeatureId) ?? true));
 
         // The Highlights browser. Registered on both hosts (WASM degrades:
-        // the cache/scan are absent). The VM is delegate-injected (Library precedent): the
-        // cache store / scanner / settings are DI singletons resolved now (no MainViewModel dependency, so
-        // no ModuleRegistry recursion); the shell-bound behaviours (open-in-workspace + Live Sync verify)
+        // the cache/scan are absent). The shell-bound behaviours (open-in-workspace + Live Sync verify)
         // are LAZY closures over the provider, invoked only at tab-activation, long after the shell exists.
-        DemoCacheStore hlStore =
-            sp.GetRequiredService<DemoCacheStore>();
-        HighlightScanService hlScanner =
-            sp.GetRequiredService<HighlightScanService>();
-        SettingsService hlSettingsService = sp.GetRequiredService<SettingsService>();
-
         // The tab VM is a container singleton (see BuildServices) so Match Overview's [ + ] and the tab
         // itself share ONE tray. Still resolved lazily. The module only invokes this on first activation.
         registry.Register(new HighlightsModule(sp.GetRequiredService<HighlightsTabViewModel>));

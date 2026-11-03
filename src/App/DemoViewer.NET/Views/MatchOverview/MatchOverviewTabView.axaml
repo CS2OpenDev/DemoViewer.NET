@@ -420,7 +420,7 @@
                                                 <StackPanel Spacing="8" Width="240">
                                                     <TextBlock Text="Match date (local time)" Classes="eyebrow" />
                                                     <TextBox Text="{Binding MatchDateInput, Mode=TwoWay}"
-                                                             Watermark="yyyy-MM-dd HH:mm" />
+                                                             PlaceholderText="yyyy-MM-dd HH:mm" />
                                                     <TextBlock Text="{Binding MatchDateError}"
                                                                IsVisible="{Binding MatchDateError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                                Foreground="{DynamicResource TextMid}" FontSize="11" />

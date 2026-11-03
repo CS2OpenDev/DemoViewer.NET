@@ -82,7 +82,7 @@ public sealed class TableRowViewModel(
     public int PlayerSlot { get; } = playerSlot;
 
     IReadOnlyList<ITableCell> ITableRow.Cells => Cells;
-    string? ITableRow.FilterAnnotation => FilterAnnotation;
+    string ITableRow.FilterAnnotation => FilterAnnotation;
 
     string ITableRow.Label => PlayerName;
 }

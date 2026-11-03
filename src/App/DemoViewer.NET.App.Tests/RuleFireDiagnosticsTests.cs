@@ -87,7 +87,7 @@ public class RuleFireDiagnosticsTests
             await Assert.That(run.Snapshots).IsNotNull();
 
             (List<RuleDiagnostic> diags, List<RuleFireStat> fireStats) =
-                AnalysisViewModel.ComputeRuleDiagnostics(rules, parsed, run.Build, run.Snapshots!);
+                AnalysisViewModel.ComputeRuleDiagnostics(rules, run.Build, run.Snapshots!);
 
             // The never-fired lint row, exactly one row for the probe rule (the absent-event
             // warning must NOT also fire: player_death is present in the demo).

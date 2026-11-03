@@ -97,7 +97,7 @@ public sealed class ThemeRegistry
         RegisterCore(new ThemeDefinition(id, displayName, baseVariant, tokens), source, null, []);
 
     /// <summary>Registers a <see cref="ThemeDefinition" /> (parsed JSON, a built-in or a user drop-in).</summary>
-    public Theme Register(ThemeDefinition def, ThemeSource source) => RegisterCore(def, source, null, []);
+    private void Register(ThemeDefinition def, ThemeSource source) => RegisterCore(def, source, null, []);
 
     private Theme RegisterCore(ThemeDefinition def, ThemeSource source, string? filePath,
         IReadOnlyList<string> badValues)
@@ -208,7 +208,7 @@ public sealed class ThemeRegistry
                 continue;
             }
 
-            ThemeParseResult parsed = ThemeJson.Parse(json, file);
+            ThemeParseResult parsed = ThemeJson.Parse(json);
             if (parsed.Definition is not { } def)
             {
                 _problems.Add(new ThemeLoadProblem(name, parsed.Error ?? "It is not a theme file."));

@@ -78,18 +78,13 @@ public sealed partial class GraphNodeViewModel(string name, bool isRoot = false,
     /// </summary>
     public GraphNodeKey NodeKey { get; init; } = GraphNodeKey.ForGameScope(name);
 
-    // The wire form, materialized once. IGraphNode.Key is read per node and twice per edge by the
-    // breakpoint-marker refresh, and once per edge by the input-event scan, so re-serializing the
-    // struct on each access was a string allocation per probe across hundreds of nodes.
-    private string? _keyText;
-
     /// <summary>
     ///     The wire form of <see cref="NodeKey" />, materialized once. Call sites holding the concrete
     ///     type use this rather than <c>NodeKey.ToString()</c>: the breakpoint-marker refresh probes it
     ///     once per node and twice per edge, which is a four-figure count of string allocations per
     ///     pass once the graph carries per-player nodes.
     /// </summary>
-    public string KeyText => _keyText ??= NodeKey.ToString();
+    public string KeyText => field ??= NodeKey.ToString();
 
     string IGraphNode.Key => KeyText;
 

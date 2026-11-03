@@ -39,7 +39,7 @@ public class StratEditorRoomTests
         {
             StratBookLayout layout = new() { IsListCollapsed = collapsed };
             using StratBookTabViewModel strats = Seeded(layout);
-            HubTabViewModel hub = new(HostIds.StratBookHub, "Strat Book", "STRAT BOOK") { IsRailCollapsed = collapsed };
+            HubTabViewModel hub = new("Strat Book", "STRAT BOOK") { IsRailCollapsed = collapsed };
             hub.Sections.Reconcile([
                 new WorkspaceTabDescriptor
                 {

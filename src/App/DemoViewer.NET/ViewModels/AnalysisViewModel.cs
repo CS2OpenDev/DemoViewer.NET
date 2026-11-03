@@ -98,14 +98,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     private IReadOnlyList<string> _availableConditionIdentifiers = [];
     private int _breakpointPlayerSlot = GraphFilterViewModel.AllPlayersSlot;
 
-    // ── Chain summary strip ───────────────────────────────────────────────────
-
-    private IReadOnlyList<AnalysisChainSummaryViewModel> _chainSummaries = [];
-
-    // ── Current message card ──────────────────────────────────────────────────
-
-    private IReadOnlyList<HarvestCardViewModel> _currentCardList = [];
-
     // Frame-tracking for cross-navigation
     private int _currentFrameIndex = -1;
 
@@ -129,10 +121,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
     private string? _demoKey;
     private OpenSeed? _openSeed;
-
-    // Diagnostics-pillar logger (v0.6.0: the failure surfaces show clean text; this carries the
-    // real exception). Lazy: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
 
     private List<EntityCheckRowViewModel.Choice> _editProviderOptions = [];
     private IReadOnlySet<string> _editSlotFields = new HashSet<string>();
@@ -211,8 +199,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
     // ── Graph visualization ───────────────────────────────────────────────────
 
-    private IReadOnlyList<GraphNodeViewModel> _graphNodes = [];
-
     private GraphViewModel _graphViewModel = new();
 
     /// <summary>Whether any autocomplete suggestion is currently offered (drives the list's visibility).</summary>
@@ -277,8 +263,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // ── Evaluation data ───────────────────────────────────────────────────────
 
     private SnapshotTable? _messageSnapshots; // [globalMsgIdx, nodeIdx]
-
-    private IReadOnlyList<PlayerTableViewModel> _playerTables = [];
 
     // The chain selection currently RENDERED (vs Filter.SelectedChainKeys, the live UI state). Lets
     // ApplyFilters tell a chain change (needs a relayout swap) from a player-only change. Empty =
@@ -383,7 +367,9 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         GraphBreakpoints.HitChanged += OnBreakpointHitChanged;
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.Analysis");
+    // Diagnostics-pillar logger (v0.6.0: the failure surfaces show clean text; this carries the
+    // real exception). Lazy: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.Analysis");
 
     // ── Graph breakpoints (debugger affordance) ───────────────────────────────
 
@@ -456,29 +442,21 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     /// <summary>Builds a display card for the given message. Set by MainViewModel.</summary>
     public Func<NetMessage, HarvestCardViewModel>? CardFactory { get; set; }
 
-    /// <summary>Chain summaries.</summary>
-
-    public IReadOnlyList<AnalysisChainSummaryViewModel> ChainSummaries
-    {
-        get => _chainSummaries;
-        private set => SetProperty(ref _chainSummaries, value);
-    }
-
     /// <summary>Current card list.</summary>
 
     public IReadOnlyList<HarvestCardViewModel> CurrentCardList
     {
-        get => _currentCardList;
-        private set => SetProperty(ref _currentCardList, value);
-    }
+        get;
+        private set => SetProperty(ref field, value);
+    } = [];
 
     /// <summary>Graph nodes.</summary>
 
-    public IReadOnlyList<GraphNodeViewModel> GraphNodes
+    private IReadOnlyList<GraphNodeViewModel> GraphNodes
     {
-        get => _graphNodes;
-        private set => SetProperty(ref _graphNodes, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = [];
 
     /// <summary>Graph view model.</summary>
 
@@ -503,11 +481,11 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
     /// <summary>Player tables.</summary>
 
-    public IReadOnlyList<PlayerTableViewModel> PlayerTables
+    private IReadOnlyList<PlayerTableViewModel> PlayerTables
     {
-        get => _playerTables;
-        private set => SetProperty(ref _playerTables, value);
-    }
+        get;
+        set => SetProperty(ref field, value);
+    } = [];
 
     /// <summary>
     ///     The resolved shipped-rules directory. Surfaced read-only for the Diagnostics
@@ -586,9 +564,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     /// <summary>The legend of subjects in scope for the entity rows (shown under the rows).</summary>
     public string EditingScopeLegend { get; private set; } = "";
 
-    /// <summary>The input events a node could scope rows against (for a future selector); empty for an edge.</summary>
-    public IReadOnlyList<string> EditingTriggerEvents { get; private set; } = [];
-
     /// <summary>
     ///     Whether the node-picker affordance applies to the current edit: true only when editing a
     ///     NODE condition (picking a graph node makes no sense for an edge's event-field condition).
@@ -662,7 +637,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         RuleFireStats = [];
         IsDiagnosticsOpen = false;
         GraphNodes = [];
-        ChainSummaries = [];
         CurrentCardList = [];
         HasCurrentCard = false;
         CurrentMessageIndex = -1;
@@ -752,8 +726,12 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         // One live evaluation at a time: a new run (reload, second demo, re-run) cancels the
         // in-flight one. The canceled run unwinds through its own OperationCanceledException
         // handler below; its cleared-at-entry state is exactly the clean "not analyzed" state.
-        _runCts?.Cancel();
-        _runCts?.Dispose();
+        if (_runCts is not null)
+        {
+            await _runCts.CancelAsync();
+            _runCts.Dispose();
+        }
+
         _runCts = new CancellationTokenSource();
         CancellationToken runToken = _runCts.Token;
 
@@ -767,7 +745,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         _demoFrames = demo.Frames; // backs the entity-read cache replay
 
         GraphNodes = [];
-        ChainSummaries = [];
         CurrentCardList = [];
         HasCurrentCard = false;
         CurrentMessageIndex = -1;
@@ -994,11 +971,10 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 .ToList();
 
             GraphNodes = nodeVms;
-            ChainSummaries = summaries;
             TotalMessages = result.Messages.Count;
 
             // ── Populate the graph filter (chips + players) ───────────────────
-            PopulateFilter(build, result, summaries);
+            PopulateFilter(result, summaries);
 
             int playerCount = result.MaterializedPlayers.Count;
             StatusText = result.Messages.Count == 0
@@ -1063,7 +1039,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 {
                     try
                     {
-                        File.WriteAllText(Path.Combine(dumpDir, "analysis-graph-error.txt"), ex.ToString());
+                        await File.WriteAllTextAsync(Path.Combine(dumpDir, "analysis-graph-error.txt"), ex.ToString());
                     }
                     catch
                     {
@@ -1155,7 +1131,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // ── SeekToMessage ─────────────────────────────────────────────────────────
 
     /// <summary>Seek to message.</summary>
-    public void SeekToMessage(int index) => SeekToMessageCore(index, true);
+    private void SeekToMessage(int index) => SeekToMessageCore(index, true);
 
     // ── Config-driven graph builder ─────────────────────────────────────
 
@@ -1168,7 +1144,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         BuildResult build, EvaluationResult result)
     {
         (List<RuleDiagnostic> diags, List<RuleFireStat> fireStats) =
-            ComputeRuleDiagnostics(loadedRules, demo, build, result);
+            ComputeRuleDiagnostics(loadedRules, build, result);
         RuleDiagnostics = diags;
         RuleFireStats = fireStats;
     }
@@ -1180,8 +1156,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     ///     engine thread without booting the UI.
     /// </summary>
     internal static (List<RuleDiagnostic> Diagnostics, List<RuleFireStat> FireStats)
-        ComputeRuleDiagnostics(RuleConfigLoadResult loadedRules, ParsedDemo demo,
-            BuildResult build, EvaluationResult result)
+        ComputeRuleDiagnostics(RuleConfigLoadResult loadedRules, BuildResult build, EvaluationResult result)
     {
         List<RuleDiagnostic> diags = new();
         List<RuleFireStat> fireStats = new();
@@ -1366,21 +1341,21 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     ///     Hands the last run to the open's visit as its rules run, when that run was planned to cover the
-    ///     demo's stale stamped outputs. Called right before the visit starts; true when the visit will read it.
+    ///     demo's stale stamped outputs. Called right before the visit starts.
     /// </summary>
     /// <param name="parsed">The open's parse.</param>
     /// <param name="path">The open demo's file.</param>
-    public bool SeedOpenVisit(ParsedDemo parsed, string path)
+    public void SeedOpenVisit(ParsedDemo parsed, string path)
     {
         OpenSeed? seed = _openSeed;
         _openSeed = null;
         if (seed is null || !ReferenceEquals(seed.Demo, parsed)
                          || !string.Equals(seed.Path, path, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return;
         }
 
-        return MergedRules()?.Seed(parsed, path, seed.Plan, seed.Run, seed.Collected) ?? false;
+        MergedRules()?.Seed(parsed, path, seed.Plan, seed.Run, seed.Collected);
     }
 
     private sealed record OpenSeed(
@@ -1513,7 +1488,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         Dictionary<string, int> seen = new(StringComparer.Ordinal);
         foreach (StateNode node in player.Nodes)
         {
-            int occurrence = seen.TryGetValue(node.Name, out int previous) ? previous : 0;
+            int occurrence = seen.GetValueOrDefault(node.Name);
             seen[node.Name] = occurrence + 1;
             yield return (node,
                 GraphNodeKey.ForPlayer(player.TemplateIndex, player.PlayerSlot, occurrence, node.Name));
@@ -1875,16 +1850,14 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void PopulateFilter(
-        BuildResult build, EvaluationResult result,
-        IReadOnlyList<AnalysisChainSummaryViewModel> summaries)
+    private void PopulateFilter(EvaluationResult result, IReadOnlyList<AnalysisChainSummaryViewModel> summaries)
     {
         // Chains carry no scope any more. The game-scope signal was BuildResult.NodeChains, which
         // was always null and is gone in 0.13, so every chip resolved PerPlayer regardless
         // (CS2DemoKit#50). Carrying an enum whose other value was unreachable made the join look
         // conditional when it never was.
 
-        // One chip per chain that produced events. ChainSummaries also include auto-activate
+        // One chip per chain that produced events. The summaries also include auto-activate
         // logic-rule nodes (the timeline records every rising conjunction/disjunction), so keep
         // only the chain-satisfaction conjunctions: named with the "_chain_" prefix at both the
         // game (RuleChainBuilder:408) and per-player (:646) sites. This keeps chips actionable
@@ -2305,9 +2278,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             // the scope-aware rows below author (includeEntityReads: false).
             _activeConditionIdentifiers = inputs.Count == 0
                 ? _availableConditionIdentifiers
-                : _availableConditionIdentifiers
-                    .Concat(NodeBreakpointConditions.InputFieldIdentifiers(inputs, _perPlayerProviders, false))
-                    .ToList();
+                : [.. _availableConditionIdentifiers
+                    .Concat(NodeBreakpointConditions.InputFieldIdentifiers(inputs, _perPlayerProviders, false))];
             EditingValueHint = NodeValueHint(kind, inputs);
             SetupStructuredScope(inputs, null, target.Find(GraphBreakpoints)?.Condition);
         }
@@ -2476,7 +2448,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             _editSlotPrefix = "";
             _editSlotFields = SlotFieldsOf(edge.Fields);
             EditingTriggerEvent = null;
-            EditingTriggerEvents = [];
             EditingRowsApplicable = true;
         }
         else if (nodeInputs is { Count: > 0 })
@@ -2485,7 +2456,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             _editSlotPrefix = $"input.{trigger}.";
             _editSlotFields = SlotFieldsOf(nodeInputs[trigger].Fields);
             EditingTriggerEvent = trigger;
-            EditingTriggerEvents = nodeInputs.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
             EditingRowsApplicable = true;
         }
         else
@@ -2493,7 +2463,6 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             _editSlotPrefix = "";
             _editSlotFields = new HashSet<string>();
             EditingTriggerEvent = null;
-            EditingTriggerEvents = [];
             EditingRowsApplicable = false; // no event to anchor entity reads against → free text only
         }
 

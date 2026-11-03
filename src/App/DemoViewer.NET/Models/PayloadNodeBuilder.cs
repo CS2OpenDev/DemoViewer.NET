@@ -40,7 +40,7 @@ public static class PayloadNodeBuilder
         };
 
     /// <summary>Build.</summary>
-    public static IReadOnlyList<PayloadNode> Build(IMessage? message)
+    private static List<PayloadNode> Build(IMessage? message)
     {
         // Undecoded payloads (svc_UserCmds) carry raw bytes, not a field graph: decode the real
         // message before reflecting over its fields. This is the inspector drill-in path; the field
@@ -72,7 +72,7 @@ public static class PayloadNodeBuilder
     /// </summary>
     public static IReadOnlyList<PayloadNode> Build(IMessage? message, byte[]? rawBytes)
     {
-        IReadOnlyList<PayloadNode> nodes = Build(message);
+        List<PayloadNode> nodes = Build(message);
         if (rawBytes is not { Length: > 0 } || nodes.Count == 0)
         {
             return nodes;
@@ -117,7 +117,7 @@ public static class PayloadNodeBuilder
         foreach (DownstreamUtilities.FieldSpan span in spans)
         {
             int fn = span.FieldNumber;
-            int idx = fieldIdx.TryGetValue(fn, out int ci) ? ci : 0;
+            int idx = fieldIdx.GetValueOrDefault(fn);
             fieldIdx[fn] = idx + 1;
 
             string name = repeatCount[fn] > 1 ? $"#{fn}[{idx}]" : $"#{fn}";
@@ -452,7 +452,7 @@ public static class PayloadNodeBuilder
     }
 
     private static Func<ByteString, IMessage?> Direct(MessageParser parser) =>
-        bs => parser.ParseFrom(bs);
+        parser.ParseFrom;
 
     private static object? GetDefaultValue(FieldDescriptor field) => field.FieldType switch
     {
@@ -634,7 +634,7 @@ public static class PayloadNodeBuilder
         foreach (DownstreamUtilities.FieldSpan span in spans)
         {
             int fn = span.FieldNumber;
-            int idx = fieldIdx.TryGetValue(fn, out int ci) ? ci : 0;
+            int idx = fieldIdx.GetValueOrDefault(fn);
             fieldIdx[fn] = idx + 1;
 
             string name = repeatCount[fn] > 1 ? $"#{fn}[{idx}]" : $"#{fn}";

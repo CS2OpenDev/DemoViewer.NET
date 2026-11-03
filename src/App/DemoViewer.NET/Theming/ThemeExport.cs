@@ -45,7 +45,7 @@ public static class ThemeExport
         ("GraphCanvasBg", "Analysis graph")
     ];
 
-    private static readonly Lazy<IReadOnlyList<ThemeSection>> _sections = new(() => BuildSections());
+    private static readonly Lazy<IReadOnlyList<ThemeSection>> _sections = new(BuildSections);
 
     private const int KeyWidth = 31;
     private const int ValueWidth = 13;

@@ -125,10 +125,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
     private bool _showRawHex = true;
 
     /// <summary>Initializes a new <see cref="ParserTabViewModel" /> instance.</summary>
-    public ParserTabViewModel(FrameNavigationViewModel navigation)
+    public ParserTabViewModel()
     {
-        Navigation = navigation;
-
         HexViewRaw = new HarvestHexViewModel();
         HexViewDecompressed = new HarvestHexViewModel { PlaceholderText = "Select a frame to view decoded payload" };
 
@@ -190,13 +188,10 @@ public sealed partial class ParserTabViewModel : ObservableObject
     public HarvestHexViewModel HexViewRaw { get; }
 
     /// <summary>Exposes the normalized-view flag for the still-on-shell tick-group card build.</summary>
-    internal bool IsNormalizedView { get; private set; }
+    private bool IsNormalizedView { get; set; }
 
     /// <summary>Message cards.</summary>
     public ObservableCollection<HarvestCardViewModel> MessageCards { get; } = [];
-
-    /// <summary>Navigation.</summary>
-    public FrameNavigationViewModel Navigation { get; }
 
     /// <summary>
     ///     Notifies the shell that the user selected a new frame. The shell handler
@@ -362,7 +357,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
     ///     <paramref name="demoBytes" />. Returns null if <paramref name="demoBytes" />
     ///     is unavailable or the frame has no payload.
     /// </summary>
-    internal static byte[]? GetDecompressedPayload(DemoFrame frame, byte[]? demoBytes)
+    private static byte[]? GetDecompressedPayload(DemoFrame frame, byte[]? demoBytes)
     {
         if (demoBytes is null || frame.PayloadLength <= 0)
         {
@@ -376,7 +371,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
     ///     Returns the raw proto bytes of <paramref name="msg" /> sliced from
     ///     <paramref name="decompressedPayload" />, or null if position info is missing.
     /// </summary>
-    internal static byte[]? GetMsgBytes(NetMessage msg, byte[]? decompressedPayload)
+    private static byte[]? GetMsgBytes(NetMessage msg, byte[]? decompressedPayload)
     {
         if (decompressedPayload is null)
         {
@@ -396,7 +391,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         return decompressedPayload.AsSpan(start, len).ToArray();
     }
 
-    internal static int GetNetMessageTypeId(string typeName)
+    private static int GetNetMessageTypeId(string typeName)
     {
         foreach (NET_Messages val in Enum.GetValues<NET_Messages>())
         {
@@ -429,27 +424,9 @@ public sealed partial class ParserTabViewModel : ObservableObject
     internal static bool IsPacketFrame(DemoFrame frame) =>
         frame.Command is "DEM_Packet" or "DEM_SignonPacket" or "DEM_FullPacket";
 
-    // ── Static helpers (3.5a) ─────────────────────────────────────────────────
-
-    /// <summary>
-    ///     Builds the SelectionInfo string for a frame-level RAW highlight.
-    ///     Includes a Snappy note for compressed frames so users know to check Frame Details.
-    /// </summary>
-    internal static string RawFrameHighlightInfo(DemoFrame frame)
-    {
-        string info =
-            $"Frame: {frame.Command}  tick {frame.GameTick ?? frame.ServerTick}  ({frame.RawLength} bytes at 0x{frame.RawStart:X})";
-        if (frame.IsCompressed)
-        {
-            info += "  •  Snappy-compressed — switch to Frame Details for decompressed bytes";
-        }
-
-        return info;
-    }
-
     // ── Parse-chain cluster (3.5a) ────────────────────────────────────────────
 
-    internal void RebuildParseChain(DemoFrame? frame, NetMessage? message, PayloadNode? node, object? entityItem)
+    private void RebuildParseChain(DemoFrame? frame, NetMessage? message, PayloadNode? node, object? entityItem)
     {
         ParseChain.Clear();
 
@@ -513,7 +490,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
     ///     On success, <paramref name="path" /> contains the full ancestor chain
     ///     (root → target) inclusive.
     /// </summary>
-    internal static bool TryFindPath(
+    private static bool TryFindPath(
         IEnumerable<PayloadNode> nodes,
         PayloadNode target,
         List<PayloadNode> path)
@@ -558,7 +535,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         HarvestPropertyViewModel prop = new()
         {
             FieldName = node.Name,
-            Value = node.Value ?? "",
+            Value = node.Value,
             WireType = node.WireTypeName,
             FieldNumber = node.FieldNumber,
             ByteOffset = node.HasByteRange ? node.ByteStart : null,
@@ -651,7 +628,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         {
             int rawBase = frame.PayloadStart;
             List<HexSpan> rawSpans = decompSpans
-                .Select(s => new HexSpan(rawBase + s.Start, s.Length, s.Level, s.Label))
+                .Select(s => s with { Start = rawBase + s.Start })
                 .ToList();
             HexViewRaw.SetSpans(rawSpans);
         }
@@ -1479,7 +1456,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         Leb128Utils.TryReadUInt32(span[pos..], out uint rawCmd, out int cmdLen);
         bool isCompressed = (rawCmd & 0x40u) != 0;
         string cmdHex = string.Join(" ", span.Slice(pos, cmdLen).ToArray().Select(b => $"{b:X2}"));
-        int cmdAbsOffset = frame.RawStart + pos;
+        int cmdAbsOffset = frame.RawStart;
         FrameHeaderFields.Add(new FrameHeaderFieldViewModel
         {
             Label = "cmd",
