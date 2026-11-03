@@ -22,7 +22,7 @@ public class MarkdownBlockTests
     {
         await HeadlessSession.RunOnUi(() =>
         {
-            const string body = """
+            const string Body = """
                                 ## What's new in 0.6.0
 
                                 **The notice is a window now.** Hard-wrapped lines
@@ -40,7 +40,7 @@ public class MarkdownBlockTests
                                 </details>
                                 """;
 
-            StackPanel panel = (StackPanel)MarkdownBlock.RenderBlocks(body);
+            StackPanel panel = (StackPanel)MarkdownBlock.RenderBlocks(Body);
 
             // Heading · paragraph · bullet list · quote · details-expander = five blocks.
             if (panel.Children.Count != 5)

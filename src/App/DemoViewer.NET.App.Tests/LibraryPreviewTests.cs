@@ -67,8 +67,8 @@ public class LibraryPreviewTests
             (MainViewModel vm, DemoCacheStore cache, string root) = Shell();
             try
             {
-                const string path = "/demos/cached.dem";
-                cache.Update(path, 4096, new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc).Ticks, r =>
+                const string Path = "/demos/cached.dem";
+                cache.Update(Path, 4096, new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc).Ticks, r =>
                 {
                     r.Map = "de_nuke";
                     r.Server = "FACEIT";
@@ -82,12 +82,12 @@ public class LibraryPreviewTests
                     DemoCacheStore.StampParse(r);
                 });
 
-                vm.LibraryTab.SelectedEntry = Entry(path);
+                vm.LibraryTab.SelectedEntry = Entry(Path);
 
                 using (Assert.Multiple())
                 {
                     await Assert.That(vm.MatchOverviewTab.Mode).IsEqualTo(OverviewMode.Cached);
-                    await Assert.That(vm.MatchOverviewTab.SubjectKey).IsEqualTo(path);
+                    await Assert.That(vm.MatchOverviewTab.SubjectKey).IsEqualTo(Path);
                     await Assert.That(vm.MatchOverviewTab.HasContent).IsTrue();
                     // Nothing was opened, parsed or queued.
                     await Assert.That(vm.HasFile).IsFalse()

@@ -24,7 +24,7 @@ public class PackBoundaryTests
     private const string Playback2DPipelineProject = "src/Playback2D/DemoViewer.NET.Playback2D.Pipeline";
 
     /// <summary>Known mentions of a pack-owned namespace in core text, with the item that removes each.</summary>
-    private static readonly (string FilePath, string Namespace, string RemovalItem)[] AllowedEdges =
+    private static readonly (string FilePath, string Namespace, string RemovalItem)[] _allowedEdges =
     [
     ];
 
@@ -109,7 +109,7 @@ public class PackBoundaryTests
 
         string appRoot = Path.Combine(repoRoot, AppProject);
         HashSet<string> allowedSet =
-            new(AllowedEdges.Select(e => $"{e.FilePath}|{e.Namespace}"), StringComparer.Ordinal);
+            new(_allowedEdges.Select(e => $"{e.FilePath}|{e.Namespace}"), StringComparer.Ordinal);
 
         List<(string FilePath, string Namespace)> violations = new();
         foreach (string file in SourceFiles(appRoot))
@@ -135,7 +135,7 @@ public class PackBoundaryTests
             }
 
             message += "\nKnown allowed edges:\n";
-            foreach ((string filePath, string ns, string item) in AllowedEdges.OrderBy(e => e.FilePath)
+            foreach ((string filePath, string ns, string item) in _allowedEdges.OrderBy(e => e.FilePath)
                          .ThenBy(e => e.Namespace))
             {
                 message += $"  {filePath} -> {ns} (removed by {item})\n";

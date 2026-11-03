@@ -25,9 +25,9 @@ namespace DemoViewer.NET.AppTests;
 public class PlayerOverviewFilterTests
 {
     private const ulong Grim = PlayerOverviewHistoryTests.Grim;
-    private static readonly string[] Maps = ["de_nuke", "de_inferno", "de_mirage"];
+    private static readonly string[] _maps = ["de_nuke", "de_inferno", "de_mirage"];
 
-    // Demo i is on Maps[i % 3], competitive on even i and premier on odd; Grim ends on CT on even demos. A demo
+    // Demo i is on _maps[i % 3], competitive on even i and premier on odd; Grim ends on CT on even demos. A demo
     // that passes rounds has its player_round facet written.
     private static DemoCacheStore Library(int demos, Func<int, bool>? stamped = null, Func<int, bool>? rounds = null)
     {
@@ -37,7 +37,7 @@ public class PlayerOverviewFilterTests
             for (int i = 0; i < demos; i++)
             {
                 DemoCacheRecord record = PlayerOverviewHistoryTests.Demo(i, stamped?.Invoke(i) ?? true);
-                record.Map = Maps[i % Maps.Length];
+                record.Map = _maps[i % _maps.Length];
                 record.MatchMeta!.GameMode = i % 2 == 0 ? "competitive" : "premier";
                 if (rounds?.Invoke(i) == true)
                 {

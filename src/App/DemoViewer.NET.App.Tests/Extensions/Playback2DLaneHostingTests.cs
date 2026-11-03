@@ -33,9 +33,9 @@ namespace DemoViewer.NET.AppTests.Extensions;
 [NotInParallel]
 public class Playback2DLaneHostingTests
 {
-    private static readonly string[] CoreTracks = ["round", "kill", "bomb", "annotation"];
+    private static readonly string[] _coreTracks = ["round", "kill", "bomb", "annotation"];
 
-    private static readonly MapLevel FakeLevel =
+    private static readonly MapLevel _fakeLevel =
         new() { Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000 };
 
     [Test]
@@ -60,7 +60,7 @@ public class Playback2DLaneHostingTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.Timeline.Tracks.Select(t => t.Id))
-                .IsEquivalentTo([.. CoreTracks, "lane-a", "lane-b"], CollectionOrdering.Matching);
+                .IsEquivalentTo([.. _coreTracks, "lane-a", "lane-b"], CollectionOrdering.Matching);
             await Assert.That(trackListChanges).IsEqualTo(2)
                 .Because("the footer's toggle list learns of a lane added after the build");
             await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id))
@@ -79,7 +79,7 @@ public class Playback2DLaneHostingTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.Timeline.Tracks.Select(t => t.Id))
-                .IsEquivalentTo([.. CoreTracks, "lane-b"], CollectionOrdering.Matching);
+                .IsEquivalentTo([.. _coreTracks, "lane-b"], CollectionOrdering.Matching);
             await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id))
                 .IsEquivalentTo(["lane-b"], CollectionOrdering.Matching);
             await Assert.That(vm.Timeline.LaneBands.Select(band => band.TrackId))
@@ -393,7 +393,7 @@ public class Playback2DLaneHostingTests
             return true;
         });
 
-        ScenePointer pointer = new(FakeLevel, 0, 0, default(SKPoint), ToolModifiers.None, Scene2DFrame.Empty,
+        ScenePointer pointer = new(_fakeLevel, 0, 0, default(SKPoint), ToolModifiers.None, Scene2DFrame.Empty,
             static () => null);
 
         using (Assert.Multiple())
@@ -434,7 +434,7 @@ public class Playback2DLaneHostingTests
             return false;
         });
 
-        ScenePointer pointer = new(FakeLevel, 0, 0, default(SKPoint), ToolModifiers.None, Scene2DFrame.Empty,
+        ScenePointer pointer = new(_fakeLevel, 0, 0, default(SKPoint), ToolModifiers.None, Scene2DFrame.Empty,
             static () => null);
 
         using (Assert.Multiple())

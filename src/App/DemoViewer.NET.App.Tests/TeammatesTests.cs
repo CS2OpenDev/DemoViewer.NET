@@ -33,7 +33,7 @@ public class TeammatesTests
     internal const ulong Grim = 76561190000000003;
     internal const ulong Mate = 76561190000000012;
     private const ulong Rival = 76561190000000007;
-    private static readonly string MatchStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _matchStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
@@ -63,7 +63,7 @@ public class TeammatesTests
         DemoCacheStore.StampParse(record);
         if (i != 2)
         {
-            record.PackStamps.Add(new PackStamp(MatchStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
+            record.PackStamps.Add(new PackStamp(_matchStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
         }
 
         return record;

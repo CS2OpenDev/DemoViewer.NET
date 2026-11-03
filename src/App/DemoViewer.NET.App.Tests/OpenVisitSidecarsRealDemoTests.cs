@@ -23,7 +23,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public class OpenVisitSidecarsRealDemoTests
 {
-    private static readonly JsonSerializerOptions Fields = new() { IncludeFields = true };
+    private static readonly JsonSerializerOptions _fields = new() { IncludeFields = true };
 
     private static string BenchmarkDemo(int which) => DemoTestHelper.RequireSetDemo("benchmarks", which);
 
@@ -45,7 +45,7 @@ public class OpenVisitSidecarsRealDemoTests
         HashSet<string> wanted = new(names, StringComparer.Ordinal);
         return JsonSerializer.Serialize(
             run.ProjectConfiguredOutputs().Where(t => wanted.Contains(t.Name))
-                .OrderBy(t => t.Name, StringComparer.Ordinal), Fields);
+                .OrderBy(t => t.Name, StringComparer.Ordinal), _fields);
     }
 
     [Test]
@@ -76,13 +76,13 @@ public class OpenVisitSidecarsRealDemoTests
             bool seeded = open.Seed(parsed, path, plan, shellRun);
             AnalysisRun visitRun = open.BareRun(parsed, path);
             string openRows = JsonSerializer.Serialize(
-                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(open)).Rows(parsed, path), Fields);
+                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(open)).Rows(parsed, path), _fields);
 
             // A background retained visit: its own bare run on the same parse.
             MergedRulesBuild retained = Stale(fixture);
             AnalysisRun bareRun = retained.BareRun(parsed, path);
             string retainedRows = JsonSerializer.Serialize(
-                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(retained)).Rows(parsed, path), Fields);
+                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(retained)).Rows(parsed, path), _fields);
 
             // A forward visit.
             MergedRulesBuild forwardRules = Stale(fixture);
@@ -94,7 +94,7 @@ public class OpenVisitSidecarsRealDemoTests
             }
 
             string forwardRows = JsonSerializer.Serialize(
-                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(forwardRules)).Rows(forward), Fields);
+                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(forwardRules)).Rows(forward), _fields);
 
             // The core rulesets alone, with the bake.
             AnalysisRun coreRun =
@@ -115,11 +115,11 @@ public class OpenVisitSidecarsRealDemoTests
                     .Because("stamped tables, forward vs retained");
                 await Assert
                     .That(JsonSerializer.Serialize(plan.Shown(shellRun).ProjectConfiguredOutputs(parsed, matchId),
-                        Fields))
-                    .IsEqualTo(JsonSerializer.Serialize(coreRun.ProjectConfiguredOutputs(parsed, matchId), Fields))
+                        _fields))
+                    .IsEqualTo(JsonSerializer.Serialize(coreRun.ProjectConfiguredOutputs(parsed, matchId), _fields))
                     .Because("the Stats tab's configured tables");
-                await Assert.That(JsonSerializer.Serialize(plan.Shown(shellRun).Highlights, Fields))
-                    .IsEqualTo(JsonSerializer.Serialize(coreRun.Highlights, Fields))
+                await Assert.That(JsonSerializer.Serialize(plan.Shown(shellRun).Highlights, _fields))
+                    .IsEqualTo(JsonSerializer.Serialize(coreRun.Highlights, _fields))
                     .Because("the open's highlight harvest");
             }
         }

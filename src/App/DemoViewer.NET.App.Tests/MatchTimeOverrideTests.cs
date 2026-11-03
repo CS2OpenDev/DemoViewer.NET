@@ -19,34 +19,34 @@ namespace DemoViewer.NET.AppTests;
 public class MatchTimeOverrideTests
 {
     private const string Sha = "sha-override";
-    private static readonly string Dir = Path.Combine(Path.GetTempPath(), "dv-override");
-    private static readonly DateTime Downloaded = new(2026, 6, 18, 8, 0, 0, DateTimeKind.Utc);
-    private static readonly DateTime Chosen = new(2026, 5, 2, 19, 30, 0, DateTimeKind.Utc);
-    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
+    private static readonly string _dir = Path.Combine(Path.GetTempPath(), "dv-override");
+    private static readonly DateTime _downloaded = new(2026, 6, 18, 8, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _chosen = new(2026, 5, 2, 19, 30, 0, DateTimeKind.Utc);
+    private static readonly JsonSerializerOptions _indented = new() { WriteIndented = true };
 
     private static DemoCacheRecord Record(string path, string? sha = Sha) => new()
     {
-        Path = path, Size = 100, ModifiedTicks = Downloaded.ToLocalTime().Ticks, Sha256 = sha
+        Path = path, Size = 100, ModifiedTicks = _downloaded.ToLocalTime().Ticks, Sha256 = sha
     };
 
     [Test]
     public async Task ASetTime_WinsOverTheWriteTime_AndTheRowMirrorsIt()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "a.dem");
+        string demo = Path.Combine(_dir, "a.dem");
         store.Upsert(Record(demo));
 
-        MatchTimeOverrides.Set(store, demo, Chosen);
+        MatchTimeOverrides.Set(store, demo, _chosen);
 
         DemoMatchMeta meta = store.TryLoadRecord(demo, false)!.MatchMeta!;
         DemoCacheIndexEntry row = store.TryGetIndex(demo)!;
         using (Assert.Multiple())
         {
             await Assert.That(meta.MatchTimeSource).IsEqualTo(MatchTimeSource.UserOverride);
-            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(Chosen.Ticks);
+            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(_chosen.Ticks);
             await Assert.That(meta.IsApproximate).IsFalse();
             await Assert.That(row.MatchTimeSource).IsEqualTo(MatchTimeSource.UserOverride);
-            await Assert.That(row.MatchTimeUtcTicks).IsEqualTo(Chosen.Ticks);
+            await Assert.That(row.MatchTimeUtcTicks).IsEqualTo(_chosen.Ticks);
         }
     }
 
@@ -54,18 +54,18 @@ public class MatchTimeOverrideTests
     public async Task ThePassRunningAfterwards_KeepsTheSetTime()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "b.dem");
+        string demo = Path.Combine(_dir, "b.dem");
         store.Upsert(Record(demo));
-        MatchTimeOverrides.Set(store, demo, Chosen);
+        MatchTimeOverrides.Set(store, demo, _chosen);
 
-        new MatchMetaPass(store, _ => null, _ => Downloaded).Run(store.TryLoadRecord(demo, false)!,
+        new MatchMetaPass(store, _ => null, _ => _downloaded).Run(store.TryLoadRecord(demo, false)!,
             CancellationToken.None);
 
         DemoMatchMeta meta = store.TryLoadRecord(demo, false)!.MatchMeta!;
         using (Assert.Multiple())
         {
             await Assert.That(meta.MatchTimeSource).IsEqualTo(MatchTimeSource.UserOverride);
-            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(Chosen.Ticks);
+            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(_chosen.Ticks);
         }
     }
 
@@ -73,19 +73,19 @@ public class MatchTimeOverrideTests
     public async Task ASecondPathOfTheSameBytes_ReadsTheSetTime()
     {
         DemoCacheStore store = new(null);
-        string first = Path.Combine(Dir, "c1.dem");
-        string second = Path.Combine(Dir, "c2.dem");
+        string first = Path.Combine(_dir, "c1.dem");
+        string second = Path.Combine(_dir, "c2.dem");
         store.Upsert(Record(first));
-        MatchTimeOverrides.Set(store, first, Chosen);
+        MatchTimeOverrides.Set(store, first, _chosen);
         DemoCacheRecord copy = Record(second);
-        copy.MatchMeta = MatchMetaPass.Resolve(null, null, null, Downloaded);
+        copy.MatchMeta = MatchMetaPass.Resolve(null, null, null, _downloaded);
 
         store.Upsert(copy);
 
         using (Assert.Multiple())
         {
             await Assert.That(store.TryGetIndex(second)!.MatchTimeSource).IsEqualTo(MatchTimeSource.UserOverride);
-            await Assert.That(store.TryGetIndex(second)!.MatchTimeUtcTicks).IsEqualTo(Chosen.Ticks);
+            await Assert.That(store.TryGetIndex(second)!.MatchTimeUtcTicks).IsEqualTo(_chosen.Ticks);
         }
     }
 
@@ -93,9 +93,9 @@ public class MatchTimeOverrideTests
     public async Task Clear_DatesTheDemoFromItsOwnSourcesAgain()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "d.dem");
+        string demo = Path.Combine(_dir, "d.dem");
         store.Upsert(Record(demo));
-        MatchTimeOverrides.Set(store, demo, Chosen);
+        MatchTimeOverrides.Set(store, demo, _chosen);
 
         MatchTimeOverrides.Clear(store, demo);
 
@@ -103,7 +103,7 @@ public class MatchTimeOverrideTests
         using (Assert.Multiple())
         {
             await Assert.That(meta.MatchTimeSource).IsNotEqualTo(MatchTimeSource.UserOverride);
-            await Assert.That(meta.MatchTimeUtcTicks).IsNotEqualTo(Chosen.Ticks);
+            await Assert.That(meta.MatchTimeUtcTicks).IsNotEqualTo(_chosen.Ticks);
             await Assert.That(store.TryGetIndex(demo)!.MatchTimeSource).IsEqualTo(meta.MatchTimeSource);
         }
     }
@@ -112,16 +112,16 @@ public class MatchTimeOverrideTests
     public async Task ASetTime_ReordersTheHistory()
     {
         DemoCacheStore store = new(null);
-        string older = Path.Combine(Dir, "e1.dem");
-        string newer = Path.Combine(Dir, "e2.dem");
+        string older = Path.Combine(_dir, "e1.dem");
+        string newer = Path.Combine(_dir, "e2.dem");
         DemoCacheRecord a = Record(older, "sha-e1");
-        a.MatchMeta = MatchMetaPass.Resolve(null, null, null, Downloaded.AddDays(-5));
+        a.MatchMeta = MatchMetaPass.Resolve(null, null, null, _downloaded.AddDays(-5));
         DemoCacheRecord b = Record(newer, "sha-e2");
-        b.MatchMeta = MatchMetaPass.Resolve(null, null, null, Downloaded);
+        b.MatchMeta = MatchMetaPass.Resolve(null, null, null, _downloaded);
         store.Upsert(a);
         store.Upsert(b);
 
-        MatchTimeOverrides.Set(store, older, Downloaded.AddDays(1));
+        MatchTimeOverrides.Set(store, older, _downloaded.AddDays(1));
 
         List<DemoCacheIndexEntry> rows = [store.TryGetIndex(newer)!, store.TryGetIndex(older)!];
         rows.Sort(NewestMatchFirst.Instance);
@@ -171,17 +171,17 @@ public class MatchTimeOverrideTests
         MatchOverviewTabViewModel tab = new(setMatchTime: (_, _) => { });
         tab.SetMatchTime(new DemoMatchMeta
         {
-            MatchTimeUtcTicks = Chosen.Ticks, MatchTimeSource = MatchTimeSource.UserOverride
+            MatchTimeUtcTicks = _chosen.Ticks, MatchTimeSource = MatchTimeSource.UserOverride
         });
         string set = tab.MatchDateButtonText;
         bool overridden = tab.HasMatchDateOverride;
-        tab.SetMatchTime(MatchMetaPass.Resolve(null, null, null, Downloaded));
+        tab.SetMatchTime(MatchMetaPass.Resolve(null, null, null, _downloaded));
         string guess = tab.MatchDateButtonText;
         tab.SetMatchTime(null);
 
         using (Assert.Multiple())
         {
-            await Assert.That(set).IsEqualTo(MatchTimeOverrides.Format(Chosen.Ticks));
+            await Assert.That(set).IsEqualTo(MatchTimeOverrides.Format(_chosen.Ticks));
             await Assert.That(overridden).IsTrue();
             await Assert.That(guess).StartsWith("~ ");
             await Assert.That(tab.MatchDateButtonText).IsEqualTo("Set match date");
@@ -204,8 +204,8 @@ public class MatchTimeOverrideTests
                 MatchTimeSource = MatchTimeSource.UserOverride
             },
             MatchMetaPass.ParseName(MatchInfoReaderTests.CommittedName),
-            MatchInfoReader.Read(MatchInfoReaderTests.CommittedInfo()), Downloaded);
-        string json = JsonSerializer.Serialize(meta, Indented).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
+            MatchInfoReader.Read(MatchInfoReaderTests.CommittedInfo()), _downloaded);
+        string json = JsonSerializer.Serialize(meta, _indented).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
         string path = Path.Combine(repo, "tests", "fixtures", "match-meta", "match-meta.override.sample.json");
         if (Environment.GetEnvironmentVariable("MATCH_META_GOLDEN_UPDATE") == "1")
         {

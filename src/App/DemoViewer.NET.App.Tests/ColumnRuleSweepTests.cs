@@ -18,12 +18,12 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class ColumnRuleSweepTests
 {
-    private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
+    private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
     private static IReadOnlyList<string> ShippedFacetColumns()
     {
         RulesetDoc doc =
-            new MergedRulesBuild(() => YamlConfigLoader.LoadWithOverlay(Shipped, null)).EnabledDoc(PlayerMatchFacet
+            new MergedRulesBuild(() => YamlConfigLoader.LoadWithOverlay(_shipped, null)).EnabledDoc(PlayerMatchFacet
                 .RulesetId)
             ?? throw new InvalidOperationException("rules/ ships no player_match");
         return

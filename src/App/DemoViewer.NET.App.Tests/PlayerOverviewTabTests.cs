@@ -44,9 +44,9 @@ public class PlayerOverviewTabTests
     private const ulong Alt = 76561198000000002;
     private const ulong Other = 76561198000000003;
     private const ulong Stranger = 76561198000000099;
-    private static readonly DateTime Added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly int[] NotAnObject = [1, 2];
-    private static readonly string FacetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly DateTime _added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly int[] _notAnObject = [1, 2];
+    private static readonly string _facetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     private static string NewTempDir()
     {
@@ -97,7 +97,7 @@ public class PlayerOverviewTabTests
             DemoCacheStore.StampParse(record);
             if (i < withStats)
             {
-                record.PackStamps.Add(new PackStamp(FacetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
+                record.PackStamps.Add(new PackStamp(_facetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
             }
 
             store.Upsert(record);
@@ -109,7 +109,7 @@ public class PlayerOverviewTabTests
     private static IdentityService Identity(params ulong[] accounts)
     {
         IdentityService identity = new(new SettingsService(null));
-        identity.SetAccounts(accounts.Select(a => new IdentityAccount(Id(a), null, Added)));
+        identity.SetAccounts(accounts.Select(a => new IdentityAccount(Id(a), null, _added)));
         return identity;
     }
 
@@ -264,7 +264,7 @@ public class PlayerOverviewTabTests
             JsonElement[] blobs =
             [
                 JsonSerializer.SerializeToElement("this used to be a state blob"),
-                JsonSerializer.SerializeToElement(NotAnObject),
+                JsonSerializer.SerializeToElement(_notAnObject),
                 JsonSerializer.SerializeToElement(new { SubjectSteamId64 = 7, Pinned = "yes" }),
                 JsonSerializer.SerializeToElement(new { SubjectSteamId64 = "not a number", Pinned = true }),
                 JsonSerializer.SerializeToElement(new { SubjectSteamId64 = "0", Pinned = true })
@@ -337,7 +337,7 @@ public class PlayerOverviewTabTests
             vm.OpenPlayer(Alt);
             await Assert.That(vm.IsPinned).IsTrue();
 
-            identity.SetAccounts([new IdentityAccount(Id(Me), null, Added)]);
+            identity.SetAccounts([new IdentityAccount(Id(Me), null, _added)]);
             await Assert.That(vm.SubjectSteamId64).IsEqualTo(Me);
             await Assert.That(vm.IsPinned).IsFalse();
 
@@ -355,7 +355,7 @@ public class PlayerOverviewTabTests
             using IdentityService identity = Identity(Me, Alt);
             using PlayerOverviewTabViewModel vm = Shown(Library(2, 2), identity);
             vm.OpenPlayer(Other);
-            identity.SetAccounts([new IdentityAccount(Id(Alt), null, Added)]);
+            identity.SetAccounts([new IdentityAccount(Id(Alt), null, _added)]);
             await Assert.That(vm.SubjectSteamId64).IsEqualTo(Other);
         });
     }
@@ -459,7 +459,7 @@ public class PlayerOverviewTabTests
             vm.OnDeactivated();
 
             DemoCacheRecord record = store.TryLoadRecord("/d/0.dem")!;
-            record.PackStamps.Add(new PackStamp(FacetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
+            record.PackStamps.Add(new PackStamp(_facetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
             store.Upsert(record);
             await Assert.That(vm.Context!.WithStats).IsEqualTo(0);
 

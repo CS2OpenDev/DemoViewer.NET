@@ -33,8 +33,8 @@ public class CommandRegistryTests
 
     private const string Fake = "net.demoviewer.test.pack.fake.";
 
-    private static readonly Func<IExtension, bool> CompiledIn = _ => false;
-    private static readonly Func<IExtension, bool> ThirdParty = _ => true;
+    private static readonly Func<IExtension, bool> _compiledIn = _ => false;
+    private static readonly Func<IExtension, bool> _thirdParty = _ => true;
 
     private static IReadOnlyDictionary<string, string> AliasesOf(IExtension pack, IReadOnlyList<CommandDescriptor> _) =>
         pack is FakePack fake ? fake.Aliases : new Dictionary<string, string>();
@@ -107,7 +107,7 @@ public class CommandRegistryTests
         CommandDescriptor command = new("NotACoreAction", "x", "playback2d", null, _ => true);
 
         CommandRegistry registry =
-            CommandRegistry.Build([new FakePack("pack.fake", [command])], isThirdParty: CompiledIn);
+            CommandRegistry.Build([new FakePack("pack.fake", [command])], isThirdParty: _compiledIn);
 
         await Assert.That(registry.PackOwnerByAction.ContainsKey("NotACoreAction")).IsTrue();
         await Assert.That(registry.ActionIds).Contains("NotACoreAction");
@@ -119,7 +119,7 @@ public class CommandRegistryTests
         CommandDescriptor bad = new("nextround", "x", "playback2d", null, _ => true);
 
         Assert.Throws<InvalidOperationException>(() =>
-            CommandRegistry.Build([new FakePack("pack.fake", [bad])], isThirdParty: CompiledIn));
+            CommandRegistry.Build([new FakePack("pack.fake", [bad])], isThirdParty: _compiledIn));
     }
 
     [Test]
@@ -130,7 +130,7 @@ public class CommandRegistryTests
 
         Assert.Throws<InvalidOperationException>(() =>
             CommandRegistry.Build([new FakePack("pack.a", [a]), new FakePack("pack.b", [b])],
-                isThirdParty: CompiledIn));
+                isThirdParty: _compiledIn));
     }
 
     // A third-party extension cannot take the app down with a bad id: the command is reported and left out,
@@ -145,7 +145,7 @@ public class CommandRegistryTests
             _ => true);
         FakePack pack = new("pack.fake", [clash, core, fine]);
 
-        CommandRegistry registry = CommandRegistry.Build([pack], isThirdParty: ThirdParty, legacyIds: AliasesOf);
+        CommandRegistry registry = CommandRegistry.Build([pack], isThirdParty: _thirdParty, legacyIds: AliasesOf);
 
         using (Assert.Multiple())
         {
@@ -166,7 +166,7 @@ public class CommandRegistryTests
             _ => true);
 
         CommandRegistry registry =
-            CommandRegistry.Build([new FakePack("pack.fake", [bare, other])], isThirdParty: ThirdParty);
+            CommandRegistry.Build([new FakePack("pack.fake", [bare, other])], isThirdParty: _thirdParty);
 
         using (Assert.Multiple())
         {
@@ -203,7 +203,7 @@ public class CommandRegistryTests
             _ => true);
 
         CommandRegistry registry =
-            CommandRegistry.Build([new FakePack("pack.fake", [command], [panel])], isThirdParty: ThirdParty);
+            CommandRegistry.Build([new FakePack("pack.fake", [command], [panel])], isThirdParty: _thirdParty);
 
         Playback2DBinding row = registry.EffectiveBindings.Single(b => b.ActionId == command.Id);
         using (Assert.Multiple())
@@ -223,10 +223,10 @@ public class CommandRegistryTests
         CommandDescriptor command = new(Fake + "Poke", "poke", Fake + "panel", null, _ => true);
 
         Assert.Throws<InvalidOperationException>(() =>
-            CommandRegistry.Build([new FakePack("pack.fake", [command])], isThirdParty: CompiledIn));
+            CommandRegistry.Build([new FakePack("pack.fake", [command])], isThirdParty: _compiledIn));
 
         CommandRegistry registry =
-            CommandRegistry.Build([new FakePack("pack.fake", [command])], isThirdParty: ThirdParty);
+            CommandRegistry.Build([new FakePack("pack.fake", [command])], isThirdParty: _thirdParty);
         await Assert.That(registry.PackCommands).IsEmpty();
         await Assert.That(registry.Conflicts.Single()).Contains("which it does not declare");
     }
@@ -237,7 +237,7 @@ public class CommandRegistryTests
         CommandScope bare = new("palette", "while tagging");
 
         Assert.Throws<InvalidOperationException>(() =>
-            CommandRegistry.Build([new FakePack("pack.fake", [], [bare])], isThirdParty: CompiledIn));
+            CommandRegistry.Build([new FakePack("pack.fake", [], [bare])], isThirdParty: _compiledIn));
     }
 
     [Test]
@@ -247,7 +247,7 @@ public class CommandRegistryTests
         FakePack pack = new("pack.fake", [command],
             aliases: new Dictionary<string, string> { ["AddStep"] = command.Id });
 
-        CommandRegistry registry = CommandRegistry.Build([pack], isThirdParty: CompiledIn, legacyIds: AliasesOf);
+        CommandRegistry registry = CommandRegistry.Build([pack], isThirdParty: _compiledIn, legacyIds: AliasesOf);
 
         using (Assert.Multiple())
         {
@@ -265,7 +265,7 @@ public class CommandRegistryTests
         FakePack pack = new("pack.fake", [command],
             aliases: new Dictionary<string, string> { ["AddStep"] = command.Id });
 
-        CommandRegistry registry = CommandRegistry.Build([pack], isThirdParty: ThirdParty, legacyIds: AliasesOf);
+        CommandRegistry registry = CommandRegistry.Build([pack], isThirdParty: _thirdParty, legacyIds: AliasesOf);
 
         await Assert.That(registry.Aliases).IsEmpty();
     }
@@ -293,14 +293,14 @@ public class CommandRegistryTests
         FakePack shadow = new("pack.fake", [command],
             aliases: new Dictionary<string, string> { ["NextRound"] = command.Id });
         Assert.Throws<InvalidOperationException>(() =>
-            CommandRegistry.Build([shadow], isThirdParty: CompiledIn, legacyIds: AliasesOf));
+            CommandRegistry.Build([shadow], isThirdParty: _compiledIn, legacyIds: AliasesOf));
 
         CommandDescriptor theirs = new("net.demoviewer.test.pack.b.Step", "b", "playback2d", null, _ => true);
         FakePack other = new("pack.b", [theirs]);
         FakePack poacher = new("pack.fake", [command],
             aliases: new Dictionary<string, string> { ["Step"] = theirs.Id });
         Assert.Throws<InvalidOperationException>(() =>
-            CommandRegistry.Build([other, poacher], isThirdParty: CompiledIn, legacyIds: AliasesOf));
+            CommandRegistry.Build([other, poacher], isThirdParty: _compiledIn, legacyIds: AliasesOf));
     }
 
     [Test]

@@ -195,10 +195,10 @@ public sealed class VisibilityEngineCacheTests : IDisposable
     [Test]
     public async Task CollisionOverride_ResolvesOnePathForBothSurfaces_SoTheyShareOneKey()
     {
-        const string map = "de_viscache_fixture";
+        const string Map = "de_viscache_fixture";
         string overrideDir = Path.Combine(_dir, "override");
-        Directory.CreateDirectory(Path.Combine(overrideDir, map));
-        string overridden = Path.Combine(overrideDir, map, "collision.tris" + CollisionSoup.CompressedSuffix);
+        Directory.CreateDirectory(Path.Combine(overrideDir, Map));
+        string overridden = Path.Combine(overrideDir, Map, "collision.tris" + CollisionSoup.CompressedSuffix);
         File.WriteAllBytes(overridden, new byte[64]);
 
         // Stands in for what a loaded bundle names: a different directory entirely, which is exactly
@@ -209,8 +209,8 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         Environment.SetEnvironmentVariable(CollisionAssetLocator.EnvVar, overrideDir);
         try
         {
-            string? stats = CollisionSoup.Find(map);
-            string? overlay = CollisionSoup.Resolve(map, fromBundle);
+            string? stats = CollisionSoup.Find(Map);
+            string? overlay = CollisionSoup.Resolve(Map, fromBundle);
 
             await Assert.That(stats).IsEqualTo(overridden)
                 .Because("the override directory holds the only bake for this map");

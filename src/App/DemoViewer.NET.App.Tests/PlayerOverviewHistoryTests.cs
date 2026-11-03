@@ -32,8 +32,8 @@ public class PlayerOverviewHistoryTests
 {
     internal const ulong Grim = 76561190000000003;
     private const ulong Mate = 76561190000000012;
-    private static readonly string Stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
-    private static readonly DateTime Added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly string _stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly DateTime _added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
@@ -66,7 +66,7 @@ public class PlayerOverviewHistoryTests
         DemoCacheStore.StampParse(record);
         if (stamped)
         {
-            record.PackStamps.Add(new PackStamp(Stamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
+            record.PackStamps.Add(new PackStamp(_stamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
         }
 
         return record;
@@ -120,7 +120,7 @@ public class PlayerOverviewHistoryTests
         {
             reads?.Enqueue(path);
             int i = int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
-            return store.TryGetIndex(path)?.Stamp(Stamp) is { State: DemoAnalysisState.Indexed } ? Facet(i) : null;
+            return store.TryGetIndex(path)?.Stamp(_stamp) is { State: DemoAnalysisState.Indexed } ? Facet(i) : null;
         });
 
     private sealed class Shell : IDisposable
@@ -130,7 +130,7 @@ public class PlayerOverviewHistoryTests
             Store = store;
             Directory = new PlayerDirectory(store, onDisk is null ? _ => true : onDisk.Contains);
             Identity = new IdentityService(new SettingsService(null));
-            Identity.SetAccounts(me.Select(a => new IdentityAccount(Id(a), null, Added)));
+            Identity.SetAccounts(me.Select(a => new IdentityAccount(Id(a), null, _added)));
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(Directory, Identity,
                 Cache(store, Directory, Reads),
                 Opened.Add, _ => { }, (path, id) => Focused.Add((path, id)), _ => { }));

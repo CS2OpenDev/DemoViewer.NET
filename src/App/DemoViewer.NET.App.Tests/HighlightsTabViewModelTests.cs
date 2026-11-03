@@ -35,10 +35,10 @@ public class HighlightsTabViewModelTests
     // Order is the contract these pin, so every assertion over them has to name
     // CollectionOrdering.Matching: TUnit's bare IsEquivalentTo compares as a multiset, which {b,a}
     // and {a,a,b} would both satisfy in any permutation.
-    private static readonly string[] _pathsAB = ["/d/a.dem", "/d/b.dem"];
-    private static readonly string[] _pathsBA = ["/d/b.dem", "/d/a.dem"];
-    private static readonly string[] _pathsAAB = ["/d/a.dem", "/d/a.dem", "/d/b.dem"];
-    private static readonly string[] _fileNamesAB = ["a.dem", "b.dem"];
+    private static readonly string[] _pathsAb = ["/d/a.dem", "/d/b.dem"];
+    private static readonly string[] _pathsBa = ["/d/b.dem", "/d/a.dem"];
+    private static readonly string[] _pathsAab = ["/d/a.dem", "/d/a.dem", "/d/b.dem"];
+    private static readonly string[] _fileNamesAb = ["a.dem", "b.dem"];
 
     // camelCase writer: the naming policy a session/settings file plausibly grows tomorrow. Hoisted per
     // CA1869 (the analyser rejects a per-call JsonSerializerOptions).
@@ -164,7 +164,7 @@ public class HighlightsTabViewModelTests
         await Assert.That(vm.IsStaged(new HighlightSelection(a, a.Highlights[0]).Key)).IsTrue();
         await Assert.That(vm.IsStaged(new HighlightKey("/d/nope.dem", "clutch", "ace", 1, 0))).IsFalse();
         await Assert.That(vm.StagedSelections.Select(s => s.Record.Path))
-            .IsEquivalentTo(_pathsAB, CollectionOrdering.Matching);
+            .IsEquivalentTo(_pathsAb, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -262,7 +262,7 @@ public class HighlightsTabViewModelTests
         StageAll(vm, a, b);
 
         await Assert.That(vm.ReelConfig.ClipGroups.Select(g => g.FileName))
-            .IsEquivalentTo(_fileNamesAB, CollectionOrdering.Matching);
+            .IsEquivalentTo(_fileNamesAb, CollectionOrdering.Matching);
         int mergedBefore = vm.ReelConfig.ClipGroups.Sum(g => g.Rows.Count);
 
         // Move the nuke group to the front.
@@ -278,7 +278,7 @@ public class HighlightsTabViewModelTests
         // "uses FFmpeg to combine clips in order". So this list order IS the order of the finished video.
         vm.ReelConfig.GenerateCommand.Execute(null);
         await Assert.That(job.LastRequest!.Clips.Select(c => c.DemoPath))
-            .IsEquivalentTo(_pathsBA, CollectionOrdering.Matching);
+            .IsEquivalentTo(_pathsBa, CollectionOrdering.Matching);
 
         // …and the OTHER half: reorder must NOT change merge behaviour. ClipWindows.Coalesce groups by
         // (demo, player, round) and is order-independent; wiring order into it would make two identical
@@ -307,7 +307,7 @@ public class HighlightsTabViewModelTests
 
         vm.ReelConfig.GenerateCommand.Execute(null);
         await Assert.That(job.LastRequest!.Clips.Select(c => c.DemoPath))
-            .IsEquivalentTo(_pathsAAB, CollectionOrdering.Matching);
+            .IsEquivalentTo(_pathsAab, CollectionOrdering.Matching);
     }
 
     // The tab wires the notice to LiveSync.LaunchNoticeAcknowledged: unacknowledged, Generate asks instead of
@@ -418,7 +418,7 @@ public class HighlightsTabViewModelTests
         HighlightsTabViewModel restored = Vm(store, scanner);
         restored.RestoreState(blob);
         await Assert.That(restored.StagedSelections.Select(s => s.Record.Path))
-            .IsEquivalentTo(_pathsBA, CollectionOrdering.Matching);
+            .IsEquivalentTo(_pathsBa, CollectionOrdering.Matching);
         await Assert.That(restored.TrayColumnWidth.Value).IsEqualTo(2d);
         await Assert.That(restored.HasStatusMessage).IsFalse();
 
@@ -454,7 +454,7 @@ public class HighlightsTabViewModelTests
         HighlightsTabViewModel restored = Vm(store, scanner);
         restored.RestoreState(blob);
         await Assert.That(restored.StagedSelections.Select(s => s.Record.Path))
-            .IsEquivalentTo(_pathsBA, CollectionOrdering.Matching);
+            .IsEquivalentTo(_pathsBa, CollectionOrdering.Matching);
         await Assert.That(restored.TrayColumnWidth.Value).IsEqualTo(2d);
 
         // AND THE SAME PAYLOAD IN camelCase. Today the write path sets no naming policy, so both halves
@@ -465,7 +465,7 @@ public class HighlightsTabViewModelTests
         HighlightsTabViewModel webCase = Vm(store, scanner);
         webCase.RestoreState(JsonSerializer.SerializeToElement(vm.SnapshotState(), _webCase));
         await Assert.That(webCase.StagedSelections.Select(s => s.Record.Path))
-            .IsEquivalentTo(_pathsBA, CollectionOrdering.Matching);
+            .IsEquivalentTo(_pathsBa, CollectionOrdering.Matching);
 
         // A session file outlives app versions and is user-writable: a shape that no longer matches must
         // degrade to "restore nothing", never throw away the whole tab restore.

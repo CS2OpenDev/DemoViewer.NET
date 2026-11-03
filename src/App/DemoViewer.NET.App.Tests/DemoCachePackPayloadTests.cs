@@ -34,7 +34,7 @@ public class DemoCachePackPayloadTests
     private const string FakePack = "net.demoviewer.pack.fake";
     private const string FakeFacet = "fake-facet";
 
-    private static readonly string[] LegacyMembers =
+    private static readonly string[] _legacyMembers =
     [
         "\"RoundFacts\":", "\"RoundFactsFingerprint\":", "\"RoundFactsSchema\":", "\"RoundIndex\":",
         "\"RoundIndexSchema\":",
@@ -89,7 +89,7 @@ public class DemoCachePackPayloadTests
                 await Assert.That(indexJson).Contains("\"PackStamps\":[{\"Id\":\"fake-facet\"");
                 await Assert.That(indexJson).DoesNotContain("\"Packs\"")
                     .Because("the index carries stamps, never payloads");
-                foreach (string legacy in LegacyMembers)
+                foreach (string legacy in _legacyMembers)
                 {
                     await Assert.That(indexJson).DoesNotContain(legacy);
                 }
@@ -257,7 +257,7 @@ public class DemoCachePackPayloadTests
                     .Contains("\"Packs\":{\"net.demoviewer.pack.stratbook\":{\"GrenadeInputCoverage\":0.5}}");
                 await Assert.That(sidecar).Contains("\"PackStamps\":[");
                 await Assert.That(index).Contains("\"PackStamps\":[");
-                foreach (string legacy in LegacyMembers)
+                foreach (string legacy in _legacyMembers)
                 {
                     await Assert.That(index).DoesNotContain(legacy);
 
@@ -337,14 +337,14 @@ public class DemoCachePackPayloadTests
     public async Task OldShape_WithUntouchedFacets_FoldsOnlyWhatWasWritten()
     {
         // A record indexed while the pack was off: the flat fields are present at their defaults.
-        const string json = """
+        const string Json = """
                             {"Path":"/d/off.dem","Size":10,"ModifiedTicks":20,"Parse":{"Schema":1,"ComputedAtTicks":5},
                              "RoundFacts":null,"RoundFactsFingerprint":null,
                              "RoundIndex":{"Schema":0,"ComputedAtTicks":0},"RoundIndexState":0,"RoundIndexFingerprint":null,"RoundIndexRowCount":0,
                              "SuggestionsFingerprint":null,"SuggestionCount":0,
                              "Grenades":{"Schema":0,"ComputedAtTicks":0},"GrenadeState":2,"GrenadeCount":0,"GrenadeWalker":null,"GrenadeInputCoverage":0}
                             """;
-        DemoCacheRecord record = JsonSerializer.Deserialize<DemoCacheRecord>(json)!;
+        DemoCacheRecord record = JsonSerializer.Deserialize<DemoCacheRecord>(Json)!;
         DemoCacheIndexEntry entry = JsonSerializer.Deserialize<DemoCacheIndexEntry>(
                 """{"Path":"/d/off.dem","ParseSchema":1,"RoundFactsSchema":0,"RoundIndexSchema":0,"RoundIndexState":0,"SuggestionCount":0,"GrenadeSchema":0,"GrenadeState":2}""")
             !;
@@ -418,29 +418,29 @@ public class DemoCachePackPayloadTests
     [Test]
     public async Task IndexAndRecord_DoNotGrow_AgainstTheOldShape()
     {
-        const int demos = 400;
+        const int Demos = 400;
         string roundIndexFingerprint =
             new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn).FingerprintFor("de_nuke");
         string suggestionsFingerprint = Convert.ToHexStringLower(SHA256.HashData("detector set"u8));
         string roundFactsFingerprint = Convert.ToHexStringLower(SHA256.HashData("round facts"u8));
 
-        (long oldAll, long newAll) = IndexBytes(demos,
+        (long oldAll, long newAll) = IndexBytes(Demos,
             i => AllFacets(i, roundFactsFingerprint, roundIndexFingerprint, suggestionsFingerprint));
         (long oldTypical, long newTypical) =
-            IndexBytes(demos, i => TypicalFacets(i, roundFactsFingerprint, roundIndexFingerprint));
+            IndexBytes(Demos, i => TypicalFacets(i, roundFactsFingerprint, roundIndexFingerprint));
         (long oldRecord, long newRecord) =
             RecordBytes(roundFactsFingerprint, roundIndexFingerprint, suggestionsFingerprint);
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"[index size] {demos} rows, all four facets: old {oldAll} B, new {newAll} B ({(newAll - oldAll) / (double)demos:+0.0;-0.0} B/row)"));
+            $"[index size] {Demos} rows, all four facets: old {oldAll} B, new {newAll} B ({(newAll - oldAll) / (double)Demos:+0.0;-0.0} B/row)"));
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"[index size] {demos} rows, round facts + round index: old {oldTypical} B, new {newTypical} B ({(newTypical - oldTypical) / (double)demos:+0.0;-0.0} B/row)"));
+            $"[index size] {Demos} rows, round facts + round index: old {oldTypical} B, new {newTypical} B ({(newTypical - oldTypical) / (double)Demos:+0.0;-0.0} B/row)"));
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"[record size] one record with rows, gzipped: old {oldRecord} B, new {newRecord} B"));
 
         using (Assert.Multiple())
         {
-            await Assert.That(newAll).IsLessThanOrEqualTo(oldAll + 60 * demos)
+            await Assert.That(newAll).IsLessThanOrEqualTo(oldAll + 60 * Demos)
                 .Because("the four stamps cost at most ~60 B more per row than the flat mirrors");
             await Assert.That(newTypical).IsLessThan(oldTypical).Because("facets never written cost nothing");
             await Assert.That(newRecord).IsLessThanOrEqualTo(oldRecord + 64)

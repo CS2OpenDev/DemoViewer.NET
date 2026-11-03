@@ -374,10 +374,10 @@ public class FirstRunWizardTests
         {
             await HeadlessSession.RunOnUi(async () =>
             {
-                const string demos =
+                const string Demos =
                     @"C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\replays";
                 FirstRunWizardViewModel vm = new(
-                    new SettingsService(dir), () => new Cs2DemosLookup(demos, []))
+                    new SettingsService(dir), () => new Cs2DemosLookup(Demos, []))
                 {
                     CurrentStep = 2 // folders step
                 };

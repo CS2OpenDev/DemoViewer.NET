@@ -93,11 +93,11 @@ public class AppCompositionRootTests
     [Test]
     public async Task TheTeamsJsonMe_IsImported_BeforeAnyPackStarts()
     {
-        const string teamsJson =
+        const string TeamsJson =
             """{ "schemaVersion": 1, "me": { "steamIds": ["76561198000000002", "76561198000000001"] }, "teams": [] }""";
         string dir = Path.Combine(Path.GetTempPath(), "dvcomproot_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "teams.json"), teamsJson);
+        File.WriteAllText(Path.Combine(dir, "teams.json"), TeamsJson);
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, dir);
         try
@@ -123,7 +123,7 @@ public class AppCompositionRootTests
                 {
                     await Assert.That(identity.ActiveSteamId64).IsEqualTo("76561198000000002");
                     await Assert.That(identity.IsMine("76561198000000001")).IsTrue();
-                    await Assert.That(File.ReadAllText(Path.Combine(dir, "teams.json"))).IsEqualTo(teamsJson)
+                    await Assert.That(File.ReadAllText(Path.Combine(dir, "teams.json"))).IsEqualTo(TeamsJson)
                         .Because("the import only reads");
                 }
             });
@@ -204,7 +204,7 @@ public class AppCompositionRootTests
         // gated-out id silently falls back to Tabs[0], which would make the SelectedTab assertion vacuous
         // on this platform rather than fail. An override is read before any default, so this pins the tab
         // present everywhere.
-        const string seed = """
+        const string Seed = """
                             {
                               "Session": {
                                 "ActiveTabIndex": 3,
@@ -237,7 +237,7 @@ public class AppCompositionRootTests
             await Assert.That(ReferenceEquals(vm, provider.GetRequiredService<MainViewModel>()))
                 .IsTrue()
                 .Because("tab activation must resolve the SAME shell; a second instance is the recursion");
-        }, seed);
+        }, Seed);
     }
 
     // (b) ModuleRegistry is a singleton: BuildRegistry runs exactly once, so both resolves are the SAME

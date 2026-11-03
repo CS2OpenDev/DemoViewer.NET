@@ -14,7 +14,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 /// </summary>
 public class HttpExtensionFeedClientTests
 {
-    private static readonly Uri Url = new("https://example.invalid/pack.zip");
+    private static readonly Uri _url = new("https://example.invalid/pack.zip");
 
     [Test]
     public async Task Download_ThatKeepsArriving_CompletesPastTheHeaderBudget()
@@ -31,7 +31,7 @@ public class HttpExtensionFeedClientTests
         using MemoryStream destination = new();
         List<long> progress = [];
 
-        await client.DownloadAsync(Url, destination, 12 * 1024, new InlineProgress(progress), CancellationToken.None)
+        await client.DownloadAsync(_url, destination, 12 * 1024, new InlineProgress(progress), CancellationToken.None)
             .WaitAsync(TimeSpan.FromSeconds(10));
 
         using (Assert.Multiple())
@@ -51,7 +51,7 @@ public class HttpExtensionFeedClientTests
         using MemoryStream destination = new();
 
         ExtensionDownloadException? ex = await Assert.ThrowsAsync<ExtensionDownloadException>(() =>
-            client.DownloadAsync(Url, destination, 20 * 1024, null, CancellationToken.None));
+            client.DownloadAsync(_url, destination, 20 * 1024, null, CancellationToken.None));
 
         using (Assert.Multiple())
         {
@@ -68,14 +68,14 @@ public class HttpExtensionFeedClientTests
         using HttpExtensionFeedClient client = new(over, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
         using MemoryStream destination = new();
         ExtensionDownloadException? tooMany = await Assert.ThrowsAsync<ExtensionDownloadException>(() =>
-            client.DownloadAsync(Url, destination, 2 * 1024, null, CancellationToken.None));
+            client.DownloadAsync(_url, destination, 2 * 1024, null, CancellationToken.None));
 
         using PacedHandler slow = new(chunks: 1, chunk, pace: TimeSpan.Zero, stallAfter: null,
             headerDelay: TimeSpan.FromSeconds(2));
         using HttpExtensionFeedClient impatient = new(slow, TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(5));
         ExtensionDownloadException? noHeaders =
             await Assert.ThrowsAsync<ExtensionDownloadException>(() =>
-                impatient.GetFeedAsync(Url, CancellationToken.None));
+                impatient.GetFeedAsync(_url, CancellationToken.None));
 
         using (Assert.Multiple())
         {
@@ -95,7 +95,7 @@ public class HttpExtensionFeedClientTests
         cts.CancelAfter(TimeSpan.FromMilliseconds(120));
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            client.DownloadAsync(Url, destination, 100 * 1024, null, cts.Token));
+            client.DownloadAsync(_url, destination, 100 * 1024, null, cts.Token));
         await Assert.That(destination.Length).IsLessThan(100 * 1024);
     }
 

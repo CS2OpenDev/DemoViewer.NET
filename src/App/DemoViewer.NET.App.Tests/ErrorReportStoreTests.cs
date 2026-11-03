@@ -14,25 +14,25 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class ErrorReportStoreTests
 {
-    private static readonly string Dir = Path.Combine(Path.GetTempPath(), "dv-error-report");
-    private static readonly DateTime First = new(2026, 10, 20, 9, 0, 0, DateTimeKind.Utc);
-    private static readonly DateTime Later = new(2026, 10, 28, 14, 30, 0, DateTimeKind.Utc);
+    private static readonly string _dir = Path.Combine(Path.GetTempPath(), "dv-error-report");
+    private static readonly DateTime _first = new(2026, 10, 20, 9, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _later = new(2026, 10, 28, 14, 30, 0, DateTimeKind.Utc);
 
     private static DemoCacheRecord Record(string path, string sha = "sha-report") => new()
     {
-        Path = path, Size = 100, ModifiedTicks = First.Ticks, Sha256 = sha
+        Path = path, Size = 100, ModifiedTicks = _first.Ticks, Sha256 = sha
     };
 
     private static DemoErrorReportSnapshot Snapshot(string path) => new()
     {
-        CapturedAtUtcTicks = First.Ticks, DemoPath = path
+        CapturedAtUtcTicks = _first.Ticks, DemoPath = path
     };
 
     [Test]
     public async Task ADemoWithNoReport_HasNone()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "none.dem");
+        string demo = Path.Combine(_dir, "none.dem");
         store.Upsert(Record(demo));
 
         using (Assert.Multiple())
@@ -46,18 +46,18 @@ public class ErrorReportStoreTests
     public async Task ASavedReport_ReadsBackWholeAndCountsAsExisting()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "saved.dem");
+        string demo = Path.Combine(_dir, "saved.dem");
         store.Upsert(Record(demo));
 
         DemoErrorReportStore.Save(store, demo, "Round 14 kill is attributed to the wrong player.",
-            Snapshot(demo), First);
+            Snapshot(demo), _first);
 
         DemoErrorReport report = DemoErrorReportStore.TryLoad(store, demo)!;
         using (Assert.Multiple())
         {
             await Assert.That(report.Notes).IsEqualTo("Round 14 kill is attributed to the wrong player.");
-            await Assert.That(report.CreatedUtcTicks).IsEqualTo(First.Ticks);
-            await Assert.That(report.UpdatedUtcTicks).IsEqualTo(First.Ticks);
+            await Assert.That(report.CreatedUtcTicks).IsEqualTo(_first.Ticks);
+            await Assert.That(report.UpdatedUtcTicks).IsEqualTo(_first.Ticks);
             await Assert.That(report.Snapshot.DemoPath).IsEqualTo(demo);
             await Assert.That(report.SubmittedUtcTicks).IsNull();
             await Assert.That(DemoErrorReportStore.Exists(store, demo)).IsTrue();
@@ -68,19 +68,19 @@ public class ErrorReportStoreTests
     public async Task EditingAReport_KeepsItsCreatedDate_AndMovesOnlyTheUpdatedOne()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "edited.dem");
+        string demo = Path.Combine(_dir, "edited.dem");
         store.Upsert(Record(demo));
 
-        DemoErrorReportStore.Save(store, demo, "first pass", Snapshot(demo), First);
-        DemoErrorReportStore.Save(store, demo, "second pass, with more detail", Snapshot(demo), Later);
+        DemoErrorReportStore.Save(store, demo, "first pass", Snapshot(demo), _first);
+        DemoErrorReportStore.Save(store, demo, "second pass, with more detail", Snapshot(demo), _later);
 
         DemoErrorReport report = DemoErrorReportStore.TryLoad(store, demo)!;
         using (Assert.Multiple())
         {
             await Assert.That(report.Notes).IsEqualTo("second pass, with more detail");
-            await Assert.That(report.CreatedUtcTicks).IsEqualTo(First.Ticks)
+            await Assert.That(report.CreatedUtcTicks).IsEqualTo(_first.Ticks)
                 .Because("an edit is the same report, so re-dating it would lose when the user first hit this");
-            await Assert.That(report.UpdatedUtcTicks).IsEqualTo(Later.Ticks);
+            await Assert.That(report.UpdatedUtcTicks).IsEqualTo(_later.Ticks);
         }
     }
 
@@ -88,9 +88,9 @@ public class ErrorReportStoreTests
     public async Task SavingAgainstAnUncachedDemo_CreatesTheRecordRatherThanDroppingTheNotes()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "uncached.dem");
+        string demo = Path.Combine(_dir, "uncached.dem");
 
-        DemoErrorReportStore.Save(store, demo, "the demo was never indexed", Snapshot(demo), First);
+        DemoErrorReportStore.Save(store, demo, "the demo was never indexed", Snapshot(demo), _first);
 
         await Assert.That(DemoErrorReportStore.TryLoad(store, demo)?.Notes)
             .IsEqualTo("the demo was never indexed")
@@ -101,19 +101,19 @@ public class ErrorReportStoreTests
     public async Task AReportWrittenByANewerApp_IsNeitherShownNorOverwritten()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "newer.dem");
+        string demo = Path.Combine(_dir, "newer.dem");
         DemoCacheRecord record = Record(demo);
         record.ErrorReport = new DemoErrorReport
         {
             Schema = DemoErrorReport.CurrentSchema + 1,
             Notes = "written by a later build",
-            CreatedUtcTicks = First.Ticks,
-            UpdatedUtcTicks = First.Ticks
+            CreatedUtcTicks = _first.Ticks,
+            UpdatedUtcTicks = _first.Ticks
         };
         store.Upsert(record);
 
         DemoErrorReport? read = DemoErrorReportStore.TryLoad(store, demo);
-        DemoErrorReportStore.Save(store, demo, "this app's attempt", Snapshot(demo), Later);
+        DemoErrorReportStore.Save(store, demo, "this app's attempt", Snapshot(demo), _later);
 
         using (Assert.Multiple())
         {
@@ -129,10 +129,10 @@ public class ErrorReportStoreTests
     public async Task ASecondPathOfTheSameBytes_CarriesTheReportOnto()
     {
         DemoCacheStore store = new(null);
-        string first = Path.Combine(Dir, "original.dem");
-        string copy = Path.Combine(Dir, "copy.dem");
+        string first = Path.Combine(_dir, "original.dem");
+        string copy = Path.Combine(_dir, "copy.dem");
         store.Upsert(Record(first));
-        DemoErrorReportStore.Save(store, first, "the round boundary is one tick early", Snapshot(first), First);
+        DemoErrorReportStore.Save(store, first, "the round boundary is one tick early", Snapshot(first), _first);
 
         // The same bytes at another path: the copy joins the row and must not land on a blank report.
         store.Upsert(Record(copy));
@@ -151,18 +151,18 @@ public class ErrorReportStoreTests
     public async Task SavingOverANewerReport_ReportsTheRefusal()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "refused.dem");
+        string demo = Path.Combine(_dir, "refused.dem");
         DemoCacheRecord record = Record(demo, "sha-refused");
         record.ErrorReport = new DemoErrorReport
         {
             Schema = DemoErrorReport.CurrentSchema + 1,
             Notes = "written by a newer build",
-            CreatedUtcTicks = First.Ticks,
-            UpdatedUtcTicks = First.Ticks
+            CreatedUtcTicks = _first.Ticks,
+            UpdatedUtcTicks = _first.Ticks
         };
         store.Upsert(record);
 
-        bool wrote = DemoErrorReportStore.Save(store, demo, "mine", Snapshot(demo), Later);
+        bool wrote = DemoErrorReportStore.Save(store, demo, "mine", Snapshot(demo), _later);
 
         using (Assert.Multiple())
         {
@@ -181,10 +181,10 @@ public class ErrorReportStoreTests
     public async Task AnOrdinarySave_ReportsThatItWrote()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "wrote.dem");
+        string demo = Path.Combine(_dir, "wrote.dem");
         store.Upsert(Record(demo, "sha-wrote"));
 
-        await Assert.That(DemoErrorReportStore.Save(store, demo, "ok", Snapshot(demo), First)).IsTrue();
+        await Assert.That(DemoErrorReportStore.Save(store, demo, "ok", Snapshot(demo), _first)).IsTrue();
     }
 
     /// <summary>
@@ -201,7 +201,7 @@ public class ErrorReportStoreTests
             string demo = Path.Combine(root, "unknown.dem");
             DemoCacheStore store = new(root);
             store.Upsert(Record(demo, "sha-unknown"));
-            DemoErrorReportStore.Save(store, demo, "the score is wrong", Snapshot(demo), First);
+            DemoErrorReportStore.Save(store, demo, "the score is wrong", Snapshot(demo), _first);
 
             // Stand in for a newer build: a member this one has no property for.
             string sidecar = Directory.EnumerateFiles(root, "*.json.gz", SearchOption.AllDirectories)
@@ -255,9 +255,9 @@ public class ErrorReportStoreTests
     public async Task NoTierFill_ClearsTheUsersReport()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "tierfill.dem");
+        string demo = Path.Combine(_dir, "tierfill.dem");
         store.Upsert(Record(demo, "sha-tierfill"));
-        DemoErrorReportStore.Save(store, demo, "deaths read zero for every player", Snapshot(demo), First);
+        DemoErrorReportStore.Save(store, demo, "deaths read zero for every player", Snapshot(demo), _first);
 
         store.UpdateExisting(demo, r =>
         {
@@ -297,7 +297,7 @@ public class ErrorReportStoreTests
             string demo = Path.Combine(root, "ondisk.dem");
             DemoCacheStore store = new(root);
             store.Upsert(Record(demo, "sha-ondisk"));
-            DemoErrorReportStore.Save(store, demo, "round 18 never closes", Snapshot(demo), First);
+            DemoErrorReportStore.Save(store, demo, "round 18 never closes", Snapshot(demo), _first);
 
             DemoErrorReport? read = DemoErrorReportStore.TryLoad(new DemoCacheStore(root), demo);
 
@@ -305,8 +305,8 @@ public class ErrorReportStoreTests
             {
                 await Assert.That(read).IsNotNull();
                 await Assert.That(read!.Notes).IsEqualTo("round 18 never closes");
-                await Assert.That(read.CreatedUtcTicks).IsEqualTo(First.Ticks);
-                await Assert.That(read.UpdatedUtcTicks).IsEqualTo(First.Ticks);
+                await Assert.That(read.CreatedUtcTicks).IsEqualTo(_first.Ticks);
+                await Assert.That(read.UpdatedUtcTicks).IsEqualTo(_first.Ticks);
                 await Assert.That(read.Snapshot?.DemoPath).IsEqualTo(demo)
                     .Because("the snapshot is the half that makes a report reproducible");
             }
@@ -327,11 +327,11 @@ public class ErrorReportStoreTests
     public async Task DeletingAReport_LeavesTheRestOfTheRecordAlone()
     {
         DemoCacheStore store = new(null);
-        string demo = Path.Combine(Dir, "deleted.dem");
+        string demo = Path.Combine(_dir, "deleted.dem");
         DemoCacheRecord record = Record(demo);
         record.Map = "de_mirage";
         store.Upsert(record);
-        DemoErrorReportStore.Save(store, demo, "never mind", Snapshot(demo), First);
+        DemoErrorReportStore.Save(store, demo, "never mind", Snapshot(demo), _first);
 
         DemoErrorReportStore.Delete(store, demo);
 

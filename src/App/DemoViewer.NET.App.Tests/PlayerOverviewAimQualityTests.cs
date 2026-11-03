@@ -30,7 +30,7 @@ namespace DemoViewer.NET.AppTests;
 public class PlayerOverviewAimQualityTests
 {
     private const ulong Grim = PlayerOverviewHistoryTests.Grim;
-    private static readonly string Stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
@@ -89,7 +89,7 @@ public class PlayerOverviewAimQualityTests
             for (int i = 0; i < demos; i++)
             {
                 DemoCacheRecord record = PlayerOverviewHistoryTests.Demo(i, stamped?.Invoke(i) ?? true);
-                if (record.Stamp(Stamp) is { } facet)
+                if (record.Stamp(_stamp) is { } facet)
                 {
                     record.SetStamp(facet with { HasVisibility = sight(i) });
                 }
@@ -103,7 +103,7 @@ public class PlayerOverviewAimQualityTests
 
     internal static PlayerRowCache Cache(DemoCacheStore store, PlayerDirectory directory) =>
         new(store, directory, path =>
-            store.TryGetIndex(path)?.Stamp(Stamp) is { State: DemoAnalysisState.Indexed } stamp
+            store.TryGetIndex(path)?.Stamp(_stamp) is { State: DemoAnalysisState.Indexed } stamp
                 ? Facet(Of(path), stamp.HasVisibility)
                 : null);
 

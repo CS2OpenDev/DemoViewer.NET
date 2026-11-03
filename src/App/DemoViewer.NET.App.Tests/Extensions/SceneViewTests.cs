@@ -32,7 +32,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 [Category("Render")]
 public class SceneViewTests
 {
-    private static readonly WorldBounds Mirage = new(-3230, -3410, 1860, 1680);
+    private static readonly WorldBounds _mirage = new(-3230, -3410, 1860, 1680);
 
     [Test]
     public async Task ASourcesFrame_IsDrawn_AndANewOneReplacesIt_WithTheTogglesTheViewFixes()
@@ -495,7 +495,7 @@ public class SceneViewTests
             new PlayerMarker(0, 2, -800f, 600f, 64f, 0f, RingState.Team, 1, "T1", true, SteamId: 1),
             new PlayerMarker(5, 3, 900f, -500f, 64f, 0f, RingState.Team, 1, "CT1", true, SteamId: 6)
         ],
-        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = Mirage, NetworkedBounds = Mirage }
+        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = _mirage, NetworkedBounds = _mirage }
     };
 
     private sealed class FakeSource : ISceneSource

@@ -184,11 +184,11 @@ public static class SprayControlOracle
     /// <returns>The angle between the two directions, in [0, 180].</returns>
     public static double AngleDeltaDegrees(double pitchA, double yawA, double pitchB, double yawB)
     {
-        const double toRad = Math.PI / 180.0;
-        double pa = pitchA * toRad;
-        double ya = yawA * toRad;
-        double pb = pitchB * toRad;
-        double yb = yawB * toRad;
+        const double ToRad = Math.PI / 180.0;
+        double pa = pitchA * ToRad;
+        double ya = yawA * ToRad;
+        double pb = pitchB * ToRad;
+        double yb = yawB * ToRad;
 
         double xa = Math.Cos(pa) * Math.Cos(ya);
         double ya2 = Math.Cos(pa) * Math.Sin(ya);
@@ -198,7 +198,7 @@ public static class SprayControlOracle
         double zb = -Math.Sin(pb);
 
         double dot = Math.Clamp((xa * xb) + (ya2 * yb2) + (za * zb), -1.0, 1.0);
-        return Math.Acos(dot) / toRad;
+        return Math.Acos(dot) / ToRad;
     }
 
     /// <summary>Wraps an angle in degrees to (-180, 180].</summary>

@@ -28,12 +28,12 @@ public class QueueJobTests
     private const string MiningKind = "test.mining";
     private const string ClipsKind = "test.clips";
 
-    private static readonly DemoViewer.NET.Extensions.JobKindRegistry Kinds =
+    private static readonly DemoViewer.NET.Extensions.JobKindRegistry _kinds =
         DemoViewer.NET.Extensions.JobKindRegistry.Build([new KindsExtension()]);
 
     private static DemoProcessingQueue NewQueue(HeavyJobGate gate, Func<string, ParsedDemo>? parse = null) =>
         new(gate, a => a(), parse ?? (_ => SyntheticDemo()), _ => SyntheticDemo(), () => Task.CompletedTask,
-            jobKinds: Kinds);
+            jobKinds: _kinds);
 
     private sealed class KindsExtension : IExtension
     {

@@ -14,7 +14,7 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class DemoOpenQueueTests
 {
-    private static readonly byte[] Bytes = [1];
+    private static readonly byte[] _bytes = [1];
 
     private static ParsedDemo SyntheticDemo() => SyntheticParsedDemo.Create(
         [], [], new Dictionary<int, PlayerInfo>(), null,
@@ -100,7 +100,7 @@ public class DemoOpenQueueTests
             }));
 
         using IDemoOpenTicket open = rig.Queue.BeginOpen("/d/a.dem", "a.dem");
-        ParsedDemo parsed = await open.ParseAsync(Bytes).WaitAsync(TimeSpan.FromSeconds(5));
+        ParsedDemo parsed = await open.ParseAsync(_bytes).WaitAsync(TimeSpan.FromSeconds(5));
         rig.Queue.Resume();
         await Task.Delay(100);
 
@@ -136,7 +136,7 @@ public class DemoOpenQueueTests
         await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         IDemoOpenTicket open = rig.Queue.BeginOpen("/d/a.dem", "a.dem");
-        await open.ParseAsync(Bytes).WaitAsync(TimeSpan.FromSeconds(5));
+        await open.ParseAsync(_bytes).WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(job.State).IsEqualTo(DemoQueueItemState.Queued);
         open.Complete();
 
@@ -158,7 +158,7 @@ public class DemoOpenQueueTests
         await rig.ParseStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         using IDemoOpenTicket open = rig.Queue.BeginOpen("/d/a.dem", "a.dem");
-        Task<ParsedDemo> parse = open.ParseAsync(Bytes);
+        Task<ParsedDemo> parse = open.ParseAsync(_bytes);
         await WaitForAsync(() => rig.Open.Detail == "Waiting for b.dem to finish parsing", "the waiting detail");
 
         using (Assert.Multiple())
@@ -188,7 +188,7 @@ public class DemoOpenQueueTests
         await rig.ParseStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         using IDemoOpenTicket open = rig.Queue.BeginOpen("/D/A.dem", "a.dem");
-        Task<ParsedDemo> parse = open.ParseAsync(Bytes);
+        Task<ParsedDemo> parse = open.ParseAsync(_bytes);
         await Assert.That(rig.Open.State).IsEqualTo(DemoQueueItemState.Running);
         rig.Release.SetResult();
 
@@ -209,7 +209,7 @@ public class DemoOpenQueueTests
         await rig.ParseStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         using IDemoOpenTicket open = rig.Queue.BeginOpen("/d/a.dem", "a.dem");
-        Task<ParsedDemo> parse = open.ParseAsync(Bytes);
+        Task<ParsedDemo> parse = open.ParseAsync(_bytes);
         await WaitForAsync(() => rig.Open.Detail == "Waiting for a.dem to finish parsing", "the waiting detail");
         rig.Release.SetResult();
 
@@ -231,7 +231,7 @@ public class DemoOpenQueueTests
         await rig.ParseStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         using IDemoOpenTicket open = rig.Queue.BeginOpen("/d/a.dem", "a.dem");
-        Task<ParsedDemo> parse = open.ParseAsync(Bytes);
+        Task<ParsedDemo> parse = open.ParseAsync(_bytes);
         await Task.Delay(200);
         await Assert.That(Volatile.Read(ref rig.ByteParses)).IsEqualTo(0)
             .Because("two full parses of one demo are never resident together");
@@ -250,7 +250,7 @@ public class DemoOpenQueueTests
         await rig.ParseStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         using IDemoOpenTicket first = rig.Queue.BeginOpen("/d/a.dem", "a.dem");
-        Task<ParsedDemo> firstParse = first.ParseAsync(Bytes);
+        Task<ParsedDemo> firstParse = first.ParseAsync(_bytes);
         using IDemoOpenTicket second = rig.Queue.BeginOpen("/d/c.dem", "c.dem");
 
         using (Assert.Multiple())
@@ -263,7 +263,7 @@ public class DemoOpenQueueTests
         }
 
         rig.Release.SetResult();
-        await second.ParseAsync(Bytes).WaitAsync(TimeSpan.FromSeconds(5));
+        await second.ParseAsync(_bytes).WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(rig.ByteParses).IsEqualTo(1);
     }
 
@@ -273,7 +273,7 @@ public class DemoOpenQueueTests
         using Rig rig = new();
         rig.Release.SetResult();
         IDemoOpenTicket first = rig.Queue.BeginOpen("/d/a.dem", "a.dem");
-        await first.ParseAsync(Bytes).WaitAsync(TimeSpan.FromSeconds(5));
+        await first.ParseAsync(_bytes).WaitAsync(TimeSpan.FromSeconds(5));
         first.Report(0.6, "Analysing");
 
         using IDemoOpenTicket second = rig.Queue.BeginOpen("/d/c.dem", "c.dem");
@@ -297,11 +297,11 @@ public class DemoOpenQueueTests
         try
         {
             using IDemoOpenTicket first = rig.Queue.BeginOpen("/d/a.dem", "a.dem");
-            Task<ParsedDemo> firstParse = first.ParseAsync(Bytes);
+            Task<ParsedDemo> firstParse = first.ParseAsync(_bytes);
             await WaitForAsync(() => Volatile.Read(ref rig.ByteParses) == 1, "the first parse to start");
 
             using IDemoOpenTicket second = rig.Queue.BeginOpen("/d/c.dem", "c.dem");
-            Task<ParsedDemo> secondParse = second.ParseAsync(Bytes);
+            Task<ParsedDemo> secondParse = second.ParseAsync(_bytes);
 
             DemoQueueItemSnapshot Row(string file) =>
                 rig.Queue.Snapshot().Single(s => s.DisplayName == "Open demo: " + file);
@@ -355,7 +355,7 @@ public class DemoOpenQueueTests
         await rig.ParseStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         using IDemoOpenTicket open = rig.Queue.BeginOpen("/d/a.dem", "a.dem");
-        Task<ParsedDemo> parse = open.ParseAsync(Bytes);
+        Task<ParsedDemo> parse = open.ParseAsync(_bytes);
         rig.Queue.RemoveByUser(rig.Open.Id);
 
         using (Assert.Multiple())

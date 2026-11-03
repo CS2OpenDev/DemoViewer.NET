@@ -133,17 +133,17 @@ public class EngineRoundFactsRowSourceTests
             return new MetricRow(dimensions, values);
         }
 
-        const string a = "0,1,2,3,4", b = "5,6,7,8,9";
+        const string A = "0,1,2,3,4", B = "5,6,7,8,9";
         List<MetricRow> rows =
         [
-            Row(1, 2, b, 1000, 3, kills: "1500,2000", victims: "5,1", teamAlive: "4,4", enemyAlive: "5,4"),
-            Row(1, 3, a, 1000, 3, kills: "1500,2000", victims: "5,1", teamAlive: "5,4", enemyAlive: "4,4"),
-            Row(2, 2, a, 5000, 2, 6000, "A", 173),
-            Row(2, 3, b, 5000, 2, 6000, "A", 173),
-            Row(3, 2, a, 8000, 3),
-            Row(3, 3, b, 8000, 3),
-            Row(4, 2, a, 9000, 2),
-            Row(4, 3, b, 9000, 2)
+            Row(1, 2, B, 1000, 3, kills: "1500,2000", victims: "5,1", teamAlive: "4,4", enemyAlive: "5,4"),
+            Row(1, 3, A, 1000, 3, kills: "1500,2000", victims: "5,1", teamAlive: "5,4", enemyAlive: "4,4"),
+            Row(2, 2, A, 5000, 2, 6000, "A", 173),
+            Row(2, 3, B, 5000, 2, 6000, "A", 173),
+            Row(3, 2, A, 8000, 3),
+            Row(3, 3, B, 8000, 3),
+            Row(4, 2, A, 9000, 2),
+            Row(4, 3, B, 9000, 2)
         ];
         return new MetricTable(EngineRoundFactsRowSource.TableName,
             ["match_id", "map", "round_number", "side", "slots"],

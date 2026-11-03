@@ -29,7 +29,7 @@ namespace DemoViewer.NET.AppTests;
 public class PlayerOverviewTrendsTests
 {
     private const ulong Grim = PlayerOverviewHistoryTests.Grim;
-    private static readonly string Stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     // Demo i: Grim kills 10 + i over 20 rounds and deals 60 x kills damage, rated 1 + i / 10, so every metric climbs with i.
     private static FactTable Facet(int i)
@@ -70,7 +70,7 @@ public class PlayerOverviewTrendsTests
                 new IdentityAccount(Grim.ToString(CultureInfo.InvariantCulture), null, DateTime.UtcNow)
             ]);
             PlayerRowCache cache = new(store, directory, path =>
-                store.TryGetIndex(path)?.Stamp(Stamp) is { State: DemoAnalysisState.Indexed }
+                store.TryGetIndex(path)?.Stamp(_stamp) is { State: DemoAnalysisState.Indexed }
                     ? Facet(int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture))
                     : null);
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, cache, _ => { },

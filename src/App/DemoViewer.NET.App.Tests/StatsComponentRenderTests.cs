@@ -65,7 +65,7 @@ public class StatsComponentRenderTests
                 frame!.Save(outPath, new PngBitmapEncoderOptions());
                 byte[] pixels = FrameProbe.ToBytes(frame);
 
-                foreach ((string token, uint hex) in DarkRamp)
+                foreach ((string token, uint hex) in _darkRamp)
                 {
                     int hits = FrameProbe.CountPixels(pixels, hex);
                     Console.WriteLine($"[stats-components] {token} #{hex:X6} hits={hits}");
@@ -362,11 +362,11 @@ public class StatsComponentRenderTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            const double hostWidth = 34;
+            const double HostWidth = 34;
             StatValue cell = new() { Text = "1234.5678", FontSize = 13, Height = 20 };
 
             // A fixed-width column, which is what every scoreboard cell lives in.
-            _ = CaptureControl(new Border { Width = hostWidth, Child = cell }, "stats-cell-measure-stability");
+            _ = CaptureControl(new Border { Width = HostWidth, Child = cell }, "stats-cell-measure-stability");
 
             cell.InvalidateMeasure();
             cell.Measure(Size.Infinity);
@@ -374,7 +374,7 @@ public class StatsComponentRenderTests
 
             // Nine digits and a point cannot fit in 34px at 13pt: an unconstrained measure has to ask
             // for more than the box it was just squeezed into.
-            await Assert.That(natural).IsGreaterThan(hostWidth);
+            await Assert.That(natural).IsGreaterThan(HostWidth);
 
             // And it must be STABLE. A single pass that happens to be right is not the property here.
             cell.InvalidateMeasure();
@@ -398,7 +398,7 @@ public class StatsComponentRenderTests
         await HeadlessSession.RunOnUi(async () =>
         {
             // Magenta, because no palette token is near it: any hit is this brush and nothing else.
-            const uint accentRgb = 0xFF00FF;
+            const uint AccentRgb = 0xFF00FF;
             StatValue cell = new()
             {
                 Mode = StatValueMode.Plain,
@@ -415,7 +415,7 @@ public class StatsComponentRenderTests
 
             Window window = BuildWindow(cell);
             WriteableBitmap accented = Render(window)!;
-            int before = FrameProbe.CountPixels(FrameProbe.ToBytes(accented), accentRgb);
+            int before = FrameProbe.CountPixels(FrameProbe.ToBytes(accented), AccentRgb);
             await Assert.That(before).IsGreaterThan(0);
 
             // The whole domain becomes the dead zone, so the same value is now judged neutral.
@@ -429,7 +429,7 @@ public class StatsComponentRenderTests
             plain.Save(Path.Combine(HeadlessSession.ArtifactDir, "stats-cell-accent-withdrawn.png"),
                 new PngBitmapEncoderOptions());
 
-            await Assert.That(FrameProbe.CountPixels(FrameProbe.ToBytes(plain), accentRgb)).IsEqualTo(0);
+            await Assert.That(FrameProbe.CountPixels(FrameProbe.ToBytes(plain), AccentRgb)).IsEqualTo(0);
         });
     }
 
@@ -451,17 +451,17 @@ public class StatsComponentRenderTests
             byte[] nine = CaptureControl(Pips(9, 60), "stats-pips-narrow-9");
             byte[] twelve = CaptureControl(Pips(12, 60), "stats-pips-narrow-12");
 
-            const uint ink = 0xFF00FF;
-            int nineInk = FrameProbe.CountPixels(nine, ink);
-            int twelveInk = FrameProbe.CountPixels(twelve, ink);
+            const uint Ink = 0xFF00FF;
+            int nineInk = FrameProbe.CountPixels(nine, Ink);
+            int twelveInk = FrameProbe.CountPixels(twelve, Ink);
 
             await Assert.That(nineInk).IsGreaterThan(0);
             await Assert.That(twelveInk).IsGreaterThan(0);
             await Assert.That(nineInk).IsNotEqualTo(twelveInk);
 
             // Given the room, marks are still marks: more of them is more ink.
-            int five = FrameProbe.CountPixels(CaptureControl(Pips(5, 220), "stats-pips-wide-5"), ink);
-            int nineWide = FrameProbe.CountPixels(CaptureControl(Pips(9, 220), "stats-pips-wide-9"), ink);
+            int five = FrameProbe.CountPixels(CaptureControl(Pips(5, 220), "stats-pips-wide-5"), Ink);
+            int nineWide = FrameProbe.CountPixels(CaptureControl(Pips(9, 220), "stats-pips-wide-9"), Ink);
             await Assert.That(nineWide).IsGreaterThan(five);
         });
     }
@@ -498,26 +498,26 @@ public class StatsComponentRenderTests
         {
             // Pure green and pure magenta: nothing in either palette is within reach of either, so a
             // hit is this bar's arm and not the chrome behind it.
-            const uint won = 0x00FF00;
-            const uint lost = 0xFF00FF;
+            const uint Won = 0x00FF00;
+            const uint Lost = 0xFF00FF;
 
             byte[] both = CaptureControl(Duels(9, 5), "stats-duel-both-arms");
-            int wonInk = FrameProbe.CountPixels(both, won);
-            int lostInk = FrameProbe.CountPixels(both, lost);
+            int wonInk = FrameProbe.CountPixels(both, Won);
+            int lostInk = FrameProbe.CountPixels(both, Lost);
             await Assert.That(wonInk).IsGreaterThan(0);
             await Assert.That(lostInk).IsGreaterThan(0);
             await Assert.That(wonInk).IsGreaterThan(lostInk);
 
             // A clean sweep draws the one arm it has and nothing on the other side of the line.
             byte[] sweep = CaptureControl(Duels(6, 0), "stats-duel-one-arm");
-            await Assert.That(FrameProbe.CountPixels(sweep, won)).IsGreaterThan(0);
-            await Assert.That(FrameProbe.CountPixels(sweep, lost)).IsEqualTo(0);
+            await Assert.That(FrameProbe.CountPixels(sweep, Won)).IsGreaterThan(0);
+            await Assert.That(FrameProbe.CountPixels(sweep, Lost)).IsEqualTo(0);
 
             // A player who fought no opening duels still occupies a row on a live column scale: the
             // break-even line and nothing else, not a bar of some default length.
             byte[] none = CaptureControl(Duels(0, 0), "stats-duel-no-duels");
-            await Assert.That(FrameProbe.CountPixels(none, won)).IsEqualTo(0);
-            await Assert.That(FrameProbe.CountPixels(none, lost)).IsEqualTo(0);
+            await Assert.That(FrameProbe.CountPixels(none, Won)).IsEqualTo(0);
+            await Assert.That(FrameProbe.CountPixels(none, Lost)).IsEqualTo(0);
         });
     }
 
@@ -548,7 +548,7 @@ public class StatsComponentRenderTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            const uint shot = 0xFF00FF;
+            const uint Shot = 0xFF00FF;
             SprayPatternPoint[] pattern =
             [
                 new(0, 0f, 0f, 8), new(1, 0.4f, -1.2f, 8), new(2, 0.9f, -2.6f, 8),
@@ -563,12 +563,12 @@ public class StatsComponentRenderTests
             byte[] clean = CaptureControl(Spray(pattern, landed), "stats-spray-clean");
             byte[] withNaN = CaptureControl(Spray(pattern, poisoned), "stats-spray-nan");
 
-            int ink = FrameProbe.CountPixels(clean, shot);
+            int ink = FrameProbe.CountPixels(clean, Shot);
             await Assert.That(ink).IsGreaterThan(0);
 
             // The NaN bullet cannot be drawn, but nothing else changes: same scale, same pattern, same
             // three bullets. Identical ink is the assertion, not merely "some ink survived".
-            await Assert.That(FrameProbe.CountPixels(withNaN, shot)).IsEqualTo(ink);
+            await Assert.That(FrameProbe.CountPixels(withNaN, Shot)).IsEqualTo(ink);
         });
     }
 
@@ -972,7 +972,7 @@ public class StatsComponentRenderTests
     ///     here on purpose: if someone retunes a token, this test fails and the capture gets re-read,
     ///     which is the review step the ramp deserves.
     /// </summary>
-    private static readonly (string Token, uint Hex)[] DarkRamp =
+    private static readonly (string Token, uint Hex)[] _darkRamp =
     [
         ("StatPositive", 0x4CAF50),
         ("StatPositiveSoft", 0x5FA894),

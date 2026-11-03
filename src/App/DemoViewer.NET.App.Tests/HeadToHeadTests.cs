@@ -33,8 +33,8 @@ public class HeadToHeadTests
     private const ulong Rival = 76561190000000007;
     private const ulong Mate = 76561190000000012;
     private const ulong Stranger = 76561190000000020;
-    private static readonly string MatchStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
-    private static readonly string EventStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
+    private static readonly string _matchStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _eventStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
@@ -64,10 +64,10 @@ public class HeadToHeadTests
         };
         DemoCacheStore.StampHeader(record);
         DemoCacheStore.StampParse(record);
-        record.PackStamps.Add(new PackStamp(MatchStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
+        record.PackStamps.Add(new PackStamp(_matchStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
         if (events)
         {
-            record.PackStamps.Add(new PackStamp(EventStamp, StampedFacts.Schema, "fp-events") { ComputedAtTicks = 1 });
+            record.PackStamps.Add(new PackStamp(_eventStamp, StampedFacts.Schema, "fp-events") { ComputedAtTicks = 1 });
         }
 
         return record;
@@ -165,7 +165,7 @@ public class HeadToHeadTests
                 Events = new PlayerEventCache((path, key) =>
                 {
                     Reads.Enqueue(path);
-                    return store.TryGetIndex(path)?.Stamp(EventStamp) is { State: DemoAnalysisState.Indexed }
+                    return store.TryGetIndex(path)?.Stamp(_eventStamp) is { State: DemoAnalysisState.Indexed }
                         ? Events(IndexOf(path), key)
                         : null;
                 })
@@ -354,8 +354,8 @@ public class HeadToHeadTests
         }
 
         DemoCacheRecord rewritten = Demo(1);
-        rewritten.PackStamps.RemoveAll(s => s.Id == EventStamp);
-        rewritten.PackStamps.Add(new PackStamp(EventStamp, StampedFacts.Schema, "fp-events2") { ComputedAtTicks = 2 });
+        rewritten.PackStamps.RemoveAll(s => s.Id == _eventStamp);
+        rewritten.PackStamps.Add(new PackStamp(_eventStamp, StampedFacts.Schema, "fp-events2") { ComputedAtTicks = 2 });
         rig.Store.Upsert(rewritten);
         rig.Section.Update(rig.Context(Grim));
         await rig.Section.Loading;

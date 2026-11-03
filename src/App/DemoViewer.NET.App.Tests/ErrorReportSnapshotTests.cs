@@ -19,7 +19,7 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class ErrorReportSnapshotTests
 {
-    private static readonly DateTime Now = new(2026, 10, 28, 12, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _now = new(2026, 10, 28, 12, 0, 0, DateTimeKind.Utc);
 
     private static DemoCacheRecord Record() => new()
     {
@@ -40,12 +40,12 @@ public class ErrorReportSnapshotTests
     public async Task ASnapshotOfAnUncachedDemoWithNoRules_StillBuilds()
     {
         DemoErrorReportSnapshot snapshot =
-            ErrorReportSnapshotBuilder.Build("/demos/missing.dem", null, null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build("/demos/missing.dem", null, null, null, null, _now);
 
         using (Assert.Multiple())
         {
             await Assert.That(snapshot.DemoPath).IsEqualTo("/demos/missing.dem");
-            await Assert.That(snapshot.CapturedAtUtcTicks).IsEqualTo(Now.Ticks);
+            await Assert.That(snapshot.CapturedAtUtcTicks).IsEqualTo(_now.Ticks);
             await Assert.That(snapshot.Versions).IsNotEmpty()
                 .Because("versions come off assemblies, so they are available even with nothing else");
         }
@@ -56,7 +56,7 @@ public class ErrorReportSnapshotTests
     {
         DemoCacheRecord record = Record();
         DemoErrorReportSnapshot snapshot =
-            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, _now);
 
         using (Assert.Multiple())
         {
@@ -78,7 +78,7 @@ public class ErrorReportSnapshotTests
         // The window can be opened over a cached preview of a demo the shell never parsed. Reading the open
         // demo's health there would attribute another demo's warnings to this report.
         DemoErrorReportSnapshot preview =
-            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, "/demos/something_else.dem", Now);
+            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, "/demos/something_else.dem", _now);
 
         using (Assert.Multiple())
         {
@@ -96,7 +96,7 @@ public class ErrorReportSnapshotTests
         try
         {
             DemoErrorReportSnapshot snapshot =
-                ErrorReportSnapshotBuilder.Build("/demos/env.dem", null, null, null, null, Now);
+                ErrorReportSnapshotBuilder.Build("/demos/env.dem", null, null, null, null, _now);
 
             using (Assert.Multiple())
             {
@@ -170,7 +170,7 @@ public class ErrorReportSnapshotTests
         record.ExcludedRulesets = null;
 
         DemoErrorReportSnapshot snapshot =
-            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, _now);
 
         using (Assert.Multiple())
         {
@@ -194,7 +194,7 @@ public class ErrorReportSnapshotTests
         record.ExcludedRulesets = [];
 
         DemoErrorReportSnapshot snapshot =
-            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, _now);
 
         using (Assert.Multiple())
         {
@@ -212,7 +212,7 @@ public class ErrorReportSnapshotTests
         record.ExcludedRulesets = ["ruleset 'community.entry-trades' was excluded: [RS201] unresolvable column"];
 
         DemoErrorReportSnapshot snapshot =
-            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, _now);
 
         using (Assert.Multiple())
         {
@@ -240,11 +240,11 @@ public class ErrorReportSnapshotTests
             DemoCacheRecord record = Record();
             record.Path = other;
             record.ExcludedRulesets = ["ruleset 'community.utility-value' was excluded: [RS201] unresolvable column"];
-            ErrorReportSnapshotBuilder.Build(other, record, null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build(other, record, null, null, null, _now);
         }
 
         DemoErrorReportSnapshot snapshot =
-            ErrorReportSnapshotBuilder.Build(reported.Path, reported, null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build(reported.Path, reported, null, null, null, _now);
 
         using (Assert.Multiple())
         {
@@ -263,7 +263,7 @@ public class ErrorReportSnapshotTests
     public async Task TheCurrentExclusionRow_SaysUnknownWithNoRuleSet()
     {
         DemoErrorReportSnapshot snapshot =
-            ErrorReportSnapshotBuilder.Build(Record().Path, Record(), null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build(Record().Path, Record(), null, null, null, _now);
 
         using (Assert.Multiple())
         {
@@ -277,7 +277,7 @@ public class ErrorReportSnapshotTests
     {
         DemoCacheRecord record = Record();
         DemoErrorReportSnapshot snapshot =
-            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, _now);
 
         string text = ErrorReportSnapshotBuilder.ToText(snapshot, "  kills are double-counted in round 3  ");
 
@@ -297,7 +297,7 @@ public class ErrorReportSnapshotTests
     {
         DemoCacheRecord record = Record();
         DemoErrorReportSnapshot snapshot =
-            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, Now);
+            ErrorReportSnapshotBuilder.Build(record.Path, record, null, null, null, _now);
 
         IReadOnlyList<string> titles =
             [.. ErrorReportSnapshotBuilder.Groups(snapshot).Select(g => g.Title)];

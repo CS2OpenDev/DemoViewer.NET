@@ -24,7 +24,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 [NotInParallel]
 public class ExtensionFaultNoticeTests
 {
-    private static readonly ExtensionScope StratBook =
+    private static readonly ExtensionScope _stratBook =
         new(StratBookPack.PackId, StratBookPack.PackFeatureId, "Strat Book", typeof(StratBookPack).Assembly);
 
     private sealed class Rig : IDisposable
@@ -43,7 +43,7 @@ public class ExtensionFaultNoticeTests
             services.Configure<AppSettings>(Settings.Configuration);
             _sp = services.BuildServiceProvider();
             Monitor = _sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
-            Faults = new ExtensionFaults([StratBook], Posts.Post);
+            Faults = new ExtensionFaults([_stratBook], Posts.Post);
             Gate = new FeatureGate(Monitor, false, Faults);
         }
 
@@ -59,7 +59,7 @@ public class ExtensionFaultNoticeTests
             for (int i = 0; i < ExtensionFaults.WindowLimit; i++)
             {
                 Action body = () => throw new InvalidOperationException("boom");
-                Faults.Run(StratBook, "library filter", body);
+                Faults.Run(_stratBook, "library filter", body);
             }
 
             Posts.Drain();
@@ -161,7 +161,7 @@ public class ExtensionFaultNoticeTests
     public async Task AnExtensionThatFailedToStart_StaysSuspended_ThroughKeepOffAndTheMasterSwitch()
     {
         using Rig rig = new();
-        rig.Faults.FailStartup(StratBook, "register", new InvalidOperationException("no"));
+        rig.Faults.FailStartup(_stratBook, "register", new InvalidOperationException("no"));
         rig.Posts.Drain();
         using SettingsViewModel vm = Settings(rig);
         FeatureToggleRow master = Master(vm);
@@ -196,7 +196,7 @@ public class ExtensionFaultNoticeTests
 
                 shell.DismissExtensionFaultBannerCommand.Execute(null);
                 Action late = () => throw new InvalidOperationException("after");
-                rig.Faults.Run(StratBook, "library filter", late);
+                rig.Faults.Run(_stratBook, "library filter", late);
                 rig.Posts.Drain();
                 await Assert.That(shell.HasExtensionFaultBanner).IsFalse()
                     .Because("the same switch-off is not announced twice");

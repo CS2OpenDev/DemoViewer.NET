@@ -89,9 +89,9 @@ public class RuleWorkbenchExtensionRulesetTests
     [Test]
     public async Task ABrokenExtensionRuleset_IsListed_WithItsDiagnostics()
     {
-        const string broken =
+        const string Broken =
             "ruleset: dev_example_hello__kills\nfor: each_player\nstats:\n  kills:\n    count: no_such_event\n    per: match\n";
-        await With([new ContributedRuleset(Id, Owner, "pack.hello", () => broken)], null, async (vm, _) =>
+        await With([new ContributedRuleset(Id, Owner, "pack.hello", () => Broken)], null, async (vm, _) =>
         {
             RulesetFileRef file = vm.OpenableFiles.First(f => f.IsExtension);
             vm.SelectedFile = file;

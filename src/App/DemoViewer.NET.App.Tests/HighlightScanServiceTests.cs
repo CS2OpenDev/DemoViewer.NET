@@ -87,7 +87,7 @@ public class HighlightScanServiceTests
     private static List<HighlightFired> Harvest() =>
         [new("clutch", "ace", 0, 5000, 0, "s1mple", 1, "s1mple — ace", 50, HighlightKind.Highlight)];
 
-    private static HighlightFired HF(string id, int slot, int round, int score, string? group) =>
+    private static HighlightFired Hf(string id, int slot, int round, int score, string? group) =>
         new("rs", id, 0, 1000 + score, slot, "p", round, id, score, HighlightKind.Highlight, group);
 
     // Supersession collapses a tiered `group:` family to its top tier per player+round, while leaving
@@ -97,14 +97,14 @@ public class HighlightScanServiceTests
     {
         List<HighlightFired> events =
         [
-            HF("triple_kill", 0, 1, 55, "multikill"), // superseded by the 4K
-            HF("quad_kill", 0, 1, 88, "multikill"), // top of multikill → kept
-            HF("rapid_quad", 0, 1, 92, "rapid_multikill"), // different group → kept alongside quad_kill
-            HF("collateral", 0, 1, 95, null), // ungrouped → always kept
-            HF("triple_kill", 1, 1, 55, "multikill"), // different PLAYER → kept
-            HF("triple_kill", 0, 2, 55, "multikill"), // different ROUND → kept
-            HF("rapid_double", 0, 3, 62, "rapid_multikill"), // two distinct same-score moments,
-            HF("rapid_double", 0, 3, 62, "rapid_multikill") // same round → both survive (62 >= 62)
+            Hf("triple_kill", 0, 1, 55, "multikill"), // superseded by the 4K
+            Hf("quad_kill", 0, 1, 88, "multikill"), // top of multikill → kept
+            Hf("rapid_quad", 0, 1, 92, "rapid_multikill"), // different group → kept alongside quad_kill
+            Hf("collateral", 0, 1, 95, null), // ungrouped → always kept
+            Hf("triple_kill", 1, 1, 55, "multikill"), // different PLAYER → kept
+            Hf("triple_kill", 0, 2, 55, "multikill"), // different ROUND → kept
+            Hf("rapid_double", 0, 3, 62, "rapid_multikill"), // two distinct same-score moments,
+            Hf("rapid_double", 0, 3, 62, "rapid_multikill") // same round → both survive (62 >= 62)
         ];
 
         HashSet<string> kept =

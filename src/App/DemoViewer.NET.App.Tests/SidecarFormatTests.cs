@@ -338,9 +338,9 @@ public class SidecarFormatTests
         string root = TempRoot();
         try
         {
-            const string a = "/d/a.dem", b = "/d/b.dem", c = "/d/c.dem", d = "/d/d.dem";
+            const string A = "/d/a.dem", B = "/d/b.dem", C = "/d/c.dem", D = "/d/d.dem";
             DemoCacheStore seed = new(root);
-            foreach (string path in (string[])[a, b, c, d])
+            foreach (string path in (string[])[A, B, C, D])
             {
                 seed.Upsert(BigRecord(path));
             }
@@ -348,19 +348,19 @@ public class SidecarFormatTests
             seed.SaveIndex();
 
             // a: legacy only, carrying a field no model knows. c: corrupt legacy only. d: new plus a stale legacy.
-            DemoCacheRecord aRecord = seed.TryLoadRecord(a)!;
+            DemoCacheRecord aRecord = seed.TryLoadRecord(A)!;
             string aJson = JsonSerializer.Serialize(aRecord, _indented).Insert(1, "\n  \"FutureField\": 7,");
-            File.WriteAllText(seed.LegacySidecarPathFor(a)!, aJson);
-            File.Delete(seed.SidecarPathFor(a)!);
-            File.WriteAllText(seed.LegacySidecarPathFor(c)!, "{ not json");
-            File.Delete(seed.SidecarPathFor(c)!);
-            File.WriteAllText(seed.LegacySidecarPathFor(d)!, "{}");
+            File.WriteAllText(seed.LegacySidecarPathFor(A)!, aJson);
+            File.Delete(seed.SidecarPathFor(A)!);
+            File.WriteAllText(seed.LegacySidecarPathFor(C)!, "{ not json");
+            File.Delete(seed.SidecarPathFor(C)!);
+            File.WriteAllText(seed.LegacySidecarPathFor(D)!, "{}");
 
             DemoCacheStore cache = new(root);
             SidecarFormatResult first = await Pass(cache);
             string marker = Path.Combine(root, SidecarFormatMigration.MarkerFileName);
 
-            await using (GZipStream gzip = new(File.OpenRead(cache.SidecarPathFor(a)!), CompressionMode.Decompress))
+            await using (GZipStream gzip = new(File.OpenRead(cache.SidecarPathFor(A)!), CompressionMode.Decompress))
             using (StreamReader reader = new(gzip, Encoding.UTF8))
             {
                 string converted = await reader.ReadToEndAsync();
@@ -373,12 +373,12 @@ public class SidecarFormatTests
                 await Assert.That(first.Failed).IsEqualTo(1).Because("c's record does not read");
                 await Assert.That(first.Completed).IsFalse();
                 await Assert.That(File.Exists(marker)).IsFalse();
-                await Assert.That(File.Exists(cache.LegacySidecarPathFor(a)!)).IsFalse();
-                await Assert.That(cache.TryLoadRecord(a)!.Highlights.Count).IsEqualTo(200);
-                await Assert.That(File.Exists(cache.LegacySidecarPathFor(c)!)).IsTrue();
-                await Assert.That(File.Exists(cache.SidecarPathFor(c)!)).IsFalse();
-                await Assert.That(File.Exists(cache.LegacySidecarPathFor(d)!)).IsFalse();
-                await Assert.That(cache.TryLoadRecord(d)).IsNotNull();
+                await Assert.That(File.Exists(cache.LegacySidecarPathFor(A)!)).IsFalse();
+                await Assert.That(cache.TryLoadRecord(A)!.Highlights.Count).IsEqualTo(200);
+                await Assert.That(File.Exists(cache.LegacySidecarPathFor(C)!)).IsTrue();
+                await Assert.That(File.Exists(cache.SidecarPathFor(C)!)).IsFalse();
+                await Assert.That(File.Exists(cache.LegacySidecarPathFor(D)!)).IsFalse();
+                await Assert.That(cache.TryLoadRecord(D)).IsNotNull();
             }
 
             // Resumable: the converted demos have nothing left, the bad files are tried again.
@@ -389,7 +389,7 @@ public class SidecarFormatTests
                 await Assert.That(second.Failed).IsEqualTo(1);
             }
 
-            File.Delete(cache.LegacySidecarPathFor(c)!);
+            File.Delete(cache.LegacySidecarPathFor(C)!);
             SidecarFormatResult third = await Pass(cache);
             SidecarFormatResult fourth = await Pass(cache);
             using (Assert.Multiple())
@@ -438,26 +438,26 @@ public class SidecarFormatTests
             string legacy = Path.Combine(root, "legacy.json");
             File.WriteAllText(legacy, JsonSerializer.Serialize(record, _indented));
 
-            const int reads = 50;
+            const int Reads = 50;
             JsonSerializer.Deserialize<DemoCacheRecord>(File.ReadAllText(legacy));
             new DemoCacheStore(root).TryLoadRecord(Demo);
 
             long start = GC.GetAllocatedBytesForCurrentThread();
-            for (int i = 0; i < reads; i++)
+            for (int i = 0; i < Reads; i++)
             {
                 JsonSerializer.Deserialize<DemoCacheRecord>(File.ReadAllText(legacy));
             }
 
-            long before = (GC.GetAllocatedBytesForCurrentThread() - start) / reads;
+            long before = (GC.GetAllocatedBytesForCurrentThread() - start) / Reads;
 
-            DemoCacheStore[] fresh = [.. Enumerable.Range(0, reads).Select(_ => new DemoCacheStore(root))];
+            DemoCacheStore[] fresh = [.. Enumerable.Range(0, Reads).Select(_ => new DemoCacheStore(root))];
             start = GC.GetAllocatedBytesForCurrentThread();
             foreach (DemoCacheStore s in fresh)
             {
                 s.TryLoadRecord(Demo);
             }
 
-            long after = (GC.GetAllocatedBytesForCurrentThread() - start) / reads;
+            long after = (GC.GetAllocatedBytesForCurrentThread() - start) / Reads;
             Console.WriteLine(
                 $"[record read] indented text {new FileInfo(legacy).Length} B, gzip {new FileInfo(store.SidecarPathFor(Demo)!).Length} B; "
                 +

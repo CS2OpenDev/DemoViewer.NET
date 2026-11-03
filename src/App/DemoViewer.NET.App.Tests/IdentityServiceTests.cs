@@ -22,7 +22,7 @@ public class IdentityServiceTests
     private const string A = "76561198000000001";
     private const string B = "76561198000000002";
     private const string C = "76561198000000003";
-    private static readonly DateTime Added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
 
     private static string NewTempDir()
     {
@@ -43,7 +43,7 @@ public class IdentityServiceTests
         }
     }
 
-    private static IdentityAccount Account(string id, string? label = null) => new(id, label, Added);
+    private static IdentityAccount Account(string id, string? label = null) => new(id, label, _added);
 
     private static string[] Ids(IdentityService identity) => [.. identity.Accounts.Select(a => a.SteamId64)];
 
@@ -281,7 +281,7 @@ public class IdentityServiceTests
             File.WriteAllText(teams, $$"""{ "me": { "steamIds": [ "{{B}}" ] } }""");
             SettingsService settings = new(dir);
             settings.Write(s => s.Identity.Accounts =
-                [new IdentityAccountSettings { SteamId64 = A, AddedUtc = Added }]);
+                [new IdentityAccountSettings { SteamId64 = A, AddedUtc = _added }]);
 
             await Assert.That(IdentityService.ImportTeamsJson(settings, teams)).IsEqualTo(0);
             using IdentityService identity = new(settings);

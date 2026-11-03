@@ -21,7 +21,7 @@ public class ExtensionIdentityTests
 {
     private const string A = "76561198000000001";
     private const string B = "76561198000000002";
-    private static readonly DateTime Added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
 
     private static readonly Func<Action, Task> _inline = a =>
     {
@@ -36,7 +36,7 @@ public class ExtensionIdentityTests
         return dir;
     }
 
-    private static IdentityAccount Account(string id) => new(id, null, Added);
+    private static IdentityAccount Account(string id) => new(id, null, _added);
 
     private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct)
     {

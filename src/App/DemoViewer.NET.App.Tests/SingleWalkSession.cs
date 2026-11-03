@@ -394,7 +394,7 @@ internal static class SingleWalkSession
         }
     }
 
-    private static readonly TimeSpan SettleBudget = TimeSpan.FromMinutes(20);
+    private static readonly TimeSpan _settleBudget = TimeSpan.FromMinutes(20);
 
     /// <summary>
     ///     Waits for both of the session's work signals: the queue holding nothing queued or running, and the
@@ -425,7 +425,7 @@ internal static class SingleWalkSession
 
             try
             {
-                await queue.WhenIdleAsync(() => !Busy(queue, scheduler)).WaitAsync(SettleBudget);
+                await queue.WhenIdleAsync(() => !Busy(queue, scheduler)).WaitAsync(_settleBudget);
             }
             catch (TimeoutException)
             {

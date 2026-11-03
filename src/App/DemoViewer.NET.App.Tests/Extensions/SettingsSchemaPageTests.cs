@@ -20,7 +20,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 [Category("Render")]
 public class SettingsSchemaPageTests
 {
-    private static readonly SettingsSchema Schema = new("dev.example.page", "EXAMPLE",
+    private static readonly SettingsSchema _schema = new("dev.example.page", "EXAMPLE",
     [
         SettingDescriptor.Toggle("walk", "Walk in the background", false, "About two seconds per demo."),
         SettingDescriptor.Number("stride", "Stride", 4, 1, 16),
@@ -34,7 +34,7 @@ public class SettingsSchemaPageTests
     public async Task Rows_ShowTheDefaults_WriteThroughOnAChange_AndFollowAChangeMadeElsewhere()
     {
         ExtensionSettingsStore settings = new("dev.example.page", null, a => a());
-        using SchemaSettingsPageViewModel page = new(Schema, settings);
+        using SchemaSettingsPageViewModel page = new(_schema, settings);
         ToggleSettingRow walk = (ToggleSettingRow)page.Rows[0];
         NumberSettingRow stride = (NumberSettingRow)page.Rows[1];
         ChoiceSettingRow source = (ChoiceSettingRow)page.Rows[2];
@@ -81,7 +81,7 @@ public class SettingsSchemaPageTests
             using ServiceProvider sp = services.BuildServiceProvider();
             ExtensionContext context = new(pack, sp);
             PackContributions contributions = new(pack, () => context);
-            contributions.SettingsSchema(Schema);
+            contributions.SettingsSchema(_schema);
 
             SettingsPageContribution page = contributions.SettingsPages.Single();
             object viewModel = page.ViewModelFactory();

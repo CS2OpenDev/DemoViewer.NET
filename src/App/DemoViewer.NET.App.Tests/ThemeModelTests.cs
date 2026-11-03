@@ -192,12 +192,12 @@ public class ThemeModelTests
     {
         ThemePalette egirl = BuiltInThemes.Find("egirl")!;
         string json = ThemeExport.ToJson(egirl);
-        string pb2dTeamCt = json.Split('\n')
+        string pb2DTeamCt = json.Split('\n')
             .Single(l => l.TrimStart().StartsWith("\"Pb2dTeamCt\"", StringComparison.Ordinal));
         string shell = json.Split('\n').Single(l => l.TrimStart().StartsWith("\"ShellBg\"", StringComparison.Ordinal));
 
         await Assert.That(egirl.Inherited.Contains("Pb2dTeamCt")).IsTrue();
-        await Assert.That(pb2dTeamCt).EndsWith("// base");
+        await Assert.That(pb2DTeamCt).EndsWith("// base");
         await Assert.That(shell).DoesNotContain("// base");
         foreach (ThemeSection section in ThemeExport.Sections)
         {

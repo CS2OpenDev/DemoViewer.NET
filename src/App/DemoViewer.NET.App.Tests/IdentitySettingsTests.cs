@@ -21,9 +21,9 @@ public class IdentitySettingsTests
 {
     private const string Main = "76561198000000001";
     private const string Dismissed = "76561198000000009";
-    private static readonly DateTime Added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
 
-    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _indented = new() { WriteIndented = true };
 
     private static string NewTempDir()
     {
@@ -51,14 +51,14 @@ public class IdentitySettingsTests
     {
         settings.Write(s => s.Identity.MigratedFromTeamsJson = true);
         using IdentityService identity = new(settings);
-        identity.SetAccounts([new IdentityAccount(Main, "main", Added)]);
+        identity.SetAccounts([new IdentityAccount(Main, "main", _added)]);
         identity.DismissSuggestion(new IdentitySuggestion(Dismissed, "someone", 30, 0.6));
     }
 
     // Only the Identity section of a settings file, as the sample holds it.
     private static string SectionOf(string settingsJson) =>
         Lf(new JsonObject { ["Identity"] = JsonNode.Parse(settingsJson)!["Identity"]!.DeepClone() }
-            .ToJsonString(Indented));
+            .ToJsonString(_indented));
 
     [Test]
     public async Task V1Schema_MatchesTheCheckedInSamples()
@@ -99,7 +99,7 @@ public class IdentitySettingsTests
                     .Because("the Identity section is a published format; this build still writes the committed shape");
                 await Assert.That(account.SteamId64).IsEqualTo(Main);
                 await Assert.That(account.Label).IsEqualTo("main");
-                await Assert.That(account.AddedUtc).IsEqualTo(Added);
+                await Assert.That(account.AddedUtc).IsEqualTo(_added);
                 await Assert.That(account.AddedUtc.Kind).IsEqualTo(DateTimeKind.Utc)
                     .Because("the binder reads Z as local time; the service gives UTC");
                 await Assert.That(identity.ActiveSteamId64).IsEqualTo(Main);
@@ -129,7 +129,7 @@ public class IdentitySettingsTests
         SettingsService settings = new(null);
         WriteSample(settings);
         using IdentityService identity = new(settings);
-        identity.SetAccounts([.. identity.Accounts, new IdentityAccount("76561198000000002", null, Added)]);
+        identity.SetAccounts([.. identity.Accounts, new IdentityAccount("76561198000000002", null, _added)]);
 
         using IdentityService reread = new(settings);
         using (Assert.Multiple())
@@ -138,7 +138,7 @@ public class IdentitySettingsTests
                 .IsEquivalentTo([Main, "76561198000000002"], CollectionOrdering.Matching);
             await Assert.That(reread.Accounts[0].Label).IsEqualTo("main");
             await Assert.That(reread.Accounts[1].Label).IsNull();
-            await Assert.That(reread.Accounts[0].AddedUtc).IsEqualTo(Added);
+            await Assert.That(reread.Accounts[0].AddedUtc).IsEqualTo(_added);
             await Assert.That(reread.ActiveSteamId64).IsEqualTo(Main);
             await Assert.That(reread.DismissedSuggestions).IsEquivalentTo([Dismissed], CollectionOrdering.Matching);
             await Assert.That(settings.Current.Identity.MigratedFromTeamsJson).IsTrue();

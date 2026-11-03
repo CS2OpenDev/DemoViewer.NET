@@ -443,9 +443,9 @@ public class ForwardQueueTests
     [Test]
     public async Task NewRoundFactsFingerprint_ReEvaluatesEveryDemoOnce_ForwardAtBackgroundPriority_ThroughTheCap()
     {
-        const int demos = 7;
+        const int Demos = 7;
         DemoCacheStore store = new(null);
-        for (int i = 0; i < demos; i++)
+        for (int i = 0; i < Demos; i++)
         {
             DemoCacheRecord record = new()
             {
@@ -493,7 +493,7 @@ public class ForwardQueueTests
         using DemoScheduler coordinator = new(() => scheduled, queue,
             () => [.. highlights.PendingPaths().Concat(facts.PendingPaths()).Distinct()]);
 
-        await Assert.That(facts.PendingPaths().Count).IsEqualTo(demos);
+        await Assert.That(facts.PendingPaths().Count).IsEqualTo(Demos);
         await Assert.That(highlights.PendingPaths()).IsEmpty().Because("the highlight fingerprint did not move");
 
         coordinator.RecheckAll();
@@ -501,7 +501,7 @@ public class ForwardQueueTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(passes.Order()).IsEquivalentTo(Enumerable.Range(0, demos).Select(i => $"/d/{i}.dem"),
+            await Assert.That(passes.Order()).IsEquivalentTo(Enumerable.Range(0, Demos).Select(i => $"/d/{i}.dem"),
                 CollectionOrdering.Matching);
             await Assert.That(priorities.Distinct())
                 .IsEquivalentTo([DemoJobPriority.Background], CollectionOrdering.Matching);

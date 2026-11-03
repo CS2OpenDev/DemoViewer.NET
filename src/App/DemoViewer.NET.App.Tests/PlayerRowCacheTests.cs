@@ -21,8 +21,8 @@ namespace DemoViewer.NET.AppTests;
 public class PlayerRowCacheTests
 {
     private const ulong Grim = 76561190000000003;
-    private static readonly string Stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
-    private static readonly string[] Maps = ["de_nuke", "de_inferno", "de_mirage", "de_ancient"];
+    private static readonly string _stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string[] _maps = ["de_nuke", "de_inferno", "de_mirage", "de_ancient"];
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
@@ -34,7 +34,7 @@ public class PlayerRowCacheTests
             Size = 100,
             ModifiedTicks = 1,
             Sha256 = $"sha{i}",
-            Map = Maps[i % Maps.Length],
+            Map = _maps[i % _maps.Length],
             Players =
             [
                 new CachedPlayerInfo { Slot = 2, Name = "grim", SteamId64 = Id(player), Team = i % 2 == 0 ? 3 : 2 }
@@ -48,7 +48,7 @@ public class PlayerRowCacheTests
         DemoCacheStore.StampParse(record);
         if (stamped)
         {
-            record.PackStamps.Add(new PackStamp(Stamp, StampedFacts.Schema, "fp") { ComputedAtTicks = writtenAt });
+            record.PackStamps.Add(new PackStamp(_stamp, StampedFacts.Schema, "fp") { ComputedAtTicks = writtenAt });
         }
 
         return record;
@@ -95,7 +95,7 @@ public class PlayerRowCacheTests
         {
             reads.Enqueue(path);
             int i = int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
-            return store.TryGetIndex(path)?.Stamp(Stamp) is { ComputedAtTicks: var at }
+            return store.TryGetIndex(path)?.Stamp(_stamp) is { ComputedAtTicks: var at }
                 ? Facet(i, i % 7 + (int)at - 1)
                 : null;
         });
@@ -199,7 +199,7 @@ public class PlayerRowCacheTests
     {
         (DemoCacheStore store, PlayerRowCache cache, ConcurrentQueue<string> reads) = Library(6, i => i != 2);
         DemoCacheRecord failed = Demo(4, false);
-        failed.PackStamps.Add(new PackStamp(Stamp, StampedFacts.Schema, "fp") { State = DemoAnalysisState.Failed });
+        failed.PackStamps.Add(new PackStamp(_stamp, StampedFacts.Schema, "fp") { State = DemoAnalysisState.Failed });
         store.Upsert(failed);
 
         PlayerRows rows = await cache.LoadAsync(Grim);

@@ -35,7 +35,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public partial class SingleWalkOracleTests
 {
-    private static readonly JsonSerializerOptions Fields = new() { IncludeFields = true };
+    private static readonly JsonSerializerOptions _fields = new() { IncludeFields = true };
 
     private const string DumpDirEnvVar = "SINGLE_WALK_DUMP_DIR";
 
@@ -235,7 +235,7 @@ public partial class SingleWalkOracleTests
     // ── Canonical form ──────────────────────────────────────────────────────────────────────────────
 
     // Written by the session itself, not by a pass: settings, logs, seeded defaults.
-    private static readonly string[] Skipped =
+    private static readonly string[] _skipped =
     [
         "settings.json", "logs/", "crash.log", "themes/", "palettes/", "launch-state.json", "SessionState.json",
         "extension-settings/"
@@ -253,7 +253,7 @@ public partial class SingleWalkOracleTests
         foreach (string file in Directory.EnumerateFiles(configDir, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(configDir, file).Replace('\\', '/');
-            if (Skipped.Any(s => s.EndsWith('/') ? rel.StartsWith(s, StringComparison.Ordinal) : rel == s))
+            if (_skipped.Any(s => s.EndsWith('/') ? rel.StartsWith(s, StringComparison.Ordinal) : rel == s))
             {
                 continue;
             }
@@ -284,7 +284,7 @@ public partial class SingleWalkOracleTests
             // TryDecode reads the gzip stream as written, not the inflated bytes.
             JsonNode? json = bytes is [(byte)'D', (byte)'V', (byte)'G', (byte)'L', ..]
                              && GrenadeThrowLog.TryDecode(stored) is { } grenades
-                ? JsonSerializer.SerializeToNode(grenades, Fields)
+                ? JsonSerializer.SerializeToNode(grenades, _fields)
                 : TryParse(bytes);
             Add(result, key, json, demo, configDir, bytes);
         }

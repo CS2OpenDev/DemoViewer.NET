@@ -410,7 +410,7 @@ public class ExternalExtensionTests
     [NotInParallel]
     public async Task TheSamplesCommand_JoinsTheKeymap_RunsItsButton_AndGoesWhenTheExtensionIsOff()
     {
-        const string where = HelloId + ".where";
+        const string Where = HelloId + ".where";
         string root = NewRoot();
         string? previous = Environment.GetEnvironmentVariable(Services.AppPaths.ConfigDirEnvVar);
         try
@@ -425,11 +425,11 @@ public class ExternalExtensionTests
                 await Assert.That(registry.Conflicts).IsEmpty();
                 await Assert.That(Modules.Playback2D.Playback2DKeymap.FindConflicts(registry.EffectiveBindings,
                     Modules.Playback2D.Playback2DKeymap.ReservedGestures(true))).IsEmpty();
-                await Assert.That(registry.ActionIds).Contains(where);
+                await Assert.That(registry.ActionIds).Contains(Where);
                 await Assert.That(registry.TryResolve(Avalonia.Input.Key.H, Avalonia.Input.KeyModifiers.Shift,
                     "playback2d",
                     _ => true, out CommandDescriptor? on)).IsTrue();
-                await Assert.That(on!.Id).IsEqualTo(where);
+                await Assert.That(on!.Id).IsEqualTo(Where);
                 await Assert.That(registry.TryResolve(Avalonia.Input.Key.H, Avalonia.Input.KeyModifiers.Shift,
                     "playback2d",
                     id => id != "pack.hello", out _)).IsFalse();
@@ -451,10 +451,10 @@ public class ExternalExtensionTests
                 PlaybackContributionHost host = new([(hello, contributed.PlaybackContributions)], gate);
                 (Modules.Playback2D.Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab(contributions: host);
 
-                await Assert.That(vm.ExecuteAction(where)).IsTrue().Because("the id runs the button that names it");
+                await Assert.That(vm.ExecuteAction(Where)).IsTrue().Because("the id runs the button that names it");
 
                 gate.Set("pack.hello", false);
-                await Assert.That(vm.ExecuteAction(where)).IsFalse().Because("off, nothing of the extension answers");
+                await Assert.That(vm.ExecuteAction(Where)).IsFalse().Because("off, nothing of the extension answers");
 
                 vm.Dispose();
             });
