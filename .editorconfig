@@ -25,7 +25,7 @@ csharp_new_line_before_finally = true
 csharp_new_line_before_members_in_object_initializers = true
 csharp_new_line_before_open_brace = all
 csharp_new_line_between_query_expression_clauses = true
-csharp_preferred_modifier_order = protected, public, private, internal, file, required, extern, static, override, virtual, sealed, new, abstract, unsafe, async, volatile, readonly:suggestion
+csharp_preferred_modifier_order = public, private, protected, internal, file, required, extern, static, override, virtual, sealed, new, abstract, unsafe, async, volatile, readonly:suggestion
 csharp_prefer_braces = true:warning
 csharp_preserve_single_line_blocks = true
 csharp_space_after_cast = false
@@ -3991,7 +3991,9 @@ resharper_unused_method_return_value_global_highlighting = suggestion
 resharper_unused_method_return_value_local_highlighting = warning
 resharper_unused_nullable_directive_highlighting = warning
 resharper_unused_parameter_global_highlighting = suggestion
-resharper_unused_parameter_in_partial_method_highlighting = warning
+# The only partial methods with bodies here are CommunityToolkit.Mvvm On<X>Changing/Changed hooks, whose
+# parameters the generator fixes; hooks that only raised notifications became [NotifyPropertyChangedFor].
+resharper_unused_parameter_in_partial_method_highlighting = hint
 resharper_unused_parameter_local_highlighting = warning
 resharper_unused_tuple_component_in_return_value_highlighting = warning
 resharper_unused_type_global_highlighting = suggestion
@@ -4877,3 +4879,36 @@ resharper_xaml_style_class_not_found_highlighting = none
 # PublicAPI.Shipped.txt, and the keys of samples/Themes/*.json). Pb2d* would be renamed Pb2D*.
 [src/App/DemoViewer.NET/Styles/DarkPalette.axaml]
 resharper_inconsistent_naming_highlighting = none
+
+# Test code: closures over a disposed or modified local are how these tests wait on gates and flip
+# seams (awaited inside the using scope, or toggled on purpose), and exact float equality asserts
+# deterministic goldens and parity. All ~330 sites were reviewed one by one in the 2026-11 cleanup.
+[{src/**/*.Tests/**.cs,tools/**/*.Tests/**.cs,src/Testing/**.cs,tests/**.cs}]
+resharper_access_to_disposed_closure_highlighting = hint
+resharper_access_to_modified_closure_highlighting = hint
+resharper_compare_of_floats_by_equality_operator_highlighting = hint
+
+# Sources compiled into more than one project (Extensions.Testing via its .props, StratBookFixtures and
+# the app files AnalysisBench links). ReSharper judges usage from a single project, so these rules miss
+# the other consumer's calls and report live members as unused or narrowable.
+[{src/Testing/DemoViewer.NET.Extensions.Testing/**.cs,src/Testing/StratBookFixtures/**.cs,src/App/DemoViewer.NET/Services/CollisionSoup.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ForwardDemoPass.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorSet.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorObserver.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/ICollectorFaultReporter.cs,src/App/DemoViewer.NET/Modules/Library/LibraryTeamTables.cs,src/App/DemoViewer.NET/Modules/Library/LibraryFinalStateReplay.cs,src/App/DemoViewer.NET/Services/DemoProcessing/DecodeSites.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ServerRankCapture.cs}]
+resharper_unused_member_global_highlighting = none
+resharper_member_can_be_private_global_highlighting = none
+resharper_property_can_be_made_init_only_global_highlighting = none
+resharper_auto_property_can_be_made_get_only_global_highlighting = none
+resharper_unused_auto_property_accessor_global_highlighting = none
+resharper_collection_never_queried_global_highlighting = none
+resharper_unused_type_global_highlighting = none
+resharper_class_never_instantiated_global_highlighting = none
+resharper_unused_method_return_value_global_highlighting = none
+
+# The bench's report records are the JSON schema of its output; their positional properties are written,
+# not read back.
+[tools/AnalysisBench/**.cs]
+resharper_not_accessed_positional_property_global_highlighting = none
+resharper_not_accessed_positional_property_local_highlighting = none
+
+# Per-frame render code: foreach over IReadOnlyList<T> boxes an enumerator every frame, so the index
+# loops are deliberate.
+[{src/Playback2D/DemoViewer.NET.Playback2D.Scene/**.cs,src/Playback2D/DemoViewer.NET.Playback2D.Pipeline/**.cs}]
+resharper_for_can_be_converted_to_foreach_highlighting = none

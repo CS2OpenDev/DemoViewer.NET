@@ -49,15 +49,15 @@ public sealed class SchemaSettingsPageViewModel : IDisposable
 /// <summary>One rendered setting.</summary>
 public abstract class SchemaSettingRow : ObservableObject
 {
-    protected private SchemaSettingRow(SettingDescriptor descriptor, IExtensionSettings settings)
+    private protected SchemaSettingRow(SettingDescriptor descriptor, IExtensionSettings settings)
     {
         Descriptor = descriptor;
         Settings = settings;
     }
 
-    protected private SettingDescriptor Descriptor { get; }
+    private protected SettingDescriptor Descriptor { get; }
 
-    protected private IExtensionSettings Settings { get; }
+    private protected IExtensionSettings Settings { get; }
 
     /// <summary>The settings key.</summary>
     public string Key => Descriptor.Key;
@@ -72,7 +72,7 @@ public abstract class SchemaSettingRow : ObservableObject
     public bool HasHelp => !string.IsNullOrWhiteSpace(Descriptor.Help);
 
     /// <summary>True while <see cref="Reflect" /> sets the row from the store, so the change is not written back.</summary>
-    protected private bool Reflecting { get; private set; }
+    private protected bool Reflecting { get; private set; }
 
     /// <summary>Reads the stored value again.</summary>
     public void Reflect()
@@ -89,7 +89,7 @@ public abstract class SchemaSettingRow : ObservableObject
     }
 
     /// <summary>Sets the row's value from the store.</summary>
-    protected private abstract void Read();
+    private protected abstract void Read();
 
     internal static SchemaSettingRow For(SettingDescriptor descriptor, IExtensionSettings settings) =>
         descriptor.Kind switch
@@ -111,7 +111,7 @@ public sealed partial class ToggleSettingRow : SchemaSettingRow
     internal ToggleSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) =>
         Reflect();
 
-    protected private override void Read() => Value = Settings.Get(Key, Descriptor.Default is true);
+    private protected override void Read() => Value = Settings.Get(Key, Descriptor.Default is true);
 
     partial void OnValueChanged(bool value)
     {
@@ -145,7 +145,7 @@ public sealed partial class NumberSettingRow : SchemaSettingRow
 
     private bool IsWhole => Descriptor.Step == Math.Floor(Descriptor.Step);
 
-    protected private override void Read()
+    private protected override void Read()
     {
         double fallback = Descriptor.Default is IConvertible c
             ? c.ToDouble(System.Globalization.CultureInfo.InvariantCulture)
@@ -184,7 +184,7 @@ public sealed partial class ChoiceSettingRow : SchemaSettingRow
     /// <summary>What the row offers.</summary>
     public IReadOnlyList<SettingChoice> Choices => Descriptor.Choices;
 
-    protected private override void Read()
+    private protected override void Read()
     {
         string stored = Settings.Get(Key, Descriptor.Default as string ?? "");
         Selected = Choices.FirstOrDefault(c => string.Equals(c.Value, stored, StringComparison.Ordinal))
@@ -210,7 +210,7 @@ public sealed partial class TextSettingRow : SchemaSettingRow
     internal TextSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) =>
         Reflect();
 
-    protected private override void Read() => Value = Settings.Get(Key, Descriptor.Default as string ?? "");
+    private protected override void Read() => Value = Settings.Get(Key, Descriptor.Default as string ?? "");
 
     partial void OnValueChanged(string value)
     {
@@ -238,7 +238,7 @@ public sealed partial class FolderSettingRow : SchemaSettingRow
     /// <summary>The path, or "Not set".</summary>
     public string Shown => Path ?? "Not set";
 
-    protected private override void Read()
+    private protected override void Read()
     {
         string? stored = Settings.Get(Key, Descriptor.Default as string);
         Path = string.IsNullOrEmpty(stored) ? null : stored;
