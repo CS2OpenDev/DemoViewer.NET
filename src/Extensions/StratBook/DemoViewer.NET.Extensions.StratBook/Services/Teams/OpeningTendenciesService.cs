@@ -39,13 +39,13 @@ public sealed class OpeningTendenciesService
     public const int ClockCapSeconds = 60;
 
     /// <summary>Seconds after freeze end before a split counts as a lurk: the spawn spread is not one.</summary>
-    public const int LurkFromSeconds = 10;
+    private const int LurkFromSeconds = 10;
 
     /// <summary>World units (XY) to the nearest alive teammate for a player to count as alone.</summary>
-    public const int LurkDistance = 1500;
+    private const int LurkDistance = 1500;
 
     /// <summary>Consecutive sampled steps a player must stay alone for a lurk.</summary>
-    public const int LurkMinSteps = 3;
+    private const int LurkMinSteps = 3;
 
     /// <summary>Seconds a clip runs before the moment it was counted for.</summary>
     public const int ClipLeadSeconds = 5;
@@ -54,16 +54,16 @@ public sealed class OpeningTendenciesService
     public const int ClipTailSeconds = 8;
 
     /// <summary>The bucket of rounds where the team threw nothing.</summary>
-    public const string NoUtility = "none";
+    private const string NoUtility = "none";
 
     /// <summary>The bucket of rounds with no enemy damage at all.</summary>
-    public const string NoContact = "no contact";
+    private const string NoContact = "no contact";
 
     /// <summary>The bucket of T rounds with no plant.</summary>
-    public const string NoPlant = "no plant";
+    private const string NoPlant = "no plant";
 
     /// <summary>The bucket of T rounds where nobody split off alone.</summary>
-    public const string NoLurk = "no lurk";
+    private const string NoLurk = "no lurk";
 
     // A record without a clock header is still a CS2 demo; the frame clock of every build here is 64.
     private const int FallbackTickRate = 64;
@@ -180,7 +180,6 @@ public sealed class OpeningTendenciesService
 
         return new OpeningTendenciesSet
         {
-            TeamId = teamId,
             Blocks = blocks,
             DemosRead = read,
             DemosWithoutGrenades = withoutGrenades,

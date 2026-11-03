@@ -28,7 +28,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 public sealed class SetupHeatmapService
 {
     /// <summary>Seconds after freeze end the setup window opens: players are on their spots by then.</summary>
-    public const int SetupFromSeconds = 15;
+    private const int SetupFromSeconds = 15;
 
     /// <summary>Seconds after freeze end the setup window closes when nothing cut it short.</summary>
     public const int SetupToSeconds = 35;
@@ -136,7 +136,7 @@ public sealed class SetupHeatmapService
 
         return new SetupHeatmapSet
         {
-            TeamId = teamId, Heatmaps = heatmaps, DemosRead = read, DemosWithoutPositions = without
+            Heatmaps = heatmaps, DemosRead = read, DemosWithoutPositions = without
         };
     }
 

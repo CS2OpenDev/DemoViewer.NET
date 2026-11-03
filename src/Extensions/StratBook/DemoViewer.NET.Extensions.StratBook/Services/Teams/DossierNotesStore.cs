@@ -24,7 +24,7 @@ public sealed class DossierNotesStore
     public const string FileName = "dossier-notes.json";
 
     /// <summary>The key prefix of a user-written finding.</summary>
-    public const string NoteKeyPrefix = "note:";
+    private const string NoteKeyPrefix = "note:";
 
     private readonly StoredFile? _file;
     private readonly List<DossierTeamNotes> _teams = [];
@@ -118,19 +118,6 @@ public sealed class DossierNotesStore
         }
     }
 
-    /// <summary>Brings back every left-out finding of the team.</summary>
-    /// <param name="teamId">The team.</param>
-    public void ClearHidden(Guid teamId)
-    {
-        DossierTeamNotes notes = Ensure(teamId);
-        if (notes.Hidden.Count == 0)
-        {
-            return;
-        }
-
-        notes.Hidden.Clear();
-        Commit();
-    }
 
     /// <summary>Sets the summary paragraph.</summary>
     /// <param name="teamId">The team.</param>

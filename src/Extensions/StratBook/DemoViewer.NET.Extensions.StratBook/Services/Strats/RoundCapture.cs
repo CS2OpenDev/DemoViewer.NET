@@ -188,8 +188,7 @@ public static class RoundCaptureWalker
             }
         }
 
-        List<Stop> stops = [new(freezeEndTick, CaptureTrigger.FreezeEnd, null)];
-        stops.AddRange(EventStops(demo, freezeEndTick, end));
+        List<Stop> stops = [new(freezeEndTick, CaptureTrigger.FreezeEnd, null), .. EventStops(demo, freezeEndTick, end)];
         stops.AddRange(SweepStops(stops, freezeEndTick, end, tickRate));
         stops.Sort((a, b) => a.Tick != b.Tick ? a.Tick.CompareTo(b.Tick) : a.Trigger.CompareTo(b.Trigger));
 
@@ -223,10 +222,6 @@ public static class RoundCaptureWalker
             }
 
             int frame = Math.Max(firstFrame, FrameAtOrAfter(frames, stop.Tick));
-            if (frame < 0)
-            {
-                break;
-            }
 
             bool decided = false;
             while (cursor < frame)
@@ -267,7 +262,7 @@ public static class RoundCaptureWalker
     /// <summary>The first frame whose tick is at or after <paramref name="tick" />, or -1 past the last.</summary>
     /// <param name="frames">The frame list, tick-ordered.</param>
     /// <param name="tick">Frame clock.</param>
-    public static int FrameAtOrAfter(IReadOnlyList<DemoFrame> frames, int tick)
+    private static int FrameAtOrAfter(IReadOnlyList<DemoFrame> frames, int tick)
     {
         ArgumentNullException.ThrowIfNull(frames);
         int lo = 0, hi = frames.Count - 1, found = -1;

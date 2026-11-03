@@ -42,7 +42,7 @@ public static class RoundIndexTable
         ?? throw new InvalidOperationException($"the embedded ruleset '{ResourceName}' is missing");
 
     /// <summary>The ruleset's YAML as text.</summary>
-    public static string ReadYaml()
+    private static string ReadYaml()
     {
         using StreamReader reader = new(OpenYaml());
         return reader.ReadToEnd();
@@ -55,7 +55,7 @@ public static class RoundIndexTable
     public static RulesetDoc LoadRuleset()
     {
         RuleConfigLoadResult read = YamlConfigLoader.LoadDocuments([(RulesetName + ".rules.yaml", ReadYaml())]);
-        return read.Success && read.Rulesets.Count == 1
+        return read is { Success: true, Rulesets.Count: 1 }
             ? read.Rulesets[0]
             : throw new InvalidOperationException("the round index ruleset does not load: "
                                                   + string.Join("; ", read.Errors));

@@ -40,7 +40,7 @@ public static class StratLocations
     /// <param name="x">World X, or null.</param>
     /// <param name="y">World Y, or null.</param>
     /// <param name="callouts">The owner's words; null prints canonical names split into words.</param>
-    public static string? Text(string? place, double? x, double? y, CalloutResolver? callouts)
+    private static string? Text(string? place, double? x, double? y, CalloutResolver? callouts)
     {
         if (!string.IsNullOrEmpty(place))
         {
@@ -83,8 +83,10 @@ public static class StratLocations
         }
 
         List<PlaceRef> entries =
-            [.. watch.Places.Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p })];
-        entries.AddRange(watch.Points?.Where(HasPoint) ?? []);
+        [
+            .. watch.Places.Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p }),
+            .. watch.Points?.Where(HasPoint) ?? []
+        ];
         return entries;
     }
 
@@ -94,8 +96,10 @@ public static class StratLocations
     public static IReadOnlyList<PlaceRef> Via(IReadOnlyList<string>? places, IReadOnlyList<PlaceRef>? points)
     {
         List<PlaceRef> entries =
-            [.. (places ?? []).Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p })];
-        entries.AddRange(points?.Where(HasPoint) ?? []);
+        [
+            .. (places ?? []).Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p }),
+            .. points?.Where(HasPoint) ?? []
+        ];
         return entries;
     }
 
@@ -109,8 +113,10 @@ public static class StratLocations
         }
 
         List<PlaceRef> entries =
-            [.. lurk.Areas.Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p })];
-        entries.AddRange(lurk.AreaPoints?.Where(HasPoint) ?? []);
+        [
+            .. lurk.Areas.Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p }),
+            .. lurk.AreaPoints?.Where(HasPoint) ?? []
+        ];
         return entries;
     }
 

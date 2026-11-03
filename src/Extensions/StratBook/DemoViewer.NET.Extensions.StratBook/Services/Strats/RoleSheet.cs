@@ -132,7 +132,7 @@ public static class StratStepPhrasing
     /// <param name="via">The <c>via</c> places.</param>
     /// <param name="points">The <c>viaPoints</c>.</param>
     /// <param name="callouts">Place names; null for canonical ones.</param>
-    public static string? ViaText(IReadOnlyList<string>? via, IReadOnlyList<PlaceRef>? points,
+    private static string? ViaText(IReadOnlyList<string>? via, IReadOnlyList<PlaceRef>? points,
         CalloutResolver? callouts)
     {
         IReadOnlyList<PlaceRef> entries = StratLocations.Via(via, points);

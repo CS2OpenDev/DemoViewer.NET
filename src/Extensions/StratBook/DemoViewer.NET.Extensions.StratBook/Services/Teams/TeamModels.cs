@@ -35,7 +35,7 @@ public sealed class Roster
     public string Id { get; set; } = "";
 
     /// <summary>The date of the roster's first side, or the date the user chose for a started roster.</summary>
-    public DateOnly Since { get; set; }
+    public DateOnly Since { get; init; }
 
     /// <summary>
     ///     The fixed five, written once when the same five is seen on two sides of this roster and never
@@ -51,14 +51,14 @@ public sealed class Roster
     public List<string>? ExtendedCore { get; set; }
 
     /// <summary>Optional user label ("post-KSCERATO roster").</summary>
-    public string? Label { get; set; }
+    public string? Label { get; init; }
 
     /// <summary>
     ///     True for a roster the user started at a date: sides of the team dated on or after
     ///     <see cref="Since" /> are matched to it rather than to the team's earlier rosters, and it
     ///     establishes its own five from them.
     /// </summary>
-    public bool UserStarted { get; set; }
+    public bool UserStarted { get; init; }
 
     [JsonIgnore]
     public bool HasCoreLineup => CoreLineup is { Count: 5 };
@@ -78,7 +78,7 @@ public sealed class Roster
 /// <summary>A team: user-owned continuity over one or more rosters.</summary>
 public sealed class Team
 {
-    public Guid Id { get; set; }
+    public Guid Id { get; init; }
 
     public string Name { get; set; } = "";
 
@@ -90,10 +90,10 @@ public sealed class Team
     /// <summary>The user chose not to see this team in lists.</summary>
     public bool Hidden { get; set; }
 
-    public List<Roster> Rosters { get; set; } = [];
+    public List<Roster> Rosters { get; init; } = [];
 
     /// <summary>Ids of teams folded into this one; each is tombstoned in the file.</summary>
-    public List<Guid> MergedFrom { get; set; } = [];
+    public List<Guid> MergedFrom { get; init; } = [];
 
     public string Notes { get; set; } = "";
 
@@ -137,7 +137,7 @@ public sealed class TeamOverride : IDemoKeyedOverride
     public string? DemoStableKey { get; set; }
 
     /// <summary>2 = T, 3 = CT, the end-of-demo side.</summary>
-    public int Side { get; set; }
+    public int Side { get; init; }
 
     /// <summary>The team the side belongs to, or null for "this side is not a team".</summary>
     public Guid? TeamId { get; set; }
@@ -154,7 +154,7 @@ public sealed class ProvenanceOverride : IDemoKeyedOverride
 
     public string? DemoStableKey { get; set; }
 
-    public string Label { get; set; } = "";
+    public string Label { get; init; } = "";
 }
 
 /// <summary>
@@ -163,7 +163,7 @@ public sealed class ProvenanceOverride : IDemoKeyedOverride
 /// </summary>
 public sealed class ProvenanceSection
 {
-    public List<ProvenanceOverride> Overrides { get; set; } = [];
+    public List<ProvenanceOverride> Overrides { get; init; } = [];
 }
 
 /// <summary>
@@ -174,22 +174,22 @@ public sealed class TeamsFile
 {
     public const int CurrentSchema = 1;
 
-    public int SchemaVersion { get; set; } = CurrentSchema;
+    public int SchemaVersion { get; init; } = CurrentSchema;
 
-    public MeAccounts Me { get; set; } = new();
+    public MeAccounts Me { get; init; } = new();
 
-    public List<Team> Teams { get; set; } = [];
+    public List<Team> Teams { get; init; } = [];
 
     /// <summary>Ids of teams merged away. A rebuild never recreates or reuses them.</summary>
-    public List<Guid> Tombstones { get; set; } = [];
+    public List<Guid> Tombstones { get; init; } = [];
 
-    public List<TeamOverride> Overrides { get; set; } = [];
+    public List<TeamOverride> Overrides { get; init; } = [];
 
     /// <summary>Demo Provenance Labels' user overrides. Additive: a file written before the section reads empty.</summary>
-    public ProvenanceSection Provenance { get; set; } = new();
+    public ProvenanceSection Provenance { get; init; } = new();
 
     /// <summary>Suggestion ids the user dismissed, so the same suggestion is not asked again. Additive.</summary>
-    public List<string> DismissedSuggestions { get; set; } = [];
+    public List<string> DismissedSuggestions { get; init; } = [];
 
     /// <summary>Both team files share one serializer shape: camel case, enums by name, indented.</summary>
     public static JsonSerializerOptions JsonOptions { get; } = new()
@@ -206,13 +206,13 @@ public sealed class TeamsFile
 public sealed class TeamIndexSide
 {
     /// <summary>The side key: non-bot, non-coach SteamID64s, sorted.</summary>
-    public List<string> Key { get; set; } = [];
+    public List<string> Key { get; init; } = [];
 
     /// <summary>The raw last-seen names, parallel to <see cref="Key" />. Sanitize at the render boundary.</summary>
-    public List<string> Names { get; set; } = [];
+    public List<string> Names { get; init; } = [];
 
     /// <summary>The side's clan tag at the last frame, when the demo carried one.</summary>
-    public string? Clan { get; set; }
+    public string? Clan { get; init; }
 
     public Guid? TeamId { get; set; }
 
@@ -236,18 +236,18 @@ public sealed class TeamIndexSide
 /// <summary>One demo's row in the derived index.</summary>
 public sealed class TeamIndexDemo
 {
-    public string Path { get; set; } = "";
+    public string Path { get; init; } = "";
 
-    public string? Sha256 { get; set; }
+    public string? Sha256 { get; init; }
 
     /// <summary>the file's write time until a real match date exists.</summary>
-    public long OrderTicks { get; set; }
+    public long OrderTicks { get; init; }
 
     /// <summary>The effective <c>DemoSourceKind</c> by name, what the source gate reads on a rebuild from this file.</summary>
-    public string? SourceKind { get; set; }
+    public string? SourceKind { get; init; }
 
     /// <summary>False when the source gate kept clustering from founding or growing teams on this demo.</summary>
-    public bool Tracked { get; set; } = true;
+    public bool Tracked { get; init; } = true;
 
     /// <summary>Keyed "2" and "3": the end-of-demo sides.</summary>
     public Dictionary<string, TeamIndexSide> Sides { get; set; } = [];
@@ -264,17 +264,17 @@ public sealed class TeamIndexDemo
 /// <summary>Per team, per roster: who appeared how often.</summary>
 public sealed class TeamIndexMember
 {
-    public int Count { get; set; }
+    public int Count { get; init; }
 
     /// <summary>RAW last-seen name. Sanitize at the render boundary.</summary>
-    public string LastName { get; set; } = "";
+    public string LastName { get; init; } = "";
 
-    public long FirstTicks { get; set; }
+    public long FirstTicks { get; init; }
 
-    public long LastTicks { get; set; }
+    public long LastTicks { get; init; }
 
     /// <summary>Sides on which this member sat outside the anchor at match time.</summary>
-    public int StandInCount { get; set; }
+    public int StandInCount { get; init; }
 }
 
 /// <summary>A one-side candidate: a side that matched nothing and may found a roster later.</summary>
@@ -295,17 +295,17 @@ public sealed class TeamIndexFile
     // 2: rows carry the source kind the gate reads; a library indexed at 1 rebuilds once.
     public const int CurrentSchema = 2;
 
-    public int SchemaVersion { get; set; } = CurrentSchema;
+    public int SchemaVersion { get; init; } = CurrentSchema;
 
-    public long BuiltAtTicks { get; set; }
+    public long BuiltAtTicks { get; init; }
 
     /// <summary>Keyed by <c>DemoKeys.StableKey(path)</c>, like the sidecars.</summary>
-    public Dictionary<string, TeamIndexDemo> Demos { get; set; } = [];
+    public Dictionary<string, TeamIndexDemo> Demos { get; init; } = [];
 
     /// <summary>team id → roster id → SteamID64 → member.</summary>
-    public Dictionary<string, Dictionary<string, Dictionary<string, TeamIndexMember>>> Members { get; set; } = [];
+    public Dictionary<string, Dictionary<string, Dictionary<string, TeamIndexMember>>> Members { get; init; } = [];
 
-    public List<TeamIndexUnaffiliated> Unaffiliated { get; set; } = [];
+    public List<TeamIndexUnaffiliated> Unaffiliated { get; init; } = [];
 }
 
 /// <summary>The assignment of one side, as the query API hands it out.</summary>
@@ -321,10 +321,7 @@ public sealed record SideAssignment(
     string? RosterId,
     int Overlap,
     int Tier,
-    bool StandIn)
-{
-    public bool IsAssigned => TeamId is not null;
-}
+    bool StandIn);
 
 /// <summary>
 ///     One demo's assignment. The sides are END-OF-DEMO sides; a consumer that needs the side a team
@@ -342,14 +339,6 @@ public sealed record TeamAssignment(
     /// <summary>The assignment of an end-of-demo side.</summary>
     /// <param name="side">2 = T, 3 = CT.</param>
     public SideAssignment Side(int side) => side == 3 ? Ct : T;
-
-    /// <summary>The side that is not ours, or null when ours is unresolved.</summary>
-    public int? TheirSide => OurSide switch
-    {
-        2 => 3,
-        3 => 2,
-        _ => null
-    };
 }
 
 /// <summary>One side of one demo, as Split and the overrides name it.</summary>

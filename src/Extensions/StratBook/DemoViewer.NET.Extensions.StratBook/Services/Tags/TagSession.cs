@@ -130,9 +130,6 @@ public sealed class TagSession : IDisposable
     /// <summary>How long changes coalesce before a save: the annotation controller's 750 ms. Shortened by tests.</summary>
     public TimeSpan AutoSaveDelay { get; set; } = TimeSpan.FromMilliseconds(750);
 
-    public bool CanUndo => _undo.Count > 0;
-
-    public bool CanRedo => _redo.Count > 0;
 
     /// <summary>How many undo entries are available.</summary>
     public int UndoDepth => _undo.Count;
@@ -144,7 +141,7 @@ public sealed class TagSession : IDisposable
     public bool DemoMismatch { get; private set; }
 
     /// <summary>The stored file could not be read. It is not overwritten, and nothing is saved.</summary>
-    public bool Unreadable { get; private set; }
+    private bool Unreadable { get; set; }
 
     /// <summary>Saves completed, successful or not. Tests wait on it.</summary>
     public int SaveCount { get; private set; }

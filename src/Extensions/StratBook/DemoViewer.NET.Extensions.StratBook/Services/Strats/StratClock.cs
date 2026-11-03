@@ -131,7 +131,7 @@ public static class StratClock
 
     /// <summary>Seconds after a trigger as <c>+m:ss</c>, a tenth only when there is one; before it, <c>-m:ss</c>.</summary>
     /// <param name="seconds">Seconds after the trigger.</param>
-    public static string FormatElapsed(double seconds)
+    private static string FormatElapsed(double seconds)
     {
         string text = Format(Math.Abs(seconds));
         return (seconds < 0 && text != "0:00" ? "-" : "+") + text;

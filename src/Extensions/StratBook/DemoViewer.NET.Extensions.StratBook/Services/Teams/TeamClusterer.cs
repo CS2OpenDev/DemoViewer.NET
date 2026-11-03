@@ -65,8 +65,6 @@ public sealed class TeamClusterer
         Seed();
     }
 
-    /// <summary>The rows assigned so far, keyed by stable key.</summary>
-    public IReadOnlyDictionary<string, TeamIndexDemo> Rows => _rows;
 
     /// <summary>
     ///     Assigns both sides of one demo. Sides are assigned before either is applied, so a side never
@@ -79,7 +77,7 @@ public sealed class TeamClusterer
     ///     the user owns through its squad or an established five, founds nothing, is never stamped a
     ///     stand-in and never fixes a five.
     /// </param>
-    public TeamIndexDemo Assign(DemoSideInput demo, IReadOnlyDictionary<int, Guid?>? overrides = null,
+    public void Assign(DemoSideInput demo, IReadOnlyDictionary<int, Guid?>? overrides = null,
         bool tracked = true)
     {
         ArgumentNullException.ThrowIfNull(demo);
@@ -113,7 +111,6 @@ public sealed class TeamClusterer
 
         Apply(demo, t, tracked);
         Apply(demo, ct, tracked);
-        return row;
     }
 
     /// <summary>

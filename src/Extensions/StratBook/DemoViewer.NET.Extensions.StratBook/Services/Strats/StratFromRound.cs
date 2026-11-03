@@ -39,10 +39,10 @@ public sealed record StratCaptureOptions(
 public static class StratFromRound
 {
     /// <summary>World units a token has to move since its last keyframe to get a new one.</summary>
-    public const double MoveThreshold = 200;
+    private const double MoveThreshold = 200;
 
     /// <summary>The generated arrows' width: the ink default, so they read like hand-drawn ones.</summary>
-    private static readonly AnnotationStyle ArrowStyle = AnnotationStyle.Default;
+    private static readonly AnnotationStyle _arrowStyle = AnnotationStyle.Default;
 
     /// <summary>
     ///     The level key of a world Z with no map levels to ask: the Z itself, quantized. A token is drawn at the
@@ -390,7 +390,7 @@ public static class StratFromRound
         return step;
     }
 
-    private static StratStep? Plant(CaptureMoment moment, StratCaptureOptions options, Dictionary<string, Keyed> last)
+    private static StratStep Plant(CaptureMoment moment, StratCaptureOptions options, Dictionary<string, Keyed> last)
     {
         string? actor = options.Tokens.GetValueOrDefault(moment.ActorSlot);
         CapturedPawn? planter = moment.PawnIn(moment.ActorSlot);
@@ -487,7 +487,7 @@ public static class StratFromRound
     private static JsonObject Arrow(CapturedPawn thrower, CaptureMoment moment, StratCaptureOptions options)
     {
         Vector3 origin = moment.ThrowOrigin ?? new Vector3(thrower.X, thrower.Y, thrower.Z);
-        AnnotationElement arrow = new(Guid.NewGuid(), AnnotationKind.Arrow, ArrowStyle,
+        AnnotationElement arrow = new(Guid.NewGuid(), AnnotationKind.Arrow, _arrowStyle,
             new SpaceRef.World(options.LevelMinZFor(thrower.Z)), TimeEnvelope.Static,
             [new InkPoint(origin.X, origin.Y, 0.5f), new InkPoint(moment.Position.X, moment.Position.Y, 0.5f)], null);
         return StratStrokes.ToJson(arrow);

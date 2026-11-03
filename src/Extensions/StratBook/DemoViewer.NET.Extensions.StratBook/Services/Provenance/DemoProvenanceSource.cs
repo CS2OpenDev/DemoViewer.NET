@@ -70,12 +70,12 @@ public sealed class DemoProvenanceSource : IDemoProvenanceSource, IDisposable
     }
 
     /// <inheritdoc />
-    public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256s)
+    public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256S)
     {
-        ArgumentNullException.ThrowIfNull(sha256s);
+        ArgumentNullException.ThrowIfNull(sha256S);
         IReadOnlyList<ProvenanceOverride> overrides = _teams.ProvenanceOverrides;
         Dictionary<string, string?> labels = new(StringComparer.Ordinal);
-        foreach (string sha in sha256s)
+        foreach (string sha in sha256S)
         {
             if (string.IsNullOrEmpty(sha) || labels.ContainsKey(sha))
             {
@@ -117,7 +117,7 @@ public sealed class DemoProvenanceSource : IDemoProvenanceSource, IDisposable
     /// </summary>
     /// <param name="entry">The library row.</param>
     /// <param name="assignment">Team Identity's assignment, or null when the demo is unknown or unclusterable.</param>
-    public static ProvenanceInputs InputsFor(LibraryDemo entry, TeamAssignment? assignment)
+    private static ProvenanceInputs InputsFor(LibraryDemo entry, TeamAssignment? assignment)
     {
         ArgumentNullException.ThrowIfNull(entry);
         return new ProvenanceInputs(

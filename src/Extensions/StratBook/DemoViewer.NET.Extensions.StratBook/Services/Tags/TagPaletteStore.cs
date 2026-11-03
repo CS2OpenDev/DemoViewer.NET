@@ -250,7 +250,7 @@ public sealed record TagPaletteValidation(IReadOnlyList<string> Errors, IReadOnl
 public static class TagPaletteValidator
 {
     /// <summary>The human label groups the Strat Model reserves.</summary>
-    public static readonly IReadOnlyList<string> StratGroups =
+    private static readonly IReadOnlyList<string> _stratGroups =
         [TagStore.StratGroup, "strat.rev", "strat.result", "strat.failure"];
 
     // Claimed by Suggested Tags for the proposal queue and not in the shipped table yet, so the
@@ -264,7 +264,7 @@ public static class TagPaletteValidator
     ];
 
     /// <summary>
-    ///     Round Facts' fact names plus <see cref="StratGroups" />. The fact names
+    ///     Round Facts' fact names plus <see cref="_stratGroups" />. The fact names
     ///     are read from <see cref="RoundFactsRules.Labels" /> over a round with every optional fact
     ///     present, so a fact Round Facts adds is refused here without a second list to keep in step.
     /// </summary>
@@ -499,7 +499,7 @@ public static class TagPaletteValidator
 
     private static HashSet<string> BuildReservedGroups()
     {
-        HashSet<string> groups = new(StratGroups, StringComparer.Ordinal);
+        HashSet<string> groups = new(_stratGroups, StringComparer.Ordinal);
 
         // Every optional fact present, so Labels emits every name it can; the values are irrelevant.
         RoundFacts probe = new()

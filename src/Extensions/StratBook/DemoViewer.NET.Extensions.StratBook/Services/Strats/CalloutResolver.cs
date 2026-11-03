@@ -19,7 +19,7 @@ public sealed class CalloutResolver
 {
     // Case-boundary splitting gets every shipped name right except a glued "of"; a stop-word rule would split
     // "Roof" too, so the exceptions are listed instead.
-    private static readonly Dictionary<string, string> DisplayOverrides = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> _displayOverrides = new(StringComparer.Ordinal)
     {
         ["Topof"] = "Top of", ["Backof"] = "Back of"
     };
@@ -163,7 +163,7 @@ public sealed class CalloutResolver
             if (boundary)
             {
                 string word = place[start..i];
-                words.Add(DisplayOverrides.GetValueOrDefault(word, word));
+                words.Add(_displayOverrides.GetValueOrDefault(word, word));
                 start = i;
             }
         }
@@ -205,15 +205,15 @@ public static class CanonicalPlaces
 
     private const string ResourceSuffix = ".places.json";
 
-    private static readonly Lazy<Dictionary<string, IReadOnlyList<string>>> Lists = new(Read);
+    private static readonly Lazy<Dictionary<string, IReadOnlyList<string>>> _lists = new(Read);
 
     /// <summary>The maps with an embedded list, ordinal.</summary>
-    public static IReadOnlyList<string> Maps => [.. Lists.Value.Keys.Order(StringComparer.Ordinal)];
+    public static IReadOnlyList<string> Maps => [.. _lists.Value.Keys.Order(StringComparer.Ordinal)];
 
     /// <summary>A map's embedded list, or empty for a map with none.</summary>
     /// <param name="map">The map, in the parser's spelling.</param>
     public static IReadOnlyList<string> Embedded(string map) =>
-        Lists.Value.GetValueOrDefault(map.ToLowerInvariant()) ?? [];
+        _lists.Value.GetValueOrDefault(map.ToLowerInvariant()) ?? [];
 
     private static Dictionary<string, IReadOnlyList<string>> Read()
     {

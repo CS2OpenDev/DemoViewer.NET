@@ -315,7 +315,7 @@ public static class StratLocationPatches
             ? new PlaceRef { Place = place }
             : StratLocations.Picked(null, null, x, y, levelMinZ, true);
         List<PlaceRef> entries = [.. current];
-        if (field.Entry is { } replace && replace >= 0 && replace < entries.Count)
+        if (field.Entry is { } replace and >= 0 && replace < entries.Count)
         {
             entries[replace] = entry;
         }

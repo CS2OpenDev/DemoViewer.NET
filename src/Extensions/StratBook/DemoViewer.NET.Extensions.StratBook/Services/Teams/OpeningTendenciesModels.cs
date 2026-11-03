@@ -6,8 +6,6 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// </summary>
 public sealed class OpeningTendenciesSet
 {
-    public Guid TeamId { get; init; }
-
     public IReadOnlyList<OpeningTendencies> Blocks { get; init; } = [];
 
     /// <summary>Demos of the team with Round Facts rows: the ones the blocks are built from.</summary>

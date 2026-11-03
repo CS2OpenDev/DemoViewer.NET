@@ -163,8 +163,10 @@ public static class RoundIndexBuilder
             {
                 CloseRow(ref row, window, source, places, transitions, previousPlaces, table, tally);
                 int step = (sample.Tick - window.FreezeEndTick) / cadenceTicks;
-                row = new OpenRow(step, sample.Tick, window.FreezeEndTick + (step + 1) * cadenceTicks);
-                row.Samples[sample.PlayerSlot] = sample;
+                row = new OpenRow(step, sample.Tick, window.FreezeEndTick + (step + 1) * cadenceTicks)
+                {
+                    Samples = { [sample.PlayerSlot] = sample }
+                };
             }
         }
 

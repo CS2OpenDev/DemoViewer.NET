@@ -45,18 +45,18 @@ public static class StratLinePatches
 
     /// <summary>A copy of one line, unknown fields included.</summary>
     /// <param name="line">The line.</param>
-    public static StepAssignment Clone(StepAssignment line) =>
+    private static StepAssignment Clone(StepAssignment line) =>
         JsonSerializer.SerializeToNode(line, StratJsonContext.Default.StepAssignment)!
             .Deserialize(StratJsonContext.Default.StepAssignment)!;
 
     /// <summary>Whether a line carries nothing but a slot and a place, so a step of it alone stays plain.</summary>
     /// <param name="line">The line.</param>
-    public static bool IsBare(StepAssignment line) =>
+    private static bool IsBare(StepAssignment line) =>
         line.Extra is not { Count: > 0 } && (line.Watch is null || IsEmpty(line.Watch));
 
     /// <summary>A watch with no place, no point, no angle and no unknown field: stored as no watch.</summary>
     /// <param name="watch">The watch.</param>
-    public static bool IsEmpty(StepWatch watch) =>
+    private static bool IsEmpty(StepWatch watch) =>
         watch.Places.Count == 0 && watch.Points is not { Count: > 0 } && watch.YawDegrees is null
         && watch.Extra is not { Count: > 0 };
 

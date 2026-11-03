@@ -31,11 +31,11 @@ public static class TagPositionResolver
     public const string PawnSource = "pawn";
 
     /// <summary>World units beyond which no pawn is near enough to name a click; the place snap's radius.</summary>
-    public const double PawnMaxDistance = 512;
+    private const double PawnMaxDistance = 512;
 
     /// <summary>The <c>placeSource</c> of a place resolved against a zone set at <paramref name="effectiveVersion" />.</summary>
     /// <param name="effectiveVersion"><c>ZoneSet.EffectiveVersion</c>.</param>
-    public static string ZonesSource(string effectiveVersion) => $"zones:{effectiveVersion}";
+    private static string ZonesSource(string effectiveVersion) => $"zones:{effectiveVersion}";
 
     /// <summary>The position a click makes.</summary>
     /// <param name="x">World X of the click.</param>

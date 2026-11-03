@@ -39,9 +39,9 @@ public sealed record DemoSignatures(string? Sha256, IReadOnlyList<CachedSignatur
 public sealed class SignatureCache(StoredFile? file)
 {
     /// <summary>The file's shape version.</summary>
-    public const int SchemaVersion = 1;
+    private const int CurrentSchemaVersion = 1;
 
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = false };
 
     private bool _dirty;
     private Dictionary<string, Entry>? _entries;
@@ -99,7 +99,7 @@ public sealed class SignatureCache(StoredFile? file)
             using MemoryStream buffer = new();
             using (GZipStream gzip = new(buffer, CompressionLevel.Fastest, leaveOpen: true))
             {
-                JsonSerializer.Serialize(gzip, new CacheFile(SchemaVersion, Entries), JsonOptions);
+                JsonSerializer.Serialize(gzip, new CacheFile(CurrentSchemaVersion, Entries), _jsonOptions);
             }
 
             file.Write(buffer.ToArray());
@@ -124,8 +124,8 @@ public sealed class SignatureCache(StoredFile? file)
 
                 using MemoryStream stream = new(bytes, writable: false);
                 using GZipStream gzip = new(stream, CompressionMode.Decompress);
-                if (JsonSerializer.Deserialize<CacheFile>(gzip, JsonOptions) is
-                    { SchemaVersion: SchemaVersion, Demos: { } demos })
+                if (JsonSerializer.Deserialize<CacheFile>(gzip, _jsonOptions) is
+                    { SchemaVersion: CurrentSchemaVersion, Demos: { } demos })
                 {
                     return new Dictionary<string, Entry>(demos, StringComparer.Ordinal);
                 }

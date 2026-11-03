@@ -33,7 +33,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
     private readonly RoundIndexEvaluator? _evaluator;
     private readonly IRoundFacts? _facts;
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     // By demo (DemoKey): two paths of one content are one demo, whichever path merged it.
     private readonly Dictionary<string, LoadedDemo> _loaded = new(StringComparer.OrdinalIgnoreCase);
@@ -218,9 +218,6 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         return true;
     }
 
-    /// <summary>The startup load on a worker: the composition root calls this and never awaits it on the UI thread.</summary>
-    public Task StartLoadAsync() => Task.Run(Load);
-
     /// <summary>
     ///     Sweeps orphan sidecars and loads every sidecar whose index row is stamped Indexed at the
     ///     current schema. Stale fingerprints load too: a stale index is still the best answer available
@@ -231,7 +228,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
     {
         Attach();
         Stopwatch watch = Stopwatch.StartNew();
-        const int orphans = 0;
+        const int Orphans = 0;
         foreach (LibraryDemo entry in _library.Demos)
         {
             if (IsLoadable(entry))
@@ -249,7 +246,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             postings = _maps.Values.Sum(m => m.PostingCount);
         }
 
-        RoundIndexLog.Loaded(Log, demos, postings, orphans, watch.ElapsedMilliseconds);
+        RoundIndexLog.Loaded(Log, demos, postings, Orphans, watch.ElapsedMilliseconds);
         _post(() => Changed?.Invoke());
     }
 
@@ -316,30 +313,30 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         entry is not null && _store.Stamp(entry.FilePath) is
             { State: DemoDataState.Written, Schema: RoundIndexStore.Schema };
 
-    // Reads one sidecar and replaces whatever the demo contributed before. Returns the merged event, or
-    // null when the file is missing, unreadable, or belongs to another demo.
-    private RoundIndexedEvent? Merge(LibraryDemo entry, bool raise)
+    // Reads one sidecar and replaces whatever the demo contributed before. Does nothing when the file is
+    // missing, unreadable, or belongs to another demo.
+    private void Merge(LibraryDemo entry, bool raise)
     {
         string fileName = Path.GetFileName(entry.FilePath);
         RoundIndexDocument? document = _store.TryRead(entry.FilePath);
         if (document is null)
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "missing or unreadable");
-            return null;
+            return;
         }
 
         if (document.SchemaVersion != RoundIndexStore.Schema)
         {
             string reason = $"schema {document.SchemaVersion}";
             RoundIndexLog.SidecarIgnored(Log, fileName, reason);
-            return null;
+            return;
         }
 
         if (!string.Equals(document.Clock.Kind, ClockIdentity.DvFrameClock, StringComparison.Ordinal))
         {
             string reason = $"clock {document.Clock.Kind}";
             RoundIndexLog.SidecarIgnored(Log, fileName, reason);
-            return null;
+            return;
         }
 
         // A reader that has a hash compares it and ignores a mismatching file: the sidecar belongs to a
@@ -348,13 +345,13 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
                                                 && !string.Equals(sha, written, StringComparison.Ordinal))
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "content hash differs");
-            return null;
+            return;
         }
 
         if (document.CadenceTicks <= 0)
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "no cadence");
-            return null;
+            return;
         }
 
         RoundIndexedEvent indexed = new(entry.FilePath, DemoKeys.StableKey(entry.FilePath), entry.Sha256,
@@ -364,7 +361,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             // A merge posted before a release lands after it: released means empty.
             if (!_attached)
             {
-                return null;
+                return;
             }
 
             RemoveLocked(DemoKey(entry));
@@ -386,8 +383,6 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
                 Changed?.Invoke();
             });
         }
-
-        return indexed;
     }
 
     private MapIndex MapFor(string map)
@@ -401,15 +396,12 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         return index;
     }
 
-    private bool RemoveLocked(string key)
+    private void RemoveLocked(string key)
     {
-        if (!_loaded.Remove(key, out LoadedDemo? demo))
+        if (_loaded.Remove(key, out LoadedDemo? demo))
         {
-            return false;
+            demo.Map.Remove(demo);
         }
-
-        demo.Map.Remove(demo);
-        return true;
     }
 
     // A demo is its content once hashed, its path until then.
@@ -510,7 +502,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
                     continue;
                 }
 
-                if (query.IndexedAfterTicks is long after && demo.ComputedAtTicks <= after)
+                if (query.IndexedAfterTicks is { } after && demo.ComputedAtTicks <= after)
                 {
                     continue;
                 }
@@ -760,7 +752,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
 
         public Dictionary<string, PlaceAggregate> Places { get; } = new(StringComparer.Ordinal);
 
-        public Dictionary<(string A, string B), int> Transitions { get; } = [];
+        private Dictionary<(string A, string B), int> Transitions { get; } = [];
 
         public int PostingCount => _postings[0].Sum(p => p.Count) + _postings[1].Sum(p => p.Count);
 

@@ -40,7 +40,7 @@ public sealed class ProvenanceLibraryContribution(
     public bool HasBadge => true;
 
     /// <inheritdoc />
-    public LibraryBadge? BadgeFor(LibraryDemo demo)
+    public LibraryBadge BadgeFor(LibraryDemo demo)
     {
         ArgumentNullException.ThrowIfNull(demo);
         return BuildBadge(ResolveProvenance().Resolve(demo.FilePath));
@@ -81,10 +81,10 @@ public sealed class ProvenanceLibraryContribution(
     public IReadOnlyList<string> BadgeLabels => DemoProvenanceLabel.All;
 
     /// <inheritdoc />
-    public string? BadgeResetLabel => "Automatic";
+    public string BadgeResetLabel => "Automatic";
 
     /// <inheritdoc />
-    public string? BadgeResetTooltip => "Let the clan tags, the header and Team Identity decide";
+    public string BadgeResetTooltip => "Let the clan tags, the header and Team Identity decide";
 
     /// <inheritdoc />
     public void SetLabel(LibraryDemo demo, string? label)

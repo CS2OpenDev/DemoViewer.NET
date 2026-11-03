@@ -49,8 +49,6 @@ public sealed class RoundIndexStore
     /// <param name="demoPath">The demo's path.</param>
     public DemoDataStamp? Stamp(string demoPath) => Data.Stamp(demoPath, Facet);
 
-    /// <summary>Every demo's stamp.</summary>
-    public IReadOnlyList<DemoDataStamp> Stamps() => Data.Stamps(Facet);
 
     /// <summary>Is the demo's index current under <paramref name="fingerprint" />?</summary>
     /// <param name="demoPath">The demo's path.</param>

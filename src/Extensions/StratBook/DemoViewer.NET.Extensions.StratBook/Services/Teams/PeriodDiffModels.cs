@@ -92,8 +92,6 @@ public sealed class PeriodDiffPeriod
 /// </summary>
 public sealed class PeriodDiffSet
 {
-    public Guid TeamId { get; init; }
-
     /// <summary>Demos per period, as asked; a period holds fewer only when the team has not played that many yet.</summary>
     public int WindowSize { get; init; }
 

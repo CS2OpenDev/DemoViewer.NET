@@ -28,7 +28,7 @@ public static class TagClips
             return null;
         }
 
-        string note = instance.Round is int round
+        string note = instance.Round is { } round
             ? string.Create(CultureInfo.InvariantCulture, $"{instance.Code} · round {round}")
             : instance.Code;
         return ReviewClip.Clip(path, instance.FromTick, instance.ToTick, note, ReviewSources.Tag, tickRate,

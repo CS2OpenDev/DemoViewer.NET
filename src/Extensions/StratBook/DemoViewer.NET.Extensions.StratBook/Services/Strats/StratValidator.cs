@@ -32,7 +32,7 @@ public static class StratValidator
     public const double EarliestAfterTimerSeconds = -60;
 
     // The usual side (null for either) and what targetSite should hold.
-    private static readonly Dictionary<string, (string? Side, SiteRule Site)> Applicability =
+    private static readonly Dictionary<string, (string? Side, SiteRule Site)> _applicability =
         new(StringComparer.Ordinal)
         {
             ["execute"] = (StratVocabulary.SideT, SiteRule.Required),
@@ -156,7 +156,7 @@ public static class StratValidator
             issues.Add(Refuse("/status", $"status '{document.Status}' is not Theory, InProgress, Active or Archived"));
         }
 
-        if (!Applicability.TryGetValue(document.Type, out (string? Side, SiteRule Site) rule))
+        if (!_applicability.TryGetValue(document.Type, out (string? Side, SiteRule Site) rule))
         {
             issues.Add(Warn("/type", $"type '{document.Type}' is not in the vocabulary"));
         }

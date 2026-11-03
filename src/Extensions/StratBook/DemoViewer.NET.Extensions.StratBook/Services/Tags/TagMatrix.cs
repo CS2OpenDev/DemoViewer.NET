@@ -43,7 +43,7 @@ public sealed class TagMatrixTable
     }
 
     /// <summary>The pivot the table reads.</summary>
-    public TagPivot Pivot { get; }
+    private TagPivot Pivot { get; }
 
     public IReadOnlyList<string> RowKeys => Pivot.RowKeys;
 
@@ -62,7 +62,7 @@ public sealed class TagMatrixTable
     /// <param name="row">A row key.</param>
     /// <param name="column">A column key.</param>
     public IReadOnlyList<TagInstanceRef> Refs(string row, string column) =>
-        Pivot.Cells.TryGetValue((row, column), out IReadOnlyList<TagInstanceRef>? refs) ? refs : _none;
+        Pivot.Cells.GetValueOrDefault((row, column), _none);
 
     /// <summary>The count a cell shows.</summary>
     /// <param name="row">A row key.</param>

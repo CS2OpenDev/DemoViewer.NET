@@ -91,7 +91,7 @@ public sealed class NavPathResolver : PathResolver
     }
 
     /// <summary>The graph.</summary>
-    public NavPathfinder Graph { get; }
+    private NavPathfinder Graph { get; }
 
     /// <inheritdoc />
     public override IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX,

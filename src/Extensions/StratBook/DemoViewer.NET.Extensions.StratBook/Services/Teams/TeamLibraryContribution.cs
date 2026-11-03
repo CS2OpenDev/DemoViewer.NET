@@ -23,15 +23,15 @@ public sealed class TeamLibraryContribution(Func<TeamIdentityService> resolve, s
     public event Action? Changed;
 
     /// <inheritdoc />
-    public LibraryFilter? Filter
+    public LibraryFilter Filter
     {
         get
         {
             TeamIdentityService teams = Resolve();
             List<LibraryFilterItem> items =
             [
-                new LibraryFilterItem("", "All teams"),
-                new LibraryFilterItem("us", "Us")
+                new("", "All teams"),
+                new("us", "Us")
             ];
             foreach (Team team in teams.Teams)
             {

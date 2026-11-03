@@ -183,7 +183,7 @@ public sealed class TagFactsRefresher : IExtensionResident, IDisposable
     /// </summary>
     /// <param name="round">The round.</param>
     /// <param name="fromTick">The instance's start, for the tick-anchored facts.</param>
-    public static List<TagLabel> FactsOf(RoundFacts round, int fromTick) =>
+    private static List<TagLabel> FactsOf(RoundFacts round, int fromTick) =>
         [.. RoundFactsRules.Labels(round, fromTick).Select(f => new TagLabel(f.Key, f.Value))];
 
     private void OnUpdated(string demoPath)

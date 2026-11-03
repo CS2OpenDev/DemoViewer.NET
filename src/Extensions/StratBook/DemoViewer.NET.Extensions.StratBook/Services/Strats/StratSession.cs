@@ -53,7 +53,7 @@ public sealed class StratSession : IDisposable
     private string? _commitFailure;
     private bool _disposed;
     private CancellationTokenSource? _idle;
-    private IReadOnlyList<StratIssue> _issues = [];
+
     private int _issuesVersion = -1;
     private int _lastSavedVersion;
     private bool _writeFailed;
@@ -95,24 +95,24 @@ public sealed class StratSession : IDisposable
         {
             if (Document is { } document && _issuesVersion != Version)
             {
-                _issues = StratValidator.Validate(document, PlaceLookup?.Invoke(document.Map), _store.Index,
+                field = StratValidator.Validate(document, PlaceLookup?.Invoke(document.Map), _store.Index,
                     LineupLookup?.Invoke(document.Map));
                 if (GeometryChecks?.Invoke(document) is { } more)
                 {
-                    _issues = [.. _issues, .. more];
+                    field = [.. field, .. more];
                 }
 
                 _issuesVersion = Version;
             }
 
-            return _issues;
+            return field;
         }
         private set
         {
-            _issues = value;
+            field = value;
             _issuesVersion = Version;
         }
-    }
+    } = [];
 
     /// <summary>
     ///     Per map, whether a lineup id resolves there, or null while that map's lineups are not known yet (the
@@ -164,7 +164,7 @@ public sealed class StratSession : IDisposable
     public string? RecoveryNote { get; private set; }
 
     /// <summary>Working-copy writes completed, successful or not. Tests wait on it.</summary>
-    public int SaveCount { get; private set; }
+    private int SaveCount { get; set; }
 
     /// <summary>Commits that reached the log.</summary>
     public int CommitCount { get; private set; }
@@ -470,7 +470,7 @@ public sealed class StratSession : IDisposable
     ///     Blocking flush for the moments with no later: close and shutdown. Every await inside is
     ///     <c>ConfigureAwait(false)</c>, so there is no context to deadlock on, and the payload is small.
     /// </summary>
-    public void Flush() => FlushAsync().GetAwaiter().GetResult();
+    private void Flush() => FlushAsync().GetAwaiter().GetResult();
 
     // Applies ops to a copy of the document, filling each op's `from` and resolving `-`, and swaps the copy in
     // only when every op applied. Returns the ops as applied.

@@ -158,8 +158,4 @@ public static class StratStepLines
         };
     }
 
-    /// <summary>The line's watched places, first first; empty with no watch.</summary>
-    /// <param name="line">A line, or null.</param>
-    public static IReadOnlyList<string> Watching(StepAssignment? line) =>
-        line?.Watch?.Places is { } places ? [.. places.Where(p => !string.IsNullOrEmpty(p))] : [];
 }

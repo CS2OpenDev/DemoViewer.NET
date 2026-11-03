@@ -161,7 +161,7 @@ public static class StratHistory
             node = node switch
             {
                 JsonObject obj => obj[tokens[i]],
-                JsonArray array => ParseIndex(tokens[i], path) is int index && index < array.Count
+                JsonArray array => ParseIndex(tokens[i], path) is var index && index < array.Count
                     ? array[index]
                     : null,
                 _ => null
@@ -306,7 +306,7 @@ public sealed class StratCommitBuffer
     public bool HasPending => _ops.Count > 0;
 
     /// <summary>When the last op was recorded; null when nothing is pending.</summary>
-    public DateTime? LastEditUtc { get; private set; }
+    private DateTime? LastEditUtc { get; set; }
 
     /// <summary>A snapshot of the pending ops, merged.</summary>
     public IReadOnlyList<PatchOp> Pending => [.. _ops.Select(o => o.Clone())];
@@ -384,7 +384,7 @@ public sealed class StratCommitBuffer
 public static class StratDiffPhrasing
 {
     // Fields whose value is prose: printing it in a one-line summary says nothing the pane's diff does not.
-    private static readonly HashSet<string> TextFields = new(StringComparer.Ordinal) { "notes", "note", "text" };
+    private static readonly HashSet<string> _textFields = new(StringComparer.Ordinal) { "notes", "note", "text" };
 
     /// <summary>One line per op, a repeated line said once, in op order.</summary>
     /// <param name="before">The document before the first op; null before revision 1.</param>
@@ -398,8 +398,8 @@ public static class StratDiffPhrasing
         List<PatchOp> all = [.. ops];
 
         // A clock switch rewrites every time and a first start write moves the seed's entries: each reads as one line.
-        bool clockSwitch = all.Exists(o => o.Op == PatchOp.Replace && o.Path == "/clock/kind");
-        bool startWritten = all.Exists(o => o.Op == PatchOp.Add && o.Path == "/start");
+        bool clockSwitch = all.Exists(o => o is { Op: PatchOp.Replace, Path: "/clock/kind" });
+        bool startWritten = all.Exists(o => o is { Op: PatchOp.Add, Path: "/start" });
         List<string> lines = [];
         foreach (PatchOp op in all)
         {
@@ -624,7 +624,7 @@ public static class StratDiffPhrasing
         }
 
         string field = named.Count == 0 ? "value" : string.Join(' ', named.Select(Words));
-        bool prose = named.Count > 0 && TextFields.Contains(named[^1]);
+        bool prose = named.Count > 0 && _textFields.Contains(named[^1]);
         string? from = prose ? null :
             isPlace && Text(op.From) is { } fromPlace ? Place(fromPlace, callouts) : ValueText(op.From, callouts);
         string? to = prose ? null :

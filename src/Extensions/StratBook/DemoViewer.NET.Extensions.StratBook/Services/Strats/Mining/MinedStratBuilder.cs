@@ -21,10 +21,10 @@ public static class MinedStratBuilder
     public const string ExtraKey = "mined";
 
     /// <summary>An execute taken this soon after freeze end is fast (the Execute detector's rush line).</summary>
-    public const double FastTakeSeconds = 25;
+    private const double FastTakeSeconds = 25;
 
     /// <summary>An execute taken this late is slow.</summary>
-    public const double SlowTakeSeconds = 60;
+    private const double SlowTakeSeconds = 60;
 
     /// <summary>Seconds of a setup a strat covers when first contact does not cut it short.</summary>
     public const int SetupSeconds = 35;
@@ -46,7 +46,7 @@ public static class MinedStratBuilder
             return facts.FirstContactTick is { } contact ? Math.Min(end, contact) : end;
         }
 
-        return facts.PlantTick is { } plant ? plant : m.AnchorTick + ExecuteTailSeconds * m.TickRate;
+        return facts.PlantTick ?? m.AnchorTick + ExecuteTailSeconds * m.TickRate;
     }
 
     /// <summary>The strat.</summary>
@@ -97,7 +97,7 @@ public static class MinedStratBuilder
 
     /// <summary><c>execute</c>, <c>default</c> for a T setup, <c>setup</c> for a CT one.</summary>
     /// <param name="pattern">The pattern.</param>
-    public static string TypeOf(MinedPattern pattern) =>
+    private static string TypeOf(MinedPattern pattern) =>
         pattern.Kind == PatternKind.Execute ? "execute" : pattern.Side == 2 ? "default" : "setup";
 
     /// <summary>
@@ -113,7 +113,7 @@ public static class MinedStratBuilder
         List<string> smokes =
         [
             .. pattern.CommonThrows
-                .Where(c => c.Throw.Kind == Modules.UtilityBook.GrenadeKind.Smoke && c.Throw.LandingPlace is not null)
+                .Where(c => c.Throw is { Kind: Modules.UtilityBook.GrenadeKind.Smoke, LandingPlace: not null })
                 .Select(c => c.Throw.LandingPlace!)
                 .Distinct(StringComparer.Ordinal)
                 .Take(2)

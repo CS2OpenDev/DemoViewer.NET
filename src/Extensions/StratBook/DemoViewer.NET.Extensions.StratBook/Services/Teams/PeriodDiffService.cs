@@ -50,7 +50,7 @@ public static class PeriodDiffService
             string map = entry?.MapName is { Length: > 0 } m ? m : "";
 
             bool? won = null;
-            if (entry?.CtScore is { } ctScore && entry.TScore is { } tScore && ctScore != tScore)
+            if (entry is { CtScore: { } ctScore, TScore: { } tScore } && ctScore != tScore)
             {
                 int teamScore = side == 3 ? ctScore : tScore;
                 int opponentScore = side == 3 ? tScore : ctScore;
@@ -64,11 +64,11 @@ public static class PeriodDiffService
             string? rosterId = sideAssignment.RosterId;
             string rosterLabel = rosterId is null
                 ? ""
-                : team?.Rosters.FirstOrDefault(r => string.Equals(r.Id, rosterId, StringComparison.Ordinal))?.Label
+                : team?.Rosters.FirstOrDefault(roster => string.Equals(roster.Id, rosterId, StringComparison.Ordinal))?.Label
                   ?? rosterId;
 
             rows.Add(new PeriodDiffDemoRow(demo.Path, demo.Sha256, map, entry?.Modified.Ticks ?? 0, side,
-                rosterId, rosterLabel, sideAssignment.StandIn && sideAssignment.Tier == 1, won, ctRounds, tRounds));
+                rosterId, rosterLabel, sideAssignment is { StandIn: true, Tier: 1 }, won, ctRounds, tRounds));
         }
 
         PeriodDiffPeriod recent = BuildPeriod("last", [.. rows.Take(windowSize)]);
@@ -80,7 +80,6 @@ public static class PeriodDiffService
 
         return new PeriodDiffSet
         {
-            TeamId = teamId,
             WindowSize = windowSize,
             TotalDemos = rows.Count,
             Recent = recent,

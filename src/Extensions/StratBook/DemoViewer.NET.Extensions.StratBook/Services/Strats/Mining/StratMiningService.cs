@@ -61,28 +61,28 @@ public sealed record StratMiningFiles(StoredFile? Detected, StoredFile? Signatur
 public sealed class StratMiningService : IExtensionResident, IDisposable
 {
     /// <summary>The detected file's shape version.</summary>
-    public const int SchemaVersion = 1;
+    private const int CurrentSchemaVersion = 1;
 
     /// <summary>The schema of the user file, <c>strat-mining.json</c>.</summary>
-    public const int StateSchemaVersion = 1;
+    private const int StateSchemaVersion = 1;
 
     /// <summary>The tag code a mined T setup's runs carry; an execute's is the palette's site code.</summary>
-    public const string DefaultCode = "Default";
+    private const string DefaultCode = "Default";
 
     /// <summary>The tag code a mined CT setup's runs carry.</summary>
-    public const string SetupCode = "Setup";
+    private const string SetupCode = "Setup";
 
     /// <summary>The provenance detector name on a promoted pattern's runs.</summary>
     public const string Detector = "strat-mining";
 
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = false };
 
     private readonly IExtensionLibrary _library;
     private readonly IRoundFacts _roundFacts;
     private readonly StoredFile? _detected;
     private readonly Func<bool> _enabled;
     private readonly Func<string?, string> _fingerprintFor;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly GrenadeIndex? _grenadeIndex;
     private readonly RoundIndexStore _positions;
     private readonly Action<Action> _post;
@@ -333,7 +333,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     public Task MineAsync() => MineAsync(user: true);
 
     /// <summary>Demos read per gate slot.</summary>
-    internal int BatchSize { get; set; } = 16;
+    internal int BatchSize { get; init; } = 16;
 
     internal Task MineAsync(bool user)
     {
@@ -787,39 +787,34 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         }
 
         Mutate(state => state.Promoted.Remove(key));
-        LastRunRemoval = _jobs is null
-            ? _run(() => RemoveRuns(id))
-            : _jobs.Enqueue(new JobRequest("Strat mining: remove a deleted strat's runs", _ =>
+        LastRunRemoval = _jobs?.Enqueue(new JobRequest("Strat mining: remove a deleted strat's runs", _ =>
                     {
                         RemoveRuns(id);
                         return Task.CompletedTask;
                     },
                     new JobOptions(StratBookJobKinds.Mining, JobPriority.UserRequested,
                         "strat-runs:" + id.ToString("N"))))
-                .Completion;
+                .Completion
+            ?? _run(() => RemoveRuns(id));
     }
 
     /// <summary>
     ///     Removes the runs a promotion wrote for <paramref name="stratId" />: suggested instances whose provenance
     ///     detector is <see cref="Detector" /> and whose strat label is that strat. Nothing else is touched.
     /// </summary>
-    /// <returns>How many were removed.</returns>
-    internal int RemoveRuns(Guid stratId)
+    private void RemoveRuns(Guid stratId)
     {
         // Queued: the strat may have been put back since it was deleted.
         if (_tags is null || _strats.Index.Any(s => s.Id == stratId))
         {
-            return 0;
+            return;
         }
 
         string value = stratId.ToString();
-        int removed = 0;
         foreach (TagDocument document in _tags.LoadDocuments(e => e.StratIds.Contains(value, StringComparer.Ordinal)))
         {
-            _tags.Update(document.Demo.Sha256, d => removed += d.Instances.RemoveAll(i => IsRunOf(i, value)));
+            _tags.Update(document.Demo.Sha256, d => d.Instances.RemoveAll(i => IsRunOf(i, value)));
         }
-
-        return removed;
     }
 
     private static bool IsRunOf(TagInstance instance, string stratId) =>
@@ -1006,7 +1001,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
             {
                 try
                 {
-                    _stateFile.Write(JsonSerializer.SerializeToUtf8Bytes(_state, JsonOptions));
+                    _stateFile.Write(JsonSerializer.SerializeToUtf8Bytes(_state, _jsonOptions));
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -1026,7 +1021,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         if (_detected is not null)
         {
             _detected.Write(JsonSerializer.SerializeToUtf8Bytes(
-                new DetectedFile(SchemaVersion, DateTime.UtcNow, [.. patterns]), JsonOptions));
+                new DetectedFile(CurrentSchemaVersion, DateTime.UtcNow, [.. patterns]), _jsonOptions));
         }
     }
 
@@ -1036,8 +1031,8 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         try
         {
             if (_detected?.Read() is { } bytes
-                && JsonSerializer.Deserialize<DetectedFile>(bytes, JsonOptions) is
-                    { SchemaVersion: SchemaVersion } file)
+                && JsonSerializer.Deserialize<DetectedFile>(bytes, _jsonOptions) is
+                    { SchemaVersion: CurrentSchemaVersion } file)
             {
                 MinedUtc = file.MinedUtc;
                 Publish(file.Patterns);
@@ -1080,7 +1075,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
             MiningState? state;
             try
             {
-                state = JsonSerializer.Deserialize<MiningState>(json, JsonOptions);
+                state = JsonSerializer.Deserialize<MiningState>(json, _jsonOptions);
             }
             catch (JsonException ex)
             {
@@ -1130,10 +1125,10 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     private sealed class MiningState
     {
         // Missing in files written before it existed, which read as schema 1.
-        public int SchemaVersion { get; set; } = StateSchemaVersion;
+        public int SchemaVersion { get; init; } = StateSchemaVersion;
 
-        public HashSet<string> Dismissed { get; set; } = new(StringComparer.Ordinal);
+        public HashSet<string> Dismissed { get; init; } = new(StringComparer.Ordinal);
 
-        public Dictionary<string, Guid> Promoted { get; set; } = new(StringComparer.Ordinal);
+        public Dictionary<string, Guid> Promoted { get; init; } = new(StringComparer.Ordinal);
     }
 }

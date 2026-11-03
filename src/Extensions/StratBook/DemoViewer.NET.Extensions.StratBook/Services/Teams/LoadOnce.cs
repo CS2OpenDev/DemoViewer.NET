@@ -20,8 +20,6 @@ internal sealed class LoadOnce
         _load = load;
     }
 
-    /// <summary>Completes once the load has run.</summary>
-    public Task Completion => _done.Task;
 
     /// <summary>True once the load has run.</summary>
     public bool IsDone => _done.Task.IsCompleted;

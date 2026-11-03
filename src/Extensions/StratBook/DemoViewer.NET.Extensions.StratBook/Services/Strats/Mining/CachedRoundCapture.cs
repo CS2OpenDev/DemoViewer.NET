@@ -90,14 +90,17 @@ public static class CachedRoundCapture
             }
         }
 
-        List<CaptureMoment> moments = [new CaptureMoment(freezeEnd, CaptureTrigger.FreezeEnd, PawnsAt(freezeEnd))];
-        moments.AddRange(stops.Concat(sweeps).OrderBy(m => m.Tick).ThenBy(m => m.Trigger));
+        List<CaptureMoment> moments =
+        [
+            new(freezeEnd, CaptureTrigger.FreezeEnd, PawnsAt(freezeEnd)),
+            .. stops.Concat(sweeps).OrderBy(m => m.Tick).ThenBy(m => m.Trigger)
+        ];
         return new RoundCapture(facts.Number, freezeEnd, facts.EndTick ?? end, tickRate, moments);
     }
 
     /// <summary>The strat's spelling of a grenade kind; a fire is a molotov whichever side threw it.</summary>
     /// <param name="kind">The Grenade Walk's kind.</param>
-    public static string? KindOf(GrenadeKind kind) => kind switch
+    private static string? KindOf(GrenadeKind kind) => kind switch
     {
         GrenadeKind.Smoke => "smoke",
         GrenadeKind.Flash => "flash",

@@ -44,7 +44,7 @@ public sealed record StratSpawns(IReadOnlyList<SpawnSpot> T, IReadOnlyList<Spawn
     /// <param name="team"><c>T</c> or <c>CT</c>.</param>
     /// <param name="place">The spawn's place name, for a map without a buy zone.</param>
     /// <param name="levelFor">A floor Z's level key.</param>
-    public static IReadOnlyList<SpawnSpot> Spots(ZoneSet zones, string team, string place,
+    private static IReadOnlyList<SpawnSpot> Spots(ZoneSet zones, string team, string place,
         Func<double, double> levelFor)
     {
         ArgumentNullException.ThrowIfNull(zones);

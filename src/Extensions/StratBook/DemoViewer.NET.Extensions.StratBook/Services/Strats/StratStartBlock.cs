@@ -136,7 +136,7 @@ public static class StratStartBlock
 
     /// <summary>A step entry as a start entry: its point, level and yaw; the carried and observed marks are not kept.</summary>
     /// <param name="position">The entry.</param>
-    public static StartPosition FromPosition(StepPosition position)
+    private static StartPosition FromPosition(StepPosition position)
     {
         ArgumentNullException.ThrowIfNull(position);
         return new StartPosition
@@ -335,7 +335,7 @@ public static class StratStartBlock
     }
 
     /// <summary>A copy, unknown fields included.</summary>
-    public static StratStart Clone(StratStart start) =>
+    private static StratStart Clone(StratStart start) =>
         JsonSerializer.Deserialize(JsonSerializer.Serialize(start, StratJsonContext.Default.StratStart),
             StratJsonContext.Default.StratStart)!;
 
@@ -448,7 +448,7 @@ public static class StratStartPhrasing
     /// <param name="start">The start, or null.</param>
     /// <param name="slot">The token.</param>
     /// <param name="callouts">Place names; null for canonical ones.</param>
-    public static string? SlotText(StratStart? start, string slot, CalloutResolver? callouts)
+    private static string? SlotText(StratStart? start, string slot, CalloutResolver? callouts)
     {
         if (StratStartBlock.For(start, slot) is not { } entry)
         {

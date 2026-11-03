@@ -52,12 +52,12 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
 
     private readonly IExtensionLibrary _library;
     private readonly IExtensionIdentity? _identity;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly StoredFile? _indexFile;
 
     // Keyed on the library row INSTANCE: the library hands out a new row whenever the demo's record is
     // written, so a cached join never outlives the record it was built from. Under _joinGate.
-    private readonly object _joinGate = new();
+    private readonly Lock _joinGate = new();
     private readonly List<JoinSlot> _joins = [];
     private readonly Dictionary<string, DemoSideInput> _inputs = new(StringComparer.Ordinal);
     private readonly Action<Action> _post;
@@ -71,7 +71,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     private TeamIndexFile _index = new();
     private TeamsFile _teams = new();
     private bool _teamsRefused;
-    private readonly object _referencesGate = new();
+    private readonly Lock _referencesGate = new();
     private HashSet<Guid> _referenced = [];
 
     // The full sync queued and not yet started, so a burst of batch changes queues one.
@@ -113,7 +113,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _identity = identity;
         _roundFacts = roundFacts;
         _post = post ?? (action => action());
-        _run = run ?? (action => Task.Run(action));
+        _run = run ?? Task.Run;
         _teamsFile = files?.Teams;
         _indexFile = _teamsFile is null ? null : files?.Index;
 
@@ -757,9 +757,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     ///     The record pass that lifts the sides of a parsed demo whose library row does not carry them: a row
     ///     written before the library kept sides. Reading the record also gives the library the row's sides.
     /// </summary>
-    public IExtensionRecordPass SidesPass => _sidesPass ??= new SidesRecordPass(this);
-
-    private IExtensionRecordPass? _sidesPass;
+    public IExtensionRecordPass SidesPass => field ??= new SidesRecordPass(this);
 
     private sealed class SidesRecordPass(TeamIdentityService owner) : IExtensionRecordPass
     {

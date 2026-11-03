@@ -67,7 +67,7 @@ public static class StratTemplates
 {
     private const string All = StratVocabulary.ActorAll;
 
-    private static readonly string?[] ExecuteRoles = ["entry", "support", "smokes", "flashes", "lurk"];
+    private static readonly string?[] _executeRoles = ["entry", "support", "smokes", "flashes", "lurk"];
 
     /// <summary>Every template, in menu order: T side first, then either side, then CT.</summary>
     public static readonly IReadOnlyList<StratTemplate> Templates =
@@ -243,7 +243,7 @@ public static class StratTemplates
     private static string Site(string site) => "Bombsite" + site;
 
     private static StratTemplate Execute(string site) => new(
-        "execute-" + site.ToLowerInvariant(), "Execute", site, "execute", StratVocabulary.SideT, site, ExecuteRoles,
+        "execute-" + site.ToLowerInvariant(), "Execute", site, "execute", StratVocabulary.SideT, site, _executeRoles,
         [
             new(75, All, "wait", Note: "group up for the " + site + " execute"),
             new(62, "C", "throw", Utility: "smoke", Note: "CT-side smoke"),

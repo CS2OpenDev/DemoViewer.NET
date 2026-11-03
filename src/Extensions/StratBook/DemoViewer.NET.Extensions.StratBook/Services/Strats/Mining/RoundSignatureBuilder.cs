@@ -25,16 +25,16 @@ public sealed record MiningGrenade(IndexedGrenade Grenade, Guid? LineupId);
 public sealed class RoundSignatureBuilder
 {
     /// <summary>Ts in the site's place that start a take.</summary>
-    public const int TakeCount = 2;
+    private const int TakeCount = 2;
 
     /// <summary>Ts in one site at once that make a take on a round without a plant.</summary>
-    public const int UnplantedTakeCount = 3;
+    private const int UnplantedTakeCount = 3;
 
     /// <summary>Seconds after freeze end before which an execute anchor says nothing.</summary>
-    public const int SpawnSeconds = 4;
+    private const int SpawnSeconds = 4;
 
     /// <summary>Part of every cache key: bump it when the anchors, the windows or the take rule change.</summary>
-    public const int SignatureVersion = 1;
+    private const int SignatureVersion = 1;
 
     private const string SiteAPlace = "BombsiteA";
     private const string SiteBPlace = "BombsiteB";

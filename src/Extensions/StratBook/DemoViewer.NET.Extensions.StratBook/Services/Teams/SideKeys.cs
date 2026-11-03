@@ -52,9 +52,6 @@ public sealed class DemoSideInput
 
     public SideInput Side(int side) => side == 3 ? Ct : T;
 
-    /// <summary>Both sides carry a key: the demo took part in clustering.</summary>
-    public bool IsClusterable => T.IsClusterable || Ct.IsClusterable;
-
     /// <summary>The same keys, the same clans: a re-parse that changed nothing that matters here.</summary>
     public bool SameSides(DemoSideInput other) =>
         OrderTicks == other.OrderTicks
@@ -71,8 +68,8 @@ public static class SideKeys
 {
     /// <summary>Is this player a member of a side key? Bots, coaches and players without an id are not.</summary>
     /// <param name="player">The roster entry.</param>
-    public static bool IsKeyMember(LibraryPlayer player) =>
-        !player.IsBot && !player.IsCoach && player.Team is 2 or 3 && player.SteamId64 != 0;
+    private static bool IsKeyMember(LibraryPlayer player) =>
+        player is { IsBot: false, IsCoach: false, Team: 2 or 3, SteamId64: not 0 };
 
     /// <summary>The key of one end-of-demo side from the demo's players.</summary>
     /// <param name="detail">The demo's record.</param>
@@ -92,7 +89,7 @@ public static class SideKeys
     /// <summary>The key of one end-of-demo side from the library's row, or null when the row carries no sides.</summary>
     /// <param name="demo">The row.</param>
     /// <param name="side">2 = T, 3 = CT.</param>
-    public static SideInput? Side(LibraryDemo demo, int side)
+    private static SideInput? Side(LibraryDemo demo, int side)
     {
         ArgumentNullException.ThrowIfNull(demo);
         if (demo.PlayersOn(side) is not { } players)

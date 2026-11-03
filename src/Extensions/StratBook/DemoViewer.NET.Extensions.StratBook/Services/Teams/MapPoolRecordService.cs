@@ -35,7 +35,7 @@ public static class MapPoolRecordService
             }
 
             bool? won = null;
-            if (entry.CtScore is { } ct && entry.TScore is { } t && ct != t)
+            if (entry is { CtScore: { } ct, TScore: { } t } && ct != t)
             {
                 int teamScore = side == 3 ? ct : t;
                 int opponentScore = side == 3 ? t : ct;
@@ -69,7 +69,7 @@ public static class MapPoolRecordService
 
         return new MapPoolRecord
         {
-            TeamId = teamId, Maps = mapRows, Deciders = BuildDeciders(results), TotalDemos = results.Count
+            Maps = mapRows, Deciders = BuildDeciders(results), TotalDemos = results.Count
         };
     }
 

@@ -63,7 +63,7 @@ public sealed class ZonePlaceSource : IPlaceSource
     public string SourceId => "zones";
 
     /// <inheritdoc />
-    public string? ZonesVersion => _resolver.ZonesVersion;
+    public string ZonesVersion => _resolver.ZonesVersion;
 
     /// <inheritdoc />
     public string? PlaceFor(in PositionSample sample) => _resolver.Resolve(sample.Position);

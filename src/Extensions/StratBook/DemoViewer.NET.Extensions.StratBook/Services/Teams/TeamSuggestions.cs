@@ -76,13 +76,13 @@ public static class TeamSuggestions
     public const int SquadMinGames = 8;
 
     /// <summary>The largest squad offered: you plus four.</summary>
-    public const int SquadMaxSize = 5;
+    private const int SquadMaxSize = 5;
 
     /// <summary>The smallest squad offered: you plus two, the trio a user describes.</summary>
-    public const int SquadMinSize = 3;
+    private const int SquadMinSize = 3;
 
     /// <summary>Valve's active-roster window: the team's last ten matches.</summary>
-    public const int ActiveWindow = 10;
+    private const int ActiveWindow = 10;
 
     /// <summary>Valve's active-roster bar: five or more of those ten.</summary>
     public const int ActiveMinAppearances = 5;
@@ -116,7 +116,7 @@ public static class TeamSuggestions
     /// <param name="teams">The user file.</param>
     /// <param name="index">The derived index.</param>
     /// <param name="activeAccount">The user's active account, or null.</param>
-    public static IReadOnlyList<TeamSuggestion> ComputeAll(TeamsFile teams, TeamIndexFile index,
+    private static List<TeamSuggestion> ComputeAll(TeamsFile teams, TeamIndexFile index,
         string? activeAccount = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
@@ -286,7 +286,7 @@ public static class TeamSuggestions
             }
 
             group.Add(candidate.SteamId64);
-            if (mySides.Count(s => group.IsSubsetOf(s)) >= SquadMinGames)
+            if (mySides.Count(group.IsSubsetOf) >= SquadMinGames)
             {
                 core.Add(candidate);
             }
@@ -301,7 +301,7 @@ public static class TeamSuggestions
             return null;
         }
 
-        int together = mySides.Count(s => group.IsSubsetOf(s));
+        int together = mySides.Count(group.IsSubsetOf);
         string mainName = index.Demos.Values.Select(r => MySide(r, me)).OfType<TeamIndexSide>()
             .Select(s => s.Key.IndexOf(main) is var i and >= 0 && i < s.Names.Count ? s.Names[i] : null)
             .LastOrDefault(n => n is not null) ?? main;
@@ -322,7 +322,7 @@ public static class TeamSuggestions
     {
         foreach (Team team in teams.Teams.Where(t => !t.Hidden))
         {
-            foreach (Roster roster in team.Rosters.Where(r => r.HasCoreLineup && !r.IsSquad))
+            foreach (Roster roster in team.Rosters.Where(r => r is { HasCoreLineup: true, IsSquad: false }))
             {
                 List<(TeamIndexDemo Row, TeamIndexSide Side)> sides = [.. SidesOf(index, team.Id, roster.Id)];
                 IReadOnlyList<SuggestedPlayer> active = ActiveOf(sides);
@@ -369,7 +369,7 @@ public static class TeamSuggestions
     private static IEnumerable<TeamSuggestion> MergesByTag(TeamsFile teams)
     {
         foreach (IGrouping<string, Team> group in teams.Teams
-                     .Where(t => !t.Hidden && t.NameSource == TeamNameSource.ClanTag)
+                     .Where(t => t is { Hidden: false, NameSource: TeamNameSource.ClanTag })
                      .GroupBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                      .Where(g => g.Count() > 1))
         {

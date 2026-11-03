@@ -84,8 +84,8 @@ public sealed class RoundSignature
     public double AnchorSeconds => TickRate > 0 ? (AnchorTick - FreezeEndTick) / (double)TickRate : 0;
 
     /// <summary>
-    ///     The side's alive players at each anchor offset (<see cref="StratMiner.AnchorsFor" />), in order. An
-    ///     empty list is an anchor with no sample.
+    ///     The side's alive players at each anchor offset (<see cref="StratMiner.SetupAnchors" /> or
+    ///     <see cref="StratMiner.ExecuteAnchors" />), in order. An empty list is an anchor with no sample.
     /// </summary>
     public required IReadOnlyList<IReadOnlyList<MinedPawn>> Anchors { get; init; }
 

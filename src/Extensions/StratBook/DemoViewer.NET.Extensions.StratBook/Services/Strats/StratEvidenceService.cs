@@ -124,19 +124,18 @@ public static class StratEvidence
     public const string RevisionGroup = "strat.rev";
 
     /// <summary><c>completed</c> or <c>aborted</c>; absent means completed.</summary>
-    public const string ResultGroup = "strat.result";
+    private const string ResultGroup = "strat.result";
 
     /// <summary>Why it failed; repeatable.</summary>
-    public const string FailureGroup = "strat.failure";
+    private const string FailureGroup = "strat.failure";
 
-    public const string Completed = "completed";
-    public const string Aborted = "aborted";
+    private const string Aborted = "aborted";
 
     /// <summary>The shipped palette's human outcome group: the fallback when Round Facts has not run.</summary>
     public const string OutcomeGroup = "outcome";
 
     public const string OutcomeWon = "won";
-    public const string OutcomeLost = "lost";
+    private const string OutcomeLost = "lost";
 
     /// <summary>The Round Facts fact the refresh writes: <c>T</c>, <c>CT</c> or <c>none</c>.</summary>
     public const string WinnerFact = "winner";
@@ -224,10 +223,10 @@ public static class StratEvidence
         ArgumentNullException.ThrowIfNull(runs);
         Dictionary<string, RecordSplit> byProvenance = runs
             .GroupBy(r => r.Provenance ?? Unlabeled, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => RecordSplit.Of(g), StringComparer.Ordinal);
+            .ToDictionary(g => g.Key, RecordSplit.Of, StringComparer.Ordinal);
         Dictionary<int, RecordSplit> byRevision = runs
             .GroupBy(r => r.Revision)
-            .ToDictionary(g => g.Key, g => RecordSplit.Of(g));
+            .ToDictionary(g => g.Key, RecordSplit.Of);
 
         // A won run's failure label is a note on a win, not a reason the strat failed, so the breakdown reads
         // the runs that did not win: lost, aborted, and unknown (which may yet turn out lost).
@@ -277,7 +276,7 @@ public static class StratEvidence
     /// </summary>
     /// <param name="instance">The evidence instance.</param>
     /// <param name="stratId">The strat.</param>
-    public static int RevisionOf(TagInstance instance, Guid stratId)
+    private static int RevisionOf(TagInstance instance, Guid stratId)
     {
         ArgumentNullException.ThrowIfNull(instance);
         List<TagLabel> labels = instance.Labels;
@@ -396,7 +395,7 @@ public sealed class StratRecordPane
         ByProvenance =
         [
             .. record.ByProvenance.Keys
-                .OrderBy(k => ProvenanceRank(k)).ThenBy(k => k, StringComparer.Ordinal)
+                .OrderBy(ProvenanceRank).ThenBy(k => k, StringComparer.Ordinal)
                 .Select(k => new StratRecordRow(k, k, record.ByProvenance[k],
                 [
                     .. record.Runs.Where(r =>
@@ -424,7 +423,7 @@ public sealed class StratRecordPane
         ];
     }
 
-    public StratRecord Record { get; }
+    private StratRecord Record { get; }
 
     public StratRecordRow Total { get; }
 

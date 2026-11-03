@@ -20,7 +20,7 @@ public static class ProjectileThrowerMatch
     public const int TickTolerance = 8;
 
     /// <summary>World units a <c>Removed</c> sample's position may differ from the detonation's ("a small radius").</summary>
-    public const double PositionTolerance = 256;
+    private const double PositionTolerance = 256;
 
     /// <summary>
     ///     The <c>Removed</c> sample of <paramref name="className" /> nearest <paramref name="position" />, within

@@ -39,16 +39,16 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 public sealed class PostPlantService
 {
     /// <summary>World units (XY) from a cluster's centre within which a plant spot joins it.</summary>
-    public const int PlantClusterRadius = 300;
+    private const int PlantClusterRadius = 300;
 
     /// <summary>Seconds after the plant the hold is read at.</summary>
-    public const int HoldSeconds = 10;
+    private const int HoldSeconds = 10;
 
     /// <summary>World units (XY) to the bomb within which a holding player counts as near it.</summary>
-    public const int HoldNearDistance = 700;
+    private const int HoldNearDistance = 700;
 
     /// <summary>World units (XY) to the bomb within which a retaking CT counts as arrived.</summary>
-    public const int RetakeRadius = 1000;
+    private const int RetakeRadius = 1000;
 
     /// <summary>Seconds between one CT's arrival and the next within one group.</summary>
     public const int RetakeGapSeconds = 6;
@@ -69,16 +69,16 @@ public sealed class PostPlantService
     public const string OnePlayer = "one player";
 
     /// <summary>The retake group of rounds where CTs were alive and none reached the bomb.</summary>
-    public const string NobodyReached = "nobody reached the bomb";
+    private const string NobodyReached = "nobody reached the bomb";
 
     /// <summary>The retake group of rounds with no CT alive at the plant.</summary>
     public const string NoCtAlive = "no CT alive";
 
     /// <summary>The hold of rounds with no T alive when it is read.</summary>
-    public const string NoTAlive = "no T alive";
+    private const string NoTAlive = "no T alive";
 
     /// <summary>A position list's bucket for a round whose plant spot the positions do not give.</summary>
-    public const string SpotUnread = "spot unread";
+    private const string SpotUnread = "spot unread";
 
     // A record without a clock header is still a CS2 demo; the frame clock of every build here is 64.
     private const int FallbackTickRate = 64;
@@ -174,7 +174,7 @@ public sealed class PostPlantService
 
         return new PostPlantSet
         {
-            TeamId = teamId, Blocks = blocks, DemosRead = read, DemosWithoutPositions = withoutPositions
+            Blocks = blocks, DemosRead = read, DemosWithoutPositions = withoutPositions
         };
     }
 
@@ -316,7 +316,7 @@ public sealed class PostPlantService
     /// <param name="positions">The demo's positions file.</param>
     /// <param name="round">A round with a plant.</param>
     /// <param name="tickRate">The demo's tick rate.</param>
-    public static IReadOnlyList<RoundPosition>? Hold(RoundPositionsDocument positions, RoundFacts round, int tickRate)
+    private static IReadOnlyList<RoundPosition>? Hold(RoundPositionsDocument positions, RoundFacts round, int tickRate)
     {
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);

@@ -123,7 +123,7 @@ public interface IPlaceAdjacency
 public sealed class EmpiricalPlaceAdjacency : IPlaceAdjacency
 {
     /// <summary>Transition observations a pair needs before it is an edge.</summary>
-    public const int Threshold = 3;
+    private const int Threshold = 3;
 
     private static readonly IReadOnlySet<string> _none = new HashSet<string>(StringComparer.Ordinal);
     private readonly Dictionary<string, HashSet<string>> _neighbours = new(StringComparer.Ordinal);
@@ -151,8 +151,6 @@ public sealed class EmpiricalPlaceAdjacency : IPlaceAdjacency
     /// <inheritdoc />
     public string Source { get; }
 
-    /// <summary>How many places have at least one edge.</summary>
-    public int PlaceCount => _neighbours.Count;
 
     /// <inheritdoc />
     public IReadOnlySet<string> Neighbours(string place) =>

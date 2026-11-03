@@ -16,7 +16,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// </summary>
 public sealed class DossierTeamNotes
 {
-    public Guid TeamId { get; set; }
+    public Guid TeamId { get; init; }
 
     /// <summary>The user's own paragraph at the top of both forms; empty prints nothing.</summary>
     public string Summary { get; set; } = "";
@@ -50,9 +50,9 @@ public sealed class DossierNotesFile
 {
     public const int CurrentSchema = 1;
 
-    public int SchemaVersion { get; set; } = CurrentSchema;
+    public int SchemaVersion { get; init; } = CurrentSchema;
 
-    public List<DossierTeamNotes> Teams { get; set; } = [];
+    public List<DossierTeamNotes> Teams { get; init; } = [];
 
     /// <summary>Same shape as <see cref="VetoHistoryFile.JsonOptions" />.</summary>
     public static JsonSerializerOptions JsonOptions { get; } = new()

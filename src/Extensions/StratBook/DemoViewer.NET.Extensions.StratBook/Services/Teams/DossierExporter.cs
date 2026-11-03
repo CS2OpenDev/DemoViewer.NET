@@ -78,7 +78,7 @@ public static class DossierExporter
     /// <summary>The document's title for a form: "Falcons one-pager" or "Falcons dossier".</summary>
     /// <param name="doc">The document.</param>
     /// <param name="form">The form.</param>
-    public static string Title(DossierDocument doc, DossierForm form)
+    private static string Title(DossierDocument doc, DossierForm form)
     {
         ArgumentNullException.ThrowIfNull(doc);
         string team = doc.TeamName.Length == 0 ? "Opponent" : doc.TeamName;
@@ -233,7 +233,7 @@ public static class DossierExportWriter
     /// <param name="text">The export.</param>
     /// <param name="fileNameHint">A short, filesystem-safe stem; a unique suffix is always added.</param>
     /// <param name="extension">The extension, with its dot.</param>
-    public static string WriteTempFile(string text, string fileNameHint, string extension)
+    private static string WriteTempFile(string text, string fileNameHint, string extension)
     {
         ArgumentNullException.ThrowIfNull(text);
         string path = Path.Combine(Path.GetTempPath(), $"{fileNameHint}-{Guid.NewGuid():N}{extension}");

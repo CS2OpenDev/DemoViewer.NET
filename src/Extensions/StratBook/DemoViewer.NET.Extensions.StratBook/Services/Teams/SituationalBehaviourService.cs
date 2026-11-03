@@ -32,16 +32,16 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 public sealed class SituationalBehaviourService
 {
     /// <summary>Seconds a clip runs before the moment it was counted for.</summary>
-    public const int ClipLeadSeconds = 5;
+    private const int ClipLeadSeconds = 5;
 
     /// <summary>Seconds a clip runs after the moment it was counted for.</summary>
-    public const int ClipTailSeconds = 8;
+    private const int ClipTailSeconds = 8;
 
     /// <summary>Seconds a round clip runs when the round has no end: comfortably past a live round's length.</summary>
-    public const int FallbackRoundSeconds = 115;
+    private const int FallbackRoundSeconds = 115;
 
     /// <summary>The bucket of anti-eco rounds with no enemy damage at all.</summary>
-    public const string NoContact = "no contact";
+    private const string NoContact = "no contact";
 
     // A record without a clock header is still a CS2 demo; the frame clock of every build here is 64.
     private const int FallbackTickRate = 64;
@@ -125,7 +125,7 @@ public sealed class SituationalBehaviourService
                     .Select(c => c.Value.ToBlock(c.Key.Map, c.Key.Side)))
         ];
 
-        return new SituationalBehaviourSet { TeamId = teamId, Blocks = blocks, DemosRead = read };
+        return new SituationalBehaviourSet { Blocks = blocks, DemosRead = read };
     }
 
     /// <summary>"won"/"lost"/"no result" for the side in the round, the vocabulary <see cref="PistolFollowUpLabel" /> combines.</summary>

@@ -41,7 +41,7 @@ public sealed class RoundIndexEvaluator : IExtensionPass
     // Manual per-demo requests (a Retry on the strip): they submit regardless of the opt-in, but only
     // these paths, and at user priority. Cleared when the demo's Evaluate or OnFailed runs.
     private readonly HashSet<string> _forcedPaths = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Action<Action> _post;
     private readonly RoundIndexPlaceSources _sources;
     private readonly RoundIndexStore _store;

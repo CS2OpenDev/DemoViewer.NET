@@ -44,7 +44,7 @@ public sealed class TagStore
     public const int SchemaVersion = 1;
 
     /// <summary>The sidecar extension, after the hash.</summary>
-    public const string SidecarExtension = ".dvtag.json";
+    private const string SidecarExtension = ".dvtag.json";
 
     /// <summary>The reserved human label group that links an instance to a strat.</summary>
     public const string StratGroup = "strat";
@@ -53,7 +53,7 @@ public sealed class TagStore
     public const int VerdictsSchemaVersion = 1;
 
     /// <summary>The verdicts file extension, after the hash.</summary>
-    public const string VerdictsExtension = ".verdicts.json";
+    private const string VerdictsExtension = ".verdicts.json";
 
     private readonly Dictionary<string, TagSession> _checkedOut = new(StringComparer.Ordinal);
     private readonly Lock _gate = new();

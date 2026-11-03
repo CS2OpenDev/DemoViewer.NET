@@ -69,8 +69,6 @@ public static class StratVocabulary
 
     public static readonly IReadOnlyList<string> Tempos = ["slow", "mid", "fast"];
 
-    public static readonly IReadOnlyList<string> TriggerKinds = ["time", "contact", "utility", "call"];
-
     /// <summary>The motion kinds Step Authoring defines. <c>path</c> is reserved and warns.</summary>
     public static readonly IReadOnlyList<string> Interpolations = ["linear", "hold"];
 
@@ -91,7 +89,7 @@ public enum StratStatus
 /// <summary>Who a book belongs to: a Team Identity team, or the user alone (<c>me</c>).</summary>
 public sealed class StratOwner : IEquatable<StratOwner>
 {
-    public const string TeamKind = "team";
+    private const string TeamKind = "team";
     public const string MeKind = "me";
 
     /// <summary><c>team</c> or <c>me</c>.</summary>
@@ -311,7 +309,7 @@ public sealed class StratTrigger
 {
     public string Text { get; set; } = "";
 
-    /// <summary>One of <see cref="StratVocabulary.TriggerKinds" />, or null.</summary>
+    /// <summary>One of <c>time</c>, <c>contact</c>, <c>utility</c> or <c>call</c>, or null.</summary>
     public string? Kind { get; set; }
 
     /// <summary>Round clock remaining, for a <c>time</c> trigger.</summary>

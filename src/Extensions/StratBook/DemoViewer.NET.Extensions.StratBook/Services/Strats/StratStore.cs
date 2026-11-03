@@ -38,11 +38,11 @@ public sealed class StratStore
 
     public const string StratExtension = ".dvstrat.json";
     public const string HistoryExtension = ".history.jsonl";
-    public const string BookFileName = "book.json";
-    public const string CalloutsFileName = "callouts.json";
+    private const string BookFileName = "book.json";
+    private const string CalloutsFileName = "callouts.json";
 
     /// <summary>Where <see cref="Delete" /> moves a strat's files, inside its map folder.</summary>
-    public const string TrashFolderName = ".trash";
+    private const string TrashFolderName = ".trash";
 
     /// <summary>
     ///     The extension-bag field an autosaved working copy carries: the file holds edits not yet
@@ -56,7 +56,7 @@ public sealed class StratStore
     private readonly Lock _gate = new();
     private readonly Dictionary<Guid, StratIndexEntry> _index = [];
 
-    private static readonly TimeSpan RowSlack = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _rowSlack = TimeSpan.FromSeconds(5);
 
     // What a reconcile did to a strat, held until a session opens it (TakeNote). Under _gate.
     private readonly Dictionary<Guid, string> _notes = [];
@@ -285,7 +285,7 @@ public sealed class StratStore
             };
 
             string? newPath = _folder is null ? null : StratPath(committed);
-            string? moveFailure = MoveIfRelocated(document.Id, oldPath, newPath);
+            string? moveFailure = MoveIfRelocated(oldPath, newPath);
             if (moveFailure is not null)
             {
                 return StratSaveResult.Failed(moveFailure, issues);
@@ -687,7 +687,7 @@ public sealed class StratStore
         ArgumentNullException.ThrowIfNull(owner);
         string? json = ReadSmallFile(owner.FolderName,
             _folder is null ? null : Path.Combine(owner.FolderName, BookFileName), _memoryBooks);
-        StratBook? book = null;
+        StratBook? book;
         try
         {
             book = json is null ? null : JsonSerializer.Deserialize(json, StratJsonContext.Default.StratBook);
@@ -725,7 +725,7 @@ public sealed class StratStore
         string key = owner.FolderName + "/" + map.ToLowerInvariant();
         string? json = ReadSmallFile(key, _folder is null ? null : Path.Combine(FolderIn(owner, map), CalloutsFileName),
             _memoryCallouts);
-        CalloutTable? table = null;
+        CalloutTable? table;
         try
         {
             table = json is null ? null : JsonSerializer.Deserialize(json, StratJsonContext.Default.CalloutTable);
@@ -1258,7 +1258,7 @@ public sealed class StratStore
         }
     }
 
-    private string? MoveIfRelocated(Guid id, string? oldPath, string? newPath)
+    private string? MoveIfRelocated(string? oldPath, string? newPath)
     {
         if (oldPath is null || newPath is null || string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -1660,7 +1660,7 @@ public sealed class StratStore
         {
             // A file that is not there answers no time at all, which is never after the row.
             return (_folder!.LastWriteTimeUtc(stratPath) ?? DateTime.MinValue)
-                   > row.ModifiedUtc.ToUniversalTime() + RowSlack;
+                   > row.ModifiedUtc.ToUniversalTime() + _rowSlack;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
