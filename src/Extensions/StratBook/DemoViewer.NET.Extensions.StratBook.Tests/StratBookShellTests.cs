@@ -1207,8 +1207,8 @@ public class StratBookShellTests
 
         public string? LabelFor(string sha256) => null;
 
-        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256S) =>
-            sha256S.ToDictionary(s => s, _ => (string?)null, StringComparer.Ordinal);
+        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> hashes) =>
+            hashes.ToDictionary(s => s, _ => (string?)null, StringComparer.Ordinal);
 
         public DemoProvenance Resolve(string demoPath)
         {

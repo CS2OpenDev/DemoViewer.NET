@@ -263,8 +263,8 @@ public class StratRecordPanelTests
     {
         public string? LabelFor(string sha256) => labels.GetValueOrDefault(sha256);
 
-        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256S) =>
-            sha256S.Distinct(StringComparer.Ordinal).ToDictionary(s => s, LabelFor, StringComparer.Ordinal);
+        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> hashes) =>
+            hashes.Distinct(StringComparer.Ordinal).ToDictionary(s => s, LabelFor, StringComparer.Ordinal);
 
         public DemoProvenance? Resolve(string demoPath) => null;
 

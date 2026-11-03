@@ -70,12 +70,12 @@ public sealed class DemoProvenanceSource : IDemoProvenanceSource, IDisposable
     }
 
     /// <inheritdoc />
-    public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256S)
+    public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> hashes)
     {
-        ArgumentNullException.ThrowIfNull(sha256S);
+        ArgumentNullException.ThrowIfNull(hashes);
         IReadOnlyList<ProvenanceOverride> overrides = _teams.ProvenanceOverrides;
         Dictionary<string, string?> labels = new(StringComparer.Ordinal);
-        foreach (string sha in sha256S)
+        foreach (string sha in hashes)
         {
             if (string.IsNullOrEmpty(sha) || labels.ContainsKey(sha))
             {

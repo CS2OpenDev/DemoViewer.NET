@@ -259,7 +259,7 @@ public class LibraryContributionsTests
         public int ResolveAllCalls { get; set; }
 
         public string? LabelFor(string sha256) => inner.LabelFor(sha256);
-        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256S) => inner.LabelsFor(sha256S);
+        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> hashes) => inner.LabelsFor(hashes);
 
         public DemoProvenance? Resolve(string demoPath)
         {
