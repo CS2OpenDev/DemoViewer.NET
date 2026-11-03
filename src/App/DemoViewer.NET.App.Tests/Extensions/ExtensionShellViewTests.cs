@@ -4,7 +4,6 @@ using Avalonia.Threading;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services;
-using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using TUnit.Assertions.Enums;

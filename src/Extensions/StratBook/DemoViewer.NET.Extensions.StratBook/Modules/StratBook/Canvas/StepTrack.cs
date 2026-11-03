@@ -3,8 +3,8 @@
 using System.Globalization;
 using System.Text;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Timeline;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Timeline;
 
 #endregion
 

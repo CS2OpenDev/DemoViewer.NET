@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
-using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
+using DemoViewer.NET.Playback2D.Query;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 

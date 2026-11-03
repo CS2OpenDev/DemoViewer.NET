@@ -1,6 +1,3 @@
-using DemoViewer.NET.Extensions.Sdk;
-
-
 namespace DemoViewer.NET.Services.Facts;
 
 /// <summary>

@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Parser;
-using CS2OpenSchema.Protos;
 using DemoViewer.NET.ViewModels.Playback;
 
 #endregion

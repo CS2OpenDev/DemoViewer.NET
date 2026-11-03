@@ -3,7 +3,6 @@
 using System.Globalization;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Services.LiveSync;
-using DemoViewer.NET.ViewModels;
 using DemoViewer.NET.ViewModels.LiveSync;
 using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.Views.LiveSync;

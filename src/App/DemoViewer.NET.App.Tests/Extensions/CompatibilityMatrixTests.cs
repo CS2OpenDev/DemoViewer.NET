@@ -1,11 +1,11 @@
 #region
 
-using DemoViewer.NET.TestSupport;
 using System.Reflection;
 using System.Xml.Linq;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.TestSupport;
 
 #endregion
 

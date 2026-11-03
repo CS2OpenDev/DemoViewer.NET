@@ -149,7 +149,7 @@ public static class ShippedScaleGraph
             new SampleGroup("Player slot", playerScope)
         ];
 
-        return ([.. nodes.Cast<IGraphNode>()], edges, groups);
+        return ([.. nodes], edges, groups);
     }
 
     private static IEnumerable<string> ReadLines()

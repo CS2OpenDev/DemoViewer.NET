@@ -6,7 +6,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
-using DemoViewer.NET.ViewModels;
 using ThirdPartyFake;
 using ThirdPartyFake.ViewModels;
 using ThirdPartyFake.Views;

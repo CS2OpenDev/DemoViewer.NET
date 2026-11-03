@@ -390,7 +390,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
         if (!_restoring)
         {
             // A drag through the picker sends many values; one undo step per token per second is enough.
-            if (_undo.TryPeek(out var last) && last.Row == row && DateTime.UtcNow - last.At < TimeSpan.FromSeconds(1))
+            if (_undo.TryPeek(out (ThemeTokenRowViewModel Row, ThemeTokenValue Old, DateTime At) last)
+                && last.Row == row && DateTime.UtcNow - last.At < TimeSpan.FromSeconds(1))
             {
                 _undo.Pop();
                 _undo.Push((row, last.Old, DateTime.UtcNow));
@@ -452,7 +453,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     // undo step, and a colour edited back by hand is no change at all. A token the file does not set follows
     // its base, which the base comparison in IsDirty covers.
     private void CountEdits() =>
-        EditCount = _rows.Count(r => _savedRows.TryGetValue(r, out var saved)
+        EditCount = _rows.Count(r => _savedRows.TryGetValue(r, out (ThemeTokenValue Value, bool IsSet) saved)
                                      && (r.IsSet != saved.IsSet || (r.IsSet && !r.Value.Equals(saved.Value))));
 
     private void UpdateMissing() => MissingCount = CanEdit ? _rows.Count(r => r.IsMissing) : 0;
@@ -575,7 +576,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
     {
-        if (!_undo.TryPop(out var step))
+        if (!_undo.TryPop(out (ThemeTokenRowViewModel Row, ThemeTokenValue Old, DateTime At) step))
         {
             return;
         }

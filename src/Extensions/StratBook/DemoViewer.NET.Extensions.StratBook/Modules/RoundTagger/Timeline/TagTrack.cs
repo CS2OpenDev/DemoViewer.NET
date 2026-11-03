@@ -47,7 +47,6 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
     ];
 
     private readonly Action<Action> _post;
-    private readonly TagSession _session;
 
     private bool _disposed;
     private int _lastVersion;
@@ -63,10 +62,10 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(post);
-        _session = session;
+        Session = session;
         _post = post;
         _lastVersion = session.Version;
-        _session.Changed += OnSessionChanged;
+        Session.Changed += OnSessionChanged;
     }
 
     /// <summary>
@@ -76,7 +75,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
     public Func<string, uint?>? CodeColour { get; set; }
 
     /// <summary>The session the bands are read from. The review panels edit through it while the tab registers this track.</summary>
-    public TagSession Session => _session;
+    public TagSession Session { get; }
 
     /// <inheritdoc />
     public void Dispose()
@@ -87,7 +86,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
         }
 
         _disposed = true;
-        _session.Changed -= OnSessionChanged;
+        Session.Changed -= OnSessionChanged;
     }
 
     /// <inheritdoc />
@@ -105,7 +104,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
     /// <inheritdoc />
     public bool IsAvailable(ITimelineData data)
     {
-        if (data is null || _session.Document is not { } document)
+        if (data is null || Session.Document is not { } document)
         {
             return false;
         }
@@ -293,7 +292,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
     private List<Span> Spans(ITimelineData data)
     {
         List<Span> spans = [];
-        if (data is null || data.TotalFrames <= 0 || _session.Document is not { } document)
+        if (data is null || data.TotalFrames <= 0 || Session.Document is not { } document)
         {
             return spans;
         }
@@ -320,7 +319,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
     // a version bump does. Several bumps before the UI thread runs collapse into one re-query.
     private void OnSessionChanged()
     {
-        int version = _session.Version;
+        int version = Session.Version;
         if (version == Volatile.Read(ref _lastVersion))
         {
             return;

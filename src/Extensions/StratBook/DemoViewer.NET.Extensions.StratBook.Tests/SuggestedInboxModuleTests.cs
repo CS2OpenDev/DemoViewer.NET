@@ -1,7 +1,7 @@
 #region
 
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
+using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Services.DemoCache;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 

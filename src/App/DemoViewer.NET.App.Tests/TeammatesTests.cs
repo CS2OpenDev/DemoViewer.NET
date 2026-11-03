@@ -7,7 +7,6 @@ using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -124,7 +123,7 @@ public class TeammatesTests
         {
             Store = Library();
             Directory = new PlayerDirectory(Store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Cache = new PlayerRowCache(Store, Directory, path =>
             {
                 Reads.Enqueue(path);
@@ -263,7 +262,7 @@ public class TeammatesTests
         solo.Players.RemoveAll(p => p.SteamId64 == Id(Mate));
         store.Upsert(solo);
         PlayerDirectory directory = new(store, _ => true);
-        using IdentityService identity = new(new SettingsService((string?)null));
+        using IdentityService identity = new(new SettingsService(null));
         PlayerOverviewServices services = new(directory, identity, null, _ => { }, _ => { }, (_, _) => { }, _ => { });
         TeammatesSectionViewModel section = new(services);
         IReadOnlyList<PlayerMatch> matches = directory.Matches(Grim);
@@ -293,7 +292,7 @@ public class TeammatesRenderTests
         {
             DemoCacheStore store = TeammatesTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRowCache rows = new(store, directory, path => TeammatesTests.Facet(TeammatesTests.IndexOf(path)));
             await rows.LoadAsync(TeammatesTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows, _ => { },

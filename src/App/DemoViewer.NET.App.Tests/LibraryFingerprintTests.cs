@@ -7,7 +7,6 @@ using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
-using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.DemoLibraryScanTests;
 
@@ -51,13 +50,12 @@ public class LibraryFingerprintTests
     internal sealed class Library : IDisposable
     {
         private readonly DemoScheduler _scheduler;
-        private readonly DemoProcessingQueue _queue;
 
         // parseHashes: the parse hashes the bytes it read and hands the hash to the cache, as the app's queue does.
         public Library(string dataDir, DemoCacheStore store, string? dataPath = null, bool parseHashes = false)
         {
             Store = store;
-            _queue = new DemoProcessingQueue(new HeavyJobGate(), a => a(), path =>
+            Queue = new DemoProcessingQueue(new HeavyJobGate(), a => a(), path =>
             {
                 Parses.AddOrUpdate(path, 1, (_, n) => n + 1);
                 if (parseHashes)
@@ -77,15 +75,16 @@ public class LibraryFingerprintTests
                 Time = Settled,
                 ContentReader = Reader,
                 HeaderReader = Headers,
-                QueueOverride = _queue,
+                QueueOverride = Queue,
                 ParseHashesContent = parseHashes
             };
-            _scheduler = new DemoScheduler([Service], _queue, Service.Tier2Backlog);
+            _scheduler = new DemoScheduler([Service], Queue, Service.Tier2Backlog);
             Service.Scheduler = _scheduler;
         }
 
         public DemoLibraryService Service { get; }
-        public DemoProcessingQueue Queue => _queue;
+        public DemoProcessingQueue Queue { get; }
+
         public DemoCacheStore Store { get; }
         public CountingContentReader Reader { get; } = new();
         public CountingHeaderReader Headers { get; } = new();
@@ -97,7 +96,7 @@ public class LibraryFingerprintTests
         {
             Service.Dispose();
             _scheduler.Dispose();
-            _queue.Dispose();
+            Queue.Dispose();
         }
     }
 

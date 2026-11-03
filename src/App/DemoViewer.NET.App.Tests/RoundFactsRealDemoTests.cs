@@ -5,7 +5,6 @@ using CS2DemoKit.Parser;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.TestSupport;
 
 #endregion

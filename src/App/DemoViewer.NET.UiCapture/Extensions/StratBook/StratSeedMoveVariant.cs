@@ -7,7 +7,6 @@ using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
-using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
 using DemoViewer.NET.Views.Shell;
 
 #endregion
@@ -39,7 +38,7 @@ public static partial class Variants
         {
             strats!.Canvas.Transport.Pause();
             strats.Canvas.Transport.Seek(
-                DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(atSeconds, 115));
+                Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(atSeconds, 115));
         }, DispatcherPriority.Background);
         return view;
     }
@@ -85,7 +84,7 @@ public static partial class Variants
         {
             strats!.Canvas.Transport.Pause();
             strats.Canvas.Transport.Seek(
-                DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(atSeconds, 115));
+                Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(atSeconds, 115));
         }, DispatcherPriority.Background);
         return view;
     }

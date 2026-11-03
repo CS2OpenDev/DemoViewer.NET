@@ -2,13 +2,12 @@
 
 using System.Collections.Concurrent;
 using System.Globalization;
-using CS2DemoKit.Analysis.Abstractions;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using CS2DemoKit.Analysis.Abstractions;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -95,7 +94,7 @@ public class PlayerOverviewHighlightsTests
             Store = store;
             Facts = new HighlightsOnly(store);
             Directory = new PlayerDirectory(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(Directory, Identity, null,
                 Opened.Add, _ => { }, (_, _) => { }, _ => { }, Facts, withPicker ? AddedFor.Add : null));
             Tab.OnActivated(null!);
@@ -328,7 +327,7 @@ public class PlayerOverviewHighlightsRenderTests
             }
 
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
                 _ => { }, _ => { }, (_, _) => { }, _ => { }, new AnalysisFacts(store, null, new NoRoundFacts()),
                 _ => { }));

@@ -1,20 +1,16 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook;
 using System.Text.Json;
 using CS2DemoKit.Analysis;
-using CS2DemoKit.Analysis.Abstractions;
-using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;

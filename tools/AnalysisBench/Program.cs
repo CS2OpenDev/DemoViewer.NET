@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Services;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Diagnostics.Tracing;
@@ -10,12 +9,10 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AnalysisBench;
-using DemoViewer.NET.TestSupport;
 using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Analysis.GoldenStats;
-using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.Visibility;
@@ -23,6 +20,8 @@ using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.GameEvents;
+using DemoViewer.NET.Services;
+using DemoViewer.NET.TestSupport;
 
 #endregion
 

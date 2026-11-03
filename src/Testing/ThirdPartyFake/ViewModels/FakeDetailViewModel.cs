@@ -1,4 +1,8 @@
+#region
+
 using DemoViewer.NET.Extensions.Sdk.Ui;
+
+#endregion
 
 namespace ThirdPartyFake.ViewModels;
 

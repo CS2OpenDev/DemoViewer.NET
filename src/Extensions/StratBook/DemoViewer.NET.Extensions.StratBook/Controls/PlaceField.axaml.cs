@@ -66,7 +66,6 @@ public partial class PlaceField : UserControl
 
     // The key the open list took, so the field's own handler does not act on it again once the list has closed.
     private KeyEventArgs? _listKey;
-    private PlaceFieldModel _model = new();
     private bool _syncing;
 
     // What the chips were built from, so typing does not rebuild them.
@@ -76,7 +75,7 @@ public partial class PlaceField : UserControl
     public PlaceField()
     {
         InitializeComponent();
-        _model.Changed += Sync;
+        Model.Changed += Sync;
 
         FieldBox.GotFocus += (_, _) => OpenList();
         FieldBox.LostFocus += (_, _) =>
@@ -93,7 +92,7 @@ public partial class PlaceField : UserControl
 
         // The popup's events bubble to the field, so scrolling the highlight into view would also scroll the editor.
         OptionList.AddHandler(RequestBringIntoViewEvent, (_, e) => e.Handled = true);
-        ClearButton.Click += (_, _) => Store(_model.Clear());
+        ClearButton.Click += (_, _) => Store(Model.Clear());
         PickButton.Click += (_, _) => RunPick();
     }
 
@@ -169,7 +168,7 @@ public partial class PlaceField : UserControl
     public bool OpensUp { get; private set; }
 
     /// <summary>The field's logic, for tests.</summary>
-    internal PlaceFieldModel Model => _model;
+    internal PlaceFieldModel Model { get; private set; } = new();
 
     /// <summary>A multi field's chips, in order.</summary>
     internal IReadOnlyList<Border> Chips => [.. ChipPanel.Children.OfType<Border>()];
@@ -188,27 +187,27 @@ public partial class PlaceField : UserControl
         base.OnPropertyChanged(change);
         if (change.Property == IsMultiProperty)
         {
-            _model.Changed -= Sync;
-            _model = new PlaceFieldModel(IsMulti) { Options = _model.Options, CurrentLevelMinZ = CurrentLevelMinZ };
-            _model.Changed += Sync;
-            _model.Load(Value);
+            Model.Changed -= Sync;
+            Model = new PlaceFieldModel(IsMulti) { Options = Model.Options, CurrentLevelMinZ = CurrentLevelMinZ };
+            Model.Changed += Sync;
+            Model.Load(Value);
         }
         else if (change.Property == CalloutsProperty)
         {
-            _model.Options = Callouts is { } callouts ? PlaceFieldOptions.For(callouts) : null;
+            Model.Options = Callouts is { } callouts ? PlaceFieldOptions.For(callouts) : null;
             if (!FieldBox.IsFocused)
             {
-                _model.Load(Value);
+                Model.Load(Value);
             }
         }
         else if (change.Property == ValueProperty && IsMulti)
         {
             // Even while storing: the written list comes back as the document holds it.
-            _model.Reload(Value);
+            Model.Reload(Value);
         }
-        else if (change.Property == ValueProperty && !_syncing && (!FieldBox.IsFocused || !_model.HasPendingEdit))
+        else if (change.Property == ValueProperty && !_syncing && (!FieldBox.IsFocused || !Model.HasPendingEdit))
         {
-            _model.Load(Value);
+            Model.Load(Value);
         }
         else if (change.Property == PickCommandProperty)
         {
@@ -224,7 +223,7 @@ public partial class PlaceField : UserControl
         }
         else if (change.Property == CurrentLevelMinZProperty)
         {
-            _model.CurrentLevelMinZ = CurrentLevelMinZ;
+            Model.CurrentLevelMinZ = CurrentLevelMinZ;
         }
         else if (change.Property == PlaceholderTextProperty)
         {
@@ -234,7 +233,7 @@ public partial class PlaceField : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        _model.Dismiss();
+        Model.Dismiss();
         UnhookKeys();
         base.OnDetachedFromVisualTree(e);
     }
@@ -243,8 +242,8 @@ public partial class PlaceField : UserControl
     {
         if (!_syncing)
         {
-            _model.Load(Value);
-            _model.Open();
+            Model.Load(Value);
+            Model.Open();
         }
 
         if (IsMulti)
@@ -255,7 +254,7 @@ public partial class PlaceField : UserControl
 
     private void CommitText()
     {
-        if (_model.Commit() is { } value)
+        if (Model.Commit() is { } value)
         {
             Store(value);
         }
@@ -292,9 +291,9 @@ public partial class PlaceField : UserControl
     private void OnTextChanged(object? sender, TextChangedEventArgs e)
     {
         if (!_syncing && FieldBox.IsFocused
-                      && !string.Equals(FieldBox.Text ?? "", _model.Text, StringComparison.Ordinal))
+                      && !string.Equals(FieldBox.Text ?? "", Model.Text, StringComparison.Ordinal))
         {
-            _model.Type(FieldBox.Text);
+            Model.Type(FieldBox.Text);
         }
     }
 
@@ -309,7 +308,7 @@ public partial class PlaceField : UserControl
 
         if (e.Key == Key.Down && !e.Handled)
         {
-            _model.Open(true);
+            Model.Open(true);
             e.Handled = true;
         }
         else if (e.Key == Key.Escape && IsPicking)
@@ -328,15 +327,15 @@ public partial class PlaceField : UserControl
             return;
         }
 
-        if (IsMulti && e.Key == Key.Back && _model.Text.Length == 0 && Chips.Count > 0)
+        if (IsMulti && e.Key == Key.Back && Model.Text.Length == 0 && Chips.Count > 0)
         {
-            _model.Dismiss();
+            Model.Dismiss();
             Chips[^1].Focus(NavigationMethod.Directional);
             e.Handled = true;
             return;
         }
 
-        if (IsMulti && !IsDropDownOpen && e.Key == Key.Enter && _model.HasPendingEdit && _model.Text.Trim().Length > 0)
+        if (IsMulti && !IsDropDownOpen && e.Key == Key.Enter && Model.HasPendingEdit && Model.Text.Trim().Length > 0)
         {
             CommitText();
             _listKey = e;
@@ -352,17 +351,17 @@ public partial class PlaceField : UserControl
         switch (e.Key)
         {
             case Key.Up:
-                _model.Move(-1);
+                Model.Move(-1);
                 break;
             case Key.Down:
-                _model.Move(1);
+                Model.Move(1);
                 break;
             // Enter and Esc are the list's only once the user has typed or moved in it; before that they are the host's.
-            case Key.Enter when !_model.HasChoice:
-                _model.Dismiss();
+            case Key.Enter when !Model.HasChoice:
+                Model.Dismiss();
                 return;
             case Key.Enter:
-                if (_model.Accept() is { } picked)
+                if (Model.Accept() is { } picked)
                 {
                     Store(picked);
                 }
@@ -372,11 +371,11 @@ public partial class PlaceField : UserControl
                 }
 
                 break;
-            case Key.Escape when !_model.HasChoice:
-                _model.Dismiss();
+            case Key.Escape when !Model.HasChoice:
+                Model.Dismiss();
                 return;
             case Key.Escape:
-                _model.Dismiss();
+                Model.Dismiss();
                 break;
             default:
                 return;
@@ -392,7 +391,7 @@ public partial class PlaceField : UserControl
             .FirstOrDefault(c => c.DataContext is PlaceOption)
             ?.DataContext is PlaceOption option)
         {
-            Store(_model.Choose(option));
+            Store(Model.Choose(option));
             e.Handled = true;
         }
     }
@@ -402,34 +401,34 @@ public partial class PlaceField : UserControl
         _syncing = true;
         try
         {
-            if (!string.Equals(FieldBox.Text ?? "", _model.Text, StringComparison.Ordinal))
+            if (!string.Equals(FieldBox.Text ?? "", Model.Text, StringComparison.Ordinal))
             {
-                FieldBox.Text = _model.Text;
+                FieldBox.Text = Model.Text;
                 // Only while focused: moving the caret of an unfocused box scrolls the editor to it.
                 if (FieldBox.IsFocused)
                 {
-                    FieldBox.CaretIndex = _model.Text.Length;
+                    FieldBox.CaretIndex = Model.Text.Length;
                 }
             }
 
-            ClearButton.IsVisible = _model.HasPointOnly;
+            ClearButton.IsVisible = Model.HasPointOnly;
             BuildChips();
-            if (!ReferenceEquals(OptionList.ItemsSource, _model.Items))
+            if (!ReferenceEquals(OptionList.ItemsSource, Model.Items))
             {
-                OptionList.ItemsSource = _model.Items;
+                OptionList.ItemsSource = Model.Items;
             }
 
-            OptionList.SelectedIndex = _model.Highlight;
-            if (_model.Highlight >= 0 && _model.Highlight < _model.Items.Count)
+            OptionList.SelectedIndex = Model.Highlight;
+            if (Model.Highlight >= 0 && Model.Highlight < Model.Items.Count)
             {
-                OptionList.ScrollIntoView(_model.Highlight);
+                OptionList.ScrollIntoView(Model.Highlight);
             }
 
-            bool open = _model.IsOpen && _model.Items.Count > 0;
+            bool open = Model.IsOpen && Model.Items.Count > 0;
             if (open && !DropDown.IsOpen)
             {
                 PlaceList();
-                Avalonia.Threading.Dispatcher.UIThread.Post(Replace, Avalonia.Threading.DispatcherPriority.Loaded);
+                Dispatcher.UIThread.Post(Replace, DispatcherPriority.Loaded);
             }
 
             DropDown.IsOpen = open;
@@ -451,8 +450,8 @@ public partial class PlaceField : UserControl
 
     private void BuildChips()
     {
-        IReadOnlyList<PlaceRef> value = IsMulti ? _model.Value : [];
-        CalloutResolver? callouts = _model.Options?.Resolver;
+        IReadOnlyList<PlaceRef> value = IsMulti ? Model.Value : [];
+        CalloutResolver? callouts = Model.Options?.Resolver;
         if (ReferenceEquals(value, _chipsOf) && ReferenceEquals(callouts, _chipsBy))
         {
             return;
@@ -498,9 +497,9 @@ public partial class PlaceField : UserControl
         {
             Items =
             {
-                MenuEntry("Move left", new KeyGesture(Key.Left, KeyModifiers.Alt), _model.CanShift(index, -1),
+                MenuEntry("Move left", new KeyGesture(Key.Left, KeyModifiers.Alt), Model.CanShift(index, -1),
                     () => ShiftChip(index, -1)),
-                MenuEntry("Move right", new KeyGesture(Key.Right, KeyModifiers.Alt), _model.CanShift(index, 1),
+                MenuEntry("Move right", new KeyGesture(Key.Right, KeyModifiers.Alt), Model.CanShift(index, 1),
                     () => ShiftChip(index, 1)),
                 MenuEntry("Remove", new KeyGesture(Key.Delete), true, () => RemoveChip(index, false))
             }
@@ -549,7 +548,7 @@ public partial class PlaceField : UserControl
 
     private void RemoveChip(int index, bool byKey)
     {
-        Store(_model.Remove(index));
+        Store(Model.Remove(index));
         if (byKey)
         {
             Dispatcher.UIThread.Post(() => FieldBox.Focus(NavigationMethod.Directional), DispatcherPriority.Loaded);
@@ -558,7 +557,7 @@ public partial class PlaceField : UserControl
 
     private void ShiftChip(int index, int delta)
     {
-        if (_model.Shift(index, delta) is not { } moved)
+        if (Model.Shift(index, delta) is not { } moved)
         {
             return;
         }
@@ -590,9 +589,9 @@ public partial class PlaceField : UserControl
             DropDown.IsOpen = true;
         }
 
-        if (_model.Highlight >= 0 && _model.Highlight < _model.Items.Count)
+        if (Model.Highlight >= 0 && Model.Highlight < Model.Items.Count)
         {
-            OptionList.ScrollIntoView(_model.Highlight);
+            OptionList.ScrollIntoView(Model.Highlight);
         }
     }
 
@@ -605,7 +604,7 @@ public partial class PlaceField : UserControl
         }
         else
         {
-            double wanted = Math.Min(MaxListHeight, _model.Items.Count * RowHeight + 2);
+            double wanted = Math.Min(MaxListHeight, Model.Items.Count * RowHeight + 2);
             OpensUp = ChooseUp(at.Y, top.Bounds.Height - at.Y - FieldBox.Bounds.Height, wanted);
         }
 

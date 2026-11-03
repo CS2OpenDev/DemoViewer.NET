@@ -2,7 +2,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.GameIcons;
 
 #endregion

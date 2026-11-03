@@ -1,7 +1,6 @@
 #region
 
 using DemoViewer.NET.Modules;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.ViewModels.Playback;
 
 #endregion
@@ -23,8 +22,8 @@ public class HostMulticastFaultTests
         ModuleContext context = new(new PlaybackController(), () => null);
         context.SetFaults(rig.Faults);
         int after = 0;
-        ((IModuleContext)context).DemoReset += () => throw new InvalidOperationException("extension");
-        ((IModuleContext)context).DemoReset += () => after++;
+        context.DemoReset += () => throw new InvalidOperationException("extension");
+        context.DemoReset += () => after++;
 
         context.RaiseDemoReset();
         context.RaiseDemoReset();
@@ -40,7 +39,7 @@ public class HostMulticastFaultTests
     public async Task WithoutAFaultTracker_ADemoResetHandlerThrowStillReachesTheRaiser()
     {
         ModuleContext context = new(new PlaybackController(), () => null);
-        ((IModuleContext)context).DemoReset += () => throw new InvalidOperationException("host");
+        context.DemoReset += () => throw new InvalidOperationException("host");
 
         Assert.Throws<InvalidOperationException>(context.RaiseDemoReset);
         await Task.CompletedTask;

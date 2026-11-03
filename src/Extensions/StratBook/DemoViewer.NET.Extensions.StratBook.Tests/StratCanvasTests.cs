@@ -2,14 +2,14 @@
 
 using System.Text.Json.Nodes;
 using Avalonia.Input;
-using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;

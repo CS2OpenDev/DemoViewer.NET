@@ -6,8 +6,6 @@ using CS2DemoKit.Analysis.RulesetsV2.Compile;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
-using CS2DemoKit.Parser.GameEvents;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;

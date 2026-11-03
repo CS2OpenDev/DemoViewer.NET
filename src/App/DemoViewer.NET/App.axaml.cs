@@ -4,18 +4,17 @@ using System.Collections.Concurrent;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using CS2DemoKit.Analysis.Diagnostics;
-using DemoViewer.NET.GameIcons;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Features;
+using DemoViewer.NET.GameIcons;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Abstractions;
@@ -24,19 +23,18 @@ using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.RuleWorkbench;
 using DemoViewer.NET.Services;
-using DemoViewer.NET.Services.Startup;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
 using DemoViewer.NET.Services.Dependencies;
 using DemoViewer.NET.Services.Diagnostics;
+using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Services.LiveSync;
 using DemoViewer.NET.Services.MatchMeta;
-using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Services.Players;
 using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
+using DemoViewer.NET.Services.Startup;
 using DemoViewer.NET.Theming;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.Highlights;
@@ -83,7 +81,7 @@ public class App : Application
 
         // Before any view is built: a MapView, SceneView or SceneTimeline made earlier has no renderer and
         // stays empty.
-        Modules.Playback2D.SdkSceneHosts.Install();
+        SdkSceneHosts.Install();
 
         AvaloniaXamlLoader.Load(this);
     }

@@ -55,7 +55,6 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
     private readonly Func<bool> _onUiThread;
     private readonly Action<Action>? _loadInBackground;
     private readonly Action<Action> _post;
-    private readonly string _root;
     private readonly object _saveGate = new();
     private Dictionary<(string Key, string Facet), Entry>? _entries;
     private int _loadQueued;
@@ -78,7 +77,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         ArgumentNullException.ThrowIfNull(library);
         ArgumentNullException.ThrowIfNull(post);
         _extensionId = extensionId;
-        _root = Path.Combine(extensionCacheFolder, DirectoryName);
+        Root = Path.Combine(extensionCacheFolder, DirectoryName);
         _library = library;
         _post = post;
         _extensionVersion = extensionVersion;
@@ -88,7 +87,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
     }
 
     /// <summary>The folder the store writes into.</summary>
-    public string Root => _root;
+    public string Root { get; }
 
     private static ILogger Log => DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory);
 
@@ -483,11 +482,11 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
     private static string PathKey(string demoPath) => "p-" + DemoCacheStore.StableKey(demoPath);
 
     private string FileFor(string facet, string key, string? part) =>
-        Path.Combine(_root, facet, part is null ? key + Suffix : key + "." + part + Suffix);
+        Path.Combine(Root, facet, part is null ? key + Suffix : key + "." + part + Suffix);
 
     private List<string> FilesOf(string facet, string key)
     {
-        string folder = Path.Combine(_root, facet);
+        string folder = Path.Combine(Root, facet);
         if (!Directory.Exists(folder))
         {
             return [];
@@ -655,7 +654,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
 
     private Dictionary<(string Key, string Facet), Entry>? LoadIndex()
     {
-        string file = Path.Combine(_root, IndexFileName);
+        string file = Path.Combine(Root, IndexFileName);
         if (!File.Exists(file))
         {
             return null;
@@ -694,12 +693,12 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
     private Dictionary<(string Key, string Facet), Entry> RebuildIndex()
     {
         Dictionary<(string Key, string Facet), Entry> entries = [];
-        if (!Directory.Exists(_root))
+        if (!Directory.Exists(Root))
         {
             return entries;
         }
 
-        foreach (string folder in Directory.EnumerateDirectories(_root))
+        foreach (string folder in Directory.EnumerateDirectories(Root))
         {
             string facet = Path.GetFileName(folder);
             if (!ExtensionFolders.IsSafeName(facet))
@@ -762,7 +761,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
 
     private void WriteIndex(IndexFile index)
     {
-        string file = Path.Combine(_root, IndexFileName);
+        string file = Path.Combine(Root, IndexFileName);
         try
         {
             AtomicFile.Write(file, stream =>

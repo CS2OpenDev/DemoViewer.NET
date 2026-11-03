@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.Playback2D.Zones;
-using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Assets;
+using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;

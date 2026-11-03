@@ -22,19 +22,17 @@ namespace DemoViewer.NET.RuleAuthoring;
 /// </summary>
 public sealed class YamlDocumentText
 {
-    private readonly YamlMappingNode? _root;
-
     private YamlDocumentText(string text, YamlMappingNode? root)
     {
         Text = text;
-        _root = root;
+        Root = root;
     }
 
     /// <summary>The document text, exactly as loaded or as last produced by an edit.</summary>
     public string Text { get; }
 
     /// <summary>The root mapping, or <c>null</c> for an empty document or a non-mapping root.</summary>
-    public YamlMappingNode? Root => _root;
+    public YamlMappingNode? Root { get; }
 
     /// <summary>Parses <paramref name="text" />. Throws <c>YamlException</c> on malformed YAML.</summary>
     public static YamlDocumentText Parse(string text)
@@ -61,7 +59,7 @@ public sealed class YamlDocumentText
     {
         ArgumentNullException.ThrowIfNull(path);
 
-        YamlNode? current = _root;
+        YamlNode? current = Root;
         foreach (YamlPathSegment segment in path.Segments)
         {
             if (current is null)

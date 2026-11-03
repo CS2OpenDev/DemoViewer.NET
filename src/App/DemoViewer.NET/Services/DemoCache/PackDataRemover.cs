@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis.Diagnostics;
-using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.Logging;

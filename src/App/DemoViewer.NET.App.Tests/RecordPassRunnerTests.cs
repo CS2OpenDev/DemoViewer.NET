@@ -1,7 +1,6 @@
 #region
 
 using System.Collections.Concurrent;
-using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;

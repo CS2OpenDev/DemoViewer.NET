@@ -2,11 +2,11 @@
 
 using CS2DemoKit.Analysis.Clips;
 using DemoViewer.NET.Extensions.Sdk.Playback;
-using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Playback2D.Levels;
 
 #endregion
 
@@ -25,7 +25,7 @@ public sealed class CreateStratPlaybackContribution(
     Action<Action>? post = null,
     IExtensionJobs? jobs = null,
     IRoundFacts? roundFacts = null)
-    : Sdk.Playback.IPlaybackContribution
+    : IPlaybackContribution
 {
     /// <summary>The round band's menu entry.</summary>
     public const string Label = "Create strat from this round";
@@ -35,10 +35,10 @@ public sealed class CreateStratPlaybackContribution(
     private IDisposable? _menu;
     private Func<CreateStratDialogViewModel>? _next;
     private IPaneHandle? _pane;
-    private Sdk.Playback.IPlaybackSurface? _surface;
+    private IPlaybackSurface? _surface;
 
     /// <inheritdoc />
-    public void Attach(Sdk.Playback.IPlaybackSurface surface, IModuleContext context)
+    public void Attach(IPlaybackSurface surface, IModuleContext context)
     {
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(context);
@@ -156,7 +156,7 @@ public sealed class CreateStratPlaybackContribution(
     }
 
     // The SDK's floors as the capture's level keys read them.
-    private static List<MapLevel> Levels(Sdk.Playback.IPlaybackSurface surface) =>
+    private static List<MapLevel> Levels(IPlaybackSurface surface) =>
     [
         .. surface.Levels.Select(l =>
             new MapLevel { Id = MapSpace.IdForZMin(l.ZMin), Name = l.Name, ZMin = l.ZMin, ZMax = l.ZMax })

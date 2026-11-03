@@ -6,7 +6,6 @@ using CS2DemoKit.Analysis.Visibility;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.GameEvents;
-using CS2OpenSchema.Events;
 
 #endregion
 

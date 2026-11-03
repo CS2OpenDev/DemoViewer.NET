@@ -1,10 +1,10 @@
 #region
 
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
-using DemoViewer.NET.Services.Review;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Teams;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -111,7 +111,7 @@ public class DeferredStoreLoadTests
         try
         {
             ReviewQueue writer = new(root, TimeSpan.Zero);
-            writer.Add([ReviewEntry.Clip("/d/a.dem", 1, 2, "note", ReviewSources.Manual, 64)], "Section", "");
+            writer.Add([ReviewEntry.Clip("/d/a.dem", 1, 2, "note", ReviewSources.Manual, 64)], "Section");
             writer.Flush();
 
             ReviewQueue reader = new(root, scheduleLoad: _ => Task.CompletedTask); // never runs
@@ -167,7 +167,7 @@ public class DeferredStoreLoadTests
         {
             if (i >= 400)
             {
-                throw new System.TimeoutException(
+                throw new TimeoutException(
                     $"waited 10s for the teams tab to go idle after the command landed; BusyLine was \"{vm.BusyLine}\"");
             }
 

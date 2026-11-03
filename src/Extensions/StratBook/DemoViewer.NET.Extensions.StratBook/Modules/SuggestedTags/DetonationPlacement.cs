@@ -5,9 +5,9 @@ using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.GameEvents;
 using CS2OpenSchema.Events;
-using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Levels;
 
 #endregion
 

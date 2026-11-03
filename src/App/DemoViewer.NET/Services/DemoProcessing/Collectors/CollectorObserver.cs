@@ -2,7 +2,6 @@
 
 using CS2DemoKit.Analysis.Observation;
 using CS2DemoKit.Parser;
-using CS2OpenSchema.Protos;
 
 #endregion
 

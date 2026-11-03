@@ -5,7 +5,6 @@ using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.GameEvents;
-using CS2OpenSchema.Events;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;
 

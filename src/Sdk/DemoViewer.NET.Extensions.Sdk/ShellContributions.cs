@@ -1,6 +1,10 @@
+#region
+
 using System.ComponentModel;
 using System.Text.Json;
 using System.Windows.Input;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 

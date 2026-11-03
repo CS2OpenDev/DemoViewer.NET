@@ -7,7 +7,6 @@ using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Services.DemoProcessing;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

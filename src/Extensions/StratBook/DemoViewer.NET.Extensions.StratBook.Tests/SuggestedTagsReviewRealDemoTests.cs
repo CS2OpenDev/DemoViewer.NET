@@ -2,9 +2,9 @@
 
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
+using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.TestSupport;
 
 #endregion

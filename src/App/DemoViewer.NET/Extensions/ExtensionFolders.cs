@@ -35,6 +35,6 @@ internal static class ExtensionFolders
     /// <summary>True when <paramref name="name" /> passes <see cref="SafeName" />.</summary>
     public static bool IsSafeName(string name) =>
         name.Length is > 0 and <= 128
-        && name.All(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '.' or '-' or '_')
+        && name.All(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '.' or '-' or '_')
         && name.Any(c => c != '.');
 }

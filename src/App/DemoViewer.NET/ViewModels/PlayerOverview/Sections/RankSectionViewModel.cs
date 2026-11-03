@@ -4,7 +4,6 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DemoViewer.NET.GameIcons;
 using DemoViewer.NET.Modules.Library;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.MatchMeta;
 using DemoViewer.NET.Services.Players;
 

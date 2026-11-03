@@ -1,13 +1,13 @@
 #region
 
 using Avalonia.Input;
-using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D.Timeline;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.SuggestedTagsReviewHarness;
@@ -127,7 +127,7 @@ public class SuggestedTagsQueueTests
                 await Assert.That(bands[0].StartFrameIndex).IsEqualTo(650);
                 await Assert.That(bands[0].EndFrameIndex).IsEqualTo(900);
                 await Assert.That(bands[1].Label).IsEqualTo("default").Because("no site: the code alone");
-                await Assert.That(((ITimelineTrack)track).BuildMarkers(data)).IsEmpty();
+                await Assert.That(track.BuildMarkers(data)).IsEmpty();
                 await Assert.That(string.Join(' ', track.ProposalsInRun(data, 650)))
                     .IsEqualTo($"{Opener.Id} {Execute.Id}");
                 await Assert.That(track.ProposalsInRun(data, 660)).IsEmpty();
@@ -515,7 +515,7 @@ public class SuggestedTagsQueueTests
         await HeadlessSession.RunOnUi(async () =>
         {
             (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
-                AppTests.Extensions.StratBook.ReviewPanelsHarness.Tab(post: AppTests.Extensions.StratBook
+                Extensions.StratBook.ReviewPanelsHarness.Tab(post: Extensions.StratBook
                     .ReviewPanelsHarness.SynchronousPost);
             review.ReviewMode!.IsOn = true;
 

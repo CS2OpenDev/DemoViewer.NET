@@ -3,8 +3,6 @@
 using DemoViewer.NET.Diagnostics;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.ErrorReports;
-using DemoViewer.NET.ViewModels.Diagnostics;
-using TUnit.Assertions.Enums;
 
 #endregion
 
@@ -103,7 +101,7 @@ public class ErrorReportSnapshotTests
             using (Assert.Multiple())
             {
                 await Assert.That(snapshot.Environment.Keys)
-                    .IsEquivalentTo(RuntimeEnvInfo.EnvAllowlist, CollectionOrdering.Any);
+                    .IsEquivalentTo(RuntimeEnvInfo.EnvAllowlist);
                 await Assert.That(snapshot.Environment.ContainsKey("DV_ERROR_REPORT_SECRET")).IsFalse();
                 await Assert.That(ErrorReportSnapshotBuilder.ToText(snapshot, "notes"))
                     .DoesNotContain("steam-token-shaped-value");

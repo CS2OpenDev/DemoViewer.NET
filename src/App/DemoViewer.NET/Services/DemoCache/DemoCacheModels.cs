@@ -5,9 +5,7 @@ using System.Text.Json.Serialization;
 using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Analysis.Clips;
 using DemoViewer.NET.Services.ErrorReports;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.MatchMeta;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

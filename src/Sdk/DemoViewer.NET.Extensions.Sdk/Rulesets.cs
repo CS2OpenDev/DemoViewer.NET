@@ -54,7 +54,7 @@ public sealed record RulesetContribution(string Id, Func<Stream> Yaml, string? F
         }
 
         return string.Concat(extensionId.ToLowerInvariant()
-                   .Select(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') ? c : '_'))
+                   .Select(c => c is >= 'a' and <= 'z' or >= '0' and <= '9' ? c : '_'))
                + Separator + id;
     }
 
@@ -62,5 +62,5 @@ public sealed record RulesetContribution(string Id, Func<Stream> Yaml, string? F
     /// <param name="id">The candidate.</param>
     public static bool IsValidId(string? id) =>
         id is { Length: > 0 } && id[0] is >= 'a' and <= 'z'
-                              && id.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
+                              && id.All(c => c is >= 'a' and <= 'z' or >= '0' and <= '9' or '_');
 }

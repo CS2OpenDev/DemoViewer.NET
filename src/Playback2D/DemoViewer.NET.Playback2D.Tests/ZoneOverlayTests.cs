@@ -2,8 +2,8 @@
 
 using System.Numerics;
 using System.Text;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Playback2D.Assets;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -200,7 +200,7 @@ public class ZoneOverlayTests
         ZoneOverlayDocument overlay = Overlay(hidden: ["Hut"]);
         ZoneOverlayResult a = Apply(overlay, "{ \"hidden\": [\"Hut\"] }");
         ZoneOverlayResult b = Apply(overlay, "{ \"hidden\": [\"Hut\"]  }");
-        ZoneOverlayResult c = Apply(ZoneOverlayDocument.Empty, "{}");
+        ZoneOverlayResult c = Apply(ZoneOverlayDocument.Empty);
 
         await Assert.That(a.Effective.EffectiveVersion).IsNotEqualTo(b.Effective.EffectiveVersion);
         await Assert.That(a.Effective.EffectiveVersion).IsNotEqualTo(ZoneFixtures.ZonesVersion);

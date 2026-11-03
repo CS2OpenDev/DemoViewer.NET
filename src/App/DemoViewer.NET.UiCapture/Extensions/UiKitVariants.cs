@@ -3,7 +3,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
-using Avalonia.Media;
 using ThirdPartyFake.ViewModels;
 
 #endregion
@@ -25,12 +24,12 @@ public static partial class Variants
     // shows the cap's three; the other extension's card stays.
     private static Panel UiKitNotifications()
     {
-        DemoViewer.NET.Extensions.ExtensionScope hello = new("dev.example.hello", "pack.hello", "Hello",
+        Extensions.ExtensionScope hello = new("dev.example.hello", "pack.hello", "Hello",
             typeof(Variants).Assembly);
-        DemoViewer.NET.Extensions.ExtensionScope loud = new("dev.example.loud", "pack.loud", "Loud",
+        Extensions.ExtensionScope loud = new("dev.example.loud", "pack.loud", "Loud",
             typeof(Variants).Assembly);
-        DemoViewer.NET.Extensions.ExtensionFaults faults = new([hello, loud], static a => a());
-        DemoViewer.NET.Extensions.NotificationCenter center = new(static a => a());
+        Extensions.ExtensionFaults faults = new([hello, loud], static a => a());
+        Extensions.NotificationCenter center = new(static a => a());
         IExtensionNotifications helloNotes = center.For(faults.GuardFor(hello));
         IExtensionNotifications loudNotes = center.For(faults.GuardFor(loud));
 
@@ -47,11 +46,11 @@ public static partial class Variants
         }
 
         Panel root = new() { Width = 720, Height = 520, Background = Tok(ThemeTokens.ShellBg) };
-        root.Children.Add(new DemoViewer.NET.Controls.StatusStrip
+        root.Children.Add(new Controls.StatusStrip
         {
             VerticalAlignment = VerticalAlignment.Bottom, StatusText = "Ready.", RightText = "de_mirage"
         });
-        root.Children.Add(new DemoViewer.NET.Controls.NotificationTray
+        root.Children.Add(new Controls.NotificationTray
         {
             Items = center.Cards,
             HorizontalAlignment = HorizontalAlignment.Right,

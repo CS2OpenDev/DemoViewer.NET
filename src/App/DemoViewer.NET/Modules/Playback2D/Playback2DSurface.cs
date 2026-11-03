@@ -572,14 +572,9 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
 /// </summary>
 public sealed class Playback2DPanel : ObservableObject, IPanelHandle
 {
-    private readonly Func<object> _factory;
     private readonly Playback2DSurface _owner;
     private readonly Func<Control>? _view;
-    private object? _content;
     private bool _hasKeyboard;
-    private bool _isGateOn;
-    private bool _isShown;
-    private object? _presented;
 
     internal Playback2DPanel(Playback2DSurface owner, int order, Func<object> factory, Func<Control>? view,
         string? featureId,
@@ -587,11 +582,11 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
     {
         _owner = owner;
         Order = order;
-        _factory = factory;
+        Factory = factory;
         _view = view;
         FeatureId = featureId;
         Mode = mode;
-        _isGateOn = featureId is null || owner.IsFeatureEnabled(featureId);
+        IsGateOn = featureId is null || owner.IsFeatureEnabled(featureId);
         if (mode is not null)
         {
             mode.Changed += OnModeChanged;
@@ -607,25 +602,25 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
     /// <summary>The mode the panel shows under, or null for none.</summary>
     public ModeToggle? Mode { get; }
 
-    internal Func<object> Factory => _factory;
+    internal Func<object> Factory { get; }
 
     /// <summary>The open panel's view model, or null.</summary>
-    public object? Content => _content;
+    public object? Content { get; private set; }
 
     /// <summary>
     ///     What the view presents: the contributed control with the view model as its DataContext, or the
     ///     view model itself for the ViewLocator. Null while closed.
     /// </summary>
-    public object? View => _presented;
+    public object? View { get; private set; }
 
     /// <summary>The gate reads on. Open panels with the gate on make Review mode available.</summary>
-    public bool IsGateOn => _isGateOn;
+    public bool IsGateOn { get; private set; }
 
     /// <inheritdoc />
-    public bool IsOpen => _content is not null;
+    public bool IsOpen => Content is not null;
 
     /// <inheritdoc />
-    public bool IsShown => _isShown;
+    public bool IsShown { get; private set; }
 
     /// <inheritdoc />
     public event Action? ShownChanged;
@@ -661,16 +656,16 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
 
     internal void Show(object content)
     {
-        _content = content;
+        Content = content;
         if (_view is { } build)
         {
             Control control = build();
             control.DataContext = content;
-            _presented = control;
+            View = control;
         }
         else
         {
-            _presented = content;
+            View = content;
         }
 
         OnPropertyChanged(nameof(Content));
@@ -680,9 +675,9 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
 
     internal object? Hide()
     {
-        object? content = _content;
-        _content = null;
-        _presented = null;
+        object? content = Content;
+        Content = null;
+        View = null;
         OnPropertyChanged(nameof(Content));
         OnPropertyChanged(nameof(View));
         OnPropertyChanged(nameof(IsOpen));
@@ -710,18 +705,18 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
     {
         bool gate = FeatureId is null || _owner.IsFeatureEnabled(FeatureId);
         bool shown = IsOpen && gate && (Mode?.IsOn ?? true);
-        if (gate != _isGateOn)
+        if (gate != IsGateOn)
         {
-            _isGateOn = gate;
+            IsGateOn = gate;
             OnPropertyChanged(nameof(IsGateOn));
         }
 
-        if (shown == _isShown)
+        if (shown == IsShown)
         {
             return;
         }
 
-        _isShown = shown;
+        IsShown = shown;
         OnPropertyChanged(nameof(IsShown));
         ShownChanged?.Invoke();
     }

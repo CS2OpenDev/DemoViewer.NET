@@ -1,7 +1,5 @@
 #region
 
-using CS2DemoKit.Parser;
-
 #endregion
 
 namespace DemoViewer.NET.Services.DemoProcessing;

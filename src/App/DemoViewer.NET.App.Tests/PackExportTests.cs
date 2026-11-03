@@ -1,16 +1,15 @@
 #region
 
 using CS2DemoKit.Parser;
-using CS2OpenSchema.Protos;
+using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
 using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Services.Export;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Export.Pack;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.Export;
 using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
-using DemoViewer.NET.Extensions;
 
 #endregion
 
@@ -253,8 +252,8 @@ public class PackExportTests
             await Assert.That(result.ClipsRendered).IsEqualTo(3);
             await Assert.That(result.Failed.Count).IsEqualTo(1);
             await Assert.That(result.Failed[0].Reason).Contains("clip 2: smokes");
-            await Assert.That(encoder.Sinks.Single().Marks.Contains((byte)2)).IsFalse();
-            await Assert.That(encoder.Sinks.Single().Marks.Contains((byte)4)).IsTrue();
+            await Assert.That(encoder.Sinks.Single().Marks.Contains(2)).IsFalse();
+            await Assert.That(encoder.Sinks.Single().Marks.Contains(4)).IsTrue();
         }
     }
 

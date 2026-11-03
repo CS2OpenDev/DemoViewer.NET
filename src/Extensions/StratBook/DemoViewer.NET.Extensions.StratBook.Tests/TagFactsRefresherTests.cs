@@ -1,9 +1,9 @@
 #region
 
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using static DemoViewer.NET.AppTests.TagTestData;
 
 #endregion

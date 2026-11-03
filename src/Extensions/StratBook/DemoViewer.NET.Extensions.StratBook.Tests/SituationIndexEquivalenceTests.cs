@@ -3,8 +3,8 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
@@ -21,7 +21,7 @@ namespace DemoViewer.NET.AppTests;
 public class SituationIndexEquivalenceTests
 {
     private static readonly string Fingerprint =
-        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + RoundIndexTestData.SamplerTerm;
+        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm;
 
     private static readonly string[] Maps = ["de_nuke", "de_mirage", "de_inferno"];
 

@@ -2,12 +2,12 @@
 
 using System.Text.Json.Nodes;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratTestData;
 

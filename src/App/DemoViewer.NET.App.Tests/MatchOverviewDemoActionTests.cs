@@ -133,7 +133,7 @@ public class MatchOverviewDemoActionTests
         DemoAction action = new("pack.fake.index", "Index", "tip",
             _ => throwOnAsk ? throw new InvalidOperationException("ask") : true,
             _ => throw new InvalidOperationException("run"));
-        PackContributions contributions = new(new StubExtension(Feature), () => null!, null, rig.Guard);
+        PackContributions contributions = new(new StubExtension(), () => null!, null, rig.Guard);
         contributions.DemoAction(action);
 
         MatchOverviewTabViewModel vm = new();

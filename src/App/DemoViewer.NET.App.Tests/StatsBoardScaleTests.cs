@@ -1,13 +1,11 @@
 #region
 
 using System.Globalization;
-using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -963,7 +961,7 @@ public class StatsBoardScaleTests
     [Test]
     public async Task Outcome_IsDerivedFromTheScoreline()
     {
-        StatsTabViewModel vm = BuildVm(13, 9);
+        StatsTabViewModel vm = BuildVm();
 
         TeamSection ct = vm.TeamSections.Single(t => t.IsCt);
         TeamSection t = vm.TeamSections.Single(x => !x.IsCt);

@@ -10,7 +10,6 @@ using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.AppTests.Extensions;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
@@ -53,10 +52,10 @@ public class ObserverSeamTests
         {
             await Assert.That(declared.ObservedProviders).IsEquivalentTo(
                 ["entity.pawn.health", "entity.pawn.place", "entity.pawn.pos_x"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(declared.ObservedProjectileClasses).IsEquivalentTo(
                 ["CMolotovProjectile", "CSmokeGrenadeProjectile"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(declared.FrameObserver).IsSameReferenceAs(observer);
             await Assert.That(declared.CaptureSnapshots).IsFalse().Because("the caller's options are kept");
             await Assert.That(untouched).IsSameReferenceAs(plain).Because("a run with no collector declares nothing");

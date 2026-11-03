@@ -48,7 +48,6 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     private readonly object _gate = new();
     private readonly Func<string?> _openDemo;
     private readonly Action<Action> _post;
-    private readonly GrenadeStore _store;
     private readonly Func<int> _stride;
 
     // Test seam: the walk for a parse. Null is the real fold; a synthetic parse has no entities to walk.
@@ -76,7 +75,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(backgroundIndex);
         _library = library;
-        _store = store;
+        Store = store;
         _backgroundIndex = backgroundIndex;
         _openDemo = openDemo ?? (() => null);
         _stride = stride ?? (() => 4);
@@ -88,7 +87,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     private static ILogger Log => _diagLog ??= DiagnosticsLog.CreateLogger(GrenadeIndexLog.Category);
 
     /// <summary>The grenade rows and their stamps.</summary>
-    public GrenadeStore Store => _store;
+    public GrenadeStore Store { get; }
 
     /// <summary>The scheduling of the extension's passes, so a forced request can ask for the demo again. Null in tests.</summary>
     public IExtensionPasses? Passes { get; set; }
@@ -126,7 +125,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
         {
             if (_forcedPaths.Contains(path))
             {
-                return entry is { State: >= LibraryDemoState.Parsed } && !_store.IsCurrent(path);
+                return entry is { State: >= LibraryDemoState.Parsed } && !Store.IsCurrent(path);
             }
         }
 
@@ -271,7 +270,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
         [
             .. _library.Demos
                 .Where(e => forced.Contains(e.FilePath)
-                    ? e.State >= LibraryDemoState.Parsed && !_store.IsCurrent(e.FilePath)
+                    ? e.State >= LibraryDemoState.Parsed && !Store.IsCurrent(e.FilePath)
                     : background && NeedsWalk(e))
                 .OrderByDescending(e => e.Modified.Ticks)
                 .Select(e => e.FilePath)
@@ -280,7 +279,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
 
     /// <summary>Whether a demo's grenades are walked and current: the Match Overview action hides when they are.</summary>
     /// <param name="path">The demo's path.</param>
-    public bool IsCurrent(string path) => _store.IsCurrent(path);
+    public bool IsCurrent(string path) => Store.IsCurrent(path);
 
     /// <summary>
     ///     Walks one demo at user priority regardless of the opt-in and of an earlier failure: Match
@@ -298,7 +297,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
 
         try
         {
-            _store.ClearFailed(path);
+            Store.ClearFailed(path);
         }
         catch (Exception)
         {
@@ -314,7 +313,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     }
 
     private bool NeedsWalk(LibraryDemo? entry) =>
-        entry is { State: >= LibraryDemoState.Parsed } && _store.Needs(entry.FilePath);
+        entry is { State: >= LibraryDemoState.Parsed } && Store.Needs(entry.FilePath);
 
     private bool IsOpen(string path) =>
         _openDemo() is { } open && string.Equals(open, path, StringComparison.OrdinalIgnoreCase);
@@ -328,7 +327,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
             (GrenadeDocument rows, _) = GrenadeSidecar.Build(path, _library.Find(path), clock, buildNumber, walk);
 
             // The store stamps the rows as it writes them: a crash before the stamp leaves the demo "not walked".
-            _store.Write(path, rows);
+            Store.Write(path, rows);
             lock (_gate)
             {
                 // Nothing takes them when no index listens (a test, a host without the Utility Book).
@@ -349,7 +348,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
             GrenadeIndexLog.WalkFailed(Log, fileName, ex);
             try
             {
-                _store.MarkFailed(path);
+                Store.MarkFailed(path);
             }
             catch (Exception)
             {

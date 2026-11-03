@@ -1,6 +1,5 @@
 #region
 
-using System.Text.Json;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.ViewModels;
@@ -27,10 +26,10 @@ public sealed class GraphBreakpointStoreTests
     {
         using ConfigDir dir = new();
         WriteLegacy(dir, "demo-a",
-            $$"""
-              {"TargetKind":"Node","NodeName":"Alive","EdgeSource":null,"EdgeDest":null,
-               "EdgeLabel":null,"EdgeConditionLabel":null,"Condition":"value > 2","Enabled":true}
-              """);
+            """
+            {"TargetKind":"Node","NodeName":"Alive","EdgeSource":null,"EdgeDest":null,
+             "EdgeLabel":null,"EdgeConditionLabel":null,"Condition":"value > 2","Enabled":true}
+            """);
 
         GraphBreakpointStore.MigrateLegacyFile();
 
@@ -47,10 +46,10 @@ public sealed class GraphBreakpointStoreTests
     {
         using ConfigDir dir = new();
         WriteLegacy(dir, "demo-b",
-            $$"""
-              {"TargetKind":"Edge","NodeName":null,"EdgeSource":"Root","EdgeDest":"kills",
-               "EdgeLabel":"player_death","EdgeConditionLabel":"foe","Condition":null,"Enabled":false}
-              """);
+            """
+            {"TargetKind":"Edge","NodeName":null,"EdgeSource":"Root","EdgeDest":"kills",
+             "EdgeLabel":"player_death","EdgeConditionLabel":"foe","Condition":null,"Enabled":false}
+            """);
 
         GraphBreakpointStore.MigrateLegacyFile();
 

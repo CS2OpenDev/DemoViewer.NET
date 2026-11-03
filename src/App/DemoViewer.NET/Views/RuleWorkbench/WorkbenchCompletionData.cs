@@ -8,7 +8,6 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 using DemoViewer.NET.Modules.RuleWorkbench;
-using DemoViewer.NET.Theming;
 
 #endregion
 

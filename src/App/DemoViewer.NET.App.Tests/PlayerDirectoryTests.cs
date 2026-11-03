@@ -3,7 +3,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.MatchMeta;

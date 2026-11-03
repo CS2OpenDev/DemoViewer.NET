@@ -1,7 +1,6 @@
 #region
 
 using Avalonia.Controls;
-using Avalonia.Headless;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Views.Playback2D;
 

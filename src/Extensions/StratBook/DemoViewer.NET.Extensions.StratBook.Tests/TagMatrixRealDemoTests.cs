@@ -1,14 +1,14 @@
 #region
 
-using DemoViewer.NET.Extensions;
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
-using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Services.Review;
+using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 

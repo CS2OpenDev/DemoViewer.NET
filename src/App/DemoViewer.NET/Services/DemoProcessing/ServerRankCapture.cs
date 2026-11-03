@@ -2,7 +2,6 @@
 
 using System.Collections.Concurrent;
 using CS2DemoKit.Parser;
-using CS2OpenSchema.Protos;
 
 #endregion
 

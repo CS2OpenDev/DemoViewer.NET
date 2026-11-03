@@ -5,9 +5,8 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Controls.Stats;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
+using DemoViewer.NET.Controls.Stats;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -66,7 +65,7 @@ public class PlayerOverviewTrendsTests
         {
             DemoCacheStore store = PlayerOverviewHistoryTests.Library(demos, stamped);
             PlayerDirectory directory = new(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts([
                 new IdentityAccount(Grim.ToString(CultureInfo.InvariantCulture), null, DateTime.UtcNow)
             ]);

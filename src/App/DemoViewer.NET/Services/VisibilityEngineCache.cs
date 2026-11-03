@@ -65,7 +65,6 @@ public sealed class VisibilityEngineCache
     /// </summary>
     public const int DefaultCapacity = 2;
 
-    private readonly int _capacity;
     private readonly Dictionary<BakeKey, Entry> _entries = [];
     private readonly Func<string, VisibilityEngine> _loader;
     private readonly object _sync = new();
@@ -82,7 +81,7 @@ public sealed class VisibilityEngineCache
     /// <param name="loader">Builds an engine from a bake path. Runs on the thread pool.</param>
     public VisibilityEngineCache(int capacity = DefaultCapacity, Func<string, VisibilityEngine>? loader = null)
     {
-        _capacity = Math.Max(1, capacity);
+        Capacity = Math.Max(1, capacity);
         _loader = loader ?? CollisionSoup.Load;
     }
 
@@ -90,7 +89,7 @@ public sealed class VisibilityEngineCache
     public static VisibilityEngineCache Shared { get; } = new();
 
     /// <summary>Built entries this cache will hold at most once every build in flight has landed.</summary>
-    public int Capacity => _capacity;
+    public int Capacity { get; }
 
     /// <summary>Entries currently held, built or building.</summary>
     public int Count
@@ -248,7 +247,7 @@ public sealed class VisibilityEngineCache
                 }
             }
 
-            if (built <= _capacity)
+            if (built <= Capacity)
             {
                 return;
             }

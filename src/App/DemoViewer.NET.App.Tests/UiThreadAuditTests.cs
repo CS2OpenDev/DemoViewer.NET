@@ -1,7 +1,7 @@
 #region
 
-using System.Runtime.CompilerServices;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Controls;
@@ -349,7 +349,7 @@ public class UiThreadAuditTests
                         await Step($"open strat {row}", () => s.SelectedStrat = row);
                         for (int i = 0; i < 3; i++)
                         {
-                            await Step($"session Changed #{i + 1}", () => Raise(s, "Session", "Changed"));
+                            await Step($"session Changed #{i + 1}", () => Raise(s, "Session"));
                         }
 
                         s.SelectedStrat = null;
@@ -700,7 +700,7 @@ public class UiThreadAuditTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            using Services.HeavyJobGate gate = new();
+            using HeavyJobGate gate = new();
             using ManualResetEventSlim release = new();
             using Services.DemoProcessing.DemoProcessingQueue queue = new(gate, a => Dispatcher.UIThread.Post(a), _ =>
             {

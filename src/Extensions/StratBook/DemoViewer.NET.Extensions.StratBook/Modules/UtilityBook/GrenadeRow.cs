@@ -147,7 +147,6 @@ public sealed class GrenadeRow
 {
     // Rows read from the rows file carry no path, so the list is created on first touch.
     private List<TrajectoryPoint>? _trajectory;
-    private ulong? _throwerSteamId;
     private string? _throwerSteamIdText;
 
     /// <summary><c>g{index}-{serial}</c>: unique within a demo; the cross-demo key is the demo's hash plus this.</summary>
@@ -160,7 +159,7 @@ public sealed class GrenadeRow
 
     public string? ThrowerSteamId64
     {
-        get => _throwerSteamIdText ?? (_throwerSteamId is { } id ? id.ToString(CultureInfo.InvariantCulture) : null);
+        get => _throwerSteamIdText ?? (ThrowerSteamId is { } id ? id.ToString(CultureInfo.InvariantCulture) : null);
         set
         {
             // Held as a number; text that would not print back identically is kept verbatim.
@@ -168,12 +167,12 @@ public sealed class GrenadeRow
                 && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
                 && string.Equals(id.ToString(CultureInfo.InvariantCulture), value, StringComparison.Ordinal))
             {
-                _throwerSteamId = id;
+                ThrowerSteamId = id;
                 _throwerSteamIdText = null;
             }
             else
             {
-                _throwerSteamId = null;
+                ThrowerSteamId = null;
                 _throwerSteamIdText = value;
             }
         }
@@ -181,7 +180,7 @@ public sealed class GrenadeRow
 
     /// <summary><see cref="ThrowerSteamId64" /> as a number, without allocating; null when absent or not numeric.</summary>
     [JsonIgnore]
-    public ulong? ThrowerSteamId => _throwerSteamId;
+    public ulong? ThrowerSteamId { get; private set; }
 
     /// <summary>The thrower's name at the time of the throw, from the demo's player list; null when unknown.</summary>
     public string? ThrowerName { get; set; }
@@ -319,7 +318,7 @@ public sealed class TrajectoryPointConverter : JsonConverter<TrajectoryPoint>
 internal static class JsonNumbers
 {
     public static void Write(Utf8JsonWriter writer, float value, int decimals) =>
-        writer.WriteRawValue(Math.Round((double)value, decimals, MidpointRounding.AwayFromZero)
+        writer.WriteRawValue(Math.Round(value, decimals, MidpointRounding.AwayFromZero)
             .ToString("0.##", CultureInfo.InvariantCulture));
 
     public static float[] ReadArray(ref Utf8JsonReader reader, int count)

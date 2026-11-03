@@ -33,7 +33,6 @@ public sealed class QueryTokenTool : IMapTool
     private readonly IQueryPlaceResolver _resolver;
 
     private QueryToken? _before;
-    private (QuerySide Side, int Slot)? _dragging;
 
     /// <param name="document">The slots the tool mutates. Shared with the layer.</param>
     /// <param name="resolver">Turns a drop into a place.</param>
@@ -49,7 +48,7 @@ public sealed class QueryTokenTool : IMapTool
     public (QuerySide Side, int Slot)? Armed { get; set; }
 
     /// <summary>The token a gesture is carrying, or null between gestures.</summary>
-    public (QuerySide Side, int Slot)? Dragging => _dragging;
+    public (QuerySide Side, int Slot)? Dragging { get; private set; }
 
     /// <summary>The place the last release resolved to, or null when it resolved nothing. For the rail's status line.</summary>
     public QueryPlaceHit? LastHit { get; private set; }
@@ -84,7 +83,7 @@ public sealed class QueryTokenTool : IMapTool
 
             _document.Lift(lifted.Side, lifted.Slot);
             _before = null;
-            _dragging = null;
+            Dragging = null;
             context.RequestRender();
             return true;
         }
@@ -100,7 +99,7 @@ public sealed class QueryTokenTool : IMapTool
         if (Armed is { } armed)
         {
             _before = _document.Get(armed.Side, armed.Slot);
-            _dragging = armed;
+            Dragging = armed;
             Armed = null;
             Carry(pane, e.World);
             context.RequestRender();
@@ -113,7 +112,7 @@ public sealed class QueryTokenTool : IMapTool
         }
 
         _before = grabbed;
-        _dragging = (grabbed.Side, grabbed.Slot);
+        Dragging = (grabbed.Side, grabbed.Slot);
         Carry(pane, e.World);
         context.RequestRender();
         return true;
@@ -124,7 +123,7 @@ public sealed class QueryTokenTool : IMapTool
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (_dragging is null || e.Pane is not { } pane)
+        if (Dragging is null || e.Pane is not { } pane)
         {
             return;
         }
@@ -138,12 +137,12 @@ public sealed class QueryTokenTool : IMapTool
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (_dragging is not { } dragging)
+        if (Dragging is not { } dragging)
         {
             return;
         }
 
-        _dragging = null;
+        Dragging = null;
         _before = null;
 
         // Released over no band: the token goes back to the rail. On a stacked map PaneAt clamps to
@@ -170,7 +169,7 @@ public sealed class QueryTokenTool : IMapTool
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (_dragging is not { } dragging)
+        if (Dragging is not { } dragging)
         {
             return;
         }
@@ -184,7 +183,7 @@ public sealed class QueryTokenTool : IMapTool
             _document.Lift(dragging.Side, dragging.Slot);
         }
 
-        _dragging = null;
+        Dragging = null;
         _before = null;
         context.RequestRender();
     }
@@ -223,7 +222,7 @@ public sealed class QueryTokenTool : IMapTool
     // decided once, at the release.
     private void Carry(LevelPane pane, SKPoint world)
     {
-        if (_dragging is not { } dragging)
+        if (Dragging is not { } dragging)
         {
             return;
         }

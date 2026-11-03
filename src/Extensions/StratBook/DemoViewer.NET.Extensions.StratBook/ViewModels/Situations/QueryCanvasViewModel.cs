@@ -5,12 +5,12 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Overlay;
 using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 
 #endregion
 
@@ -53,7 +53,6 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposable
 {
     private readonly Func<string, CalloutResolver>? _calloutResolverFor;
-    private readonly SituationLiveCount _counter;
     private readonly IExtensionLibrary _library;
     private readonly ISituationIndex _index;
     private readonly Func<string, IMapAssetLease?> _loadMapAsset;
@@ -133,8 +132,8 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         _library = library;
         _loadMapAsset = loadMapAsset ?? MapAssets.Acquire;
         _calloutResolverFor = calloutResolverFor;
-        _counter = new SituationLiveCount(index, post ?? (action => Dispatcher.UIThread.Post(action)), countDelay);
-        _counter.Counted += OnCounted;
+        Counter = new SituationLiveCount(index, post ?? (action => Dispatcher.UIThread.Post(action)), countDelay);
+        Counter.Counted += OnCounted;
 
         Document = new QueryCanvasDocument();
         Draft = new SituationQueryDraft(Document);
@@ -180,7 +179,7 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
     public SearchFiltersViewModel Filters { get; }
 
     /// <summary>The live counter, for a test to await its pending run.</summary>
-    internal SituationLiveCount Counter => _counter;
+    internal SituationLiveCount Counter { get; }
 
     /// <summary>"Search, 12 rounds" once the count is known; "Search" while it is not.</summary>
     public string SearchLabel => LiveCount is int count ? $"Search, {Rounds(count)}" : "Search";
@@ -318,8 +317,8 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         }
 
         _disposed = true;
-        _counter.Counted -= OnCounted;
-        _counter.Dispose();
+        Counter.Counted -= OnCounted;
+        Counter.Dispose();
         Filters.Changed -= OnFiltersChanged;
         Filters.Dispose();
         Document.Changed -= OnDocumentChanged;
@@ -547,13 +546,13 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         LiveCount = null;
         if (Map is null || !_index.IsReady)
         {
-            _counter.Cancel();
+            Counter.Cancel();
             IsCounting = false;
             return;
         }
 
         IsCounting = true;
-        _counter.Request(Draft.ToQuery());
+        Counter.Request(Draft.ToQuery());
     }
 
     // The newest request's answer, on the post thread; older ones never reach here.

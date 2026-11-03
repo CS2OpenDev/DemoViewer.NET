@@ -3,7 +3,6 @@
 using System.Text.Json;
 using CS2DemoKit.Analysis.Clips;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -30,7 +29,7 @@ public class RoundFactsProjectionTests
             [RoundFactsColumns.RoundNumber] = round,
             [RoundFactsColumns.Side] = side,
             [RoundFactsColumns.FreezeEndTick] = freezeEnd,
-            [RoundFactsColumns.Slots] = side == Ct ? (int[])[1, 2, 3, 4, 5] : (int[])[6, 7, 8, 9, 10],
+            [RoundFactsColumns.Slots] = side == Ct ? [1, 2, 3, 4, 5] : (int[])[6, 7, 8, 9, 10],
             [RoundFactsColumns.Players] = 5,
             [RoundFactsColumns.ScoreBefore] = 0,
             [RoundFactsColumns.Equipment] = 4000,

@@ -15,13 +15,11 @@ using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Tools;
 using DemoViewer.NET.Playback2D.Zones;
-using DemoViewer.NET.Playback2D.Assets;
-using DemoViewer.NET.Playback2D.Pipeline.Assets;
-using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -698,11 +696,11 @@ public class Scene2DHostFrameHostTests
         public VisibilityEngine? VisionEngine => null;
         public AnnotationSession? AnnotationSession { get; init; }
         public bool IsAnnotationsEnabled => AnnotationSession is not null;
-        public bool ShowRadar { get; set; } = true;
+        public bool ShowRadar { get; } = true;
         public bool ShowTrails { get; set; } = true;
-        public bool ShowAreaEffects { get; set; } = true;
+        public bool ShowAreaEffects { get; } = true;
         public bool ShowVision => false;
-        public bool ShowBombRing { get; set; } = true;
+        public bool ShowBombRing { get; } = true;
         public bool ShowZones => false;
         public PlaceResolver? Zones => null;
 

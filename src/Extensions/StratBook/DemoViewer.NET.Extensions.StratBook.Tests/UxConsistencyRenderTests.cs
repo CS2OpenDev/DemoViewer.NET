@@ -1,15 +1,15 @@
 #region
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using Avalonia;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Teams;
 using DemoViewer.NET.Extensions.StratBook.Views.Teams;
+using DemoViewer.NET.Services.DemoCache;
 
 #endregion
 
@@ -174,17 +174,17 @@ public class UxConsistencyRenderTests
 
             ScrollViewer page = window.GetVisualDescendants().OfType<ScrollViewer>().Where(v => v.IsEffectivelyVisible)
                 .MaxBy(v => v.Extent.Height)!;
-            page.Offset = new Avalonia.Vector(0, Editing()!.TranslatePoint(default, page)!.Value.Y - 100);
+            page.Offset = new Vector(0, Editing()!.TranslatePoint(default, page)!.Value.Y - 100);
             Settle();
             Editing()!.Focus();
             Editing()!.Text = "draft";
             Settle();
             focusedBefore = Editing()?.IsFocused == true;
-            page.Offset = new Avalonia.Vector(0, page.Extent.Height);
+            page.Offset = new Vector(0, page.Extent.Height);
             Settle();
             page.Offset = default;
             Settle();
-            page.Offset = new Avalonia.Vector(0, Math.Max(0, (Editing()?.TranslatePoint(default, page)?.Y ?? 0) - 100));
+            page.Offset = new Vector(0, Math.Max(0, (Editing()?.TranslatePoint(default, page)?.Y ?? 0) - 100));
             Settle();
             focusedAfter = Editing()?.IsFocused == true;
             text = row.EditText;

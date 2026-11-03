@@ -1,4 +1,8 @@
+#region
+
 using System.Globalization;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 
@@ -99,7 +103,6 @@ public sealed class FactValue : IEquatable<FactValue>
 {
     private readonly bool _boolean;
     private readonly long _integer;
-    private readonly IReadOnlyList<FactValue> _items;
     private readonly double _number;
     private readonly string? _text;
 
@@ -112,7 +115,7 @@ public sealed class FactValue : IEquatable<FactValue>
         _number = number;
         _boolean = boolean;
         _text = text;
-        _items = items ?? [];
+        Items = items ?? [];
     }
 
     /// <summary>The null cell.</summary>
@@ -122,7 +125,7 @@ public sealed class FactValue : IEquatable<FactValue>
     public FactValueKind Kind { get; }
 
     /// <summary>The items of a <see cref="FactValueKind.List" /> cell; empty for every other kind.</summary>
-    public IReadOnlyList<FactValue> Items => _items;
+    public IReadOnlyList<FactValue> Items { get; }
 
     /// <summary>A whole number.</summary>
     /// <param name="value">The value.</param>
@@ -170,7 +173,7 @@ public sealed class FactValue : IEquatable<FactValue>
         FactValueKind.Number => _number.ToString("R", CultureInfo.InvariantCulture),
         FactValueKind.Boolean => _boolean ? "true" : "false",
         FactValueKind.Text => _text,
-        _ => string.Join(",", _items.Select(i => i.AsText() ?? ""))
+        _ => string.Join(",", Items.Select(i => i.AsText() ?? ""))
     };
 
     /// <inheritdoc />
@@ -182,7 +185,7 @@ public sealed class FactValue : IEquatable<FactValue>
             FactValueKind.Number => _number.Equals(other._number),
             FactValueKind.Boolean => _boolean == other._boolean,
             FactValueKind.Text => string.Equals(_text, other._text, StringComparison.Ordinal),
-            _ => _items.SequenceEqual(other._items)
+            _ => Items.SequenceEqual(other.Items)
         };
 
     /// <inheritdoc />

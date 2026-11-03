@@ -10,7 +10,6 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.ViewModels.Diagnostics;
 using SkiaSharp;
 
 #endregion

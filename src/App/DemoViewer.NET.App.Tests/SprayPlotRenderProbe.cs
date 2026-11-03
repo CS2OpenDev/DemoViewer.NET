@@ -34,7 +34,7 @@ public class SprayPlotRenderProbe
         string path = DemoTestHelper.RequireDemo();
         ParsedDemo demo = DemoTestHelper.GetOrParse(path);
 
-        SprayModel anchored = SpraySampler.Sample(demo, SprayOrigin.FirstBullet);
+        SprayModel anchored = SpraySampler.Sample(demo);
         SprayModel tracked = SpraySampler.Sample(demo, SprayOrigin.TargetCentre);
 
         PlayerSprays subject = anchored.Players

@@ -4,12 +4,12 @@ using System.Globalization;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Hud;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 
 #endregion
 

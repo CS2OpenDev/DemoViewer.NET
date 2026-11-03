@@ -4,10 +4,8 @@ using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
-using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
@@ -74,9 +72,9 @@ public class EngineRoundFactsRowSourceTests
     public async Task TheWholeDirectoryHosts_LeaveRoundFactsOut()
     {
         RulesetDoc doc = ShippedDoc();
-        DemoViewer.NET.Modules.Highlights.MergedRulesBuild build = new(
+        Modules.Highlights.MergedRulesBuild build = new(
             () => throw new InvalidOperationException("the filter needs no read"),
-            () => [DemoViewer.NET.Modules.Highlights.StampedRuleset.Core(RoundFactsFingerprint.RulesetId)]);
+            () => [Modules.Highlights.StampedRuleset.Core(RoundFactsFingerprint.RulesetId)]);
 
         await Assert.That(build.WithoutStampedRulesets([doc])).IsEmpty();
     }

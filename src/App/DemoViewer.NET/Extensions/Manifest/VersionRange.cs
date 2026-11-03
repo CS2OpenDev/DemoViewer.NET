@@ -63,7 +63,7 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
         }
 
         List<IReadOnlyList<Comparator>> alternatives = [];
-        foreach (string alternative in trimmed.Split("||", StringSplitOptions.None))
+        foreach (string alternative in trimmed.Split("||"))
         {
             // Only an explicit "*" may yield an empty set (which admits everything); an alternative with no
             // token at all ("^1.0 ||") is a typo, and a typo must not widen the range.

@@ -252,7 +252,7 @@ public class LibraryContributionTests
     [NotInParallel]
     public async Task AFilterAndABadgeThatThrow_KeepEveryDemo_AndCountAgainstTheExtension()
     {
-        DemoViewer.NET.AppTests.Extensions.FaultRig rig = new();
+        Extensions.FaultRig rig = new();
         DemoLibraryService lib = NewLibrary("/d/a.dem", "/d/b.dem");
         FakeContribution c = new()
         {
@@ -330,8 +330,8 @@ public class LibraryContributionTests
             await Assert.That(vm.BadgeResetLabel).IsEqualTo("Reset");
             await Assert.That(vm.BadgeMenuEntries.Select(e => (e.Label, e.IsReset, e.Tooltip))).IsEquivalentTo(
             [
-                ("x", false, (string?)null),
-                ("y", false, (string?)null),
+                ("x", false, null),
+                ("y", false, null),
                 ("Reset", true, (string?)"Back to automatic")
             ], CollectionOrdering.Matching);
             await Assert.That(lib.Entries[0].BadgeLabel).IsEqualTo("a.dem");

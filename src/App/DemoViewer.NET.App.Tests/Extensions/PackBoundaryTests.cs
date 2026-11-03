@@ -129,13 +129,14 @@ public class PackBoundaryTests
         if (violations.Count > 0)
         {
             string message = "Core sources mention pack-owned namespaces:\n\n";
-            foreach (var (filePath, ns) in violations.OrderBy(v => v.FilePath).ThenBy(v => v.Namespace))
+            foreach ((string filePath, string ns) in violations.OrderBy(v => v.FilePath).ThenBy(v => v.Namespace))
             {
                 message += $"  {filePath} -> {ns}\n";
             }
 
             message += "\nKnown allowed edges:\n";
-            foreach (var (filePath, ns, item) in AllowedEdges.OrderBy(e => e.FilePath).ThenBy(e => e.Namespace))
+            foreach ((string filePath, string ns, string item) in AllowedEdges.OrderBy(e => e.FilePath)
+                         .ThenBy(e => e.Namespace))
             {
                 message += $"  {filePath} -> {ns} (removed by {item})\n";
             }

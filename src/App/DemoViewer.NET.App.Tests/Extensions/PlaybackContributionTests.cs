@@ -11,11 +11,11 @@ using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D.Timeline;
 using DemoViewer.NET.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using TUnit.Assertions.Enums;
 using IPaneHandle = DemoViewer.NET.Extensions.Sdk.Playback.IPaneHandle;
 using IPanelHandle = DemoViewer.NET.Extensions.Sdk.Playback.IPanelHandle;
 using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 using PanePlacement = DemoViewer.NET.Extensions.Sdk.Playback.PanePlacement;
-using TUnit.Assertions.Enums;
 
 #endregion
 

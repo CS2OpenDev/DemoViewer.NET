@@ -145,9 +145,9 @@ public class GrenadeStoreTests
             old.For(Map).Anchors.Add(anchor);
             old.Save();
 
-            DemoViewer.NET.Extensions.ExtensionStores stores = new("dev.example.lineups", Path.Combine(root, "config"),
+            ExtensionStores stores = new("dev.example.lineups", Path.Combine(root, "config"),
                 Path.Combine(root, "cache"), []);
-            IExtensionFolder folder = stores.Own(DemoViewer.NET.Extensions.Sdk.StoreRoot.Cache)!;
+            IExtensionFolder folder = stores.Own(StoreRoot.Cache)!;
             GrenadeLineupStore copied = GrenadeLineupStore.In(folder, () => File.ReadAllBytes(legacy));
             using (Assert.Multiple())
             {
@@ -192,9 +192,9 @@ public class GrenadeStoreTests
             currentStore.For(Map).Anchors.Add(current);
             currentStore.Save();
 
-            DemoViewer.NET.Extensions.ExtensionStores stores = new("dev.example.lineups", Path.Combine(root, "config"),
+            ExtensionStores stores = new("dev.example.lineups", Path.Combine(root, "config"),
                 oldest, []);
-            GrenadeLineupStore opened = GrenadeLineupStore.In(stores.Own(DemoViewer.NET.Extensions.Sdk.StoreRoot.Cache),
+            GrenadeLineupStore opened = GrenadeLineupStore.In(stores.Own(StoreRoot.Cache),
                 () => File.ReadAllBytes(Path.Combine(oldest, GrenadeLineupStore.FileName)));
 
             await Assert.That(opened.For(Map).Anchors.Single()).IsEqualTo(current)

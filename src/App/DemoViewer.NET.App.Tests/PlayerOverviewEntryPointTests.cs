@@ -2,7 +2,6 @@
 
 using System.Globalization;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.ViewModels.Highlights;

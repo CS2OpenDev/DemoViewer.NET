@@ -2,9 +2,8 @@
 
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
-using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Hud;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 
 #endregion
 

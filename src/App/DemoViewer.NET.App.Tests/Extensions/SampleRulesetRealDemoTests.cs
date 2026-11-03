@@ -3,7 +3,6 @@
 using System.Reflection;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
@@ -29,7 +28,7 @@ public class SampleRulesetRealDemoTests
     [Test]
     public async Task TheSample_ShipsARuleset_AndReadsItsOwnOutputBack()
     {
-        string path = AppTests.BackgroundPlanRealDemoTests.SmallestDemo(0);
+        string path = BackgroundPlanRealDemoTests.SmallestDemo(0);
         string root = ExternalExtensionTests.NewRoot();
         try
         {
@@ -93,7 +92,7 @@ public class SampleRulesetRealDemoTests
             await Assert.That(library.IsCurrent(path, key)).IsTrue();
             await Assert.That(kills ?? 0).IsGreaterThan(0).Because("the sample's own reader sums its table back");
             await Assert.That(rules.Fingerprint(64).Fingerprint)
-                .IsEqualTo(AppTests.MergedRulesBuildTests.ShippedFingerprint64);
+                .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
         }
     }
 }

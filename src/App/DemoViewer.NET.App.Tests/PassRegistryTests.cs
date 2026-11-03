@@ -30,7 +30,7 @@ public class PassRegistryTests
         IReadOnlyList<IDemoPass> resolved = registry.Resolve();
 
         await Assert.That(resolved.Select(e => e.Id))
-            .IsEquivalentTo(["a", "c", "b"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            .IsEquivalentTo(["a", "c", "b"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -54,7 +54,7 @@ public class PassRegistryTests
 
         await Assert.That(resolved.Select(e => e.Id))
             .IsEquivalentTo(["library", "highlights", "roundfacts", "roundindex", "grenades", "suggestedtags"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class PassRegistryTests
             await Assert.That(cycle).IsNotNull();
             await Assert.That(good).IsNull();
             await Assert.That(resolved.Select(p => p.Id))
-                .IsEquivalentTo(["facts", "ext.d"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                .IsEquivalentTo(["facts", "ext.d"], CollectionOrdering.Matching);
         }
     }
 
@@ -160,7 +160,7 @@ public class PassRegistryTests
         using (Assert.Multiple())
         {
             await Assert.That(resolved.Select(e => e.Id)).IsEquivalentTo(["core", "fine"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(reported).IsEquivalentTo(["broken: factory", "misnamed"], CollectionOrdering.Matching);
         }
     }
@@ -252,7 +252,7 @@ public class PassRegistryTests
         IReadOnlyList<IDemoPass> resolved = registry.Resolve();
 
         await Assert.That(resolved.Select(e => e.Id))
-            .IsEquivalentTo(["library", "roundfacts"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            .IsEquivalentTo(["library", "roundfacts"], CollectionOrdering.Matching);
         await Assert.That(coreFactoryCalls).IsEqualTo(1);
         await Assert.That(packFactoryCalls).IsEqualTo(1);
     }
@@ -330,7 +330,7 @@ public class PassRegistryTests
             await Assert.That(pass.Interest(new VisitedDemo("/no.dem"), PassLevel.Background))
                 .IsEqualTo(PassInterest.No);
             await Assert.That(pass.Needs(new VisitedDemo("/yes.dem")))
-                .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules, false));
+                .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules));
             await Assert
                 .That(new EvaluatorPassAdapter(new EvaluatorFake("r") { ReadsUserCommands = true }, []).Needs(
                     new VisitedDemo("/x.dem")))

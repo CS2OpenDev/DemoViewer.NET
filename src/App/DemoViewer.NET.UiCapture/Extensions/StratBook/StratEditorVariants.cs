@@ -6,13 +6,13 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Zones;
-using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views.Shell;
 
 #endregion
@@ -260,7 +260,7 @@ public static partial class Variants
         {
             strats!.Canvas.Transport.Pause();
             strats.Canvas.Transport.Seek(
-                DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(atSeconds, 115));
+                Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(atSeconds, 115));
         }, DispatcherPriority.Background);
         return view;
     }
@@ -300,7 +300,7 @@ public static partial class Variants
         {
             strats!.Canvas.Transport.Pause();
             strats.Canvas.Transport.Seek(
-                DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(57.8, 115));
+                Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(57.8, 115));
         }, DispatcherPriority.Background);
         return view;
     }
@@ -464,7 +464,7 @@ public static partial class Variants
         StratBookTabViewModel vm = new(store, null, null, false, layout: layout, spawns: spawns,
             canvasPlaces: places is not null
                 ? _ => Task.FromResult<IZonePlaceResolver?>(places)
-                : map => Task.Run<IZonePlaceResolver?>(() =>
+                : map => Task.Run(() =>
                 {
                     // Disposed per call: the hold is on a process-wide registry and the capture is one shot.
                     using AssetZonePlaceResolverSource source = new();

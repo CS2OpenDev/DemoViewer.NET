@@ -2,9 +2,9 @@
 
 using Avalonia.Input;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
+using DemoViewer.NET.Modules.Playback2D;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -53,7 +53,7 @@ public class SituationResultWalkTests
             return tab ?? throw new InvalidOperationException("resolved before the tab existed");
         });
 
-        DemoViewer.NET.Services.DemoCache.DemoCacheStore cache = new(null);
+        Services.DemoCache.DemoCacheStore cache = new(null);
         DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexStore store = new(cache.Data());
         DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexPlaceSources sources = new(() =>
             DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexTokenSource.Pawn);

@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;

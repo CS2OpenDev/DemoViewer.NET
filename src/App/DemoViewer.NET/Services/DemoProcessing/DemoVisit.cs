@@ -1,4 +1,8 @@
+#region
+
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
+
+#endregion
 
 namespace DemoViewer.NET.Services.DemoProcessing;
 

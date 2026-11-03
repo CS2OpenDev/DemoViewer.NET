@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Services.DemoProcessing;
-using DemoViewer.NET.ViewModels;
 using DemoViewer.NET.ViewModels.DemoProcessing;
 using TUnit.Assertions.Enums;
 

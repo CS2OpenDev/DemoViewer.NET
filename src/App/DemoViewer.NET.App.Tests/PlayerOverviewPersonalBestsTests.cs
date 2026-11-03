@@ -108,7 +108,7 @@ public class PlayerOverviewPersonalBestsTests
     public async Task Open_FocusesTheSubjectInThatDemo_AndAMissingFileIsMarked()
     {
         (PlayerDirectory directory, List<PlayerDemo> demos) = Demos(Line(30, 1.5, 100, true));
-        using IdentityService identity = new(new SettingsService((string?)null));
+        using IdentityService identity = new(new SettingsService(null));
         List<(string, ulong)> focused = [];
         PlayerOverviewServices services = new(directory, identity, null, _ => { }, _ => { },
             (p, id) => focused.Add((p, id)), _ => { });

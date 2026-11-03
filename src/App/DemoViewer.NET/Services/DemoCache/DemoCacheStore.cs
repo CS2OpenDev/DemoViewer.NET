@@ -4,7 +4,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CS2DemoKit.Analysis.Diagnostics;
-using DemoViewer.NET.Playback2D;
 using Microsoft.Extensions.Logging;
 
 #endregion
@@ -47,7 +46,6 @@ public sealed class DemoCacheStore
 
     private const string ProvisionalPrefix = "p-";
 
-    private readonly string? _cacheRoot;
     private readonly object _gate = new();
 
     // The stored rows: one per content id, or per path while a file has no hash yet ("p-" + StableKey).
@@ -141,7 +139,7 @@ public sealed class DemoCacheStore
     /// <param name="post">Marshals <see cref="Changed" /> onto the UI thread; defaults to synchronous.</param>
     public DemoCacheStore(string? cacheRoot, Action<Action>? post = null)
     {
-        _cacheRoot = cacheRoot;
+        CacheRoot = cacheRoot;
         _post = post ?? (action => action());
         LoadIndex();
     }
@@ -298,14 +296,14 @@ public sealed class DemoCacheStore
         }
     }
 
-    private string? IndexPath => _cacheRoot is null ? null : Path.Combine(_cacheRoot, "index.json");
+    private string? IndexPath => CacheRoot is null ? null : Path.Combine(CacheRoot, "index.json");
 
     /// <summary>The cache directory, or null for an in-memory store.</summary>
-    internal string? CacheRoot => _cacheRoot;
+    internal string? CacheRoot { get; }
 
     private static ILogger Log => _diagLog ??= DiagnosticsLog.CreateLogger(SidecarFormatLog.Category);
 
-    private string? SidecarDir => _cacheRoot is null ? null : Path.Combine(_cacheRoot, "demos");
+    private string? SidecarDir => CacheRoot is null ? null : Path.Combine(CacheRoot, "demos");
 
     /// <summary>
     ///     Raised (via the post delegate) after any mutation, or, inside a <see cref="BeginBatch" /> scope,
@@ -910,7 +908,7 @@ public sealed class DemoCacheStore
 
     private byte[]? ReadRecordBytes(string key)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             lock (_gate)
             {
@@ -931,7 +929,7 @@ public sealed class DemoCacheStore
 
     private DemoCacheRecord? TryReadLegacyRecord(string key)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             return null;
         }
@@ -1018,7 +1016,7 @@ public sealed class DemoCacheStore
     /// <param name="demoPath">An indexed demo.</param>
     internal SidecarConversion ConvertLegacyRecord(string demoPath)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             return SidecarConversion.None;
         }
@@ -1316,7 +1314,7 @@ public sealed class DemoCacheStore
 
             WriteSidecar(path, bytes);
 
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 // Nothing persists, so nothing has to land before the old names go.
                 SettleRow(newKey);
@@ -1688,7 +1686,7 @@ public sealed class DemoCacheStore
                 string fileKey = WriteKeys(row)[0];
                 lock (_fileStripes[StripeIndex(fileKey)])
                 {
-                    if (_cacheRoot is null)
+                    if (CacheRoot is null)
                     {
                         lock (_gate)
                         {
@@ -2025,7 +2023,7 @@ public sealed class DemoCacheStore
 
         into.FillMissingFrom(from);
         byte[] bytes = SidecarJson.SerializeGzip(into, _jsonOptions);
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             lock (_gate)
             {
@@ -2056,7 +2054,7 @@ public sealed class DemoCacheStore
 
     private bool MoveKey(string source, string target, bool replace)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             lock (_gate)
             {
@@ -2125,7 +2123,7 @@ public sealed class DemoCacheStore
     /// </summary>
     public string? SidecarPathFor(string demoPath)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             return null;
         }
@@ -2139,7 +2137,7 @@ public sealed class DemoCacheStore
     /// <summary>Where the record sidecar lived before it was gzipped. Read when the new file is absent.</summary>
     internal string? LegacySidecarPathFor(string demoPath)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             return null;
         }
@@ -2197,7 +2195,7 @@ public sealed class DemoCacheStore
         ValidateSuffix(suffix);
         WithWriteKey(demoPath, (key, _) =>
         {
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 lock (_gate)
                 {
@@ -2226,7 +2224,7 @@ public sealed class DemoCacheStore
         ValidateSuffix(suffix);
         try
         {
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 if (TryReadSiblingBytes(demoPath, suffix) is not { } held)
                 {
@@ -2257,7 +2255,7 @@ public sealed class DemoCacheStore
     public byte[]? TryReadSiblingBytes(string demoPath, string suffix)
     {
         ValidateSuffix(suffix);
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             lock (_gate)
             {
@@ -2299,7 +2297,7 @@ public sealed class DemoCacheStore
 
             foreach (string key in keys)
             {
-                if (_cacheRoot is null)
+                if (CacheRoot is null)
                 {
                     lock (_gate)
                     {
@@ -2349,7 +2347,7 @@ public sealed class DemoCacheStore
     private void WriteSidecar(string demoPath, byte[] bytes) =>
         WithWriteKey(demoPath, (key, row) =>
         {
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 lock (_gate)
                 {
@@ -2420,7 +2418,7 @@ public sealed class DemoCacheStore
     {
         foreach (string key in keys)
         {
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 lock (_gate)
                 {

@@ -3,12 +3,12 @@
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Playback2D.Levels;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 using GrenadeKind = DemoViewer.NET.Playback2D.GrenadeKind;

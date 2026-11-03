@@ -1,3 +1,5 @@
+#region
+
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows.Input;
@@ -16,6 +18,8 @@ using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Timeline;
 using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp;
+
+#endregion
 
 namespace HelloExtension;
 

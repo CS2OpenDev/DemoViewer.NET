@@ -15,7 +15,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 ///     checked at attach (a live pack toggle with a demo already open) and on every demo change. Nothing
 ///     here exists while the pack is off.
 /// </summary>
-public sealed class SituationsPlaybackContribution : Sdk.Playback.IPlaybackContribution
+public sealed class SituationsPlaybackContribution : IPlaybackContribution
 {
     private const string ToolbarItemId = "stratbook.findroundslikethis";
 
@@ -28,16 +28,15 @@ public sealed class SituationsPlaybackContribution : Sdk.Playback.IPlaybackContr
     private IModuleContext? _context;
     private IDisposable? _demoChanged;
     private IFindRoundsLikeThis? _findRounds;
-    private Sdk.Playback.ToolbarItem? _item;
     private ISituationResultWalk? _situationResults;
-    private Sdk.Playback.IPlaybackSurface? _surface;
+    private IPlaybackSurface? _surface;
     private IDisposable? _toolbarRegistration;
 
     /// <summary>The toolbar item while attached, or null before attach or while no demo's map is open. For tests.</summary>
-    public Sdk.Playback.ToolbarItem? ToolbarItem => _item;
+    public ToolbarItem? ToolbarItem { get; private set; }
 
     /// <inheritdoc />
-    public void Attach(Sdk.Playback.IPlaybackSurface surface, IModuleContext context)
+    public void Attach(IPlaybackSurface surface, IModuleContext context)
     {
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(context);
@@ -47,7 +46,7 @@ public sealed class SituationsPlaybackContribution : Sdk.Playback.IPlaybackContr
         _findRounds = context.GetService<IFindRoundsLikeThis>();
         _situationResults = context.GetService<ISituationResultWalk>();
 
-        _item = new Sdk.Playback.ToolbarItem(ToolbarItemId, Label, ToolTip(surface), RunFindRoundsLikeThis,
+        ToolbarItem = new ToolbarItem(ToolbarItemId, Label, ToolTip(surface), RunFindRoundsLikeThis,
             StratBookActions.FindRoundsLikeThis, icon: Icon, menuHeader: MenuHeader(surface));
         surface.KeymapChanged += OnKeymapChanged;
         _demoChanged = surface.OnDemoChanged(RefreshAvailability);
@@ -73,7 +72,7 @@ public sealed class SituationsPlaybackContribution : Sdk.Playback.IPlaybackContr
         _demoChanged = null;
         _actionHandler = null;
         _toolbarRegistration = null;
-        _item = null;
+        ToolbarItem = null;
         _surface = null;
         _context = null;
         _findRounds = null;
@@ -83,7 +82,7 @@ public sealed class SituationsPlaybackContribution : Sdk.Playback.IPlaybackContr
     private void RefreshAvailability()
     {
         bool available = _context?.MapName is { Length: > 0 };
-        if (available && _toolbarRegistration is null && _item is { } item && _surface is { } surface)
+        if (available && _toolbarRegistration is null && ToolbarItem is { } item && _surface is { } surface)
         {
             _toolbarRegistration = surface.AddToolbarItem(item);
         }
@@ -118,7 +117,7 @@ public sealed class SituationsPlaybackContribution : Sdk.Playback.IPlaybackContr
 
     private void OnKeymapChanged()
     {
-        if (_item is not { } item || _surface is not { } surface)
+        if (ToolbarItem is not { } item || _surface is not { } surface)
         {
             return;
         }
@@ -129,10 +128,10 @@ public sealed class SituationsPlaybackContribution : Sdk.Playback.IPlaybackContr
 
     // "Find rounds like this", not "Rounds like this": the menu header's own text today, which the
     // tooltip keeps too.
-    private static string MenuHeader(Sdk.Playback.IPlaybackSurface surface) =>
+    private static string MenuHeader(IPlaybackSurface surface) =>
         $"Find rounds like this{surface.GestureHint(StratBookActions.FindRoundsLikeThis)}";
 
-    private static string ToolTip(Sdk.Playback.IPlaybackSurface surface) =>
+    private static string ToolTip(IPlaybackSurface surface) =>
         $"Find rounds like this{surface.GestureHint(StratBookActions.FindRoundsLikeThis)}: snapshot the alive players by "
         + "side onto the Situations query canvas and search the library's round index for this setup";
 }

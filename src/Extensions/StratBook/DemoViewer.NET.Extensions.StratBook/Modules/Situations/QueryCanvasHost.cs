@@ -2,8 +2,8 @@
 
 using Avalonia;
 using Avalonia.Controls;
-using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
+using DemoViewer.NET.Playback2D.Layers;
 
 #endregion
 
@@ -17,18 +17,17 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 public sealed class QueryCanvasHost : Decorator
 {
     private readonly List<IDisposable> _attached = [];
-    private readonly MapView _map = new();
     private QueryCanvasViewModel? _vm;
 
     /// <summary>Creates the surface.</summary>
     public QueryCanvasHost()
     {
-        Child = _map;
-        _map.EscapePressed += (_, _) => _vm?.Disarm();
+        Child = Map;
+        Map.EscapePressed += (_, _) => _vm?.Disarm();
     }
 
     /// <summary>The map view this surface is built on. For tests.</summary>
-    internal MapView Map => _map;
+    internal MapView Map { get; } = new();
 
     /// <inheritdoc />
     protected override void OnDataContextChanged(EventArgs e)
@@ -68,8 +67,8 @@ public sealed class QueryCanvasHost : Decorator
             _vm.Overlay.Changed -= OnDocumentChanged;
         }
 
-        _map.CancelGesture();
-        _map.SetPrimaryTool(null);
+        Map.CancelGesture();
+        Map.SetPrimaryTool(null);
         foreach (IDisposable added in _attached)
         {
             added.Dispose();
@@ -82,18 +81,18 @@ public sealed class QueryCanvasHost : Decorator
             return;
         }
 
-        _attached.Add(_map.AddLayer(SceneLayerIds.Query, () => new QueryTokenLayer(vm.Document)));
+        _attached.Add(Map.AddLayer(SceneLayerIds.Query, () => new QueryTokenLayer(vm.Document)));
         // Under the tokens: the heat is what a token is being placed on, never what hides it.
-        _attached.Add(_map.AddLayer(SceneLayerIds.Overlay, () => new OverlayHeatmapLayer(vm.Overlay)));
-        _attached.Add(_map.AddTool(vm.Tool));
-        _map.SetPrimaryTool(vm.Tool);
+        _attached.Add(Map.AddLayer(SceneLayerIds.Overlay, () => new OverlayHeatmapLayer(vm.Overlay)));
+        _attached.Add(Map.AddTool(vm.Tool));
+        Map.SetPrimaryTool(vm.Tool);
         vm.MapChanged += OnMapChanged;
         vm.Document.Changed += OnDocumentChanged;
         vm.Overlay.Changed += OnDocumentChanged;
         OnMapChanged();
     }
 
-    private void OnDocumentChanged() => _map.Invalidate();
+    private void OnDocumentChanged() => Map.Invalidate();
 
-    private void OnMapChanged() => _map.MapName = _vm?.Map;
+    private void OnMapChanged() => Map.MapName = _vm?.Map;
 }

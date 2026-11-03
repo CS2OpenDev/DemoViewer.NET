@@ -7,7 +7,6 @@ using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Zones;
 using SkiaSharp;
-using SdkP = DemoViewer.NET.Extensions.Sdk.Playback;
 
 #endregion
 

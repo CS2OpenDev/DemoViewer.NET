@@ -284,7 +284,7 @@ public class OrphanedContentTests
     public async Task TwoOrphansThatHadOnePath_AreToldApartByTheFilesStamps()
     {
         DemoCacheStore store = new(null);
-        store.Upsert(Analysed("/m/a.dem", "sha-old", 1000, 2000));
+        store.Upsert(Analysed("/m/a.dem", "sha-old"));
         store.Detach("/m/a.dem");
         store.Upsert(Analysed("/m/a.dem", "sha-new", 1500, 3000));
         store.Detach("/m/a.dem");
@@ -438,7 +438,7 @@ public class OrphanedContentTests
             store.Update("/m/c.dem", 5, 6, DemoCacheStore.StampHeader);
             store.WriteSibling("/m/a.dem", Suffix, "facts");
             store.SaveIndex();
-            store.Upsert(Analysed("/m/d.dem", "sha-a", 1000, 2000));
+            store.Upsert(Analysed("/m/d.dem", "sha-a"));
             store.Detach("/m/b.dem");
             store.SaveIndex();
 

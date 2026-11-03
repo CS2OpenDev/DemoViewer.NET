@@ -2,9 +2,9 @@
 
 using System.Text.Json;
 using CS2DemoKit.Parser;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
 #endregion
@@ -64,7 +64,7 @@ public class RoundIndexEvaluatorTests
         }
 
         // Round Facts lands: the same pass's next fan-out reaches this one.
-        cache.UpdateExisting(Demo, r => r.SetRoundFacts(TwoRounds(), "rf-A"));
+        cache.UpdateExisting(Demo, r => r.SetRoundFacts(TwoRounds()));
         await Assert.That(evaluator.Wants(Demo)).IsTrue();
         await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsFalse()
             .Because("Wants answers once the rows are there");
@@ -249,7 +249,7 @@ public class RoundIndexEvaluatorTests
         await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsTrue()
             .Because("the index follows Round Facts for its reader");
 
-        cache.UpdateExisting(Demo, r => r.SetRoundFacts(TwoRounds(), "rf-A"));
+        cache.UpdateExisting(Demo, r => r.SetRoundFacts(TwoRounds()));
         using (Assert.Multiple())
         {
             await Assert.That(evaluator.Wants(Demo)).IsTrue();

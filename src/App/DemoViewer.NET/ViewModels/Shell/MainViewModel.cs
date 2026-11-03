@@ -13,9 +13,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Diagnostics;
-using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.PlayerStats;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
@@ -24,7 +22,6 @@ using CS2DemoKit.Parser.Models;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Modules;
@@ -33,7 +30,6 @@ using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Services;
-using DemoViewer.NET.Services.Startup;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Diagnostics;
@@ -43,6 +39,7 @@ using DemoViewer.NET.Services.Idle;
 using DemoViewer.NET.Services.LiveSync;
 using DemoViewer.NET.Services.MatchMeta;
 using DemoViewer.NET.Services.Players;
+using DemoViewer.NET.Services.Startup;
 using DemoViewer.NET.Services.Tutorial;
 using DemoViewer.NET.Services.Update;
 using DemoViewer.NET.ViewModels.Analysis;
@@ -58,8 +55,8 @@ using DemoViewer.NET.ViewModels.Library;
 using DemoViewer.NET.ViewModels.LiveSync;
 using DemoViewer.NET.ViewModels.MatchOverview;
 using DemoViewer.NET.ViewModels.Parser;
-using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.Playback2D;
+using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.PlayerOverview;
 using DemoViewer.NET.ViewModels.Replay;
 using DemoViewer.NET.ViewModels.Settings;
@@ -358,7 +355,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     // Full path of the loaded demo, retained for the Diagnostics tab's Session card.
     // Set on load (both paths); read via the Func<string?> handed to the Diagnostics VM.
-    private string? _loadedDemoPath;
     private ModuleContext? _moduleContext;
 
     // The module-facing feature projection handed to _moduleContext. Held so its gate subscription is
@@ -630,11 +626,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         // Diagnostics tab: reads (never owns) the analysis state, the loaded demo path,
         // and the frame list. Refreshes lazily on tab activation and after each evaluation.
-        Diagnostics = new DiagnosticsTabViewModel(AnalysisTab, () => _loadedDemoPath, () => _allFrames, Telemetry);
+        Diagnostics = new DiagnosticsTabViewModel(AnalysisTab, () => LoadedDemoPath, () => _allFrames, Telemetry);
 
         // Stats tab: the user-facing scoreboard. Subscribes to the engine's
         // EvaluationCompleted and projects the MetricTables itself; reads (never owns) analysis state.
-        StatsTab = new StatsTabViewModel(Analysis, () => _loadedDemoPath);
+        StatsTab = new StatsTabViewModel(Analysis, () => LoadedDemoPath);
 
         // Match Overview: the demo landing page shown the instant a demo is opened (before the parse), so a
         // double-click has an immediate visible effect. The shell drives it through the load pipeline; its CTAs
@@ -1002,7 +998,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             }
 
             Analysis.EvaluationCompleted += (run, demo) =>
-                scanner.OnOpenDemoEvaluated(_loadedDemoPath, run, demo);
+                scanner.OnOpenDemoEvaluated(LoadedDemoPath, run, demo);
             scanner.RefreshStaleness();
 
             // Enabling the background-scan opt-in in Settings must actually start the scan:
@@ -2033,7 +2029,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             demoPath,
             _demoCache,
             App.Services?.GetService<MergedRulesBuild>(),
-            () => (((ModuleContext as ICurrentDemoSource)?.CurrentDemo, _loadedDemoPath)));
+            () => (((ModuleContext as ICurrentDemoSource)?.CurrentDemo, LoadedDemoPath)));
         _windowService.ShowErrorReport(vm);
     }
 
@@ -2050,7 +2046,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // the accelerator doing nothing.
         string? target = SelectedTab?.TabId == "builtin.matchoverview"
             ? MatchOverviewTab.HasFilePath ? MatchOverviewTab.FilePath : null
-            : _loadedDemoPath;
+            : LoadedDemoPath;
         if (target is { Length: > 0 } path)
         {
             OpenErrorReportFor(path);
@@ -2129,7 +2125,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // Never replace the page for the demo that is actually open, opened through this path or another
         // holding the same bytes: the live render is strictly richer than its own cached record, and a
         // selection is not a request to leave it.
-        if (_loadedDemoPath is { Length: > 0 } open && _demoCache.SameDemo(open, entry.FilePath))
+        if (LoadedDemoPath is { Length: > 0 } open && _demoCache.SameDemo(open, entry.FilePath))
         {
             return;
         }
@@ -2161,7 +2157,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         MatchOverviewTab.SetCachedRecord(record, facet);
 
         // Offer the way back only while a different demo is genuinely open.
-        MatchOverviewTab.LiveDemoName = _loadedDemoPath is { Length: > 0 } live
+        MatchOverviewTab.LiveDemoName = LoadedDemoPath is { Length: > 0 } live
             ? Path.GetFileName(live)
             : null;
     }
@@ -2173,7 +2169,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void RestoreLiveMatchOverview()
     {
-        if (_loadedDemoPath is not { Length: > 0 } path)
+        if (LoadedDemoPath is not { Length: > 0 } path)
         {
             MatchOverviewTab.Clear();
             return;
@@ -2580,7 +2576,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // the current frame's GameEventMessages (best-effort; the 2D pilot uses entity deltas).
         _moduleContext = new ModuleContext(
             Playback,
-            () => _loadedDemoPath,
+            () => LoadedDemoPath,
             Navigator); // modules drive "jump to next event of its own type" through the shared navigator
 
         // The 2D tab's ↑/↓ speed keys must honour the same Live Sync speed lock the NavStrip speed
@@ -3006,7 +3002,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         try
         {
             _demoBytes = rawBytes;
-            _loadedDemoPath = path; // Diagnostics Session card
+            LoadedDemoPath = path; // Diagnostics Session card
             // The content key (SHA-256 of the bytes in hand) runs beside the parse rather than after it:
             // it keys the graph breakpoints and is published to modules, and computing it here costs no
             // wall time on the load. See LoadDemoFromBytesAsync for the same shape.
@@ -3767,7 +3763,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     tab's seek seam reads it to skip the re-open when a Result Card names the demo already on
     ///     the clock; the Diagnostics card and the idle resume read the same field.
     /// </summary>
-    internal string? LoadedDemoPath => _loadedDemoPath;
+    internal string? LoadedDemoPath { get; private set; }
 
     // ── Safe mode ──
 
@@ -3911,7 +3907,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _heldDemo = null;
         _teamNamesTask = null;
         _allFrames = null;
-        _loadedDemoPath = null;
+        LoadedDemoPath = null;
         StatsTab.NotifyDemoChanged();
         _players = null;
         _playersByUserId = null;
@@ -4139,7 +4135,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             TimeSpan wait = _settings?.CurrentValue.Idle.IdleTimeoutWait ?? TimeSpan.FromMinutes(15);
             IdleView.MessageText = IdleViewModel.BuildMessage(wait);
 
-            if (HasFile && _loadedDemoPath is { Length: > 0 } path && File.Exists(path))
+            if (HasFile && LoadedDemoPath is { Length: > 0 } path && File.Exists(path))
             {
                 _idleResume = new IdleResumeState(path, Playback.CurrentFrameIndex, PersistedActiveTabId);
                 IdleView.SessionStateText = Playback.CurrentFrameIndex >= 0
@@ -4355,7 +4351,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // (the picker copies from the storage file, the library reads the local path).
             _demoBytes = rawBytes;
             // Retain the full path for the Diagnostics Session card; null on browser hosts.
-            _loadedDemoPath = localPath ?? fileName;
+            LoadedDemoPath = localPath ?? fileName;
             StatsTab.NotifyDemoChanged();
 
             // Zero-copy parse of rawBytes through the open item: frames slice into the buffer, so it must stay
@@ -4638,10 +4634,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // until they are. A load that did not land (a missing file, a superseded open) focuses nobody.
     private async Task FocusPlayerInStatsAsync(string path, ulong steamId64)
     {
-        if (!string.Equals(_loadedDemoPath, path, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(LoadedDemoPath, path, StringComparison.OrdinalIgnoreCase))
         {
             await LoadDemoFromPathAsync(path);
-            if (!string.Equals(_loadedDemoPath, path, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(LoadedDemoPath, path, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }

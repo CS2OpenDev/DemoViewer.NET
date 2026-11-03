@@ -1,19 +1,19 @@
 #region
 
-using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.StratBook;
 using System.Globalization;
 using System.Text;
+using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
-using Library = DemoViewer.NET.AppTests.StratMiningServiceTests.Library;
 using TUnit.Assertions.Enums;
+using Library = DemoViewer.NET.AppTests.StratMiningServiceTests.Library;
 
 #endregion
 
@@ -56,8 +56,8 @@ public class StratMiningCacheTests
 
     private static MiningGrenade Grenade(int demo, Guid lineup) =>
         new(new IndexedGrenade(
-            new global::DemoViewer.NET.Extensions.StratBook.DemoRef($"/d/m{demo}.dem",
-                global::DemoViewer.NET.Extensions.StratBook.DemoKeys.StableKey($"/d/m{demo}.dem"), null), Map,
+            new DemoRef($"/d/m{demo}.dem",
+                DemoKeys.StableKey($"/d/m{demo}.dem"), null), Map,
             new GrenadeRow
             {
                 Id = "g1",

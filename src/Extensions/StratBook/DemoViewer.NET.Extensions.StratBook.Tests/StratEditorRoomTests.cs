@@ -10,13 +10,13 @@ using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views.Shell;
 
 #endregion

@@ -1,4 +1,8 @@
+#region
+
 using DemoViewer.NET.Services.Players;
+
+#endregion
 
 namespace DemoViewer.NET.AppTests;
 

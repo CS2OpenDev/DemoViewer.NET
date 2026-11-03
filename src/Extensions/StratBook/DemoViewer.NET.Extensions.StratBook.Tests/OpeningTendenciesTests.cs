@@ -1,15 +1,15 @@
 #region
 
-using DemoViewer.NET.Extensions;
 using System.Numerics;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
-using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -118,7 +118,7 @@ public class OpeningTendenciesTests
         };
         if (rows is not null)
         {
-            record.SetRoundFacts(rows, "rf-A");
+            record.SetRoundFacts(rows);
         }
 
         for (int slot = 0; slot < 10; slot++)

@@ -162,7 +162,7 @@ internal sealed class VelopackUpdateService : IUpdateService
     private static bool IsBetaVersion(string? version) =>
         version?.Contains(BetaChannelSuffix, StringComparison.OrdinalIgnoreCase) == true;
 
-    private static string OsChannel => VelopackRuntimeInfo.GetOsShortName(VelopackRuntimeInfo.SystemOs);
+    private static string OsChannel => VelopackRuntimeInfo.SystemOs.GetOsShortName();
 
     /// <summary>
     ///     Never throws: constructing a manager touches the filesystem to locate install metadata,

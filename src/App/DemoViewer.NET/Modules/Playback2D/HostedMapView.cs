@@ -8,14 +8,13 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Layers;
+using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Pipeline.Layers;
-using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Tools;
 using SkiaSharp;
 

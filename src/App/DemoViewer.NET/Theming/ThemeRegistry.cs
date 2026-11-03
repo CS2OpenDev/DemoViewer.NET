@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
-using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 using DemoViewer.NET.Services;
 
 #endregion
@@ -52,7 +51,6 @@ public sealed class ThemeRegistry
     private bool _installed;
 
     private ResourceDictionary? _previewDict;
-    private ThemeVariant? _previewVariant;
     private int _previewSerial;
 
     public ThemeRegistry()
@@ -305,7 +303,7 @@ public sealed class ThemeRegistry
     // ── Live preview ────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>The preview variant while a preview is running, else null.</summary>
-    public ThemeVariant? PreviewVariant => _previewVariant;
+    public ThemeVariant? PreviewVariant { get; private set; }
 
     /// <summary>
     ///     Starts (or restarts) the editor preview with every token of <paramref name="palette" />, and returns the
@@ -314,7 +312,7 @@ public sealed class ThemeRegistry
     /// </summary>
     public ThemeVariant BeginPreview(ThemePalette palette)
     {
-        if (_previewVariant is { } old)
+        if (PreviewVariant is { } old)
         {
             _customDicts.ThemeDictionaries.Remove(old);
         }
@@ -323,7 +321,7 @@ public sealed class ThemeRegistry
         // on that variant re-resolve, and the base may have changed; a new variant does both.
         ThemeVariant variant = new($"{PreviewId}-{++_previewSerial}", palette.BaseVariant);
         _previewDict = BuildDictionary(palette.Colors, palette.Gradients);
-        _previewVariant = variant;
+        PreviewVariant = variant;
         _customDicts.ThemeDictionaries[variant] = _previewDict;
         return variant;
     }
@@ -358,12 +356,12 @@ public sealed class ThemeRegistry
     /// <summary>Drops the preview variant. Whoever pointed the app at it must point it back first.</summary>
     public void EndPreview()
     {
-        if (_previewVariant is { } variant)
+        if (PreviewVariant is { } variant)
         {
             _customDicts.ThemeDictionaries.Remove(variant);
         }
 
         _previewDict = null;
-        _previewVariant = null;
+        PreviewVariant = null;
     }
 }

@@ -249,7 +249,7 @@ public class ExtensionJobsTests
         await Task.WhenAll(background.Completion, backlog.Completion);
 
         await Assert.That(ran)
-            .IsEquivalentTo(["backlog", "background"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            .IsEquivalentTo(["backlog", "background"], CollectionOrdering.Matching);
     }
 
     [Test]

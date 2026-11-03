@@ -1,7 +1,7 @@
 #region
 
-using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Playback2D.Annotations;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 

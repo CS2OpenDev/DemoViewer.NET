@@ -2,7 +2,6 @@
 
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

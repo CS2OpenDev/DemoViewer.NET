@@ -7,17 +7,17 @@ using CS2DemoKit.Parser;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Features;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Features;
 using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.ViewModels.Setup;
 using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.DependencyInjection;
@@ -668,7 +668,7 @@ public class StratBookLiveToggleTests
         {
             string path = $"/d/{d}.dem";
             string sha = Convert.ToHexString(BitConverter.GetBytes(d)) + new string('0', 56);
-            var facts = Enumerable.Range(1, roundsPerDemo)
+            RoundFacts[] facts = Enumerable.Range(1, roundsPerDemo)
                 .Select(r => RoundIndexTestData.Round(r, r * 1000, r * 1000 + 600)).ToArray();
             if (!indexRounds)
             {
@@ -677,7 +677,7 @@ public class StratBookLiveToggleTests
                 continue;
             }
 
-            var rounds = Enumerable.Range(1, roundsPerDemo).Select(r =>
+            (int r, int, int, RoundIndexRun[] runs)[] rounds = Enumerable.Range(1, roundsPerDemo).Select(r =>
             {
                 RoundIndexRun[] runs = Enumerable.Range(0, 6).Select(k => new RoundIndexRun(k * 10, k * 10 + 9,
                     $"{ctPlaces[(k + d) % ctPlaces.Length]}:{1 + (k + r) % 5}",

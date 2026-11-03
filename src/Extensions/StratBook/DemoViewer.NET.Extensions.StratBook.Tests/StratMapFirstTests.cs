@@ -2,17 +2,17 @@
 
 using System.Numerics;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.Services.Zones;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Zones;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using SkiaSharp;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 

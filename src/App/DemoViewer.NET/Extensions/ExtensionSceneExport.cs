@@ -3,7 +3,6 @@
 using System.Runtime.CompilerServices;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.Sdk.Export;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Hud;
@@ -213,7 +212,7 @@ internal sealed class ExtensionSceneExport : IExtensionSceneExport, IDisposable
         }
 
         ExportJobService job = Job(_exports);
-        Func<SceneExportScene?> capture = _guard.Wrap<SceneExportScene?>("export capture", request.Capture, null);
+        Func<SceneExportScene?> capture = _guard.Wrap("export capture", request.Capture, null);
         Playback2DExportDialogViewModel dialog = FirstPartySceneExport.NewDialog(
             _exports,
             new SceneExportDefaults(request.Choices.FormatId, request.Choices.Fps, request.Choices.Width,

@@ -2,11 +2,10 @@
 
 using System.Globalization;
 using System.Reflection;
-using DemoViewer.NET.GameIcons;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Controls;
+using DemoViewer.NET.GameIcons;
 
 #endregion
 

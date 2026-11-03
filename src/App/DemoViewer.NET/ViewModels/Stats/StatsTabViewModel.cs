@@ -140,7 +140,6 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _visibilityCts;
 
     // Retained from the last Update: the compute call needs the frames + players + map name.
-    private ParsedDemo? _visibilityDemo;
 
     // The account each slot opens in the Player Overview, per PlayerOverviewLink; a slot with none is absent.
     private Dictionary<int, ulong> _steamIdBySlot = [];
@@ -459,7 +458,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         Dispose();
         ClosePlayerDetails();
 
-        _visibilityDemo = null;
+        LoadedDemo = null;
         _steamIdBySlot = [];
         _pendingFocus = null;
         _sprays.Clear();
@@ -1771,7 +1770,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     spray sampler and the visibility replay, which is why closing the tab clears it: without
     ///     that, a standalone close pins the whole demo.
     /// </summary>
-    internal ParsedDemo? LoadedDemo => _visibilityDemo;
+    internal ParsedDemo? LoadedDemo { get; private set; }
 
     /// <summary>
     ///     Samples this demo's sprays, once per origin, off the UI thread.
@@ -1795,7 +1794,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         // demo's sprays. The house superseded-run rule, minus the token the visibility compute has:
         // the sampler carries no cancellation seam, so the result goes back to the caller that asked
         // for it and simply is not retained.
-        if (!ReferenceEquals(demo, _visibilityDemo))
+        if (!ReferenceEquals(demo, LoadedDemo))
         {
             return model;
         }
@@ -1811,7 +1810,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         _visibilityCts?.Dispose();
         _visibilityCts = null;
 
-        _visibilityDemo = demo;
+        LoadedDemo = demo;
         _sprays.Clear();
         _collisionTrisPath = _collisionResolver(demo.MapName);
         VisibilityPlayersTable = null;
@@ -1832,7 +1831,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ComputeVisibilityAsync()
     {
-        if (_visibilityDemo is not { } demo || _collisionTrisPath is not { } trisPath)
+        if (LoadedDemo is not { } demo || _collisionTrisPath is not { } trisPath)
         {
             return;
         }

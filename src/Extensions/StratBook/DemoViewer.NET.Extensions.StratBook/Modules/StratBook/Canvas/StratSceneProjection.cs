@@ -3,11 +3,11 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
-using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
+using DemoViewer.NET.Playback2D.Annotations;
+using DemoViewer.NET.Playback2D.Zones;
 
 #endregion
 
@@ -1720,7 +1720,7 @@ public sealed class StratSceneProjection
     {
         int at = entries.FindIndex(x => x.Step.Tick > tick);
         entries.Insert(at < 0 ? entries.Count : at,
-            new TrackEntry(new TokenStep(tick, 0, TokenInterpolation.Linear), placement, arrival, -1));
+            new TrackEntry(new TokenStep(tick, 0, TokenInterpolation.Linear), placement, arrival));
     }
 
     private static TokenTrack Build(string slot, List<TrackEntry> entries) =>

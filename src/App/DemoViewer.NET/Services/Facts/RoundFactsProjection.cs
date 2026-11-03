@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis.Clips;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

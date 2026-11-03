@@ -3,11 +3,11 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-// SetTextAsync moved onto ClipboardExtensions in Avalonia 12; IClipboard no longer declares it.
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using DemoViewer.NET.ViewModels.Highlights;
+// SetTextAsync moved onto ClipboardExtensions in Avalonia 12; IClipboard no longer declares it.
 
 #endregion
 

@@ -13,8 +13,8 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Identity;
@@ -560,7 +560,7 @@ public class SettingsViewModelTests
                         {
                             await Assert.That(vm.ContributedSettingsPages.Select(p => p.Header)).IsEquivalentTo(
                                 ["SUGGESTED TAGS TUNING", "GRENADE INDEX"],
-                                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                                CollectionOrdering.Matching);
                             await Assert.That(vm.ContributedSettingsPages.All(p => p.IsVisible)).IsTrue()
                                 .Because("the pack is on by default and the search filter is empty");
                         }
@@ -632,7 +632,7 @@ public class SettingsViewModelTests
                 "fake.widget", "WIDGET SETTINGS", 0, "widget gadget",
                 () => new FakePageViewModel(), () => new Border(), StratBookPack.PackFeatureId);
             SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), OperatingSystem.IsBrowser,
-                null, [fake], null);
+                null, [fake]);
             using (sp)
             {
                 try
@@ -695,7 +695,7 @@ public class SettingsViewModelTests
                 },
                 () => new Border(), StratBookPack.PackFeatureId);
             SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), OperatingSystem.IsBrowser,
-                null, [fake], null);
+                null, [fake]);
             using (sp)
             {
                 try
@@ -1184,7 +1184,7 @@ public class SettingsViewModelTests
                 FeatureToggleRow child = Row(vm, "tab.situations");
                 using (Assert.Multiple())
                 {
-                    await Assert.That(master.Version).IsEqualTo(DemoViewer.NET.Extensions.ExtensionManifests
+                    await Assert.That(master.Version).IsEqualTo(ExtensionManifests
                         .Of(new StratBookPack()).Version.ToString());
                     await Assert.That(master.HasVersion).IsTrue();
                     await Assert.That(master.IsIncompatible).IsFalse();
@@ -1421,7 +1421,7 @@ public class SettingsViewModelTests
         {
             TaskCompletionSource<int> probeA = new();
             TaskCompletionSource<int> probeB = new();
-            Queue<Func<Task<int>>> probes = new(new Func<Task<int>>[] { () => probeA.Task, () => probeB.Task });
+            Queue<Func<Task<int>>> probes = new(new[] { () => probeA.Task, () => probeB.Task });
 
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, new FakeReindexEstimate(() => probes.Dequeue()()));

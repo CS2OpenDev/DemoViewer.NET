@@ -1,10 +1,10 @@
 #region
 
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.StratBook.Modules;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Modules;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Abstractions;
@@ -214,7 +214,7 @@ public class StratBookPackTests
             {
                 await Assert.That(pack.SettingsPages.Select(p => p.Id)).IsEquivalentTo(
                     ["stratbook.suggested-tags-tuning", "stratbook.grenade-index"],
-                    TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    CollectionOrdering.Matching);
                 await Assert.That(pack.SettingsPages.All(p => p.FeatureId == StratBookPack.PackFeatureId)).IsTrue();
 
                 await Assert.That(pack.StatusChips).IsEmpty();
@@ -296,14 +296,14 @@ public class StratBookPackTests
                 await Assert.That(build.CoreDocs.Select(d => d.Id)).DoesNotContain("round_facts");
                 await Assert.That(build.CoreDocs.Select(d => d.Id)).DoesNotContain(roundIndex);
                 await Assert.That(build.EnabledDoc("round_facts")).IsNotNull();
-                await Assert.That(new DemoViewer.NET.Services.Facts.StampedFacts(build).Facets()
+                await Assert.That(new Services.Facts.StampedFacts(build).Facets()
                         .Select(f => f.RulesetId).Intersect(packIds)).IsEmpty()
                     .Because("the pack's tables are its passes' inputs, not library facts");
                 await Assert.That(pack.Passes.Single(p => p.Id == "roundindex").After)
-                    .IsEquivalentTo([DemoViewer.NET.Extensions.Sdk.HostIds.RoundFactsPass],
+                    .IsEquivalentTo([HostIds.RoundFactsPass],
                         CollectionOrdering.Matching);
                 await Assert.That(pack.Passes.Select(p => p.Id))
-                    .DoesNotContain(DemoViewer.NET.Extensions.Sdk.HostIds.RoundFactsPass)
+                    .DoesNotContain(HostIds.RoundFactsPass)
                     .Because("Delete extension data strips the pack's own pass stamps, never the core Round Facts one");
             }
         });
@@ -570,9 +570,9 @@ public class StratBookPackTests
                 await Assert.That(hubTab.ViewModelFactory!()).IsSameReferenceAs(vm.StratBookHub())
                     .Because("the strip tab's VM is the host's one hub VM, not a second hub");
                 await Assert.That(rail.Select(s => s.TabId))
-                    .IsEquivalentTo(_railOrder, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    .IsEquivalentTo(_railOrder, CollectionOrdering.Matching);
                 await Assert.That(rail.Select(s => s.Header))
-                    .IsEquivalentTo(_railHeaders, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    .IsEquivalentTo(_railHeaders, CollectionOrdering.Matching);
                 await Assert.That(rail.All(s => s.HostId == HostIds.StratBookHub)).IsTrue()
                     .Because(
                         "every rail entry is a pack module's own descriptor, so the badge a module moves is the badge the rail shows");

@@ -8,39 +8,36 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Analysis.PlayerStats;
 using CS2DemoKit.Analysis.Visibility;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Modules.Playback2D.Annotations;
 using DemoViewer.NET.Modules.Playback2D.Levels;
 using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
+using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Hud;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
-using DemoViewer.NET.Playback2D.Timeline;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
-using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using DemoViewer.NET.Playback2D.Pipeline.Hud;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline.Vision;
+using DemoViewer.NET.Playback2D.Timeline;
+using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Dependencies;
 using DemoViewer.NET.Services.Export;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.Zones;
 using DemoViewer.NET.ViewModels.Playback2D;
 using DemoViewer.NET.ViewModels.PlayerOverview;
@@ -123,7 +120,6 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // Cached round facts, the winner tint's source on a Valve demo (which carries no round_end). Resolved
     // ambiently like the settings: a headless test builds this with no container and gets null, and the
     // track then behaves exactly as it did before the facts existed.
-    private IRoundFactsSource? _roundFacts;
     private readonly Dictionary<int, ulong> _steamIdBySlot = new();
 
     // What the profile was last composed from. SettingsViewModel spells this guard `_writing` around its
@@ -350,7 +346,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // outlives every demo the tab shows, so a re-assignment would only be a second chance to forget.
         _annotationController.Session.RoundWindowResolver = ResolveRoundWindow;
 
-        _roundFacts = roundFacts;
+        RoundFactsSource = roundFacts;
 
         Timeline.RegisterTrack(_roundTrack);
         Timeline.RegisterTrack(new KillTrack());
@@ -669,9 +665,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
 
         // The evaluator finishes AFTER the open demo's parse has been handed around, so the first tint
         // on a freshly indexed demo arrives through this rather than through the resync below.
-        if (_roundFacts is not null)
+        if (RoundFactsSource is not null)
         {
-            _roundFacts.Updated += OnRoundFactsUpdated;
+            RoundFactsSource.Updated += OnRoundFactsUpdated;
         }
 
         // Live Sync (CS2) in-context indicator: capture the shell's read-only projection (null on
@@ -731,9 +727,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             _context = null;
         }
 
-        if (_roundFacts is not null)
+        if (RoundFactsSource is not null)
         {
-            _roundFacts.Updated -= OnRoundFactsUpdated;
+            RoundFactsSource.Updated -= OnRoundFactsUpdated;
         }
 
         // The adapter holds no subscriptions, but it holds the context; drop it so an inactive tab
@@ -1237,24 +1233,20 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     ///     The round facts the winner tint reads, as the constructor was handed them. A test may assign a fake
     ///     here before activation.
     /// </summary>
-    internal IRoundFactsSource? RoundFactsSource
-    {
-        get => _roundFacts;
-        set => _roundFacts = value;
-    }
+    internal IRoundFactsSource? RoundFactsSource { get; set; }
 
     // One sidecar read, served by the store's capacity-1 record cache on the common path (Match Overview
     // has usually just read the same record). Null without a source, without a path, or without rows.
     private List<RoundFacts>? LoadRoundFacts(string? demoPath)
     {
-        if (_roundFacts is null || string.IsNullOrEmpty(demoPath))
+        if (RoundFactsSource is null || string.IsNullOrEmpty(demoPath))
         {
             return null;
         }
 
         try
         {
-            return _roundFacts.TryGet(demoPath)?.Rounds;
+            return RoundFactsSource.TryGet(demoPath)?.Rounds;
         }
         catch (Exception)
         {

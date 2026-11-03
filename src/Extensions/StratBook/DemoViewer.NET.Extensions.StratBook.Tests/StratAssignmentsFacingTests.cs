@@ -2,9 +2,9 @@
 
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 using static DemoViewer.NET.AppTests.StratTestData;

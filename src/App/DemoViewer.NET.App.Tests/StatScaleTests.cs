@@ -113,7 +113,7 @@ public class StatScaleTests
     [Test]
     public async Task Sentiment_OneSidedBand_MirrorsToTheOtherEdge()
     {
-        StatScale high = new(0, 100, StatPolarity.HigherIsBetter, NeutralHigh: 80);
+        StatScale high = new(0, 100, NeutralHigh: 80);
 
         await Assert.That(high.Sentiment(80)).IsEqualTo(0);
         await Assert.That(high.Sentiment(90)).IsEqualTo(0.5);

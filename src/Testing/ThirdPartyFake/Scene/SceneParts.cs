@@ -1,3 +1,5 @@
+#region
+
 using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
@@ -6,6 +8,8 @@ using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Timeline;
 using SkiaSharp;
+
+#endregion
 
 namespace ThirdPartyFake.Scene;
 

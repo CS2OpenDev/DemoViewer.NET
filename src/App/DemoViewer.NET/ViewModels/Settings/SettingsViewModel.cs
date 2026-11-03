@@ -2,7 +2,6 @@
 
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;

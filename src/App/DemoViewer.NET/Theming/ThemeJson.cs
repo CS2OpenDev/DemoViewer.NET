@@ -5,7 +5,6 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Styling;
-using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 
 #endregion
 
@@ -202,7 +201,8 @@ public static class ThemeJson
         c.A == 255 ? $"#{c.R:X2}{c.G:X2}{c.B:X2}" : $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
 
     private static bool TryParseGradient(JsonElement obj,
-        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ThemeGradient? gradient)
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+        out ThemeGradient? gradient)
     {
         gradient = null;
         try

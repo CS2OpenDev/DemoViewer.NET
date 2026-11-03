@@ -31,7 +31,7 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     public static TimeSpan StallTimeout => TimeSpan.FromSeconds(60);
 
     /// <summary>The default budgets over the default handler.</summary>
-    public HttpExtensionFeedClient() : this(null, null, null)
+    public HttpExtensionFeedClient() : this(null)
     {
     }
 

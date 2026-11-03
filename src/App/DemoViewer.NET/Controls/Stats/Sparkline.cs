@@ -302,7 +302,7 @@ public class Sparkline : TemplatedControl
         if (Baseline is { } baseValue && BaselineBrush is { } baseBrush && hi > lo)
         {
             double y = YFor(baseValue, content, lo, hi);
-            context.DrawLine(new Pen(baseBrush, 1), new Point(content.X, y), new Point(content.Right, y));
+            context.DrawLine(new Pen(baseBrush), new Point(content.X, y), new Point(content.Right, y));
         }
 
         switch (Mode)
@@ -409,7 +409,7 @@ public class Sparkline : TemplatedControl
             }
             else
             {
-                context.DrawEllipse(null, new Pen(brush, 1), centre, r, r);
+                context.DrawEllipse(null, new Pen(brush), centre, r, r);
             }
         }
     }
@@ -453,7 +453,7 @@ public class Sparkline : TemplatedControl
             StreamGeometry area = new();
             using (StreamGeometryContext g = area.Open())
             {
-                g.BeginFigure(new Point(points[0].X, content.Bottom), true);
+                g.BeginFigure(new Point(points[0].X, content.Bottom));
                 foreach (Point p in points)
                 {
                     g.LineTo(p);

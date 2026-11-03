@@ -241,7 +241,7 @@ public class ExtensionPassHostTests
         using (Assert.Multiple())
         {
             await Assert.That(reader.Needs(new VisitedDemo(Demo)))
-                .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules, false));
+                .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules));
             await Assert.That(plain.Needs(new VisitedDemo(Demo))).IsEqualTo(new PassNeeds(ParseMode.Forward));
             await Assert.That(inner.Rows).IsEquivalentTo([row], CollectionOrdering.Matching);
             await Assert.That(asked.Count).IsEqualTo(1);
@@ -304,7 +304,7 @@ public class ExtensionPassHostTests
             await Assert.That(inner.Seen.LastServerTick).IsEqualTo(1000);
             await Assert.That(inner.Seen.Map).IsEqualTo("de_test");
             await Assert.That(inner.Seen.Rounds).IsEquivalentTo([new PassRound(1, 300), new PassRound(2, 700)],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
         }
 
         Assert.Throws<ObjectDisposedException>(() => _ = inner.Kept!.FrameCount);

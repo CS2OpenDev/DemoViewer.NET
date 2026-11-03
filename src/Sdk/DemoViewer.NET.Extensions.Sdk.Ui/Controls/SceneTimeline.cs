@@ -23,26 +23,24 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 [PublicAPI]
 public sealed class SceneTimeline : IDisposable
 {
-    private readonly ITimelineBackend? _backend;
-
     /// <summary>Creates the timeline over the host's timeline renderer.</summary>
     public SceneTimeline()
     {
-        _backend = TimelineHost.Create();
-        if (_backend is not null)
+        Backend = TimelineHost.Create();
+        if (Backend is not null)
         {
-            _backend.SeekRequested += frameIndex => SeekRequested?.Invoke(frameIndex);
+            Backend.SeekRequested += frameIndex => SeekRequested?.Invoke(frameIndex);
         }
     }
 
     /// <summary>Frames on the clock, from the last <see cref="Rebuild" />; 0 with no data.</summary>
-    public int TotalFrames => _backend?.TotalFrames ?? 0;
+    public int TotalFrames => Backend?.TotalFrames ?? 0;
 
     /// <summary>The markers the enabled tracks built, in frame order, as built and before any folding for the screen.</summary>
-    public IReadOnlyList<TimelineMarker> Markers => _backend?.Markers ?? [];
+    public IReadOnlyList<TimelineMarker> Markers => Backend?.Markers ?? [];
 
     /// <summary>The bands the enabled tracks built, in registration order.</summary>
-    public IReadOnlyList<TimelineBand> Bands => _backend?.Bands ?? [];
+    public IReadOnlyList<TimelineBand> Bands => Backend?.Bands ?? [];
 
     /// <summary>Raised with the frame the user asked for, from a scrub, a click on the bar or a band, or <see cref="RequestSeek" />.</summary>
     public event Action<int>? SeekRequested;
@@ -52,7 +50,7 @@ public sealed class SceneTimeline : IDisposable
     public void RegisterTrack(ITimelineTrack track)
     {
         ArgumentNullException.ThrowIfNull(track);
-        _backend?.RegisterTrack(track);
+        Backend?.RegisterTrack(track);
     }
 
     /// <summary>Removes a registered track and what it drew.</summary>
@@ -60,27 +58,27 @@ public sealed class SceneTimeline : IDisposable
     public void UnregisterTrack(ITimelineTrack track)
     {
         ArgumentNullException.ThrowIfNull(track);
-        _backend?.UnregisterTrack(track);
+        Backend?.UnregisterTrack(track);
     }
 
     /// <summary>Builds every track again over <paramref name="data" />. Null clears the timeline.</summary>
     /// <param name="data">The clock: its frame count and tick rate.</param>
-    public void Rebuild(ITimelineData? data) => _backend?.Rebuild(data);
+    public void Rebuild(ITimelineData? data) => Backend?.Rebuild(data);
 
     /// <summary>Moves the playhead.</summary>
     /// <param name="frameIndex">The frame shown.</param>
     /// <param name="tick">The tick shown.</param>
-    public void UpdatePlayhead(int frameIndex, int tick) => _backend?.UpdatePlayhead(frameIndex, tick);
+    public void UpdatePlayhead(int frameIndex, int tick) => Backend?.UpdatePlayhead(frameIndex, tick);
 
     /// <summary>Raises <see cref="SeekRequested" /> for a frame, clamped to the clock. Nothing before a <see cref="Rebuild" /> with frames.</summary>
     /// <param name="frameIndex">The frame.</param>
-    public void RequestSeek(int frameIndex) => _backend?.RequestSeek(frameIndex);
+    public void RequestSeek(int frameIndex) => Backend?.RequestSeek(frameIndex);
 
     /// <inheritdoc />
-    public void Dispose() => _backend?.Dispose();
+    public void Dispose() => Backend?.Dispose();
 
     /// <summary>The renderer a <see cref="TimelineView" /> shows.</summary>
-    internal ITimelineBackend? Backend => _backend;
+    internal ITimelineBackend? Backend { get; }
 }
 
 /// <summary>Shows a <see cref="SceneTimeline" />. Set <see cref="Timeline" />, or bind it to the view model's.</summary>

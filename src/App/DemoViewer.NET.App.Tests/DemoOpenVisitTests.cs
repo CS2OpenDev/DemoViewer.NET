@@ -122,7 +122,7 @@ public class DemoOpenVisitTests
         open.Complete();
         await handle.Completion;
 
-        await Assert.That(ran).IsEquivalentTo(["a", "b"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ran).IsEquivalentTo(["a", "b"], CollectionOrdering.Matching);
     }
 
     [Test]

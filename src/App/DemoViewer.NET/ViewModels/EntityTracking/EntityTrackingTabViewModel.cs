@@ -7,7 +7,6 @@ using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.Models;
-using DemoViewer.NET.Controls;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Services.Diagnostics;
 using DemoViewer.NET.ViewModels.Common;

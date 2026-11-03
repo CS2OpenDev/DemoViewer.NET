@@ -3,7 +3,6 @@
 using CS2DemoKit.Parser;
 using DemoViewer.NET.AppTests.Extensions;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
@@ -82,7 +81,7 @@ public class DemoVisitTests
         using (Assert.Multiple())
         {
             await Assert.That(parses).IsEqualTo(1).Because("three submits for one demo join one visit");
-            await Assert.That(ran).IsEquivalentTo(["a", "b", "c"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(ran).IsEquivalentTo(["a", "b", "c"], CollectionOrdering.Matching);
             await Assert.That(last.State).IsEqualTo(DemoQueueItemState.Completed);
         }
     }
@@ -112,7 +111,7 @@ public class DemoVisitTests
             await Assert.That(ran).IsEquivalentTo(["upstream"], CollectionOrdering.Matching);
             await Assert.That(ended).IsEquivalentTo(
                 [("upstream", PassOutcome.Ran), ("downstream", PassOutcome.Skipped)],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
         }
     }
 
@@ -212,7 +211,7 @@ public class DemoVisitTests
             await Assert.That(forwardReads).IsEqualTo(1);
             await Assert.That(parses).IsEqualTo(0).Because("no pass on the visit needs the retained parse");
             await Assert.That(ran)
-                .IsEquivalentTo(["ext.a", "ext.b"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                .IsEquivalentTo(["ext.a", "ext.b"], CollectionOrdering.Matching);
             await Assert.That(a.Seen!.Parsed).IsNull();
             await Assert.That(b.Seen!.FrameCount).IsEqualTo(10);
         }
@@ -358,7 +357,7 @@ public class DemoVisitTests
         {
             await Assert.That(ended).Contains(("thrower", PassOutcome.Failed, "boom"));
             await Assert.That(ended.Any(e => e.Item1 == "stopped" && e.Item2 == PassOutcome.Cancelled)).IsTrue();
-            await Assert.That(ended).Contains(("fine", PassOutcome.Ran, (string?)null));
+            await Assert.That(ended).Contains(("fine", PassOutcome.Ran, null));
             await Assert.That(ended).Contains(("onbad", PassOutcome.ParseFailed, "corrupt"));
             await Assert.That(onBad.Failed).IsEquivalentTo(["corrupt"], CollectionOrdering.Matching);
             await Assert.That(good.State).IsEqualTo(DemoQueueItemState.Completed)
@@ -402,7 +401,7 @@ public class DemoVisitTests
         {
             await Assert.That(visit.Count).IsEqualTo(2);
             await Assert.That(visit.Ordered().Select(p => p.Pass.Id)).IsEquivalentTo(["first", "late"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
         }
     }
 
@@ -420,7 +419,7 @@ public class DemoVisitTests
         List<IDemoPass> plan = VisitPlanner.Plan(all, new VisitedDemo(Demo), PassLevel.Backlog);
 
         await Assert.That(plan.Select(p => p.Id)).IsEquivalentTo(["library", "facts", "index", "tags"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                CollectionOrdering.Matching)
             .Because("the chain joins link by link; a pass waiting on one that is not running stays out");
     }
 
@@ -472,7 +471,7 @@ public class DemoVisitTests
         using (Assert.Multiple())
         {
             await Assert.That(withRules.Select(p => p.Id)).IsEquivalentTo(["library", "highlights", "grenades"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(riders).IsEquivalentTo(["highlights"], CollectionOrdering.Matching);
             await Assert.That(withoutRules.Select(p => p.Id)).IsEquivalentTo(["library"], CollectionOrdering.Matching)
                 .Because("a read without rules would have to be upgraded for the rider");

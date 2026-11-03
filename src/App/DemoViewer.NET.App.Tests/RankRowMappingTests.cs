@@ -2,7 +2,6 @@
 
 using System.Text.Json;
 using CS2DemoKit.Parser;
-using CS2OpenSchema.Protos;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;

@@ -1,4 +1,8 @@
+#region
+
 using DemoViewer.NET.Modules.Abstractions;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk.Playback;
 

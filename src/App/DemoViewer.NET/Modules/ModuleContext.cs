@@ -61,8 +61,8 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
     // code registers against those too, so a registration there is not a publication.
     private static readonly Assembly[] _publishedContract =
     [
-        typeof(Extensions.Sdk.IExtension).Assembly,
-        typeof(Extensions.Sdk.Ui.ExtensionViewModel).Assembly
+        typeof(IExtension).Assembly,
+        typeof(ExtensionViewModel).Assembly
     ];
 
     private IServiceProvider? _services;
@@ -117,7 +117,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
 
         // ExportHost is set later, by SetExportHost; the closure reads it live rather than snapshotting
         // the (currently null) property.
-        RegisterService<Playback2DExportHost>(() => ExportHost);
+        RegisterService(() => ExportHost);
     }
 
     private static EntitySet EmptyEntitySet { get; } = new();

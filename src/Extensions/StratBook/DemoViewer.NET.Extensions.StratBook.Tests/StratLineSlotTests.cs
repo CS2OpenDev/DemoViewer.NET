@@ -116,7 +116,7 @@ public class StratLineSlotTests
             using (Assert.Multiple())
             {
                 await Assert.That(vm.Session.PendingOps.Select(o => o.Op + " " + o.Path)).IsEquivalentTo(logged,
-                        TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                        CollectionOrdering.Matching)
                     .Because("the gestures reproduce revision 8's ops");
                 await Assert.That(Lines(Doc(vm, id))).IsEqualTo("B>BombsiteB D>BombsiteB C>");
             }
@@ -195,7 +195,7 @@ public class StratLineSlotTests
             {
                 await Assert.That(vm.Session.PendingOps.Select(o => o.Op + " " + o.Path))
                     .IsEquivalentTo(["remove /steps/0/assignments/0", "add /steps/0/assignments/2"],
-                        TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                        CollectionOrdering.Matching);
                 await Assert.That(Lines(Doc(vm, id))).IsEqualTo("D>Window+callNote C>BombsiteB A>");
             }
 
@@ -280,12 +280,12 @@ public class StratLineSlotTests
             {
                 await Assert.That(Lines(swapped)).IsEqualTo("D>BombsiteB/Back B>Window C>BombsiteB");
                 await Assert.That(swapped.Positions.Select(p => p.Slot + p.X)).IsEquivalentTo(["B30", "C50"],
-                        TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                        CollectionOrdering.Matching)
                     .Because(
                         "B's carried position is dropped; D's, placed by hand, moves with D's line to B; C's line is untouched");
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
                 await Assert.That(Row(vm, id).Lines.Select(l => l.Slot ?? "")).IsEquivalentTo(["D", "B", "C"],
-                    TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    CollectionOrdering.Matching);
             }
 
             // Wheeling on to a free slot and back through the swap is still one burst from where it began.
@@ -409,7 +409,7 @@ public class StratLineSlotTests
                 await Assert.That(Lines(moved)).IsEqualTo("E>BombsiteB/Back D>Window C>BombsiteB");
                 await Assert.That(moved.Positions.Select(p => p.Slot + p.X)).IsEquivalentTo(
                         ["E10", "D30", "C50", "O190"],
-                        TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                        CollectionOrdering.Matching)
                     .Because("B's spot goes to E and E's carried copy is dropped");
             }
 
@@ -446,7 +446,7 @@ public class StratLineSlotTests
             await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
             await Assert.That(Doc(vm, id).Positions.Select(p => p.Slot + p.X)).IsEquivalentTo(
                 ["D10", "B30", "E70", "C50", "O190"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             vm.Session.Undo();
             await Assert.That(Bytes(vm)).IsEqualTo(before);
         });
@@ -474,7 +474,7 @@ public class StratLineSlotTests
             string after = StratStore.Serialize(session.Document!);
             await Assert.That(session.Document!.Steps[0].Positions.Select(p => p.Slot + p.X)).IsEquivalentTo(
                 ["B10", "A30", "B11"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             session.Undo();
             await Assert.That(StratStore.Serialize(session.Document!)).IsEqualTo(before);
             session.Redo();
@@ -502,7 +502,7 @@ public class StratLineSlotTests
             {
                 await Assert.That(Doc(vm, id).Actor).IsEqualTo("C");
                 await Assert.That(Doc(vm, id).Positions.Select(p => p.Slot + p.X)).IsEquivalentTo(["C10", "A50"],
-                    TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    CollectionOrdering.Matching);
             }
 
             vm.Session.Undo();
@@ -535,7 +535,7 @@ public class StratLineSlotTests
                     .Because("five lines to one place fold back to the same step");
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth);
                 await Assert.That(Row(vm, id).Lines.Select(l => l.Slot ?? ""))
-                    .IsEquivalentTo(StratVocabulary.Slots, TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                    .IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching)
                     .Because("the row shows what the document holds, not the refused pick");
             }
 
@@ -607,7 +607,7 @@ public class StratLineSlotTests
             {
                 await Assert.That(vm.Session.PendingOps.Select(o => o.Op + " " + o.Path))
                     .IsEquivalentTo(["remove /steps/0/assignments/0", "add /steps/0/assignments/2"],
-                        TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                        CollectionOrdering.Matching);
                 await Assert.That(Stored(0)).IsEqualTo(d)
                     .Because("D's line, legacy empty points and unknown field included, is untouched");
                 await Assert.That(Stored(1)).IsEqualTo(c);

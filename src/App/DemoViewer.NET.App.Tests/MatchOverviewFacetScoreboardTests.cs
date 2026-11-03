@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -62,9 +61,9 @@ public class MatchOverviewFacetScoreboardTests
         long rounds = 22) => new(
         new Dictionary<string, FactValue>
         {
-            ["player_slot"] = FactValue.Of((long)slot),
+            ["player_slot"] = FactValue.Of(slot),
             ["steam_id"] = FactValue.Of("7656119800000000" + slot),
-            ["team"] = FactValue.Of((long)team)
+            ["team"] = FactValue.Of(team)
         },
         new Dictionary<string, FactValue>
         {

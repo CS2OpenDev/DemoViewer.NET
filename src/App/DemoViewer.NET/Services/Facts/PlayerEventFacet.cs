@@ -1,7 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.Sdk;
-
 #endregion
 
 namespace DemoViewer.NET.Services.Facts;
@@ -76,7 +74,7 @@ public static class PlayerEventFacet
                 victim,
                 kill.Values.GetValueOrDefault("weapon")?.AsText() is { Length: > 0 } weapon ? weapon : null,
                 kill.Values.GetValueOrDefault("headshot") is { } headshot
-                && (headshot.AsBoolean() ?? headshot.AsNumber() > 0) == true));
+                && (headshot.AsBoolean() ?? headshot.AsNumber() > 0)));
         }
 
         return result;

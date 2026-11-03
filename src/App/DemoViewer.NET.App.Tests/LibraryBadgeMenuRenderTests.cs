@@ -4,7 +4,6 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.ViewModels.Library;
 using DemoViewer.NET.Views.Library;

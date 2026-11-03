@@ -297,7 +297,7 @@ public class FeatureGateTests
             services.Configure<AppSettings>(svc.Configuration);
             using ServiceProvider sp = services.BuildServiceProvider();
             // The scope owns this test assembly, so both handlers below count as extension code.
-            DemoViewer.NET.AppTests.Extensions.FaultRig rig = new();
+            Extensions.FaultRig rig = new();
             using FeatureGate gate = new(sp.GetRequiredService<IOptionsMonitor<AppSettings>>(), false, rig.Faults);
 
             int after = 0;

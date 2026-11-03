@@ -1,16 +1,16 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using System.Globalization;
 using System.Numerics;
 using System.Text.Json.Nodes;
 using Avalonia.Media;
-using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Timeline;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Modules.Playback2D.Timeline;
+using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Timeline;
 using TUnit.Assertions.Enums;
 
 #endregion

@@ -8,7 +8,6 @@ using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using Microsoft.Extensions.Logging;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

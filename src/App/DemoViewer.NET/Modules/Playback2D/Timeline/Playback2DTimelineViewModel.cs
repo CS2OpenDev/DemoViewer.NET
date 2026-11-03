@@ -10,7 +10,6 @@ using Avalonia.Media.Immutable;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DemoViewer.NET.Playback2D.Timeline;
-using DemoViewer.NET.Theming;
 using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 
 #endregion
@@ -61,8 +60,6 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
 
     [ObservableProperty]
     private int _currentTick;
-
-    private ITimelineData? _data;
 
     private bool _disposed;
 
@@ -119,7 +116,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     internal IReadOnlyList<TimelineBand> BuiltBands => _builtBands;
 
     /// <summary>The data the bands were last built from, or null before the first <see cref="Rebuild" />.</summary>
-    public ITimelineData? Data => _data;
+    public ITimelineData? Data { get; private set; }
 
     /// <summary>The laid-out round bands. Rebuilt on <see cref="Rebuild" /> and on a width change.</summary>
     public ObservableCollection<TimelineBandViewModel> Bands { get; } = new();
@@ -201,7 +198,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
 
         // A track registered after the build (a pack turned on in session) shows without waiting for a
         // re-query, and the footer's toggle list learns of it.
-        if (_data is { } data && TotalFrames > 0)
+        if (Data is { } data && TotalFrames > 0)
         {
             BuildTrack(_tracks.Count - 1, data);
             Recombine();
@@ -274,7 +271,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     /// </summary>
     public void Rebuild(ITimelineData? data)
     {
-        _data = data;
+        Data = data;
         TotalFrames = data?.TotalFrames ?? 0;
 
         if (data is not null && TotalFrames > 0)
@@ -368,7 +365,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     // nowhere else.
     private void OnTrackContentChanged(ITimelineTrack track)
     {
-        if (_data is not { } data || TotalFrames <= 0)
+        if (Data is not { } data || TotalFrames <= 0)
         {
             return; // no demo: Rebuild already parked every toggle unavailable
         }
@@ -399,7 +396,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
         }
 
         int index = _tracks.FindIndex(t => string.Equals(t.Id, trackId, StringComparison.Ordinal));
-        if (index < 0 || _data is not { } data || TotalFrames <= 0)
+        if (index < 0 || Data is not { } data || TotalFrames <= 0)
         {
             return;
         }
@@ -487,7 +484,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     public void PressBand(TimelineBandViewModel band)
     {
         ArgumentNullException.ThrowIfNull(band);
-        if (_data is { } data && LaneFor(band.TrackId)?.Behaviour is { } behaviour)
+        if (Data is { } data && LaneFor(band.TrackId)?.Behaviour is { } behaviour)
         {
             behaviour.OnBandPressed(band, data);
         }
@@ -530,7 +527,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     {
         ArgumentNullException.ThrowIfNull(band);
         List<MenuEntry> entries = [];
-        if (_data is { } data && LaneFor(band.TrackId)?.Behaviour is { } behaviour)
+        if (Data is { } data && LaneFor(band.TrackId)?.Behaviour is { } behaviour)
         {
             entries.AddRange(behaviour.MenuFor(band, data));
         }
@@ -784,7 +781,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
             return;
         }
 
-        Rebuild(_data);
+        Rebuild(Data);
 
         // Raised AFTER the rebuild so a handler that persists the new state reads a settled view-model.
         // Deliberately not raised for IsAvailable: availability is a property of the demo, not a choice

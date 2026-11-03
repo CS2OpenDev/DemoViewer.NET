@@ -1,21 +1,21 @@
 #region
 
-using DemoViewer.NET.Extensions;
+using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using Avalonia.Headless;
-using System.Text.RegularExpressions;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Services.Review;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
-using Library = DemoViewer.NET.AppTests.StratMiningServiceTests.Library;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
+using Library = DemoViewer.NET.AppTests.StratMiningServiceTests.Library;
 
 #endregion
 

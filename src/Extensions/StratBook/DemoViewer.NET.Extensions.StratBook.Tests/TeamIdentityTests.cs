@@ -1,9 +1,9 @@
 #region
 
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;

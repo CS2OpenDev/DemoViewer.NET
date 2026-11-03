@@ -50,7 +50,7 @@ public class RuleWorkbenchModuleTests
             await Assert.That(tab).IsNotNull()
                 .Because("the Workbench module must contribute its Authoring tab through the registry");
             await Assert.That(tab!.Header).IsEqualTo("Authoring");
-            await Assert.That(tab.Placement).IsEqualTo(DemoViewer.NET.Modules.Abstractions.TabPlacement.Main);
+            await Assert.That(tab.Placement).IsEqualTo(Modules.Abstractions.TabPlacement.Main);
         });
     }
 

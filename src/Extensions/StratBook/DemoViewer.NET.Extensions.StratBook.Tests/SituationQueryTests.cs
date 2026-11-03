@@ -1,8 +1,8 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
@@ -20,7 +20,7 @@ namespace DemoViewer.NET.AppTests;
 public class SituationQueryTests
 {
     private static readonly string Fingerprint =
-        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + RoundIndexTestData.SamplerTerm;
+        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm;
 
     private const string DemoA = "/d/a.dem";
     private const string DemoB = "/d/b.dem";

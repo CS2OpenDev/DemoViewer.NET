@@ -3,10 +3,10 @@
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.Sdk.Review;
+using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 
@@ -87,7 +87,6 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
 
     // PackSummary re-plans the whole pack; only a queue change can move it, not a filter or a toggle.
     private bool _queueChanged = true;
-    private string _headerLine = "";
 
     private readonly IExtensionReviewPackExport? _packExport;
     private readonly Func<ISituationPlayback?> _playback;
@@ -192,7 +191,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
     public bool HasRows { get; private set; }
 
     /// <summary>"12 clips · 3 sections · 4 demos", or empty with nothing queued.</summary>
-    public string HeaderLine => _headerLine;
+    public string HeaderLine { get; private set; } = "";
 
     /// <summary>The formats a pack can be written as, the host's order; empty where it exports nothing.</summary>
     public IReadOnlyList<string> PackFormats { get; }
@@ -620,7 +619,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
         Rows.SyncTo(visible);
 
         int clips = position;
-        _headerLine = entries.Count == 0
+        HeaderLine = entries.Count == 0
             ? ""
             : string.Create(CultureInfo.InvariantCulture,
                 $"{Plural(clips, "clip")}, {unreviewedAll} unreviewed · {Plural(sections, "section")} · {Plural(demos.Count, "demo")}");

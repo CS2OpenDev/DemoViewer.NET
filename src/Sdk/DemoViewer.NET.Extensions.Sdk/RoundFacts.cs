@@ -1,9 +1,13 @@
+#region
+
 using System.Collections;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Modules.Abstractions;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 

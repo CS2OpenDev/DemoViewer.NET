@@ -1,4 +1,8 @@
+#region
+
 using CS2DemoKit.Parser;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 

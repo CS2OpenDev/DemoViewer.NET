@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Features;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 
 #endregion

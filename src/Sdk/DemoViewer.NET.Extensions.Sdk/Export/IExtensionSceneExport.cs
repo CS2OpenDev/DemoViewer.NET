@@ -1,8 +1,12 @@
+#region
+
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Hud;
 using DemoViewer.NET.Playback2D.Levels;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk.Export;
 

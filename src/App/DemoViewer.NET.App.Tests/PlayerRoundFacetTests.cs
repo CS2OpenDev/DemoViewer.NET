@@ -2,7 +2,6 @@
 
 using System.Globalization;
 using CS2DemoKit.Analysis.Yaml;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;

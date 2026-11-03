@@ -1,7 +1,6 @@
 #region
 
 using System.Text.Json;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using TUnit.Assertions.Enums;
@@ -637,9 +636,9 @@ public class ContentKeyedCacheTests
         {
             await Assert.That(store.Index).Count().IsEqualTo(3).Because("the index still holds a view per path");
             await Assert.That(store.Contents.Select(e => e.Path))
-                .IsEquivalentTo(["/m/x.dem", "/m/y.dem"], CollectionOrdering.Any);
+                .IsEquivalentTo(["/m/x.dem", "/m/y.dem"]);
             await Assert.That(store.LoadRecords().Select(r => r.Path))
-                .IsEquivalentTo(["/m/x.dem", "/m/y.dem"], CollectionOrdering.Any);
+                .IsEquivalentTo(["/m/x.dem", "/m/y.dem"]);
             await Assert.That(store.TryGetPrimary("/n/x.dem")!.Path).IsEqualTo("/m/x.dem");
             await Assert.That(store.TryGetPrimary("/n/X.DEM")).IsSameReferenceAs(store.TryGetPrimary("/m/x.dem"));
             await Assert.That(store.TryGetPrimary("/m/z.dem")).IsNull();

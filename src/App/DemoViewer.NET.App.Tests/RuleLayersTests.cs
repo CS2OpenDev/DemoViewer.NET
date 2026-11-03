@@ -1,9 +1,7 @@
 #region
 
-using CS2DemoKit.Analysis.RulesetsV2.Compile;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.Yaml;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services.Facts;
 using Microsoft.Extensions.Logging.Abstractions;

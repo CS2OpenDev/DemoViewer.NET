@@ -1,9 +1,9 @@
 #region
 
 using System.Numerics;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Zones;
 
 #endregion
 

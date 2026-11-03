@@ -20,8 +20,8 @@ using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Views.Playback2D;
-using Pointer = Avalonia.Input.Pointer;
 using TUnit.Assertions.Enums;
+using Pointer = Avalonia.Input.Pointer;
 
 #endregion
 

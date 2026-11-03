@@ -359,7 +359,7 @@ public sealed class StratEvidenceService
         StratDocument snapshot = strat.Clone();
         cancellationToken.ThrowIfCancellationRequested();
         return StratBookJobs
-            .RunAsync<StratRecord?>(_jobs, "Strats: record", () => Compute(snapshot), null, new JobOptions())
+            .RunAsync(_jobs, "Strats: record", () => Compute(snapshot), null, new JobOptions())
             .ContinueWith(t => t.Result ?? throw new OperationCanceledException(cancellationToken), cancellationToken,
                 TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }

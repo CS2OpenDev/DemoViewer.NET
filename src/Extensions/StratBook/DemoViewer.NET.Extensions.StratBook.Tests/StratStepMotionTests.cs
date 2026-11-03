@@ -2,16 +2,16 @@
 
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.Services.Zones;
+using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 using static DemoViewer.NET.AppTests.StratTestData;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 
@@ -710,7 +710,7 @@ public class StratStepMotionTests
                 TokenTrack projected = projection.Tracks.Single(t => t.Slot == "A");
                 TokenTrack dragged = projection.TrackWith("A", index, new TokenPlacement(150, 150, -512, null));
                 await Assert.That(dragged.Keyframes).IsEquivalentTo(projected.Keyframes,
-                    TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    CollectionOrdering.Matching);
             }
         });
     }

@@ -1,7 +1,6 @@
 #region
 
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

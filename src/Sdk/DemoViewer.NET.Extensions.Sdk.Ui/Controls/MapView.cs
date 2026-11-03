@@ -3,7 +3,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Tools;
 

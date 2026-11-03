@@ -245,7 +245,7 @@ internal sealed class HostLibrary : IExtensionLibrary
             return Task.FromResult(Detail(path));
         }
 
-        return QueueWork.RunAsync<LibraryDemoDetail?>(_queue, QueueJobKind.StoreLoad, "Load: demo record", "library",
+        return QueueWork.RunAsync(_queue, QueueJobKind.StoreLoad, "Load: demo record", "library",
             () => Detail(path), null, DemoJobPriority.UserRequested).WaitAsync(cancellationToken);
     }
 

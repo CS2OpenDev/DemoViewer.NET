@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -69,7 +69,7 @@ public class StratMiningServiceTests
                     T = new SideFacts { Side = 2, Slots = [0, 1, 2, 3, 4], BuyType = BuyType.Full }
                 }
             ]
-        }, "rf-A");
+        });
         for (int slot = 0; slot < 10; slot++)
         {
             record.Players.Add(new CachedPlayerInfo

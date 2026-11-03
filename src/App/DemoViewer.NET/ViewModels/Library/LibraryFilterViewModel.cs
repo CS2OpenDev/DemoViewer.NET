@@ -2,7 +2,6 @@
 
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Library;
 
 #endregion

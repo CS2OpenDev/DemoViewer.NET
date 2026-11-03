@@ -1,7 +1,6 @@
 #region
 
 using DemoViewer.NET.Services.LiveSync;
-using DemoViewer.NET.ViewModels;
 using DemoViewer.NET.ViewModels.Highlights;
 using DemoViewer.NET.Views.Highlights;
 

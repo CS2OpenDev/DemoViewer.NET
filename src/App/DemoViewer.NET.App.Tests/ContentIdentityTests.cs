@@ -2,9 +2,7 @@
 
 using System.Security.Cryptography;
 using CS2DemoKit.Parser;
-using CS2OpenSchema.Protos;
 using DemoViewer.NET.Modules;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
@@ -300,14 +298,14 @@ public class ContentIdentityTests
     public async Task TheContext_PublishesTheHashTheShellSets_AndDefaultsToNull()
     {
         // Through the interface: the default member is what a double that never opted in exposes.
-        await Assert.That(((IModuleContext)new Playback2DFakeContext()).DemoSha256).IsNull()
+        await Assert.That(new Playback2DFakeContext().DemoSha256).IsNull()
             .Because("a double that never opted in reads as no hash");
 
         ModuleContext context = new(new PlaybackController(), () => null);
         await Assert.That(context.DemoSha256).IsNull();
 
         context.SetDemoSha256("sha-open");
-        await Assert.That(((IModuleContext)context).DemoSha256).IsEqualTo("sha-open");
+        await Assert.That(context.DemoSha256).IsEqualTo("sha-open");
 
         context.SetDemoSha256(null);
         await Assert.That(context.DemoSha256).IsNull().Because("unload clears it like the map name");
@@ -316,7 +314,7 @@ public class ContentIdentityTests
     [Test]
     public async Task TheContext_ReadsFirstAndLastTickOffTheFrameList()
     {
-        await Assert.That(((IModuleContext)new Playback2DFakeContext()).FirstTick).IsEqualTo(0)
+        await Assert.That(new Playback2DFakeContext().FirstTick).IsEqualTo(0)
             .Because("a double that never opted in reads as no extent, like TotalFrames");
 
         using PlaybackController controller = new();
@@ -486,7 +484,7 @@ public class ContentIdentityTests
             DemoCacheStore unsettledCache = new(null);
             using (DemoLibraryService unsettled = new(a => a(), libraryJson + ".unsettled", demoCache: unsettledCache))
             {
-                unsettled.Time = new AppTests.Extensions.ManualClock { Now = file.LastWriteTimeUtc };
+                unsettled.Time = new Extensions.ManualClock { Now = file.LastWriteTimeUtc };
                 unsettled.IndexTier2Core(entry, parsed);
             }
 
@@ -497,7 +495,7 @@ public class ContentIdentityTests
             }
 
             // An hour past the last write, so a demo CS2 has just finished writing still counts as settled.
-            AppTests.Extensions.ManualClock settled = new() { Now = file.LastWriteTimeUtc + TimeSpan.FromHours(1) };
+            Extensions.ManualClock settled = new() { Now = file.LastWriteTimeUtc + TimeSpan.FromHours(1) };
             using DemoLibraryService library = new(a => a(), libraryJson, demoCache: cache);
             library.Time = settled;
             library.IndexTier2Core(entry, parsed);

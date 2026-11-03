@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis;
-using CS2DemoKit.Parser;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.ViewModels;
 

@@ -174,7 +174,6 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     private readonly Dictionary<string, LoadedDemo> _loaded = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action<Action> _post;
     private readonly IZonePlaceResolverSource _zones;
-    private readonly GrenadeLineupStore _lineups;
     private TaskCompletionSource _loadedOnce = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly Dictionary<string, Dictionary<string, Guid>> _assignments = new(StringComparer.OrdinalIgnoreCase);
 
@@ -186,7 +185,6 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     private bool _ready;
     private readonly Func<Action, Task> _scheduleSave;
     private readonly Lock _saveGate = new();
-    private readonly GrenadeStore _store;
     private GrenadeLineupDocument? _pendingLineups;
 
     private static ILogger Log => _diagLog ??= DiagnosticsLog.CreateLogger(GrenadeIndexLog.Category);
@@ -207,8 +205,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     {
         ArgumentNullException.ThrowIfNull(library);
         _library = library;
-        _store = store ?? evaluator?.Store ?? new GrenadeStore(Extensions.StratBook.MemoryDemoData.For(library));
-        _lineups = lineups ?? new GrenadeLineupStore((string?)null);
+        Store = store ?? evaluator?.Store ?? new GrenadeStore(MemoryDemoData.For(library));
+        LineupStore = lineups ?? new GrenadeLineupStore(null);
         _scheduleSave = scheduleSave ?? (drain => Task.Run(drain));
         _zones = zones ?? NoZonePlaceResolverSource.Instance;
         _evaluator = evaluator;
@@ -297,7 +295,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         }
 
         _library.Changed += OnLibraryChanged;
-        _store.Changed += OnCacheChanged;
+        Store.Changed += OnCacheChanged;
     }
 
     /// <inheritdoc />
@@ -318,7 +316,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
             _loaded.Clear();
             _assignments.Clear();
             _reverseAliases.Clear();
-            _lineups.Unload();
+            LineupStore.Unload();
             _ready = false;
             _loadedOnce = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
@@ -344,7 +342,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         }
 
         _library.Changed -= OnLibraryChanged;
-        _store.Changed -= OnCacheChanged;
+        Store.Changed -= OnCacheChanged;
         return true;
     }
 
@@ -474,7 +472,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
         lock (_gate)
         {
-            return _lineups.For(lineup.Throws[0].Map).Paths
+            return LineupStore.For(lineup.Throws[0].Map).Paths
                 .TryGetValue(PathKey(lineup.Id, chosen.Key), out LineupPath? path)
                 ? path.Points
                 : null;
@@ -486,10 +484,10 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         lineupId.ToString("N", CultureInfo.InvariantCulture) + "/" + technique;
 
     /// <summary>The lineup store this index assigns against.</summary>
-    public GrenadeLineupStore LineupStore => _lineups;
+    public GrenadeLineupStore LineupStore { get; }
 
     /// <summary>The grenade rows the index loads, and their stamps.</summary>
-    public GrenadeStore Store => _store;
+    public GrenadeStore Store { get; }
 
     // A map's throw-to-lineup assignment, minting anchors and building the alias map once the library has
     // loaded; cached until a demo on the map comes or goes. Under _gate.
@@ -505,7 +503,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
             .. DistinctDemosLocked().Where(d => string.Equals(d.Map, map, StringComparison.OrdinalIgnoreCase))
                 .SelectMany(d => d.Grenades)
         ];
-        MapLineups lineups = _lineups.For(map);
+        MapLineups lineups = LineupStore.For(map);
         (Dictionary<string, Guid> assignment, bool changed) = GrenadeLineups.Assign(map, all, lineups, _ready);
         if (_ready)
         {
@@ -579,7 +577,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     // big library) run as a scheduled item, outside the lock. The newest copy wins.
     private void SaveLineupsLocked()
     {
-        Interlocked.Exchange(ref _pendingLineups, _lineups.Snapshot());
+        Interlocked.Exchange(ref _pendingLineups, LineupStore.Snapshot());
         try
         {
             _scheduleSave(() => FlushLineups());
@@ -608,7 +606,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
             if (Interlocked.Exchange(ref _pendingLineups, null) is { } snapshot)
             {
-                _lineups.Write(snapshot);
+                LineupStore.Write(snapshot);
             }
 
             return true;
@@ -1000,7 +998,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
     // ── Merge and remove ──────────────────────────────────────────────────────
 
-    private bool IsLoadable(LibraryDemo? entry) => entry is not null && _store.IsCurrent(entry.FilePath);
+    private bool IsLoadable(LibraryDemo? entry) => entry is not null && Store.IsCurrent(entry.FilePath);
 
     private static (string? Place, string? Source) Resolve(IZonePlaceResolver? zones, WorldPoint landing) =>
         zones?.Resolve(landing.ToVector()) is { Length: > 0 } place
@@ -1048,7 +1046,7 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
             }
         }
 
-        if (_store.TryReadRows(entry.FilePath, entry.Sha256) is not { } document)
+        if (Store.TryReadRows(entry.FilePath, entry.Sha256) is not { } document)
         {
             string fileName = Path.GetFileName(entry.FilePath);
             GrenadeIndexLog.RowsIgnored(Log, fileName);

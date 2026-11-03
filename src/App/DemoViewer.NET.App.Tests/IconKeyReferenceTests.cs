@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.TestSupport;
 using System.Text.RegularExpressions;
 using DemoViewer.NET.GameIcons;
+using DemoViewer.NET.TestSupport;
 
 #endregion
 

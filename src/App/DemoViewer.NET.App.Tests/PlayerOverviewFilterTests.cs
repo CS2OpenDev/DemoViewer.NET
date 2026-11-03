@@ -4,7 +4,6 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Controls.Stats;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -115,7 +114,7 @@ public class PlayerOverviewFilterTests
         {
             Store = store;
             Directory = new PlayerDirectory(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts([
                 new IdentityAccount(Grim.ToString(CultureInfo.InvariantCulture), null, DateTime.UtcNow)
             ]);
@@ -269,7 +268,7 @@ public class PlayerOverviewFilterTests
         shell.Filter.To = Day(4);
         await Assert.That(shell.History.Rows.Select(r => r.Match.Row.Path)).IsEquivalentTo(
             ["/lib/4.dem", "/lib/3.dem", "/lib/2.dem"],
-            TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            CollectionOrdering.Matching);
     }
 
     [Test]
@@ -322,7 +321,7 @@ public class PlayerOverviewFilterTests
 
         // The queue finishing a demo drops the subject's rows; the re-read is held open to look at the page mid-read.
         gate.Reset();
-        shell.Store.Upsert(PlayerOverviewHistoryTests.Demo(4, true));
+        shell.Store.Upsert(PlayerOverviewHistoryTests.Demo(4));
         using (Assert.Multiple())
         {
             await Assert.That(shell.Tab.Loading.IsCompleted).IsFalse();
@@ -450,7 +449,7 @@ public class PlayerOverviewFilterTests
         using Shell shell = new(Library(2), SidedFacet);
         await shell.Tab.Loading;
         await Assert.That(shell.Maps.Rows.Select(r => r.MapText)).IsEquivalentTo(["Inferno", "Nuke"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                CollectionOrdering.Matching)
             .Because("Mirage is in no demo of the subject");
 
         shell.Filter.Map = Choice(shell.Filter.Maps, "Inferno");
@@ -479,12 +478,12 @@ public class PlayerOverviewFilterTests
         using (Assert.Multiple())
         {
             await Assert.That(shell.Maps.Rows.Select(r => r.MapText)).IsEquivalentTo(["Inferno", "Mirage", "Nuke"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching).Because("equal counts sort by name");
+                CollectionOrdering.Matching).Because("equal counts sort by name");
             await Assert.That((nuke.MatchesText, nuke.RecordText, nuke.WinRateText)).IsEqualTo(("2", "1-1", "50%"));
             await Assert.That((nuke.CtText, nuke.TText)).IsEqualTo(("22-22 (50%)", "6-5 (55%)"));
             await Assert.That(nuke.ResultBar.Select(b => (b.Value, b.Slot))).IsEquivalentTo(
                 [(1.0, 0), (1.0, 1), (0.0, 2)],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(nuke.CtBar.Select(b => b.Value))
                 .IsEquivalentTo([22.0, 22.0], CollectionOrdering.Matching);
             await Assert.That((nuke.CtShareText, nuke.TShareText, nuke.MatchesWord))
@@ -495,7 +494,7 @@ public class PlayerOverviewFilterTests
             await Assert.That(nuke.HltvText).IsEqualTo("1.17");
             await Assert.That(shell.Maps.Sides.Select(s => (s.Side, s.RoundsText, s.OpeningText))).IsEquivalentTo(
                 [("CT", "66-66 (50%)", "12-6 (67%)"), ("T", "18-15 (55%)", "6-9 (40%)")],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(shell.Maps.Sides.All(s => s is { KdText: "–", AdrText: "–", KastText: "–" })).IsTrue()
                 .Because("no demo has its rounds by side yet");
             await Assert.That(shell.Maps.SideNote)
@@ -512,7 +511,7 @@ public class PlayerOverviewFilterTests
         {
             await Assert.That(shell.Maps.Sides.Select(s => (s.Side, s.KdText, s.AdrText, s.KastText))).IsEquivalentTo(
                     [("CT", "2.00", "150.0", "100.0%"), ("T", "1.50", "25.0", "50.0%")],
-                    TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                    CollectionOrdering.Matching)
                 .Because("demos 0-2: 6 rounds a side, 12-6 and 6-4 kills to deaths");
             await Assert.That(shell.Maps.SideNote)
                 .IsEqualTo("K/D, ADR and KAST by side cover 3 of 4 matches; the library is computing the rest.");
@@ -523,7 +522,7 @@ public class PlayerOverviewFilterTests
         {
             await Assert.That(shell.Maps.Sides.Select(s => (s.Side, s.KdText))).IsEquivalentTo(
                     [("CT", "2.00"), ("T", "2.00")],
-                    TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                    CollectionOrdering.Matching)
                 .Because("Nuke is demos 0 and 3, and only 0 has its rounds");
             await Assert.That(shell.Maps.SideNote)
                 .IsEqualTo("K/D, ADR and KAST by side cover 1 of 2 matches; the library is computing the rest.");
@@ -535,7 +534,7 @@ public class PlayerOverviewFilterTests
         {
             await Assert.That(all.Maps.SideNote).IsEmpty();
             await Assert.That(all.Maps.Sides.Select(s => s.KdText)).IsEquivalentTo(["2.00", "1.33"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
         }
     }
 

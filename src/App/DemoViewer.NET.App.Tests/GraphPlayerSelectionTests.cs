@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis;
-using CS2DemoKit.Analysis.Abstractions;
 using DemoViewer.NET.ViewModels;
 using TUnit.Assertions.Enums;
 

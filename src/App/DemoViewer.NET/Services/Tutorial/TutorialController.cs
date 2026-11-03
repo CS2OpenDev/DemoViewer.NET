@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.ViewModels.Tutorial;
 
 #endregion

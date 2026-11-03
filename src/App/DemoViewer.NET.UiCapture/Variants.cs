@@ -25,17 +25,19 @@ using DemoViewer.NET.Controls.Stats;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
+using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Settings;
 using DemoViewer.NET.Extensions.StratBook.Views.Settings;
+using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.RuleWorkbench;
-using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
@@ -44,8 +46,6 @@ using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Services.LiveSync;
 using DemoViewer.NET.Services.Players;
 using DemoViewer.NET.Services.Update;
-using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Theming;
 using DemoViewer.NET.ViewModels;
 using DemoViewer.NET.ViewModels.Commands;
@@ -60,14 +60,15 @@ using DemoViewer.NET.ViewModels.MatchOverview;
 using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.PlayerOverview;
 using DemoViewer.NET.ViewModels.Settings;
-using DemoViewer.NET.ViewModels.Stats;
 using DemoViewer.NET.ViewModels.Setup;
 using DemoViewer.NET.ViewModels.Shell;
+using DemoViewer.NET.ViewModels.Stats;
 using DemoViewer.NET.ViewModels.Tutorial;
 using DemoViewer.NET.ViewModels.Update;
 using DemoViewer.NET.Views;
 using DemoViewer.NET.Views.Analysis;
 using DemoViewer.NET.Views.DemoProcessing;
+using DemoViewer.NET.Views.Diagnostics;
 using DemoViewer.NET.Views.ErrorReport;
 using DemoViewer.NET.Views.Highlights;
 using DemoViewer.NET.Views.Library;
@@ -76,15 +77,13 @@ using DemoViewer.NET.Views.MatchOverview;
 using DemoViewer.NET.Views.PlayerOverview;
 using DemoViewer.NET.Views.RuleWorkbench;
 using DemoViewer.NET.Views.Settings;
-using DemoViewer.NET.Views.Stats;
-using DemoViewer.NET.Views.Diagnostics;
 using DemoViewer.NET.Views.Setup;
+using DemoViewer.NET.Views.Stats;
 using DemoViewer.NET.Views.Tutorial;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Path = System.IO.Path;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 
@@ -680,7 +679,7 @@ public static partial class Variants
     private static IReadOnlyList<ILibraryContribution> LibraryPackContributions(DemoLibraryService lib)
     {
         DemoCacheStore cache = new(null);
-        TeamIdentityService teams = new(null, DemoViewer.NET.Extensions.HostLibrary.For(cache, null), run: a =>
+        TeamIdentityService teams = new(null, HostLibrary.For(cache, null), run: a =>
         {
             a();
             return Task.CompletedTask;
@@ -720,7 +719,7 @@ public static partial class Variants
         [
             new TeamLibraryContribution(() => teams),
             new ProvenanceLibraryContribution(
-                () => new DemoProvenanceSource(DemoViewer.NET.Extensions.HostLibrary.For(cache, null), teams),
+                () => new DemoProvenanceSource(HostLibrary.For(cache, null), teams),
                 () => teams)
         ];
     }
@@ -1296,11 +1295,11 @@ public static partial class Variants
                 "stratbook.suggested-tags-tuning", "SUGGESTED TAGS TUNING", 0, "extension",
                 () => new SuggestedTagsTuningViewModel(
                     new SuggestedTagsTuningService(
-                        DemoViewer.NET.Extensions.HostLibrary.For(cache, null),
-                        new SuggestedTagsService(DemoViewer.NET.Extensions.HostLibrary.For(cache, null),
-                            new DemoViewer.NET.Services.Facts.RoundFactsSource(cache),
+                        HostLibrary.For(cache, null),
+                        new SuggestedTagsService(HostLibrary.For(cache, null),
+                            new RoundFactsSource(cache),
                             new ProposalStore(
-                                MemoryDemoData.For(DemoViewer.NET.Extensions.HostLibrary.For(cache, null))), null,
+                                MemoryDemoData.For(HostLibrary.For(cache, null))), null,
                             new SiteRegionStore(null),
                             () => new ProfileStore(null).Current, () => true, () => false),
                         null,
@@ -3816,7 +3815,7 @@ public static partial class Variants
         }
 
         PlayerDirectory directory = new(store);
-        IdentityService identity = new(new SettingsService((string?)null), directory);
+        IdentityService identity = new(new SettingsService(null), directory);
         if (withMe)
         {
             identity.SetAccounts([new IdentityAccount(me, "main", DateTime.UtcNow)]);
@@ -3862,43 +3861,43 @@ public static partial class Variants
                     },
                     new CachedPlayerInfo { Slot = 2, Name = "ZywOo", SteamId64 = "76561198000000002", Team = 2 }
                 ],
-                MatchMeta = new DemoViewer.NET.Services.MatchMeta.DemoMatchMeta
+                MatchMeta = new Services.MatchMeta.DemoMatchMeta
                 {
                     MatchTimeUtcTicks =
                         new DateTime(2026, 10, 18, 21, 30, 0, DateTimeKind.Utc).Ticks
                         - (i * 26 * TimeSpan.TicksPerHour),
                     MatchTimeSource = i == 7
-                        ? DemoViewer.NET.Services.MatchMeta.MatchTimeSource.FileWriteTime
-                        : DemoViewer.NET.Services.MatchMeta.MatchTimeSource.ValveMatchInfo,
+                        ? Services.MatchMeta.MatchTimeSource.FileWriteTime
+                        : Services.MatchMeta.MatchTimeSource.ValveMatchInfo,
                     GameMode = i % 3 == 0 ? "competitive" : "premier",
                     // Premier climbs from 13,640 by the oldest match; Competitive is one Skill Group per map.
                     Players =
                     [
                         i % 3 == 0
-                            ? new DemoViewer.NET.Services.MatchMeta.MatchRankRow
+                            ? new Services.MatchMeta.MatchRankRow
                             {
                                 SteamId64 = me,
                                 RankType = 12,
                                 RankOld = 11 + (i % 2),
                                 RankNew = 11 + ((i + 1) % 2),
                                 RankChange = (i + 1) % 2 - i % 2,
-                                RankSource = DemoViewer.NET.Services.MatchMeta.RankSource.ServerRankUpdate
+                                RankSource = Services.MatchMeta.RankSource.ServerRankUpdate
                             }
-                            : new DemoViewer.NET.Services.MatchMeta.MatchRankRow
+                            : new Services.MatchMeta.MatchRankRow
                             {
                                 SteamId64 = me,
                                 RankType = 11,
                                 RankOld = 15_100 - (i * 130),
                                 RankNew = 15_100 - (i * 130) + (i % 3 == 1 ? -110 : 240),
                                 RankChange = i % 3 == 1 ? -110 : 240,
-                                RankSource = DemoViewer.NET.Services.MatchMeta.RankSource.ServerRankUpdate
+                                RankSource = Services.MatchMeta.RankSource.ServerRankUpdate
                             }
                     ]
                 }
             };
-            r.SetStamp(new PackStamp(DemoViewer.NET.Services.MatchMeta.MatchMetaEvaluator.StampId,
-                DemoViewer.NET.Services.MatchMeta.DemoMatchMeta.CurrentSchema,
-                DemoViewer.NET.Services.MatchMeta.MatchMetaEvaluator.Version) { ComputedAtTicks = 1 });
+            r.SetStamp(new PackStamp(Services.MatchMeta.MatchMetaEvaluator.StampId,
+                Services.MatchMeta.DemoMatchMeta.CurrentSchema,
+                Services.MatchMeta.MatchMetaEvaluator.Version) { ComputedAtTicks = 1 });
             if (leftEarly)
             {
                 r.FacetPlayers = [new FacetPlayer { SteamId64 = me, Names = ["s1mple"], Slots = [1] }];
@@ -3919,30 +3918,29 @@ public static partial class Variants
         {
             int i = int.Parse(path[(path.LastIndexOf('_') + 1)..^4], CultureInfo.InvariantCulture);
             bool won = i % 3 != 1;
-            Dictionary<string, DemoViewer.NET.Extensions.Sdk.FactValue> values = new()
+            Dictionary<string, FactValue> values = new()
             {
-                ["rounds"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(22L),
-                ["TotalK"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(14L + (i * 3 % 13)),
-                ["TotalD"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(12L + (i * 5 % 9)),
-                ["TotalA"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(2L + (i % 6)),
-                ["TotalHS"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(7L + (i % 5)),
-                ["TeamKills"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(0L),
-                ["EnemyDmg"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(1500L + (i * 97 % 900)),
-                ["KAST%"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(62.0 + (i * 7 % 25)),
-                ["HLTV"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(0.82 + (i * 13 % 60 / 100.0)),
-                ["Shots"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(300L),
-                ["CTW"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(won ? 13L : 8L),
-                ["CTL"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(won ? 9L : 13L)
+                ["rounds"] = FactValue.Of(22L),
+                ["TotalK"] = FactValue.Of(14L + (i * 3 % 13)),
+                ["TotalD"] = FactValue.Of(12L + (i * 5 % 9)),
+                ["TotalA"] = FactValue.Of(2L + (i % 6)),
+                ["TotalHS"] = FactValue.Of(7L + (i % 5)),
+                ["TeamKills"] = FactValue.Of(0L),
+                ["EnemyDmg"] = FactValue.Of(1500L + (i * 97 % 900)),
+                ["KAST%"] = FactValue.Of(62.0 + (i * 7 % 25)),
+                ["HLTV"] = FactValue.Of(0.82 + (i * 13 % 60 / 100.0)),
+                ["Shots"] = FactValue.Of(300L),
+                ["CTW"] = FactValue.Of(won ? 13L : 8L),
+                ["CTL"] = FactValue.Of(won ? 9L : 13L)
             };
-            return new DemoViewer.NET.Extensions.Sdk.FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema,
+            return new FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema,
                 "player_match",
                 ["player_slot", "steam_id"], [], new Dictionary<string, string>(),
                 [
-                    new DemoViewer.NET.Extensions.Sdk.FactRow(
-                        new Dictionary<string, DemoViewer.NET.Extensions.Sdk.FactValue>
+                    new FactRow(
+                        new Dictionary<string, FactValue>
                         {
-                            ["player_slot"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(1L),
-                            ["steam_id"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(me)
+                            ["player_slot"] = FactValue.Of(1L), ["steam_id"] = FactValue.Of(me)
                         },
                         values)
                 ]);
@@ -3951,7 +3949,7 @@ public static partial class Variants
         PlayerRankCache ranks = new(store, directory);
         ranks.LoadAsync(ulong.Parse(me, CultureInfo.InvariantCulture)).GetAwaiter().GetResult();
 
-        IdentityService identity = new(new SettingsService((string?)null), directory);
+        IdentityService identity = new(new SettingsService(null), directory);
         identity.SetAccounts([new IdentityAccount(me, "main", DateTime.UtcNow)]);
         PlayerOverviewTabViewModel vm = new(
             new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { },

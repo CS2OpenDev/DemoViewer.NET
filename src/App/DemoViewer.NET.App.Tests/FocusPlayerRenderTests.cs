@@ -9,7 +9,6 @@ using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Identity;
@@ -127,7 +126,7 @@ public class FocusPlayerRenderTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             MainViewModel vm = new(null, new ModuleRegistry(), TestLibraries.Empty(),
                 players: new PlayerDirectory(new DemoCacheStore(null)), identity: identity);
             try

@@ -9,10 +9,10 @@ using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Timeline;
 using DemoViewer.NET.ViewModels;
 using SkiaSharp;
+using TUnit.Assertions.Enums;
 using IPanelHandle = DemoViewer.NET.Extensions.Sdk.Playback.IPanelHandle;
 using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 using ModeToggle = DemoViewer.NET.Extensions.Sdk.Playback.ModeToggle;
-using TUnit.Assertions.Enums;
 
 #endregion
 

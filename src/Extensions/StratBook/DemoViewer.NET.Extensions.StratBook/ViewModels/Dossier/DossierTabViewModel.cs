@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
@@ -9,13 +8,14 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Extensions.Sdk.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Playback2D.Overlay;
-using DemoViewer.NET.Extensions.Sdk.Review;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Playback2D.Overlay;
 
 #endregion
 

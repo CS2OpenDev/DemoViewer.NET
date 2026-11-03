@@ -1,8 +1,8 @@
 #region
 
 using System.Reflection;
-using SysAssembly = System.Reflection.Assembly;
 using TUnit.Assertions.Enums;
+using SysAssembly = System.Reflection.Assembly;
 
 #endregion
 
@@ -354,15 +354,13 @@ internal sealed class EventGuardCanaryForwarder(EventGuardCanary inner)
 /// <summary>Hand-written accessors that forward nowhere: the one shape the scan cannot see, and must say so.</summary>
 internal sealed class EventGuardCanaryOpaque
 {
-    private int _subscribers;
-
     public event Action? OpaqueCanary
     {
-        add => _subscribers++;
-        remove => _subscribers--;
+        add => Subscribers++;
+        remove => Subscribers--;
     }
 
-    public int Subscribers => _subscribers;
+    public int Subscribers { get; private set; }
 }
 
 /// <summary>

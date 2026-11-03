@@ -75,7 +75,6 @@ public abstract class PathResolver
 /// </summary>
 public sealed class NavPathResolver : PathResolver
 {
-    private readonly NavPathfinder _nav;
     private readonly Dictionary<string, int> _places;
 
     /// <summary>Builds the graph for a zone set.</summary>
@@ -83,7 +82,7 @@ public sealed class NavPathResolver : PathResolver
     public NavPathResolver(ZoneSet zones)
     {
         ArgumentNullException.ThrowIfNull(zones);
-        _nav = NavPathfinder.Build(zones);
+        Graph = NavPathfinder.Build(zones);
         _places = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (ZonePlace place in zones.Places)
         {
@@ -92,7 +91,7 @@ public sealed class NavPathResolver : PathResolver
     }
 
     /// <summary>The graph.</summary>
-    public NavPathfinder Graph => _nav;
+    public NavPathfinder Graph { get; }
 
     /// <inheritdoc />
     public override IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX,
@@ -101,7 +100,7 @@ public sealed class NavPathResolver : PathResolver
     {
         int start = Area(fromX, fromY, fromLevel, null);
         int end = Area(toX, toY, toLevel, toPlace);
-        return _nav.FindPath(fromX, fromY, start, toX, toY, end);
+        return Graph.FindPath(fromX, fromY, start, toX, toY, end);
     }
 
     /// <inheritdoc />
@@ -110,7 +109,7 @@ public sealed class NavPathResolver : PathResolver
         int? id = place is not null && _places.TryGetValue(place, out int known) ? known : null;
         return place is not null && id is null
             ? null
-            : _nav.Snap(x, y, level, id, maxDistance) is { } at
+            : Graph.Snap(x, y, level, id, maxDistance) is { } at
                 ? (at.X, at.Y)
                 : null;
     }
@@ -121,20 +120,20 @@ public sealed class NavPathResolver : PathResolver
     {
         if (place is not null && _places.TryGetValue(place, out int id))
         {
-            int inPlace = _nav.Locate(x, y, level, id);
+            int inPlace = Graph.Locate(x, y, level, id);
             if (inPlace >= 0)
             {
                 return inPlace;
             }
 
-            inPlace = _nav.Locate(x, y, null, id);
+            inPlace = Graph.Locate(x, y, null, id);
             if (inPlace >= 0)
             {
                 return inPlace;
             }
         }
 
-        int onLevel = _nav.Locate(x, y, level);
-        return onLevel >= 0 ? onLevel : _nav.Locate(x, y);
+        int onLevel = Graph.Locate(x, y, level);
+        return onLevel >= 0 ? onLevel : Graph.Locate(x, y);
     }
 }

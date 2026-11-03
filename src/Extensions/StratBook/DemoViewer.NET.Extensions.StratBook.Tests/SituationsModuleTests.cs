@@ -1,14 +1,14 @@
 #region
 
+using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
+using DemoViewer.NET.Features;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Services.DemoCache;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
 #endregion

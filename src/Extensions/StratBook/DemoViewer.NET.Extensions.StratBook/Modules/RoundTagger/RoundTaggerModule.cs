@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
 using DemoViewer.NET.Extensions.StratBook.Views.RoundTagger;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 

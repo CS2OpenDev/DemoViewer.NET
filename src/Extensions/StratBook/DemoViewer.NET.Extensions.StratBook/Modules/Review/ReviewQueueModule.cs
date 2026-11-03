@@ -1,10 +1,10 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.Sdk.Review;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
 using DemoViewer.NET.Extensions.StratBook.Views.Review;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 

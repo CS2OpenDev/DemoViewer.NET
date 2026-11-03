@@ -521,7 +521,7 @@ public class DemoSchedulerTests
         {
             await Assert.That(parses).IsEqualTo(1).Because("the waiting pass rides the upstream parse");
             await Assert.That(order)
-                .IsEquivalentTo(["library", "facts"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                .IsEquivalentTo(["library", "facts"], CollectionOrdering.Matching);
             await Assert.That(scheduler.HasOutstanding("facts")).IsFalse();
         }
     }
@@ -542,7 +542,7 @@ public class DemoSchedulerTests
             await Assert.That(queue.Visits).Count().IsEqualTo(1).Because("one visit carries every wanted pass");
             await Assert.That(queue.Visits[0].Path).IsEqualTo("/x/demo.dem");
             await Assert.That(queue.Visits[0].Passes.Select(p => p.Id)).IsEquivalentTo(["a", "b"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching).Because("a pass is keyed by its evaluator's id");
+                CollectionOrdering.Matching).Because("a pass is keyed by its evaluator's id");
             await Assert.That(queue.Backgrounds).IsEqualTo(0).Because("the scheduler never submits per evaluator");
         }
     }
@@ -580,7 +580,7 @@ public class DemoSchedulerTests
 
         await Assert.That(queue.Visits.Select(v => v.Path).Order())
             .IsEquivalentTo(["/x/1.dem", "/x/2.dem", "/x/3.dem", "/x/4.dem"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                CollectionOrdering.Matching)
             .Because("the demo left unplanned is planned on the next event, and no submitted demo is planned twice");
     }
 
@@ -616,7 +616,7 @@ public class DemoSchedulerTests
 
         scheduler.RecheckAll();
         await Assert.That(queue.Visits.Select(v => v.Path))
-            .IsEquivalentTo(["/nfs/demo.dem", "/nfs/other.dem"], TUnit.Assertions.Enums.CollectionOrdering.Any);
+            .IsEquivalentTo(["/nfs/demo.dem", "/nfs/other.dem"]);
     }
 
     [Test]
@@ -755,7 +755,7 @@ public class DemoSchedulerTests
         using (Assert.Multiple())
         {
             await Assert.That(second.Visits[0].Passes.Select(p => p.Id)).IsEquivalentTo(["highlights", "grenades"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(second.Visits[0].Riders).IsEquivalentTo(["highlights"], CollectionOrdering.Matching);
         }
     }

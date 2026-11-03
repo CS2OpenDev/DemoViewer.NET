@@ -9,10 +9,9 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules;
 using DemoViewer.NET.Models;
+using DemoViewer.NET.Modules;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
@@ -109,7 +108,7 @@ public class PlayerOverviewTabTests
 
     private static IdentityService Identity(params ulong[] accounts)
     {
-        IdentityService identity = new(new SettingsService((string?)null));
+        IdentityService identity = new(new SettingsService(null));
         identity.SetAccounts(accounts.Select(a => new IdentityAccount(Id(a), null, Added)));
         return identity;
     }

@@ -4,10 +4,10 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
+using DemoViewer.NET.Playback2D.Layers;
+using DemoViewer.NET.Playback2D.Levels;
 using SkiaSharp;
 
 #endregion
@@ -25,7 +25,6 @@ public sealed class UtilityMapHost : Decorator
     // A press that moves further than this before the release is a pan, not a click.
     private const double ClickSlopPx = 4;
 
-    private readonly MapView _map = new();
     private MapIcons? _icons;
     private IDisposable? _layer;
     private Point? _pressAt;
@@ -34,14 +33,14 @@ public sealed class UtilityMapHost : Decorator
     /// <summary>Creates the map.</summary>
     public UtilityMapHost()
     {
-        Child = _map;
-        _map.EscapePressed += (_, _) => _vm?.Back();
-        _map.AddHandler(PointerPressedEvent, OnMapPressed, RoutingStrategies.Bubble, true);
-        _map.AddHandler(PointerReleasedEvent, OnMapReleased, RoutingStrategies.Bubble, true);
+        Child = Map;
+        Map.EscapePressed += (_, _) => _vm?.Back();
+        Map.AddHandler(PointerPressedEvent, OnMapPressed, RoutingStrategies.Bubble, true);
+        Map.AddHandler(PointerReleasedEvent, OnMapReleased, RoutingStrategies.Bubble, true);
     }
 
     /// <summary>The map view this map is built on. For tests.</summary>
-    internal MapView Map => _map;
+    internal MapView Map { get; } = new();
 
     /// <inheritdoc />
     protected override void OnDataContextChanged(EventArgs e)
@@ -91,7 +90,7 @@ public sealed class UtilityMapHost : Decorator
             return;
         }
 
-        _layer = _map.AddLayer(SceneLayerIds.Utility,
+        _layer = Map.AddLayer(SceneLayerIds.Utility,
             () => new UtilityMapLayer(vm.Document, _icons ??= new MapIcons()));
         vm.MapChanged += OnMapChanged;
         vm.Document.Changed += OnDocumentChanged;
@@ -99,7 +98,7 @@ public sealed class UtilityMapHost : Decorator
     }
 
     private void OnMapPressed(object? sender, PointerPressedEventArgs e) =>
-        _pressAt = e.GetCurrentPoint(_map).Properties.IsLeftButtonPressed ? e.GetPosition(_map) : null;
+        _pressAt = e.GetCurrentPoint(Map).Properties.IsLeftButtonPressed ? e.GetPosition(Map) : null;
 
     private void OnMapReleased(object? sender, PointerReleasedEventArgs e)
     {
@@ -109,7 +108,7 @@ public sealed class UtilityMapHost : Decorator
         }
 
         _pressAt = null;
-        Point released = e.GetPosition(_map);
+        Point released = e.GetPosition(Map);
         if (Math.Abs(released.X - pressed.X) > ClickSlopPx || Math.Abs(released.Y - pressed.Y) > ClickSlopPx)
         {
             return;
@@ -126,7 +125,7 @@ public sealed class UtilityMapHost : Decorator
     /// <param name="y">Host Y.</param>
     internal void Click(float x, float y)
     {
-        if (_vm is null || _map.PaneAt(new Point(x, y)) is not { } pane || _map.Space is not { } space)
+        if (_vm is null || Map.PaneAt(new Point(x, y)) is not { } pane || Map.Space is not { } space)
         {
             return;
         }
@@ -190,12 +189,12 @@ public sealed class UtilityMapHost : Decorator
     /// <param name="worldZ">World Z.</param>
     internal Point? HostPointOf(float worldX, float worldY, float worldZ)
     {
-        if (_map.Space is not { } space)
+        if (Map.Space is not { } space)
         {
             return null;
         }
 
-        foreach (LevelPane pane in _map.Panes)
+        foreach (LevelPane pane in Map.Panes)
         {
             if (pane.LevelIndex >= 0 && space.Levels.Count > 1 && space.LevelIndexFor(worldZ) != pane.LevelIndex)
             {
@@ -209,7 +208,7 @@ public sealed class UtilityMapHost : Decorator
         return null;
     }
 
-    private void OnDocumentChanged() => _map.Invalidate();
+    private void OnDocumentChanged() => Map.Invalidate();
 
-    private void OnMapChanged() => _map.MapName = _vm?.MapName is { Length: > 0 } map ? map : null;
+    private void OnMapChanged() => Map.MapName = _vm?.MapName is { Length: > 0 } map ? map : null;
 }

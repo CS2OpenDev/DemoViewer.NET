@@ -17,8 +17,8 @@ using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Services.Players;
 using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.Playback2D;
+using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -34,28 +34,27 @@ namespace DemoViewer.NET.Extensions;
 /// </summary>
 internal sealed class ExtensionShellHub : IFirstPartyShellState, IFirstPartyExportChips
 {
-    private MainViewModel? _shell;
     private bool _playheadPending;
 
-    public MainViewModel? Shell => _shell;
+    public MainViewModel? Shell { get; private set; }
 
-    public ParsedDemo? CurrentDemo => (_shell?.ModuleContext as ModuleContext)?.CurrentDemo;
+    public ParsedDemo? CurrentDemo => (Shell?.ModuleContext as ModuleContext)?.CurrentDemo;
 
-    public string? CurrentDemoHash => (_shell?.ModuleContext as ModuleContext)?.DemoSha256;
+    public string? CurrentDemoHash => (Shell?.ModuleContext as ModuleContext)?.DemoSha256;
 
-    public int CurrentTick => _shell?.Playback.CurrentTick ?? 0;
+    public int CurrentTick => Shell?.Playback.CurrentTick ?? 0;
 
-    public bool IsPlaying => _shell?.Playback.IsPlaying ?? false;
+    public bool IsPlaying => Shell?.Playback.IsPlaying ?? false;
 
-    public bool IsLiveSyncSessionActive => _shell?.LiveSync?.State.IsSessionActive == true;
+    public bool IsLiveSyncSessionActive => Shell?.LiveSync?.State.IsSessionActive == true;
 
-    public bool IsReelJobRunning => _shell?.ReelJob?.Status.IsRunning == true;
+    public bool IsReelJobRunning => Shell?.ReelJob?.Status.IsRunning == true;
 
     public event Action? DemoChanged;
 
     // An export starts from a tab, so the shell is attached by the time a job mounts its status.
     public void Mount(string chipId, string featureId, Playback2DExportStatusViewModel status) =>
-        _shell?.MountExportStatus(chipId, featureId, status);
+        Shell?.MountExportStatus(chipId, featureId, status);
 
     /// <summary>Raised on the UI thread, once per rendered frame at most, after the tick or play state moves.</summary>
     public event Action? PlayheadChanged;
@@ -63,12 +62,12 @@ internal sealed class ExtensionShellHub : IFirstPartyShellState, IFirstPartyExpo
     public void Attach(MainViewModel shell)
     {
         ArgumentNullException.ThrowIfNull(shell);
-        if (_shell is not null)
+        if (Shell is not null)
         {
             return;
         }
 
-        _shell = shell;
+        Shell = shell;
         if (shell.ModuleContext is { } context)
         {
             context.DemoReset += () => DemoChanged?.Invoke();

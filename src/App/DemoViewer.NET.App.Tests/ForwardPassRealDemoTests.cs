@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using CS2DemoKit.Analysis;
@@ -11,15 +10,13 @@ using CS2DemoKit.Analysis.RulesetsV2.Compile;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Modules;
+using DemoViewer.NET.AppTests.Extensions;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
-using DemoViewer.NET.Extensions;
-using DemoViewer.NET.AppTests.Extensions;
 using TUnit.Assertions.Enums;
 
 #endregion

@@ -1,12 +1,10 @@
 #region
 
 using System.Text.Json.Nodes;
-using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Goldens;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 using TUnit.Core.Exceptions;
 

@@ -6,7 +6,6 @@ using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using Microsoft.Extensions.Logging;

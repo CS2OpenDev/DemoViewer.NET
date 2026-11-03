@@ -108,7 +108,7 @@ public class StratBookShellRenderTests
                     Dispatcher.UIThread.RunJobs();
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
                     Dispatcher.UIThread.RunJobs();
-                    Control? content = vm.StratBookHub().Sections.SelectedSection?.ActiveContent as Control;
+                    Control? content = vm.StratBookHub().Sections.SelectedSection?.ActiveContent;
                     seen.Add((id, content?.IsEffectivelyVisible ?? false, content?.Bounds.Width ?? 0));
                     if (id == "review.queue" && window.CaptureRenderedFrame() is { } frame)
                     {

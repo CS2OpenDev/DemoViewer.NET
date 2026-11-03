@@ -278,7 +278,7 @@ public sealed class SpotlightScrim : Control, ICustomHitTest
         using StreamGeometryContext ctx = geo.Open();
         Size corner = new(rad, rad);
 
-        ctx.BeginFigure(new Point(r.X + rad, r.Y), true);
+        ctx.BeginFigure(new Point(r.X + rad, r.Y));
         ctx.LineTo(new Point(r.Right - rad, r.Y));
         ctx.ArcTo(new Point(r.Right, r.Y + rad), corner, 0, false, SweepDirection.Clockwise);
         ctx.LineTo(new Point(r.Right, r.Bottom - rad));

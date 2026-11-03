@@ -3,7 +3,6 @@
 using System.Collections.Frozen;
 using Avalonia.Media;
 using Avalonia.Styling;
-using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 
 #endregion
 

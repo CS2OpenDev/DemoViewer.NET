@@ -1,7 +1,5 @@
 #region
 
-using DemoViewer.NET.RuleAuthoring;
-
 #endregion
 
 namespace DemoViewer.NET.RuleAuthoring.Tests;

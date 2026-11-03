@@ -1,7 +1,6 @@
 #region
 
 using System.Text.RegularExpressions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.ViewModels.Stats;
 

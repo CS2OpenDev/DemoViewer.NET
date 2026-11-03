@@ -3,7 +3,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.MatchMeta;
@@ -37,7 +36,7 @@ public class PlayerRowCacheTests
             Sha256 = $"sha{i}",
             Map = Maps[i % Maps.Length],
             Players =
- [
+            [
                 new CachedPlayerInfo { Slot = 2, Name = "grim", SteamId64 = Id(player), Team = i % 2 == 0 ? 3 : 2 }
             ],
             MatchMeta = new DemoMatchMeta
@@ -71,7 +70,7 @@ public class PlayerRowCacheTests
                 new Dictionary<string, FactValue>
                 {
                     ["rounds"] = FactValue.Of(20L),
-                    ["TotalK"] = FactValue.Of((long)kills),
+                    ["TotalK"] = FactValue.Of(kills),
                     ["TotalD"] = FactValue.Of(10L),
                     ["EnemyDmg"] = FactValue.Of(1600L + i),
                     ["CTW"] = FactValue.Of(i % 3 == 0 ? 13L : 7L),

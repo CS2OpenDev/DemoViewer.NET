@@ -2,15 +2,14 @@
 
 using System.Text.Json;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Playback2D.Input;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 using static DemoViewer.NET.AppTests.StratStepEditingTests;
-using static DemoViewer.NET.AppTests.StratTestData;
 
 #endregion
 
@@ -137,7 +136,7 @@ public class StratLineEditingTests
                 .Because("A has a line, and picking it swaps the two");
             vm.Editor.ChangeLineSlot(step, 1, "A");
             await Assert.That(Doc(vm, step).Assignments!.Select(l => l.Slot + ">" + l.To?.Place))
-                .IsEquivalentTo(["B>BombsiteA", "A>Connector"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                .IsEquivalentTo(["B>BombsiteA", "A>Connector"], CollectionOrdering.Matching);
             vm.Editor.Steps[step].Lines[1].Slot = "B";
             using (Assert.Multiple())
             {

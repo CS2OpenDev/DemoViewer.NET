@@ -7,10 +7,9 @@ using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Hud;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Services.Export;
@@ -334,7 +333,6 @@ public class Playback2DExportDialogTests
         Playback2DExportDialogViewModel vm = new(
             [new ExportRangeOption("Current round", 100, 400)],
             new Playback2DSettings { ExportFormatId = ExportFormats.WebM, ExportEncoder = "h264_nvenc" },
-            null,
             ffmpegLocator: () => new FfmpegLocation(true, "/usr/bin", FfmpegOrigin.SystemPath),
             fileExists: _ => false);
 
@@ -348,7 +346,6 @@ public class Playback2DExportDialogTests
         Playback2DExportDialogViewModel vm = new(
             [new ExportRangeOption("Current round", 100, 400)],
             new Playback2DSettings { ExportQuality = "insane" },
-            null,
             ffmpegLocator: () => new FfmpegLocation(true, "/usr/bin", FfmpegOrigin.SystemPath),
             fileExists: _ => false);
 

@@ -8,8 +8,8 @@ using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D.Timeline;
-using Sdk = DemoViewer.NET.Extensions.Sdk.Playback;
 using TUnit.Assertions.Enums;
+using Sdk = DemoViewer.NET.Extensions.Sdk.Playback;
 
 #endregion
 

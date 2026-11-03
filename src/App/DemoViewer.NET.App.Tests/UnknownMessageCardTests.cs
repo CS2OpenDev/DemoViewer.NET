@@ -3,8 +3,8 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using Avalonia.Controls;
-using Avalonia.Media.Imaging;
 using Avalonia.Headless;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Controls;
@@ -15,7 +15,6 @@ using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.Parser;
 using DemoViewer.NET.Views;
 using TUnit.Core.Exceptions;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 

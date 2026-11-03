@@ -31,7 +31,6 @@ public sealed class QueryTokenLayer : ISceneLayer
     /// <summary>Disc radius in screen pixels: a little larger than a player marker so the two never read as one.</summary>
     public const float Radius = SceneDefaults.MarkerRadius + 3f;
 
-    private readonly QueryCanvasDocument _document;
     private readonly SKPaint _fill;
     private readonly SKPaint _mark;
     private readonly SKPaint _ring;
@@ -41,7 +40,7 @@ public sealed class QueryTokenLayer : ISceneLayer
     public QueryTokenLayer(QueryCanvasDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        _document = document;
+        Document = document;
 
         _fill = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
         _ring = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2f, IsAntialias = true };
@@ -52,7 +51,7 @@ public sealed class QueryTokenLayer : ISceneLayer
     }
 
     /// <summary>The document being drawn.</summary>
-    public QueryCanvasDocument Document => _document;
+    public QueryCanvasDocument Document { get; }
 
     /// <inheritdoc />
     public string Id => SceneLayerIds.Query;
@@ -72,7 +71,7 @@ public sealed class QueryTokenLayer : ISceneLayer
     public bool IsEnabled { get; set; } = true;
 
     /// <inheritdoc />
-    public int ContentVersion => _document.Version;
+    public int ContentVersion => Document.Version;
 
     /// <inheritdoc />
     public bool Advance(in SceneTime time, Scene2DFrame frame) => false;
@@ -82,7 +81,7 @@ public sealed class QueryTokenLayer : ISceneLayer
     {
         ArgumentNullException.ThrowIfNull(canvas);
 
-        IReadOnlyList<QueryToken> tokens = _document.Placed;
+        IReadOnlyList<QueryToken> tokens = Document.Placed;
         for (int i = 0; i < tokens.Count; i++)
         {
             QueryToken token = tokens[i];

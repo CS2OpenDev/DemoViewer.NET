@@ -1,7 +1,11 @@
+#region
+
 using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Extensions.Sdk.Ui;
 using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Modules.Abstractions;
+
+#endregion
 
 namespace ThirdPartyFake.ViewModels;
 

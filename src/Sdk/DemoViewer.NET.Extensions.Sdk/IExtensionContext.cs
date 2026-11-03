@@ -1,8 +1,12 @@
+#region
+
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.Sdk.Review;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 

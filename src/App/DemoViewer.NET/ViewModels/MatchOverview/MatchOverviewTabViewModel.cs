@@ -8,7 +8,6 @@ using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;

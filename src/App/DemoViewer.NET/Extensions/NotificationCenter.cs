@@ -212,7 +212,6 @@ internal sealed class NotificationCenter
         : IExtensionNotifications
     {
         private readonly List<Pending> _pending = [];
-        private int _dropped;
         private bool _droppedLogged;
 
         public ExtensionGuard Guard { get; } = guard;
@@ -264,7 +263,7 @@ internal sealed class NotificationCenter
 
                 if (dropped)
                 {
-                    _dropped++;
+                    Dropped++;
                 }
             }
 
@@ -318,7 +317,7 @@ internal sealed class NotificationCenter
         }
 
         /// <summary>How many posts dropped something to the cap before it was shown.</summary>
-        internal int Dropped => _dropped;
+        internal int Dropped { get; private set; }
     }
 }
 

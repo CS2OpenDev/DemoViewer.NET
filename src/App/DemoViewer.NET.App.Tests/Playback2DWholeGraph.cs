@@ -9,7 +9,6 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.TestSupport;
-using TUnit.Core.Exceptions;
 using SysAssembly = System.Reflection.Assembly;
 
 #endregion
@@ -78,7 +77,7 @@ internal static class Playback2DWholeGraph
         typeof(AppSettings).Assembly,
         typeof(Scene2DFrame).Assembly,
         typeof(SceneFrameBuilder).Assembly,
-        typeof(DemoViewer.NET.Extensions.Sdk.Ui.Controls.MapView).Assembly,
+        typeof(MapView).Assembly,
         .. FeaturePacks.Default.Select(pack => pack.GetType().Assembly).Distinct()
     ]);
 

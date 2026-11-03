@@ -1,7 +1,6 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Players;
@@ -58,9 +57,9 @@ public class PlayerAggregateTests
     private static FactRow Facet(int slot, ulong? steamId, int team, IReadOnlyDictionary<string, double> cells) => new(
         new Dictionary<string, FactValue>
         {
-            ["player_slot"] = FactValue.Of((long)slot),
+            ["player_slot"] = FactValue.Of(slot),
             ["steam_id"] = FactValue.Of(steamId?.ToString(CultureInfo.InvariantCulture)),
-            ["team"] = FactValue.Of((long)team)
+            ["team"] = FactValue.Of(team)
         },
         cells.ToDictionary(c => c.Key,
             c => c.Value == Math.Floor(c.Value) && c.Key is not ("KAST%" or "HLTV")

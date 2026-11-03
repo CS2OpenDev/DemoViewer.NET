@@ -86,7 +86,7 @@ public class DemoJobTests
         {
             await Assert.That(rig.FileParses).IsEqualTo(1);
             await Assert.That(ran)
-                .IsEquivalentTo(["library", "job"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                .IsEquivalentTo(["library", "job"], CollectionOrdering.Matching);
             await Assert.That(job.State).IsEqualTo(DemoQueueItemState.Completed);
         }
     }

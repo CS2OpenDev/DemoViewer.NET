@@ -110,7 +110,6 @@ public sealed class PlaceFieldOptions
 public sealed class PlaceFieldModel
 {
     private List<PlaceRef> _value = [];
-    private bool _typed;
     private bool _moved;
 
     /// <param name="isMulti">A list of locations (watching, via, lurk areas) rather than one.</param>
@@ -139,10 +138,10 @@ public sealed class PlaceFieldModel
     ///     Whether the user has typed or moved the highlight since the list opened: only then does Enter pick from it.
     ///     Otherwise Enter is the host's, as it is with no list.
     /// </summary>
-    public bool HasChoice => _typed || _moved;
+    public bool HasChoice => HasPendingEdit || _moved;
 
     /// <summary>Whether the text holds an edit not yet committed: a value pushed from outside then waits.</summary>
-    public bool HasPendingEdit => _typed;
+    public bool HasPendingEdit { get; private set; }
 
     /// <summary>The level key a typed coordinate takes when the field holds no point to take it from; null for none.</summary>
     public double? CurrentLevelMinZ { get; set; }
@@ -172,7 +171,7 @@ public sealed class PlaceFieldModel
     public void Load(IReadOnlyList<PlaceRef>? value)
     {
         _value = [.. (value ?? []).Where(StratLocations.IsSet)];
-        _typed = false;
+        HasPendingEdit = false;
         Text = IsMulti ? "" : DisplayOf(_value, Options?.Resolver);
         Raise();
     }
@@ -224,7 +223,7 @@ public sealed class PlaceFieldModel
     public void Type(string? text)
     {
         Text = text ?? "";
-        _typed = true;
+        HasPendingEdit = true;
         if (Options is not null)
         {
             IsOpen = true;
@@ -265,7 +264,7 @@ public sealed class PlaceFieldModel
     {
         ArgumentNullException.ThrowIfNull(option);
         IsOpen = false;
-        _typed = false;
+        HasPendingEdit = false;
         if (IsMulti)
         {
             Text = "";
@@ -290,9 +289,9 @@ public sealed class PlaceFieldModel
         IsOpen = false;
         if (IsMulti)
         {
-            PlaceRef? entry = _typed ? ParseEntry(Text, _value, Options?.Resolver, CurrentLevelMinZ) : null;
+            PlaceRef? entry = HasPendingEdit ? ParseEntry(Text, _value, Options?.Resolver, CurrentLevelMinZ) : null;
             Text = "";
-            _typed = false;
+            HasPendingEdit = false;
             bool added = entry is not null && Append(entry);
             Raise();
             return added ? _value : null;
@@ -300,7 +299,7 @@ public sealed class PlaceFieldModel
 
         List<PlaceRef> value = Parse(Text);
         bool same = value.Count == _value.Count && value.Zip(_value).All(p => StratLocations.Same(p.First, p.Second));
-        _typed = false;
+        HasPendingEdit = false;
         if (!same)
         {
             _value = value;
@@ -316,7 +315,7 @@ public sealed class PlaceFieldModel
     {
         _value = [];
         Text = "";
-        _typed = false;
+        HasPendingEdit = false;
         IsOpen = false;
         Raise();
         return [];
@@ -501,16 +500,16 @@ public sealed class PlaceFieldModel
             return;
         }
 
-        IReadOnlyList<PlaceOption> items = Options.Filter(_typed ? Text : "");
+        IReadOnlyList<PlaceOption> items = Options.Filter(HasPendingEdit ? Text : "");
         Items = IsMulti ? [.. items.Where(o => !IsChosen(o.Place))] : items;
-        string? current = !_typed && !IsMulti && _value.Count > 0 ? _value[0].Place : null;
+        string? current = !HasPendingEdit && !IsMulti && _value.Count > 0 ? _value[0].Place : null;
         int index = current is null
             ? -1
             : Items.ToList().FindIndex(o => string.Equals(o.Place, current, StringComparison.Ordinal));
 
         // Text naming a callout already chosen highlights nothing, so Enter refuses it instead of adding a neighbour.
-        bool namesChosen = IsMulti && _typed && IsChosen(Options.Resolver.Resolve(Text));
-        Highlight = index >= 0 ? index : _typed && Items.Count > 0 && !namesChosen ? 0 : -1;
+        bool namesChosen = IsMulti && HasPendingEdit && IsChosen(Options.Resolver.Resolve(Text));
+        Highlight = index >= 0 ? index : HasPendingEdit && Items.Count > 0 && !namesChosen ? 0 : -1;
         Raise();
     }
 

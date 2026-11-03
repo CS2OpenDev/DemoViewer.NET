@@ -1,9 +1,9 @@
 #region
 
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 
 #endregion

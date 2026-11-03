@@ -4,6 +4,9 @@ using System.Text.Json;
 using Avalonia.Controls;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Modules;
@@ -11,12 +14,9 @@ using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Export;
-using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.ViewModels.Library;
 using DemoViewer.NET.ViewModels.Playback2D;
 using DemoViewer.NET.ViewModels.Shell;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TUnit.Assertions.Enums;
@@ -79,7 +79,7 @@ public class StratBookShellTests
         // to iterate.
         MainViewModel vm = new(null, registry, TestLibraries.WithEntry(
                 Path.Combine(Path.GetTempPath(), "dvstratshell_" + Guid.NewGuid().ToString("N") + ".dem")),
-            null, gate, null, null,
+            null, gate,
             libraryContributions: contributions, hubTabs: [StratBookHubAccess.HubHost()]);
         vm.RestoreSession();
         return vm;
@@ -110,7 +110,7 @@ public class StratBookShellTests
                     await Assert.That(strip).DoesNotContain("review.queue");
                     await Assert.That(strip).DoesNotContain("teams.browser");
                     await Assert.That(rail)
-                        .IsEquivalentTo(_railOrder, TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                        .IsEquivalentTo(_railOrder, CollectionOrdering.Matching)
                         .Because("rail order is the section Order, not registration order");
                     await Assert.That(vm.LibraryTab.Sections.Sections.Select(s => s.TabId))
                         .IsEquivalentTo(_teamsOnly, CollectionOrdering.Matching);
@@ -388,7 +388,7 @@ public class StratBookShellTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeGate gate = new();
-            MainViewModel vm = NewShell(gate, null);
+            MainViewModel vm = NewShell(gate);
             try
             {
                 await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains("builtin.parser");

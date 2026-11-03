@@ -1,16 +1,16 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.Services.Zones;
+using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.StratTestData;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 

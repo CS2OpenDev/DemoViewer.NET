@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Features;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratTestData;
 

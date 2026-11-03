@@ -2,7 +2,6 @@
 
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
-using DemoViewer.NET.Extensions;
 
 #endregion
 

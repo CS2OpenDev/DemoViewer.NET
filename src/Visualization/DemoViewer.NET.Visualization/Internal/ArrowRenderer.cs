@@ -32,7 +32,7 @@ internal static class ArrowRenderer
         StreamGeometry geom = new();
         using (StreamGeometryContext sg = geom.Open())
         {
-            sg.BeginFigure(tip, true);
+            sg.BeginFigure(tip);
             sg.LineTo(left);
             sg.LineTo(right);
             sg.EndFigure(true);

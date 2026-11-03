@@ -8,14 +8,14 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Input;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Timeline;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using SkiaSharp;
 
 #endregion
@@ -56,10 +56,8 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     /// <summary>World distance between the tokens <see cref="PlaceTokensCommand" /> lays out.</summary>
     private const double PlacementSpacing = 96;
 
-    private readonly AnnotationSession _ink;
     private readonly AnnotationTrack _inkTrack;
     private readonly Func<Guid, StratDocument?>? _lookup;
-    private readonly Func<string?, IMapAssetLease?> _mapLoader;
     private readonly LineupOriginSource? _lineupOrigins;
     private readonly Func<string, Task<IZonePlaceResolver?>> _placesFor;
     private readonly Func<string, Task<StratSpawns?>>? _spawnsFor;
@@ -71,8 +69,6 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     private readonly StratSession _session;
     private readonly StepTrack _stepTrack = new();
 
-    private int _activeIndex = -1;
-    private bool _startSelected;
     private Guid? _activeStepId;
     private ArmedPlace? _armed;
     private Task<IZonePlaceResolver?>? _places;
@@ -87,7 +83,6 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     private Guid? _projectedStrat;
     private int _projectedVersion = -1;
     private bool _projectedRouting;
-    private StratSceneProjection? _projection;
     private Guid? _seekToStep;
     private StratFrameSource? _source;
     private bool _syncingInk;
@@ -145,7 +140,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
 
         IsReadOnly = readOnly;
-        _mapLoader = mapLoader ?? MapAssets.Acquire;
+        MapLoader = mapLoader ?? MapAssets.Acquire;
         _lookup = lookup;
         Keymap = keymap ?? lookups?.Keymap;
 
@@ -154,12 +149,12 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         Transport = new StratTransport(ticker);
         Transport.Changed += OnTransportChanged;
 
-        _ink = new AnnotationSession(new AnnotationDocument());
-        Tools = new StratCanvasTools(_ink);
+        Ink = new AnnotationSession(new AnnotationDocument());
+        Tools = new StratCanvasTools(Ink);
         Tools.PropertyChanged += OnToolsPropertyChanged;
-        _ink.Document.Changed += OnInkChanged;
+        Ink.Document.Changed += OnInkChanged;
 
-        _inkTrack = new AnnotationTrack(_ink.Document);
+        _inkTrack = new AnnotationTrack(Ink.Document);
         Timeline.RegisterTrack(_stepTrack);
         Timeline.RegisterTrack(_inkTrack);
         Timeline.SeekRequested += OnSeekRequested;
@@ -187,7 +182,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     public TokenTrackSet Tracks { get; } = new();
 
     /// <summary>The current projection, or null with no strat open.</summary>
-    public StratSceneProjection? Projection => _projection;
+    public StratSceneProjection? Projection { get; private set; }
 
     /// <summary>The user's keymap, or null when the canvas has none: then no key resolves and the hints show no gestures.</summary>
     public IExtensionKeymap? Keymap { get; }
@@ -205,13 +200,13 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     public bool IsPlaying => Transport.IsPlaying;
 
     /// <summary>The active step's position on the path, or -1 with no steps.</summary>
-    public int ActiveStepIndex => _activeIndex;
+    public int ActiveStepIndex { get; private set; } = -1;
 
     /// <summary>
     ///     Whether the Start row is selected: the playhead is on tick 0 and a drag or a map pick there writes a token's
     ///     start. Cleared when the playhead leaves tick 0 or a step is selected.
     /// </summary>
-    public bool IsStartSelected => _startSelected;
+    public bool IsStartSelected { get; private set; }
 
     /// <summary>Selects the start: pauses at tick 0, where the tokens stand before step 1.</summary>
     public void SelectStart()
@@ -223,7 +218,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
         Transport.Pause();
         _pinnedStep = null;
-        _startSelected = true;
+        IsStartSelected = true;
         if (Transport.Tick != 0)
         {
             Transport.Seek(0);
@@ -239,14 +234,16 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
     /// <summary>The active step, or null.</summary>
     public StratStep? ActiveStep =>
-        _projection is { } p && _activeIndex >= 0 && _activeIndex < p.Path.Count ? p.Path[_activeIndex].Step : null;
+        Projection is { } p && ActiveStepIndex >= 0 && ActiveStepIndex < p.Path.Count
+            ? p.Path[ActiveStepIndex].Step
+            : null;
 
     /// <summary>The playhead on the round clock, and which step it is in.</summary>
     public string ClockText
     {
         get
         {
-            if (_projection is not { } p)
+            if (Projection is not { } p)
             {
                 return "";
             }
@@ -255,7 +252,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             return p.Path.Count == 0
                 ? clock + " · no steps"
                 : string.Create(CultureInfo.InvariantCulture,
-                    $"{clock} · step {Math.Max(1, _activeIndex + 1)} of {p.Path.Count}");
+                    $"{clock} · step {Math.Max(1, ActiveStepIndex + 1)} of {p.Path.Count}");
         }
     }
 
@@ -335,11 +332,11 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     public string SetPlaceToolTip => PlaceTarget switch
     {
         StratPlaceTarget.To => string.Create(CultureInfo.InvariantCulture,
-            $"Click the map to set step {_activeIndex + 1}'s “{StratStepFields.ToLabel(ActiveStep?.Verb)}” to the place there (Esc cancels)"),
+            $"Click the map to set step {ActiveStepIndex + 1}'s “{StratStepFields.ToLabel(ActiveStep?.Verb)}” to the place there (Esc cancels)"),
         StratPlaceTarget.Landing => string.Create(CultureInfo.InvariantCulture,
-            $"Click the map where step {_activeIndex + 1}'s grenade lands: the point and the place there (Esc cancels)"),
+            $"Click the map where step {ActiveStepIndex + 1}'s grenade lands: the point and the place there (Esc cancels)"),
         StratPlaceTarget.LurkArea => string.Create(CultureInfo.InvariantCulture,
-            $"Click the map to add the place there to step {_activeIndex + 1}'s lurk areas (Esc cancels)"),
+            $"Click the map to add the place there to step {ActiveStepIndex + 1}'s lurk areas (Esc cancels)"),
         _ => ""
     };
 
@@ -392,10 +389,10 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     public SceneGuides Guides { get; private set; } = SceneGuides.None;
 
     /// <summary>The strat's ink: always drawn, since it is the strat's content and not an overlay.</summary>
-    public AnnotationSession Ink => _ink;
+    public AnnotationSession Ink { get; }
 
     /// <inheritdoc />
-    AnnotationSession? ISceneSource.Ink => _ink;
+    AnnotationSession? ISceneSource.Ink => Ink;
 
     /// <summary>Each token shows where it looks; on the editing canvas a drag of the cone turns it.</summary>
     public bool ShowViewCones => true;
@@ -415,7 +412,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         _syncingInk = true;
         try
         {
-            _ink.Document.RemapWorldLevels(zMinMap);
+            Ink.Document.RemapWorldLevels(zMinMap);
         }
         finally
         {
@@ -467,7 +464,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     /// <param name="stepId">The step.</param>
     public bool SelectStep(Guid stepId)
     {
-        if (_projection is not { } projection)
+        if (Projection is not { } projection)
         {
             return false;
         }
@@ -479,8 +476,8 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             return false;
         }
 
-        if (_pinnedStep == stepId && _activeIndex == index && Transport.Tick == projection.Ticks[index]
-            && !Transport.IsPlaying && !_startSelected)
+        if (_pinnedStep == stepId && ActiveStepIndex == index && Transport.Tick == projection.Ticks[index]
+            && !Transport.IsPlaying && !IsStartSelected)
         {
             return true;
         }
@@ -566,9 +563,9 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             return false;
         }
 
-        _armed = new ArmedPlace(document.Id, field, document.Map, _activeIndex + 1,
+        _armed = new ArmedPlace(document.Id, field, document.Map, ActiveStepIndex + 1,
             string.Create(CultureInfo.InvariantCulture,
-                $"click the map for step {_activeIndex + 1}'s {FieldLabel(field, step)}; Esc cancels"));
+                $"click the map for step {ActiveStepIndex + 1}'s {FieldLabel(field, step)}; Esc cancels"));
         _ = PlacesFor(document.Map, true);
         StatusLine = _armed.Prompt;
         RaiseSetPlace();
@@ -627,7 +624,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
 
         Tools.PropertyChanged -= OnToolsPropertyChanged;
-        _ink.Document.Changed -= OnInkChanged;
+        Ink.Document.Changed -= OnInkChanged;
         Transport.Changed -= OnTransportChanged;
         Timeline.SeekRequested -= OnSeekRequested;
         Transport.Dispose();
@@ -641,7 +638,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     public void SetCallouts(CalloutResolver? callouts)
     {
         _callouts = callouts;
-        _stepTrack.Update(_projection, _session.Document, _callouts);
+        _stepTrack.Update(Projection, _session.Document, _callouts);
     }
 
     /// <summary>
@@ -793,7 +790,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     }
 
     /// <summary>The loader the canvas holds its map bundle through; the export takes its own hold with it.</summary>
-    internal Func<string?, IMapAssetLease?> MapLoader => _mapLoader;
+    internal Func<string?, IMapAssetLease?> MapLoader { get; }
 
     /// <summary>
     ///     The open strat on the selected path as it stands now, for an export, or null
@@ -803,13 +800,13 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     /// </summary>
     internal StratExportCapture? CaptureForExport()
     {
-        if (_projection is not { } projection || _session.Document is not { } document)
+        if (Projection is not { } projection || _session.Document is not { } document)
         {
             return null;
         }
 
         AnnotationDocument frozen = new();
-        frozen.Reset([.. _ink.Document.Elements]);
+        frozen.Reset([.. Ink.Document.Elements]);
         return new StratExportCapture(projection, new TokenTrackSet(Tracks.Tracks), new AnnotationSession(frozen),
             document.Map, document.Name,
             MapAsset is { } asset ? asset.RadarBounds : BoundsFor(projection));
@@ -822,7 +819,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     [RelayCommand]
     private void PlaceTokens()
     {
-        if (_session.Document is not { } document || _projection is not { } projection
+        if (_session.Document is not { } document || Projection is not { } projection
                                                   || EditableActiveStep() is not { } stepIndex)
         {
             return;
@@ -845,8 +842,8 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
     /// <inheritdoc />
     public int ActiveTick =>
-        _projection is { } p && _activeIndex >= 0 && _activeIndex < p.Ticks.Count
-            ? p.Ticks[_activeIndex]
+        Projection is { } p && ActiveStepIndex >= 0 && ActiveStepIndex < p.Ticks.Count
+            ? p.Ticks[ActiveStepIndex]
             : Transport.Tick;
 
     /// <inheritdoc />
@@ -901,7 +898,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     public void BeginDrag(string slot, TokenGrip grip)
     {
         _drag = null;
-        if (_projection is not { } projection || _session.Document is null)
+        if (Projection is not { } projection || _session.Document is null)
         {
             StatusLine = StratDragTarget.NoStepNote;
             return;
@@ -938,7 +935,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     public void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None,
         double worldUnitsPerPixel = 0)
     {
-        if (_drag is not { } drag || _projection is not { } projection || drag.Slot != slot)
+        if (_drag is not { } drag || Projection is not { } projection || drag.Slot != slot)
         {
             return;
         }
@@ -992,7 +989,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     /// <inheritdoc />
     public void EndDrag(ToolModifiers modifiers = ToolModifiers.None)
     {
-        if (_drag is not { } drag || _projection is not { } projection || _session.Document is not { } document)
+        if (_drag is not { } drag || Projection is not { } projection || _session.Document is not { } document)
         {
             EndDragState();
             return;
@@ -1085,7 +1082,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     private void MarkEarlier(StratDragTarget target)
     {
         _earlier = null;
-        if (_projection is not { } projection || target.PathIndex < 0 || target.PathIndex >= projection.Path.Count
+        if (Projection is not { } projection || target.PathIndex < 0 || target.PathIndex >= projection.Path.Count
             || projection.Tracks.FirstOrDefault(t => t.Slot == target.Slot) is not { } track)
         {
             return;
@@ -1136,7 +1133,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
     partial void OnPinNextDragChanged(bool value)
     {
-        if (_drag is { } drag && _projection is { } projection && drag.Pin != value)
+        if (_drag is { } drag && Projection is { } projection && drag.Pin != value)
         {
             drag.Pin = value;
             Retarget(drag, projection);
@@ -1160,8 +1157,8 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     // selection only when it owns the playhead's tick: selecting another would move the playhead.
     private void Retarget(DragState drag, StratSceneProjection projection)
     {
-        drag.Target = StratDragTarget.Resolve(projection, drag.Tick, _activeIndex, drag.Slot, drag.Grip, drag.Pin,
-            _startSelected);
+        drag.Target = StratDragTarget.Resolve(projection, drag.Tick, ActiveStepIndex, drag.Slot, drag.Grip, drag.Pin,
+            IsStartSelected);
         if (drag.Target.Action == StratDragAction.Start && SpawnsPending)
         {
             drag.Target = drag.Target with
@@ -1170,7 +1167,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             };
         }
 
-        if (drag.Target is { IsRefused: false, PathIndex: var index } && index >= 0 && index != _activeIndex
+        if (drag.Target is { IsRefused: false, PathIndex: var index } && index >= 0 && index != ActiveStepIndex
             && projection.Ticks[index] == Transport.Tick)
         {
             _pinnedStep = projection.Path[index].Step.Id;
@@ -1249,7 +1246,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     // release stores, not the pointer.
     private void Preview(DragState drag)
     {
-        if (_session.Document is not { } document || _projection is not { } projection)
+        if (_session.Document is not { } document || Projection is not { } projection)
         {
             return;
         }
@@ -1299,7 +1296,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
     // "step 3 · " when the drag writes a step other than the selected one.
     private string StepName(StratDragTarget target) =>
-        target.PathIndex >= 0 && target.PathIndex != _activeIndex
+        target.PathIndex >= 0 && target.PathIndex != ActiveStepIndex
             ? string.Create(CultureInfo.InvariantCulture, $"step {target.PathIndex + 1} · ")
             : "";
 
@@ -1366,7 +1363,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     // Paused otherwise: the selected step's destination pins.
     private SceneGuides GuidesFor(int tick)
     {
-        if (_projection is not { } projection || Transport.IsPlaying || IsReadOnly)
+        if (Projection is not { } projection || Transport.IsPlaying || IsReadOnly)
         {
             return SceneGuides.None;
         }
@@ -1374,8 +1371,8 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         int team = StratSceneProjection.TeamOf(_session.Document?.Side);
         if (_drag is not { } drag)
         {
-            SceneGuides selected = _activeIndex >= 0
-                ? PinsGuides(projection, _activeIndex, tick, team, null)
+            SceneGuides selected = ActiveStepIndex >= 0
+                ? PinsGuides(projection, ActiveStepIndex, tick, team, null)
                 : SceneGuides.None;
             if (_earlier is { } earlier && earlier.Tick == tick)
             {
@@ -1514,7 +1511,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
     }
 
-    private bool IsGestureOpen => _drag is not null || _ink.Document.IsGestureOpen;
+    private bool IsGestureOpen => _drag is not null || Ink.Document.IsGestureOpen;
 
     private const string ReadOnlyNote = StratDragTarget.ReadOnlyNote;
 
@@ -1577,7 +1574,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             _drag = null;
             _pinnedStep = null;
             _armed = null;
-            _projection = null;
+            Projection = null;
             _source = null;
             _syncingPaths = true;
             SelectedPath = null;
@@ -1589,9 +1586,9 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
         if (document is null)
         {
-            _projection = null;
+            Projection = null;
             _source = null;
-            _activeIndex = -1;
+            ActiveStepIndex = -1;
             foreach (string slot in TokenSlots.All)
             {
                 Tracks.Remove(slot);
@@ -1638,7 +1635,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         RefreshPathOptions(document);
         _projectedRouting = _routing();
         StratSceneProjection projection = Project(document, _projectedRouting);
-        _projection = projection;
+        Projection = projection;
 
         foreach (string slot in TokenSlots.All)
         {
@@ -1656,7 +1653,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         SyncInk(projection.Elements);
 
         WorldBounds bounds = MapAsset is { } asset ? asset.RadarBounds : BoundsFor(projection);
-        _source = new StratFrameSource(new StratSceneSpec(Tracks, projection.Schedule, _ink, projection.Labels,
+        _source = new StratFrameSource(new StratSceneSpec(Tracks, projection.Schedule, Ink, projection.Labels,
             document.Map, MapAsset is { } radarAsset ? radarAsset.DescribeRadars() : [], bounds, null,
             projection.Utility, projection.RoundSeconds, 0, projection.ContentEndTick, StepSchedule.TicksPerSecond, 1)
         {
@@ -1690,7 +1687,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         UpdateActiveStep();
         if (_armed is { Field.Kind: StratLocationKind.Start } startPick)
         {
-            if (!_startSelected)
+            if (!IsStartSelected)
             {
                 _armed = null;
             }
@@ -1775,7 +1772,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     // which consume no undo entry, so an undo or a step-table edit redraws only what moved.
     private void SyncInk(IReadOnlyList<AnnotationElement> elements)
     {
-        AnnotationDocument document = _ink.Document;
+        AnnotationDocument document = Ink.Document;
         if (document.IsGestureOpen)
         {
             return; // the gesture's close re-reads the projection
@@ -1822,7 +1819,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     // cannot hold (a stroke with no step to belong to, or on another strat's step) is put back as it was.
     private void OnInkChanged()
     {
-        if (_syncingInk || _ink.Document.IsGestureOpen || _projection is not { } projection
+        if (_syncingInk || Ink.Document.IsGestureOpen || Projection is not { } projection
             || _session.Document is not { } document)
         {
             return;
@@ -1841,16 +1838,16 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     private void CarryInk(StratSceneProjection projection, StratDocument document)
     {
         IReadOnlyList<PatchOp> ops =
-            StepAuthoringPatches.FromInk(document, projection, _ink.Document.Elements, StepFor);
+            StepAuthoringPatches.FromInk(document, projection, Ink.Document.Elements, StepFor);
         if (ops.Count > 0)
         {
             Apply(ops);
             return;
         }
 
-        if (!_ink.Document.Elements.SequenceEqual(projection.Elements) || _ink.Document.UndoDepth > 0)
+        if (!Ink.Document.Elements.SequenceEqual(projection.Elements) || Ink.Document.UndoDepth > 0)
         {
-            if (_ink.Document.Elements.Count != projection.Elements.Count)
+            if (Ink.Document.Elements.Count != projection.Elements.Count)
             {
                 StatusLine = ActiveStep is null ? "add a step first: a stroke belongs to a step" : ReadOnlyNote;
             }
@@ -1863,14 +1860,15 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     // first when two share the tick.
     private int StepFor(AnnotationElement element)
     {
-        if (_projection is not { } projection || element.Time.FromTick is not { } from)
+        if (Projection is not { } projection || element.Time.FromTick is not { } from)
         {
-            return _activeIndex;
+            return ActiveStepIndex;
         }
 
-        if (_activeIndex >= 0 && _activeIndex < projection.Ticks.Count && projection.Ticks[_activeIndex] == from)
+        if (ActiveStepIndex >= 0 && ActiveStepIndex < projection.Ticks.Count
+                                 && projection.Ticks[ActiveStepIndex] == from)
         {
-            return _activeIndex;
+            return ActiveStepIndex;
         }
 
         return projection.Schedule.At(from) is { } window ? projection.Schedule.IndexOf(window.StepId) : -1;
@@ -1903,7 +1901,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
     private void RestoreTracks()
     {
-        if (_projection is not { } projection)
+        if (Projection is not { } projection)
         {
             return;
         }
@@ -1922,14 +1920,14 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     // ── Steps ────────────────────────────────────────────────────────────────────────────────────
 
     private int? EditableActiveStep() =>
-        !IsReadOnly && _projection is { } p && _activeIndex >= 0 && _activeIndex < p.Path.Count
-        && p.Path[_activeIndex].Editable
-            ? p.Path[_activeIndex].StepIndex
+        !IsReadOnly && Projection is { } p && ActiveStepIndex >= 0 && ActiveStepIndex < p.Path.Count
+        && p.Path[ActiveStepIndex].Editable
+            ? p.Path[ActiveStepIndex].StepIndex
             : null;
 
     private bool InsertStep()
     {
-        if (_session.Document is not { } document || _projection is not { } projection)
+        if (_session.Document is not { } document || Projection is not { } projection)
         {
             return false;
         }
@@ -1991,7 +1989,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
     private bool SeekStep(int direction)
     {
-        if (_projection is not { Ticks.Count: > 0 } projection)
+        if (Projection is not { Ticks.Count: > 0 } projection)
         {
             return false;
         }
@@ -2000,7 +1998,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         // the first step) next goes to it; back from inside a window goes to that step's start first, as a
         // player's previous does.
         int tick = Transport.Tick;
-        int active = Math.Clamp(_activeIndex, 0, projection.Ticks.Count - 1);
+        int active = Math.Clamp(ActiveStepIndex, 0, projection.Ticks.Count - 1);
         int start = projection.Ticks[active];
         int target = direction > 0
             ? tick < start ? active : active + 1
@@ -2052,13 +2050,13 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     // strokes are stamped with its window, so the tools need no knowledge of steps.
     private void UpdateActiveStep()
     {
-        if (_startSelected && Transport.Tick != 0)
+        if (IsStartSelected && Transport.Tick != 0)
         {
             ClearStart();
         }
 
         int index = -1;
-        if (_projection is { } projection && projection.Path.Count > 0)
+        if (Projection is { } projection && projection.Path.Count > 0)
         {
             index = projection.Schedule.At(Transport.Tick) is { } window
                 ? projection.Schedule.IndexOf(window.StepId)
@@ -2077,17 +2075,17 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             }
 
             StepWindow active = projection.Schedule.Windows[index];
-            AnnotationSession session = _ink;
+            AnnotationSession session = Ink;
             session.DefaultVisibility = EnvelopeMode.Custom;
             session.FadeInTicks = projection.Canvas.FadeInTicks;
             session.FadeOutTicks = projection.Canvas.FadeOutTicks;
             session.SetCustomWindow(active.FromTick, active.UntilTick ?? projection.LastTick);
         }
 
-        Guid? id = _projection is { } p && index >= 0 ? p.Path[index].Step.Id : null;
-        if (index != _activeIndex || id != _activeStepId)
+        Guid? id = Projection is { } p && index >= 0 ? p.Path[index].Step.Id : null;
+        if (index != ActiveStepIndex || id != _activeStepId)
         {
-            _activeIndex = index;
+            ActiveStepIndex = index;
             _activeStepId = id;
             if (_armed is { } armed && armed.StepId != id && armed.Field.Kind != StratLocationKind.Start)
             {
@@ -2362,14 +2360,14 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     /// <param name="slot">The token.</param>
     public string? StartRefusal(string slot) =>
         SpawnsPending ? StratDragTarget.SpawnsPendingNote
-        : _projection?.StartShadowedBy(slot) is { } step ? StratDragTarget.ShadowedNote(slot, step)
+        : Projection?.StartShadowedBy(slot) is { } step ? StratDragTarget.ShadowedNote(slot, step)
         : null;
 
     private void ClearStart()
     {
-        if (_startSelected)
+        if (IsStartSelected)
         {
-            _startSelected = false;
+            IsStartSelected = false;
             OnPropertyChanged(nameof(IsStartSelected));
         }
     }
@@ -2604,7 +2602,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     {
         try
         {
-            return _mapLoader(map);
+            return MapLoader(map);
         }
         catch (Exception)
         {

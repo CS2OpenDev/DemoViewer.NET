@@ -4,10 +4,9 @@ using System.Numerics;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 
 #endregion
 
@@ -152,7 +151,7 @@ internal static class RoundIndexTestData
         };
         if (facts is not null)
         {
-            record.SetRoundFacts(facts, "rf-A");
+            record.SetRoundFacts(facts);
         }
 
         return record;

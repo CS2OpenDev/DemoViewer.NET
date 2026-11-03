@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 
 #endregion
 

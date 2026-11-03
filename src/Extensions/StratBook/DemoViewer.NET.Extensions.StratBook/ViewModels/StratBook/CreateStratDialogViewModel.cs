@@ -99,7 +99,7 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
         CancellationToken ct = _cancel.Token;
         Progress = new WalkProgress(this);
         // A queue item at the front: the user asked for it.
-        Walking = StratBookJobs.RunAsync<RoundCapture?>(jobs, "Strats: read the round", () => walk(Progress, ct), null,
+        Walking = StratBookJobs.RunAsync(jobs, "Strats: read the round", () => walk(Progress, ct), null,
                 new JobOptions(Priority: JobPriority.UserRequested))
             .ContinueWith(t => t.Result ?? throw new OperationCanceledException(ct), ct,
                 TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default)

@@ -157,7 +157,7 @@ public class MatchOverviewSeedTests
     public async Task HighlightsWithoutAScoreboard_RenderTheMoments_ButDoNotClaimFull()
     {
         MatchOverviewTabViewModel vm = new();
-        vm.SetCachedRecord(Indexed(true));
+        vm.SetCachedRecord(Indexed());
 
         using (Assert.Multiple())
         {

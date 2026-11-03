@@ -7,14 +7,13 @@ using Avalonia.Input;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Views.Playback2D;
 using Microsoft.Extensions.DependencyInjection;
-using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 using TUnit.Assertions.Enums;
+using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 
 #endregion
 

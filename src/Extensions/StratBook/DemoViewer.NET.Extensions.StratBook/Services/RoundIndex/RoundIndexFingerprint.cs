@@ -50,9 +50,7 @@ public static class RoundIndexFingerprint
 /// </summary>
 public sealed class RoundIndexPlaceSources
 {
-    private readonly RoundIndexOptions _options;
     private readonly Func<RoundIndexTokenSource> _tokenSource;
-    private readonly IZonePlaceResolverSource _zones;
 
     /// <param name="tokenSource">The live <see cref="Extensions.StratBook.StratBookSettings.TokenSource" />.</param>
     /// <param name="zones">Where a map's zone resolver comes from; none until Zone Baking's resolver lands.</param>
@@ -64,15 +62,15 @@ public sealed class RoundIndexPlaceSources
     {
         ArgumentNullException.ThrowIfNull(tokenSource);
         _tokenSource = tokenSource;
-        _zones = zones ?? NoZonePlaceResolverSource.Instance;
-        _options = options ?? RoundIndexOptions.Default;
+        Zones = zones ?? NoZonePlaceResolverSource.Instance;
+        Options = options ?? RoundIndexOptions.Default;
     }
 
     /// <summary>The sampling parameters every build uses.</summary>
-    public RoundIndexOptions Options => _options;
+    public RoundIndexOptions Options { get; }
 
     /// <summary>Where a map's zone resolver comes from. The Query Canvas resolves a drop through the same source the builder mints tokens through.</summary>
-    public IZonePlaceResolverSource Zones => _zones;
+    public IZonePlaceResolverSource Zones { get; }
 
     /// <summary>The source rows for <paramref name="map" /> are minted through right now.</summary>
     /// <param name="map">The map, or null when the demo's header has not been read; the pawn then.</param>
@@ -80,7 +78,7 @@ public sealed class RoundIndexPlaceSources
     {
         if (_tokenSource() == RoundIndexTokenSource.Zones
             && map is { Length: > 0 }
-            && _zones.TryGet(map) is { } resolver)
+            && Zones.TryGet(map) is { } resolver)
         {
             return new ZonePlaceSource(resolver);
         }
@@ -90,11 +88,11 @@ public sealed class RoundIndexPlaceSources
 
     /// <summary>The fingerprint current rows for <paramref name="map" /> must carry.</summary>
     /// <param name="map">The map, or null when unknown.</param>
-    public string FingerprintFor(string? map) => RoundIndexFingerprint.Compose(_options, SourceFor(map));
+    public string FingerprintFor(string? map) => RoundIndexFingerprint.Compose(Options, SourceFor(map));
 
     /// <summary>True when the zones mode is on and <paramref name="map" /> has no zones, so its rows use the pawn.</summary>
     /// <param name="map">The map.</param>
     public bool IsZoneFallback(string? map) =>
         _tokenSource() == RoundIndexTokenSource.Zones
-        && (map is not { Length: > 0 } || _zones.TryGet(map) is null);
+        && (map is not { Length: > 0 } || Zones.TryGet(map) is null);
 }

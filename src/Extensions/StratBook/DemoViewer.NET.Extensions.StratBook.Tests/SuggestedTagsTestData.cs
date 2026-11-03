@@ -28,10 +28,7 @@ internal static class SuggestedTagsTestData
         DemoCount = 1,
         RoundCount = 10,
         Plants =
-            new Dictionary<string, int>(StringComparer.Ordinal)
-            {
-                [SiteRegions.SiteA] = 5, [SiteRegions.SiteB] = 5
-            },
+            new Dictionary<string, int>(StringComparer.Ordinal) { [SiteRegions.SiteA] = 5, [SiteRegions.SiteB] = 5 },
         Regions = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
         {
             [SiteRegions.SiteA] = [SiteRegions.SiteA, "ALong", "ASmall"],

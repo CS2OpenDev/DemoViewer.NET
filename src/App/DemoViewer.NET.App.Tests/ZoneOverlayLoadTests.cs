@@ -4,13 +4,12 @@ using Avalonia.Threading;
 using CS2DemoKit.Analysis.Visibility;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.RuleWorkbench;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
+using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Zones;
 using TUnit.Core.Exceptions;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 

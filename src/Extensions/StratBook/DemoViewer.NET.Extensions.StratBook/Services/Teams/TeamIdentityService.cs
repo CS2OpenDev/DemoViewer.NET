@@ -73,7 +73,6 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     private bool _teamsRefused;
     private readonly object _referencesGate = new();
     private HashSet<Guid> _referenced = [];
-    private Task _work = Task.CompletedTask;
 
     // The full sync queued and not yet started, so a burst of batch changes queues one.
     private object? _fullSyncWaiting;
@@ -429,7 +428,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     }
 
     /// <summary>The replay in flight, for callers that must observe its result.</summary>
-    public Task Idle => _work;
+    public Task Idle { get; private set; } = Task.CompletedTask;
 
     /// <summary>Raised (through the post delegate) after any change to either file.</summary>
     public event Action? Changed;
@@ -793,7 +792,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             // One replay at a time, in the order the changes arrived; a failure never stops the chain.
             // An idle chain starts the work through the runner directly, so an inline runner (tests)
             // finishes before the caller continues.
-            Task previous = _work;
+            Task previous = Idle;
             // A replay queued before a release is dropped after it: the load it would run reads the index back in.
             LoadOnce mine = _load;
             Action loaded = () =>
@@ -806,10 +805,10 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                 mine.Ensure();
                 work();
             };
-            _work = previous.IsCompleted
+            Idle = previous.IsCompleted
                 ? _run(loaded)
                 : previous.ContinueWith(_ => _run(loaded), TaskScheduler.Default).Unwrap();
-            return _work;
+            return Idle;
         }
     }
 

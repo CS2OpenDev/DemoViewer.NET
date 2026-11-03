@@ -6,10 +6,10 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Services;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Services;
+using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views;
 using Microsoft.Extensions.DependencyInjection;
 

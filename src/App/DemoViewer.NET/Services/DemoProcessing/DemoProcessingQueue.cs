@@ -8,7 +8,6 @@ using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -435,7 +434,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             _parsesByPath[path] = _parsesByPath.GetValueOrDefault(path) + 1;
         }
 
-        string name = System.IO.Path.GetFileName(path);
+        string name = Path.GetFileName(path);
         int count = ParseCount(path);
         AppLog.DemoRead(DiagLog, name, read, count);
     }
@@ -808,7 +807,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             return "Waiting for the parse slot";
         }
 
-        string name = holder.DisplayName ?? System.IO.Path.GetFileName(holder.Path);
+        string name = holder.DisplayName ?? Path.GetFileName(holder.Path);
         if (holder.Kind == QueueJobKind.DemoProcessing && !holder.Forward)
         {
             return $"Waiting for {name} to finish parsing";
@@ -822,10 +821,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     private sealed class OpenTicket(DemoProcessingQueue queue, Entry entry, CancellationTokenSource cancel)
         : IDemoOpenTicket
     {
-        private readonly CancellationToken _token = cancel.Token;
         private int _ended;
 
-        public CancellationToken CancellationToken => _token;
+        public CancellationToken CancellationToken { get; } = cancel.Token;
 
         public bool IsSuperseded
         {
@@ -838,13 +836,14 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             }
         }
 
-        public Task<ParsedDemo> ParseAsync(ReadOnlyMemory<byte> bytes) => queue.ParseForOpenAsync(entry, bytes, _token);
+        public Task<ParsedDemo> ParseAsync(ReadOnlyMemory<byte> bytes) =>
+            queue.ParseForOpenAsync(entry, bytes, CancellationToken);
 
         public void Report(double progress, string stage) =>
             queue.ReportProgress(entry, (int)(Math.Clamp(progress, 0, 1) * 100), 100, stage);
 
         public Task RunPassesAsync(ParsedDemo parsed, Action? plan = null) =>
-            queue.RunOpenPassesAsync(entry, parsed, plan, _token);
+            queue.RunOpenPassesAsync(entry, parsed, plan, CancellationToken);
 
         public void Complete() => End(DemoQueueItemState.Completed, null);
 

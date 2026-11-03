@@ -9,6 +9,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using DemoViewer.NET.Extensions.StratBook.Controls;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
@@ -17,7 +18,6 @@ using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratMapFirstTests;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 
@@ -80,7 +80,7 @@ public partial class StratLocationFieldTests
     public async Task Chips_AreRemovedAndMovedOneAtATime_WithinThePlacesOrThePoints_AndPointsStayExact()
     {
         PlaceFieldModel model = new(true) { Options = PlaceFieldOptions.For(Mirage) };
-        PlaceRef a = Point(1.2, 2, -256), b = Point(1.4, 2, -256);
+        PlaceRef a = Point(1.2, 2), b = Point(1.4, 2);
         model.Load([Named("Stairs"), Named("Jungle"), a, b]);
         using (Assert.Multiple())
         {
@@ -177,7 +177,7 @@ public partial class StratLocationFieldTests
         window.Show();
         Dispatcher.UIThread.RunJobs();
         int index = vm.Editor.Steps.Count - 1;
-        Control row = (Control)view.FindControl<ItemsControl>("StepRows")!.ContainerFromIndex(index)!;
+        Control row = view.FindControl<ItemsControl>("StepRows")!.ContainerFromIndex(index)!;
         row.BringIntoView();
         Dispatcher.UIThread.RunJobs();
         return (window, view, row, index);
@@ -296,7 +296,7 @@ public partial class StratLocationFieldTests
             await Assert.That(vm.Session.Document!.Steps.Count).IsEqualTo(steps + 1);
             vm.Session.Undo();
             Dispatcher.UIThread.RunJobs();
-            row = (Control)view.FindControl<ItemsControl>("StepRows")!.ContainerFromIndex(index)!;
+            row = view.FindControl<ItemsControl>("StepRows")!.ContainerFromIndex(index)!;
             watch = FieldIn(row, "LineWatchField", "GroupWatchField");
 
             BoxOf(watch).Focus();

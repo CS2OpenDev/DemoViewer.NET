@@ -459,7 +459,7 @@ public class HostTabContributionTests
                     .IsTypeOf<ExternalLoadContext>();
                 await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains("dev.example.hello.hub");
                 await Assert.That(hub.Sections.Sections.Select(s => s.Header)).IsEquivalentTo(_helloSections,
-                    TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    CollectionOrdering.Matching);
                 await Assert.That(hub.Sections.Sections.All(s => ExtensionGuards.For(s) is not null)).IsTrue()
                     .Because("each section is the guarded copy, run as the extension's");
                 await Assert.That(texts).Contains("HELLO");

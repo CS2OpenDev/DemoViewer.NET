@@ -6,11 +6,11 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DemoViewer.NET.Extensions.Sdk.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Playback2D.Overlay;
 using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Extensions.Sdk.Review;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 
 #endregion
 
@@ -63,7 +63,6 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// <summary>How far past the last matched tick a clip sent to the Review Queue runs.</summary>
     public const int ReviewTailSeconds = 5;
 
-    private readonly SituationThumbnailCache _cache;
     private readonly Func<string, Func<Action, Task>> _run;
     private readonly Func<byte[], Bitmap?> _decode;
     private readonly IExtensionLibrary _library;
@@ -136,7 +135,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         _store = store;
         _sources = sources;
         _playback = playback;
-        _cache = cache ?? new SituationThumbnailCache();
+        Cache = cache ?? new SituationThumbnailCache();
         _renderer = renderer ?? (() => new SituationThumbnailRenderer());
         _post = post ?? (action => Dispatcher.UIThread.Post(action));
         _decode = decode ?? DecodePng;
@@ -235,7 +234,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
           + $"{ResultCardViewModel.SeekOffsetSeconds} s before the match; J / K walk them in playback";
 
     /// <summary>The thumbnail cache, so a rebuild can drop every picture of the old rows.</summary>
-    public SituationThumbnailCache Cache => _cache;
+    public SituationThumbnailCache Cache { get; }
 
     /// <summary>The Overlay View's points: the canvas's document, filled by <see cref="OverlayAllCommand" />.</summary>
     public OverlayDocument Overlay { get; }
@@ -616,13 +615,13 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
             if (positions is not null)
             {
                 SituationThumbnailKey key = new(hit.DemoStableKey, hit.RoundNumber, hit.FirstMatchTick, fingerprint);
-                png = _cache.TryGet(key);
+                png = Cache.TryGet(key);
                 if (png is null)
                 {
                     png = TryRender(renderer, hit, positions);
                     if (png is not null)
                     {
-                        _cache.Put(key, png);
+                        Cache.Put(key, png);
                     }
                 }
 

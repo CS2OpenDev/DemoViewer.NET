@@ -116,17 +116,15 @@ internal sealed class InlineJobs : IExtensionJobs
 
     private sealed class Handle : IJobHandle
     {
-        private readonly Task<JobResult> _completion;
+        private Handle(Task<JobResult> completion) => Completion = completion;
 
-        private Handle(Task<JobResult> completion) => _completion = completion;
+        public JobStatus Status => Completion.IsCompleted ? Completion.Result.Status : JobStatus.Running;
 
-        public JobStatus Status => _completion.IsCompleted ? _completion.Result.Status : JobStatus.Running;
-
-        public Task<JobResult> Completion => _completion;
+        public Task<JobResult> Completion { get; }
 
         public event Action<JobResult>? Completed
         {
-            add => _completion.ContinueWith(t => value?.Invoke(t.Result), TaskScheduler.Default);
+            add => Completion.ContinueWith(t => value?.Invoke(t.Result), TaskScheduler.Default);
             remove { }
         }
 

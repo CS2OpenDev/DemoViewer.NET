@@ -181,11 +181,9 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
 
     private sealed class Context : IPassContext
     {
-        private readonly CancellationToken _cancellationToken;
         private readonly CollectorSet _collectors;
         private readonly IReadOnlyList<string> _tableRulesets;
         private readonly PassInput _input;
-        private readonly string _path;
         private ParsedDemo? _parsed;
         private ForwardDemoResult? _read;
         private readonly bool _hideParse;
@@ -199,10 +197,10 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
             _input = input;
             _collectors = collectors;
             _tableRulesets = tableRulesets;
-            _path = path;
+            DemoPath = path;
             _parsed = parsed;
             _hideParse = hideParse;
-            _cancellationToken = input.CancellationToken;
+            CancellationToken = input.CancellationToken;
         }
 
         public Context(string path, ForwardDemoResult read, PassInput input, CollectorSet collectors,
@@ -211,13 +209,13 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
             _input = input;
             _collectors = collectors;
             _tableRulesets = tableRulesets;
-            _path = path;
+            DemoPath = path;
             _read = read;
             _hideParse = true;
-            _cancellationToken = input.CancellationToken;
+            CancellationToken = input.CancellationToken;
         }
 
-        public string DemoPath => _path;
+        public string DemoPath { get; }
 
         public ParsedDemo? Parsed
         {
@@ -289,7 +287,7 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
             }
         }
 
-        public CancellationToken CancellationToken => _cancellationToken;
+        public CancellationToken CancellationToken { get; }
 
         public T? Collected<T>(string collectorId) where T : class
         {

@@ -1,19 +1,19 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook.Modules;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Modules;
+using DemoViewer.NET.Extensions.StratBook.Modules.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D.Timeline;
-using DemoViewer.NET.Extensions.StratBook.Modules.StratBook;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using TUnit.Assertions.Enums;
 using ILaneBehaviour = DemoViewer.NET.Extensions.Sdk.Playback.ILaneBehaviour;
 using ILaneHandle = DemoViewer.NET.Extensions.Sdk.Playback.ILaneHandle;

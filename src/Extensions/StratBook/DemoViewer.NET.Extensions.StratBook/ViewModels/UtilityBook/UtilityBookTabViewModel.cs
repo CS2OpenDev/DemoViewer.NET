@@ -5,9 +5,9 @@ using System.Globalization;
 using System.Runtime.ExceptionServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Modules.Abstractions;
 using GrenadeKind = DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeKind;
 using GrenadeTrailPoint = DemoViewer.NET.Playback2D.GrenadeTrailPoint;
 
@@ -57,7 +57,6 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     private readonly Dictionary<string, LandingGroup> _groups = new(StringComparer.Ordinal);
     private readonly Action<Action> _background;
     private readonly Action<Action> _post;
-    private bool _disposed;
     private bool _refreshing;
     private bool _shown = true;
     private int _refreshVersion;
@@ -152,7 +151,7 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     public bool IsBrowser { get; }
 
     /// <summary>Whether <see cref="Dispose" /> ran. For tests of an owner that must dispose it.</summary>
-    internal bool IsDisposed => _disposed;
+    internal bool IsDisposed { get; private set; }
 
     public ObservableCollection<string> Maps { get; } = [];
 
@@ -244,12 +243,12 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_disposed)
+        if (IsDisposed)
         {
             return;
         }
 
-        _disposed = true;
+        IsDisposed = true;
         _index.Changed -= Refresh;
         if (MapAsset is { } lease)
         {
@@ -276,7 +275,7 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     /// </summary>
     public void Refresh()
     {
-        if (_refreshing || _disposed)
+        if (_refreshing || IsDisposed)
         {
             return;
         }
@@ -308,7 +307,7 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
 
             _post(() =>
             {
-                if (version == _refreshVersion && !_disposed)
+                if (version == _refreshVersion && !IsDisposed)
                 {
                     Apply(result);
                 }

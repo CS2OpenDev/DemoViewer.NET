@@ -6,8 +6,8 @@ using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
-using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
 
@@ -46,8 +46,8 @@ public class LineupClipTests
 
     private static IndexedGrenade Throw(string demo, GrenadeRow row) =>
         new(
-            new global::DemoViewer.NET.Extensions.StratBook.DemoRef(demo,
-                global::DemoViewer.NET.Extensions.StratBook.DemoKeys.StableKey(demo),
+            new DemoRef(demo,
+                DemoKeys.StableKey(demo),
                 "sha-" + Path.GetFileNameWithoutExtension(demo)),
             Mirage, row, row.ReleasePosition ?? default, new WorldPoint(-1500, 800, 0), "CTSpawn", "zones:1");
 
@@ -213,7 +213,7 @@ public class LineupClipTests
     [Test]
     public async Task Range_FallsBackToTheEnd_ThenTheAirTime_AndIsCapped()
     {
-        await Assert.That(LineupClipPlanner.Range(Row("x", 1000, 1100), 64)).IsEqualTo((936, 1196));
+        await Assert.That(LineupClipPlanner.Range(Row("x"), 64)).IsEqualTo((936, 1196));
 
         GrenadeRow ended = Row("x", 1000, null);
         ended.EndTick = 1200;
@@ -880,7 +880,7 @@ public class LineupClipTests
             DateTime now = DateTime.UtcNow;
             WritePair(clips, stems[keptOld.Id], 1000, now.AddHours(-2));
             WritePair(clips, stems[keptNew.Id], 1000, now.AddHours(-1));
-            long cap = new System.IO.DirectoryInfo(clips).EnumerateFiles().Sum(f => f.Length)
+            long cap = new DirectoryInfo(clips).EnumerateFiles().Sum(f => f.Length)
                        + 100; // less than one more pair
 
             FileRenderer renderer = new() { Bytes = 1000 };
@@ -917,7 +917,7 @@ public class LineupClipTests
     [Test]
     public async Task WithAProcessingQueue_EachDemosBatch_IsALineupClipsItem_OneAtATime()
     {
-        using DemoViewer.NET.Services.HeavyJobGate gate = new();
+        using Services.HeavyJobGate gate = new();
         int parses = 0;
         using DemoProcessingQueue processing = new(gate, a => a(), _ => throw new NotSupportedException(),
             _ => throw new NotSupportedException(), () => Task.CompletedTask, parseFileWithPlan: (_, plan) =>
@@ -955,7 +955,7 @@ public class LineupClipTests
     [Test]
     public async Task CancellingABatchInTheQueue_DropsThatDemosClips_AndTheNextDemoGoesOn()
     {
-        using DemoViewer.NET.Services.HeavyJobGate gate = new();
+        using Services.HeavyJobGate gate = new();
         using DemoProcessingQueue processing = new(gate, a => a(), _ => throw new NotSupportedException(),
             _ => throw new NotSupportedException(), () => Task.CompletedTask,
             parseFileWithPlan: (_, plan) => SyntheticParsedDemo.Create(plan: plan));
@@ -977,7 +977,7 @@ public class LineupClipTests
     [Test]
     public async Task ADemoThatFailsToRead_IsNotSubmittedAgain_AndTheNextDemoGoesOn()
     {
-        using DemoViewer.NET.Services.HeavyJobGate gate = new();
+        using Services.HeavyJobGate gate = new();
         int brokenReads = 0;
         using DemoProcessingQueue processing = new(gate, a => a(), _ => throw new NotSupportedException(),
             _ => throw new NotSupportedException(), () => Task.CompletedTask,

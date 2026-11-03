@@ -5,10 +5,8 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
-using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.ViewModels.ErrorReport;
 using DemoViewer.NET.Views.ErrorReport;
 

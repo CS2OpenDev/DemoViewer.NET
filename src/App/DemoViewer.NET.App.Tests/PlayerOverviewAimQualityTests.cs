@@ -7,7 +7,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Controls.Stats;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -116,7 +115,7 @@ public class PlayerOverviewAimQualityTests
         public Shell(DemoCacheStore store)
         {
             PlayerDirectory directory = new(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts([new IdentityAccount(Id(Grim), null, DateTime.UtcNow)]);
             Rows = Cache(store, directory);
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, Rows, _ => { },
@@ -265,7 +264,7 @@ public class PlayerOverviewAimQualityRenderTests
         {
             DemoCacheStore store = PlayerOverviewAimQualityTests.Library(3, _ => false);
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRowCache rows = PlayerOverviewAimQualityTests.Cache(store, directory);
             await rows.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows,

@@ -1,9 +1,9 @@
 #region
 
 using System.Text.Json;
-using DemoViewer.NET.Modules.Library;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.GameEvents;
+using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.TestSupport;

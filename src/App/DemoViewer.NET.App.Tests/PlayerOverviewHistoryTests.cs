@@ -7,7 +7,6 @@ using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -130,7 +129,7 @@ public class PlayerOverviewHistoryTests
         {
             Store = store;
             Directory = new PlayerDirectory(store, onDisk is null ? _ => true : onDisk.Contains);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts(me.Select(a => new IdentityAccount(Id(a), null, Added)));
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(Directory, Identity,
                 Cache(store, Directory, Reads),
@@ -352,7 +351,7 @@ public class PlayerOverviewHistoryTests
     [Test]
     public async Task Header_SetAsMe_OnAnEmptyList_MakesTheAccountActive()
     {
-        using Shell shell = new(Library(1), null);
+        using Shell shell = new(Library(1));
         shell.Tab.OpenPlayer(Mate);
         shell.Header.SetAsMeCommand.Execute(null);
         await Assert.That(shell.Identity.ActiveSteamId64).IsEqualTo(Id(Mate));
@@ -371,7 +370,7 @@ public class PlayerOverviewHistoryRenderTests
         {
             DemoCacheStore store = PlayerOverviewHistoryTests.Library(1000, i => i % 3 != 0);
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRowCache cache = PlayerOverviewHistoryTests.Cache(store, directory);
             await cache.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, cache,

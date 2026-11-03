@@ -343,7 +343,7 @@ public class StratLogPositionTests
                 await Assert.That(Committed(store.Materialize(states[^1].Id, 12)!)).IsEqualTo(Committed(states[^1]));
                 await Assert.That(rows.Count).IsEqualTo(OwnerShape.Length);
                 await Assert.That(rows.Select(r => r.Revision))
-                    .IsEquivalentTo(Enumerable.Reverse(OwnerShape), CollectionOrdering.Matching);
+                    .IsEquivalentTo(OwnerShape.Reverse(), CollectionOrdering.Matching);
                 await Assert.That(rows.Take(OwnerShape.Length - 1).All(r => r.Changes.Count == 2)).IsTrue();
             }
         }

@@ -2,7 +2,6 @@
 
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Services.DemoProcessing;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

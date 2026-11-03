@@ -228,7 +228,7 @@ public class ExtensionIsolationTests
         {
             await Assert.That(contributions.DemoActions.Select(a => a.FeatureId))
                 .IsEquivalentTo([pack.FeatureId, OwnsOneFeature.Sub, pack.FeatureId],
-                    TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    CollectionOrdering.Matching);
             await Assert.That(guard.Faults.StateOf(pack.FeatureId).Count).IsEqualTo(1)
                 .Because("only the contribution naming another owner's feature is reported");
         }

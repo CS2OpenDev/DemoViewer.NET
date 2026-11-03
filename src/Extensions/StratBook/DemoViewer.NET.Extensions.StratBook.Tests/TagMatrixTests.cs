@@ -2,13 +2,13 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
-using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 

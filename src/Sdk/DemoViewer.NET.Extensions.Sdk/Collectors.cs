@@ -1,9 +1,13 @@
+#region
+
 using System.Globalization;
 using System.Numerics;
 using System.Reflection;
 using System.Text;
 using CS2DemoKit.Parser;
 using CS2OpenSchema.Protos;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 

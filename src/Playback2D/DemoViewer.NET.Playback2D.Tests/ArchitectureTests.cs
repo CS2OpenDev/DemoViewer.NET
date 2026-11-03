@@ -7,9 +7,9 @@ using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Pipeline;
-using SysAssembly = System.Reflection.Assembly;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
+using SysAssembly = System.Reflection.Assembly;
 
 #endregion
 

@@ -1,4 +1,8 @@
+#region
+
 using System.Diagnostics.CodeAnalysis;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk.Review;
 

@@ -104,7 +104,7 @@ public class ExtensionLoaderTests
             FakeFeeds.Entry entry = new("1.0.1", zip);
             UpdateFixtures.FakeFeedClient client = new();
             client.Zips[entry.Url] = zip;
-            ExtensionUpdateService updater = new(root, [UpdateFixtures.Status(FakeId)], Host, TrustAll, client,
+            ExtensionUpdateService updater = new(root, [UpdateFixtures.Status()], Host, TrustAll, client,
                 UpdateFixtures.FeedUrl);
 
             StageResult staged =
@@ -697,7 +697,7 @@ public class ExtensionLoaderTests
                 .StartsWith("Update 1.3.0 was not loaded: it was built against DemoViewer.NET.Extensions.Sdk ")
                 .And.EndsWith("; this app ships 9.9.0.0");
             await Assert.That(ExtensionLoader.RunningVersion("DemoViewer.NET"))
-                .IsEqualTo(typeof(DemoViewer.NET.Extensions.ExtensionHost).Assembly.GetName().Version);
+                .IsEqualTo(typeof(ExtensionHost).Assembly.GetName().Version);
             await Assert.That(ExtensionLoader.RunningVersion("No.Such.Assembly")).IsNull();
         }
     }

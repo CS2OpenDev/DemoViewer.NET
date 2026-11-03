@@ -223,7 +223,7 @@ public static class Icons
 
             (string Key, SKColor? Wash)[] variants = tinted
                 ? [.. IconSet.PremierTiers.Select(t => ("premier/" + t.Name, (SKColor?)Parse(t.Hex)))]
-                : [("premier/unranked", (SKColor?)null)];
+                : [("premier/unranked", null)];
 
             foreach ((string key, SKColor? wash) in variants)
             {

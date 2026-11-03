@@ -181,9 +181,9 @@ public class TagQueryTests
             await Assert
                 .That(TagQuery.Find(Fixture(),
                         TagSlice.Everything with
-                            {
-                                Where = [new LabelPredicate(LabelNamespace.Human, "outcome", Set())]
-                            })
+                        {
+                            Where = [new LabelPredicate(LabelNamespace.Human, "outcome", Set())]
+                        })
                     .Count).IsEqualTo(0).Because("an empty one-of matches nothing");
         }
     }

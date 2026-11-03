@@ -2,7 +2,6 @@
 
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.VisualTree;
 using DemoViewer.NET.ViewModels.Tutorial;
 
 #endregion

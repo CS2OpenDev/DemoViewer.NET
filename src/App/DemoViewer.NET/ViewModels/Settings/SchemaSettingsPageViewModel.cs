@@ -3,7 +3,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Extensions;
 
 #endregion
 
@@ -48,7 +47,7 @@ public sealed class SchemaSettingsPageViewModel : IDisposable
 }
 
 /// <summary>One rendered setting.</summary>
-public abstract partial class SchemaSettingRow : ObservableObject
+public abstract class SchemaSettingRow : ObservableObject
 {
     private protected SchemaSettingRow(SettingDescriptor descriptor, IExtensionSettings settings)
     {

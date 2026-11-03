@@ -4,7 +4,6 @@ using System.Globalization;
 using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;

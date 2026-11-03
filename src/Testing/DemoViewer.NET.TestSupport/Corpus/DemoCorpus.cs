@@ -311,7 +311,6 @@ public sealed class DemoCorpus
                 Discard(partial);
                 unusable.Add(ex);
                 tried.Add($"{source.Description}: {ex.Message}");
-                continue;
             }
             catch (Exception ex)
             {

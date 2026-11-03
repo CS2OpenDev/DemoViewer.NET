@@ -4,11 +4,10 @@ using System.Globalization;
 using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Analysis.Clips;
-using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.Services.DemoProcessing;
+using DemoViewer.NET.ViewModels.Diagnostics;
 
 #endregion
 

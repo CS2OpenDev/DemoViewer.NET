@@ -85,13 +85,13 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         string own = OwnFolder(cache);
-        string files = System.IO.Path.Combine(own, ExtensionFolders.OwnCacheDirectoryName);
+        string files = Path.Combine(own, ExtensionFolders.OwnCacheDirectoryName);
         MoveIntoFilesFolder(own, files);
         return new ExtensionFolder(files);
     }
 
     private string OwnFolder(string root) =>
-        System.IO.Path.Combine(root, ExtensionFolders.DataDirectoryName, ExtensionFolders.SafeName(_extensionId));
+        Path.Combine(root, ExtensionFolders.DataDirectoryName, ExtensionFolders.SafeName(_extensionId));
 
     // Builds through v0.9.0 handed the extension its cache folder itself, so what they wrote sits beside the
     // per-demo data the host keeps there. Every such entry moves down into the folder handed out now, except
@@ -122,14 +122,14 @@ internal sealed class ExtensionStores : IExtensionStores
 
         foreach (string entry in entries)
         {
-            string name = System.IO.Path.GetFileName(entry);
+            string name = Path.GetFileName(entry);
             if (string.Equals(name, ExtensionDemoDataStore.DirectoryName, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(name, ExtensionFolders.OwnCacheDirectoryName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            string target = System.IO.Path.Combine(files, name);
+            string target = Path.Combine(files, name);
             if (File.Exists(target) || Directory.Exists(target))
             {
                 continue;
@@ -195,17 +195,16 @@ internal sealed class ExtensionStores : IExtensionStores
 internal sealed class ExtensionFolder : IExtensionFolder
 {
     private static readonly UTF8Encoding Utf8 = new(false);
-    private readonly string _root;
 
     /// <param name="root">The folder, absolute.</param>
     public ExtensionFolder(string root)
     {
-        _root = System.IO.Path.GetFullPath(root);
+        Path = System.IO.Path.GetFullPath(root);
     }
 
-    public string Path => _root;
+    public string Path { get; }
 
-    public void Create() => Directory.CreateDirectory(_root);
+    public void Create() => Directory.CreateDirectory(Path);
 
     public bool FileExists(string relativePath) => File.Exists(ResolveFile(relativePath));
 
@@ -231,7 +230,7 @@ internal sealed class ExtensionFolder : IExtensionFolder
         ArgumentNullException.ThrowIfNull(searchPattern);
         string folder = ResolveFolder(relativePath);
         return Directory.Exists(folder)
-            ? Directory.EnumerateFiles(folder, searchPattern).Select(f => System.IO.Path.GetRelativePath(_root, f))
+            ? Directory.EnumerateFiles(folder, searchPattern).Select(f => System.IO.Path.GetRelativePath(Path, f))
             : [];
     }
 
@@ -239,7 +238,7 @@ internal sealed class ExtensionFolder : IExtensionFolder
     {
         string folder = ResolveFolder(relativePath);
         return Directory.Exists(folder)
-            ? Directory.EnumerateDirectories(folder).Select(d => System.IO.Path.GetRelativePath(_root, d))
+            ? Directory.EnumerateDirectories(folder).Select(d => System.IO.Path.GetRelativePath(Path, d))
             : [];
     }
 
@@ -312,7 +311,7 @@ internal sealed class ExtensionFolder : IExtensionFolder
     private string ResolveFile(string relativePath)
     {
         ArgumentNullException.ThrowIfNull(relativePath);
-        return PackDataRemover.ResolveSafe(_root, relativePath)
+        return PackDataRemover.ResolveSafe(Path, relativePath)
                ?? throw new ArgumentException($"'{relativePath}' is not a file inside the store.",
                    nameof(relativePath));
     }
@@ -323,10 +322,10 @@ internal sealed class ExtensionFolder : IExtensionFolder
         ArgumentNullException.ThrowIfNull(relativePath);
         if (relativePath.Length == 0 || relativePath == ".")
         {
-            return _root;
+            return Path;
         }
 
-        return PackDataRemover.ResolveSafe(_root, relativePath)
+        return PackDataRemover.ResolveSafe(Path, relativePath)
                ?? throw new ArgumentException($"'{relativePath}' is not a folder inside the store.",
                    nameof(relativePath));
     }

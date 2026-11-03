@@ -2,7 +2,6 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Features;
 using DemoViewer.NET.Services.DemoProcessing;
 using Microsoft.Extensions.DependencyInjection;
 using TUnit.Assertions.Enums;
@@ -65,7 +64,7 @@ public class JobKindRegistryTests
 
         using (Assert.Multiple())
         {
-            foreach (var (kind, label, rank, isLight) in expected)
+            foreach ((QueueJobKind kind, string label, int rank, bool isLight) in expected)
             {
                 JobKindDescriptor descriptor = JobKindRegistry.CoreDescriptors.Single(d => d.Kind == kind);
                 await Assert.That(descriptor.Label).IsEqualTo(label).Because($"{kind}'s chip label");

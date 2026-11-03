@@ -11,10 +11,10 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Dependencies;
 using DemoViewer.NET.Services.LiveSync;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.Review;
 using Microsoft.Extensions.Options;
 
@@ -289,7 +289,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     /// <summary>The backlog notice: desktop only, since the browser host cannot scan.</summary>
     public bool ShowBacklogNotice => CanScan && _backlog?.IsRelevant == true;
 
-    private void OnBacklogChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnBacklogChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(HighlightBacklogViewModel.IsRelevant))
         {

@@ -6,7 +6,6 @@ using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using DemoViewer.NET.Modules.Highlights;
 using Microsoft.Extensions.Logging;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

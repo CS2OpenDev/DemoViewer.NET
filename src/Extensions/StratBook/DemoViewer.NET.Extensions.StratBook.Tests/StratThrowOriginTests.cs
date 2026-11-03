@@ -3,12 +3,12 @@
 using System.Numerics;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using SkiaSharp;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 using static DemoViewer.NET.AppTests.StratTestData;

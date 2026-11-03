@@ -5,12 +5,12 @@ using System.Text.Json.Nodes;
 using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
-using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services;
+using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Playback2D.Annotations;
 using Microsoft.Extensions.Logging;
 
 #endregion
@@ -78,10 +78,9 @@ public sealed class SuggestedTagsService : IExtensionPass
 
     private readonly Func<bool> _background;
     private readonly IExtensionLibrary _library;
-    private readonly IRoundFacts _roundFacts;
 
     /// <summary>The Round Facts rows the detectors read, for the tuning preview's re-runs.</summary>
-    internal IRoundFacts RoundFacts => _roundFacts;
+    internal IRoundFacts RoundFacts { get; }
 
     private readonly Func<bool> _enabled;
 
@@ -104,7 +103,6 @@ public sealed class SuggestedTagsService : IExtensionPass
     private readonly Func<string, IReadOnlyList<PlaceSummary>?>? _placesFor;
     private readonly Action<Action> _post;
     private readonly Func<DetectorProfile> _profile;
-    private readonly ProposalStore _proposals;
     private readonly SiteRegionStore _regions;
 
     // The region table per map, read once: Wants runs over the whole library and must not open a file
@@ -168,8 +166,8 @@ public sealed class SuggestedTagsService : IExtensionPass
         ArgumentNullException.ThrowIfNull(enabled);
         ArgumentNullException.ThrowIfNull(background);
         _library = library;
-        _roundFacts = roundFacts;
-        _proposals = proposals;
+        RoundFacts = roundFacts;
+        Proposals = proposals;
         _tags = tags;
         _regions = regions;
         _profile = profile;
@@ -192,10 +190,10 @@ public sealed class SuggestedTagsService : IExtensionPass
     public IExtensionPasses? Passes { get; set; }
 
     /// <summary>The proposals store, whose stamps carry each demo's pending count.</summary>
-    public ProposalStore Proposals => _proposals;
+    public ProposalStore Proposals { get; }
 
     /// <summary>Whether proposals and verdicts outlive the process. False on the browser host.</summary>
-    public bool IsPersistent => _proposals.IsPersistent && (_tags?.IsPersistent ?? false);
+    public bool IsPersistent => Proposals.IsPersistent && (_tags?.IsPersistent ?? false);
 
     /// <summary>True while the scheduler has a build in flight.</summary>
     public bool IsDetecting => Passes?.IsBusy(EvaluatorId) ?? false;
@@ -552,7 +550,7 @@ public sealed class SuggestedTagsService : IExtensionPass
         // The facts a hand-made tag gets as it is made, so the Matrix can slice an accepted tag at once
         // rather than after the next rows rewrite.
         LibraryDemo? record = _library.Find(path);
-        if (record is not null && _roundFacts.TryGet(path) is { Schema: RoundFactsRows.CurrentSchema } rows)
+        if (record is not null && RoundFacts.TryGet(path) is { Schema: RoundFactsRows.CurrentSchema } rows)
         {
             TagFactsRefresher.RefreshInstance(instance, rows.Rounds, RoundFactsRows.CurrentSchema, now);
         }
@@ -609,13 +607,13 @@ public sealed class SuggestedTagsService : IExtensionPass
     private void AfterVerdict(string path, string? sha256)
     {
         int pending = LoadCore(path, sha256).Set.Pending.Count;
-        _proposals.SetCount(path, pending);
+        Proposals.SetCount(path, pending);
 
         RaiseChanged(path);
     }
 
     private (ProposalDocument? Document, ProposalSet Set) LoadCore(string path, string? sha256) =>
-        _proposals.TryRead(path) is { } document
+        Proposals.TryRead(path) is { } document
             ? Resolve(path, sha256, document)
             : (null, ProposalSet.Empty(path, IsPersistent));
 
@@ -678,7 +676,7 @@ public sealed class SuggestedTagsService : IExtensionPass
 
         try
         {
-            if (_library.Find(path) is not { } record || _roundFacts.TryGet(path) is not
+            if (_library.Find(path) is not { } record || RoundFacts.TryGet(path) is not
                     { Schema: RoundFactsRows.CurrentSchema } facts)
             {
                 return; // nothing to bound rounds and seat sides with; Round Facts has not written this demo
@@ -688,8 +686,8 @@ public sealed class SuggestedTagsService : IExtensionPass
             DetectorProfile profile = _profile();
             SiteRegionTable? table = TableFor(map);
             string fingerprint = SuggestionsFingerprint.Compose(profile, table);
-            if (!forced && _proposals.IsCurrent(path, fingerprint)
-                        && _proposals.TryRead(path) is not null)
+            if (!forced && Proposals.IsCurrent(path, fingerprint)
+                        && Proposals.TryRead(path) is not null)
             {
                 return; // a queued request the open's visit already satisfied
             }
@@ -858,7 +856,7 @@ public sealed class SuggestedTagsService : IExtensionPass
 
         // The pending count needs the verdicts matched against these proposals, so it is counted before
         // the write that stamps it.
-        _proposals.Write(path, document, fingerprint, CountPending(path, document));
+        Proposals.Write(path, document, fingerprint, CountPending(path, document));
     }
 
     /// <summary>
@@ -872,7 +870,7 @@ public sealed class SuggestedTagsService : IExtensionPass
     internal bool WantsRebuild(LibraryDemo demo)
     {
         if (_detonations is null || !_enabled() || !HasInputs(demo) || InputsKey(demo) is not { } key
-            || _proposals.Stamp(demo.FilePath) is not { } built
+            || Proposals.Stamp(demo.FilePath) is not { } built
             || !built.IsCurrent(ProposalStore.Schema, FingerprintFor(demo.MapName)))
         {
             return false; // nothing stored to build from, or the visit pass owns the build
@@ -903,7 +901,7 @@ public sealed class SuggestedTagsService : IExtensionPass
         lock (BuildLock(path))
         {
             if (_detonations?.TryRead(path) is not { } stored || InputsKey(demo) is not { } key
-                                                              || _roundFacts.TryGet(path) is not
+                                                              || RoundFacts.TryGet(path) is not
                                                                   { Schema: RoundFactsRows.CurrentSchema } facts)
             {
                 return;
@@ -969,7 +967,7 @@ public sealed class SuggestedTagsService : IExtensionPass
     }
 
     private bool NeedsBuild(LibraryDemo? entry) =>
-        entry is not null && HasInputs(entry) && !_proposals.IsCurrent(entry.FilePath, FingerprintFor(entry.MapName));
+        entry is not null && HasInputs(entry) && !Proposals.IsCurrent(entry.FilePath, FingerprintFor(entry.MapName));
 
     private static bool HasInputs(LibraryDemo? entry) =>
         entry is { State: >= LibraryDemoState.Parsed } && entry.Fact(RoundFactsRows.FacetId) is { IsWritten: true };

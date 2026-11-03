@@ -3,7 +3,6 @@
 using System.Text.Json;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -107,7 +106,7 @@ public class RoundFactsCacheTests
     public async Task AChangedFingerprint_ReportsItAgain_AndTheSameOneDoesNot()
     {
         DemoCacheRecord record = Analysed("/d/a.dem");
-        record.SetRoundFacts(Rows(), Fingerprint);
+        record.SetRoundFacts(Rows());
 
         using (Assert.Multiple())
         {
@@ -125,7 +124,7 @@ public class RoundFactsCacheTests
     public async Task RowsAtAnOlderSchema_AreStaleUnderTheSameFingerprint()
     {
         DemoCacheRecord record = Analysed("/d/a.dem");
-        record.SetRoundFacts(Rows(0), Fingerprint);
+        record.SetRoundFacts(Rows(0));
 
         await Assert.That(record.NeedsRoundFacts(Fingerprint)).IsTrue();
     }
@@ -167,7 +166,7 @@ public class RoundFactsCacheTests
         {
             DemoCacheStore store = new(root);
             DemoCacheRecord record = Analysed("/d/a.dem");
-            record.SetRoundFacts(Rows(), Fingerprint);
+            record.SetRoundFacts(Rows());
             store.Upsert(record);
             store.SaveIndex();
 
@@ -214,7 +213,7 @@ public class RoundFactsCacheTests
     {
         DemoCacheStore store = new(null);
         DemoCacheRecord record = Analysed("/d/a.dem");
-        record.SetRoundFacts(Rows(), Fingerprint);
+        record.SetRoundFacts(Rows());
         store.Upsert(record);
 
         using (Assert.Multiple())

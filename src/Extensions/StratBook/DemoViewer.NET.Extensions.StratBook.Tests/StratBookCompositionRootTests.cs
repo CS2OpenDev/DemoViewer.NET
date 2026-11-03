@@ -117,9 +117,8 @@ public class StratBookCompositionRootTests
                 .IsEquivalentTo(
                     new[]
                     {
-                        "library", "highlights", DemoViewer.NET.Services.Facts.RoundFactsEvaluator.EvaluatorId,
-                        DemoViewer.NET.Extensions.Sdk.HostIds.FactsPass,
-                        DemoViewer.NET.Services.MatchMeta.MatchMetaEvaluator.StampId,
+                        "library", "highlights", Services.Facts.RoundFactsEvaluator.EvaluatorId, HostIds.FactsPass,
+                        Services.MatchMeta.MatchMetaEvaluator.StampId,
                         DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator.EvaluatorId,
                         DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator.EvaluatorId,
                         DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService.EvaluatorId,
@@ -273,8 +272,8 @@ public class StratBookCompositionRootTests
         await WithProvider(new DesktopWindowService(() => null), async provider =>
         {
             SeedQualifyingDemo(provider, demo);
-            DemoViewer.NET.Services.Facts.RoundFactsEvaluator roundFacts =
-                provider.GetRequiredService<DemoViewer.NET.Services.Facts.RoundFactsEvaluator>();
+            Services.Facts.RoundFactsEvaluator roundFacts =
+                provider.GetRequiredService<Services.Facts.RoundFactsEvaluator>();
             DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator roundIndex =
                 provider
                     .GetRequiredService<DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator>();
@@ -313,7 +312,7 @@ public class StratBookCompositionRootTests
                 .Because("the pack is off: the pending suggestions are never read");
             // round_facts rides the merged set whatever the pack says.
             await Assert.That(provider.GetRequiredService<Modules.Highlights.MergedRulesBuild>().Docs.Select(d => d.Id))
-                .Contains(DemoViewer.NET.Services.Facts.RoundFactsFingerprint.RulesetId);
+                .Contains(Services.Facts.RoundFactsFingerprint.RulesetId);
         }, packOff);
 
         // Control: the same seed and the same demo, pack on (its default). Without this, the asserts
@@ -321,8 +320,8 @@ public class StratBookCompositionRootTests
         await WithProvider(new DesktopWindowService(() => null), async provider =>
         {
             SeedQualifyingDemo(provider, demo);
-            DemoViewer.NET.Services.Facts.RoundFactsEvaluator roundFacts =
-                provider.GetRequiredService<DemoViewer.NET.Services.Facts.RoundFactsEvaluator>();
+            Services.Facts.RoundFactsEvaluator roundFacts =
+                provider.GetRequiredService<Services.Facts.RoundFactsEvaluator>();
             DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator roundIndex =
                 provider
                     .GetRequiredService<DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator>();
@@ -353,7 +352,7 @@ public class StratBookCompositionRootTests
                 await Assert.That(roundFacts.Wants(demo)).IsTrue().Because("the seeded rows carry a stale fingerprint");
                 await Assert.That(provider.GetRequiredService<Modules.Highlights.MergedRulesBuild>().Docs
                         .Select(d => d.Id))
-                    .Contains(DemoViewer.NET.Services.Facts.RoundFactsFingerprint.RulesetId);
+                    .Contains(Services.Facts.RoundFactsFingerprint.RulesetId);
             }
         }, packOn);
     }

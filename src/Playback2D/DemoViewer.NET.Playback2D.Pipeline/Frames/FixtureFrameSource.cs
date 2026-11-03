@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 
 #endregion

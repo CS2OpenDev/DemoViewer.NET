@@ -5,14 +5,14 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
-using DemoViewer.NET.Services.Review;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
 using DemoViewer.NET.Extensions.StratBook.Views.Review;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
-using DemoViewer.NET.Extensions;
 
 #endregion
 

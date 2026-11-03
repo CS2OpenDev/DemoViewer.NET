@@ -5,7 +5,6 @@ using CS2DemoKit.Analysis.Edges;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.GameEvents;
-using CS2OpenSchema.Events;
 using SchemaNames = CS2OpenSchema.SchemaNames;
 
 #endregion

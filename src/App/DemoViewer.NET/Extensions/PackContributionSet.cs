@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis.Diagnostics;
-using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;

@@ -63,7 +63,7 @@ public static class ExtensionTabs
                 : () =>
                 {
                     IWorkspaceTabViewModel? built =
-                        guard.Run<IWorkspaceTabViewModel?>("tab view model", () => viewModel(), null);
+                        guard.Run("tab view model", () => viewModel(), null);
                     viewModelFailed = built is null;
                     return built!;
                 },

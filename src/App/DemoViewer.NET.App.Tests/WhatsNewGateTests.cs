@@ -3,10 +3,10 @@
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Update;
+using DemoViewer.NET.ViewModels.ErrorReport;
 using DemoViewer.NET.ViewModels.Settings;
 using DemoViewer.NET.ViewModels.Setup;
 using DemoViewer.NET.ViewModels.Shell;
-using DemoViewer.NET.ViewModels.ErrorReport;
 using DemoViewer.NET.ViewModels.Update;
 
 #endregion

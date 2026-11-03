@@ -3,8 +3,8 @@
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;
 
@@ -147,7 +147,7 @@ public class CreateStratFromRoundRealDemoTests
         using (Assert.Multiple())
         {
             await Assert.That(document.Economy).IsEqualTo(row.T.BuyType.ToString().ToLowerInvariant());
-            await Assert.That(document.Clock.RoundSeconds).IsEqualTo((double)row.RoundTimeSeconds!.Value);
+            await Assert.That(document.Clock.RoundSeconds).IsEqualTo(row.RoundTimeSeconds!.Value);
         }
     }
 

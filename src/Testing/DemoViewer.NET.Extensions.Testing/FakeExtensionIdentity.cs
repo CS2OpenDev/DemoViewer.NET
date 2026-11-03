@@ -1,7 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.Sdk;
-
 #endregion
 
 namespace DemoViewer.NET.Extensions.Testing;

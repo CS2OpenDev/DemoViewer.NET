@@ -3,10 +3,10 @@
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Services.DemoProcessing;
+using DemoViewer.NET.Services.DemoProcessing.Collectors;
 using DemoViewer.NET.TestSupport;
 using Microsoft.Extensions.DependencyInjection;
 using TUnit.Assertions.Enums;
-using TUnit.Core.Exceptions;
 using AppSites = DemoViewer.NET.Services.DemoProcessing.DecodeSites;
 using StratBookSites = DemoViewer.NET.Extensions.StratBook.Services.DecodeSites;
 
@@ -38,7 +38,8 @@ public class RoundIndexReindexRealDemoTests
 
                     DemoProcessingQueue queue = provider.GetRequiredService<DemoProcessingQueue>();
                     int forwardReads = 0;
-                    var forward = queue.ForwardRead ?? throw new InvalidOperationException("no forward read wired");
+                    Func<string, ForwardNeeds, CollectorSet, Action<double>, CancellationToken, ForwardDemoResult>
+                        forward = queue.ForwardRead ?? throw new InvalidOperationException("no forward read wired");
                     queue.ForwardRead = (path, needs, collectors, progress, ct) =>
                     {
                         Interlocked.Increment(ref forwardReads);

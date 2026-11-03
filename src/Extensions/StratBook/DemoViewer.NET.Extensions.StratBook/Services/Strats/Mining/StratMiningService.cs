@@ -4,11 +4,11 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Playback2D.Annotations;
 
 #endregion
 
@@ -90,7 +90,6 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     private readonly IExtensionPasses? _passes;
     private int _minesInFlight;
     private readonly Func<Action, Task> _run;
-    private readonly RoundSignatureBuilder _signatures;
     private readonly StoredFile? _stateFile;
     private readonly StratStore _strats;
     private readonly TagStore? _tags;
@@ -154,7 +153,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         _jobs = jobs;
         _passes = passes;
         _enabled = enabled ?? (() => true);
-        _signatures = new RoundSignatureBuilder(library, roundFacts, positions, fingerprintFor,
+        Signatures = new RoundSignatureBuilder(library, roundFacts, positions, fingerprintFor,
             grenadeIndex is null ? null : RoundSignatureBuilder.FromIndex(grenadeIndex), teams,
             new SignatureCache(files?.Signatures));
         Load();
@@ -162,7 +161,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     }
 
     /// <summary>The builder, for its cache counts.</summary>
-    internal RoundSignatureBuilder Signatures => _signatures;
+    internal RoundSignatureBuilder Signatures { get; }
 
     /// <summary>How long the cache has to stay quiet before a re-mine; <see cref="Timeout.InfiniteTimeSpan" /> turns it off.</summary>
     public TimeSpan QuietDelay { get; set; } = TimeSpan.FromSeconds(30);
@@ -274,7 +273,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
             // Its failure is its own; the release goes on.
         }
 
-        _signatures.ReleaseCache();
+        Signatures.ReleaseCache();
         _post(() =>
         {
             Patterns = [];
@@ -394,7 +393,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         try
         {
             RoundSignatureBuilder.BuildSession? session = null;
-            if (!await StepAsync(() => session = _signatures.Begin()).ConfigureAwait(false))
+            if (!await StepAsync(() => session = Signatures.Begin()).ConfigureAwait(false))
             {
                 return;
             }
@@ -410,7 +409,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
                 }
 
                 int start = from;
-                if (!await StepAsync(() => _signatures.Step(session, start, BatchSize)).ConfigureAwait(false))
+                if (!await StepAsync(() => Signatures.Step(session, start, BatchSize)).ConfigureAwait(false))
                 {
                     return;
                 }
@@ -420,7 +419,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
             await job.StepAsideAsync().ConfigureAwait(false);
             if (!await StepAsync(() =>
                 {
-                    signatures = _signatures.Finish(session);
+                    signatures = Signatures.Finish(session);
                     patterns = StratMiner.Mine(signatures);
                     Save(patterns);
                 }).ConfigureAwait(false))
@@ -464,7 +463,7 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
             IReadOnlyList<MinedPattern> patterns = [];
             try
             {
-                signatures = _signatures.Build();
+                signatures = Signatures.Build();
                 patterns = StratMiner.Mine(signatures);
                 Save(patterns);
             }
@@ -791,11 +790,12 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         LastRunRemoval = _jobs is null
             ? _run(() => RemoveRuns(id))
             : _jobs.Enqueue(new JobRequest("Strat mining: remove a deleted strat's runs", _ =>
-                {
-                    RemoveRuns(id);
-                    return Task.CompletedTask;
-                },
-                new JobOptions(StratBookJobKinds.Mining, JobPriority.UserRequested, "strat-runs:" + id.ToString("N"))))
+                    {
+                        RemoveRuns(id);
+                        return Task.CompletedTask;
+                    },
+                    new JobOptions(StratBookJobKinds.Mining, JobPriority.UserRequested,
+                        "strat-runs:" + id.ToString("N"))))
                 .Completion;
     }
 

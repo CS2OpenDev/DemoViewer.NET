@@ -12,18 +12,18 @@ using Avalonia.Layout;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
+using DemoViewer.NET.Extensions.StratBook.Controls;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 using static DemoViewer.NET.AppTests.StratMapFirstTests;
 using static DemoViewer.NET.AppTests.StratTestData;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 
@@ -620,7 +620,7 @@ public partial class StratLocationFieldTests
     public async Task ATypedCoordinate_IsAPoint_WithTheStoredOrCurrentLevel_AndNumbersAreNeverAPlace()
     {
         PlaceFieldModel single = new() { Options = PlaceFieldOptions.For(Mirage), CurrentLevelMinZ = -512 };
-        single.Load([Point(5, 6, -256)]);
+        single.Load([Point(5, 6)]);
         single.Type("(10, -20.5)");
         PlaceRef typed = single.Commit()!.Single();
 
@@ -845,7 +845,7 @@ public partial class StratLocationFieldTests
             int index = vm.Editor.Steps.Count - 1;
             int steps = vm.Session.Document!.Steps.Count;
             int depth = vm.Session.UndoDepth;
-            Control row = (Control)view.FindControl<ItemsControl>("StepRows")!.ContainerFromIndex(index)!;
+            Control row = view.FindControl<ItemsControl>("StepRows")!.ContainerFromIndex(index)!;
             PlaceField areas = row.GetVisualDescendants().OfType<PlaceField>().Single(f => f.Name == "LurkAreasField");
             BoxOf(areas).Focus();
             Dispatcher.UIThread.RunJobs();

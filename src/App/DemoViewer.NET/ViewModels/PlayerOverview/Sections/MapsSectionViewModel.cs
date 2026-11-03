@@ -6,7 +6,6 @@ using DemoViewer.NET.Controls.Stats;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Players;
-using DemoViewer.NET.ViewModels.Stats;
 
 #endregion
 

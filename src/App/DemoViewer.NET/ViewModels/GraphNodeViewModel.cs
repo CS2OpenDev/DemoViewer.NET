@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
-using DemoViewer.NET.Theming;
 using DemoViewer.NET.Visualization;
 
 #endregion

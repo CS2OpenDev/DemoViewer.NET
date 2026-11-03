@@ -7,10 +7,10 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Teams;
 using DemoViewer.NET.Extensions.StratBook.Views.Teams;
+using DemoViewer.NET.Services.DemoCache;
 
 #endregion
 

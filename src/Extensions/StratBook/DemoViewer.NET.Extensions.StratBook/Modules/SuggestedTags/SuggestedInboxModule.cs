@@ -1,9 +1,9 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Views.SuggestedTags;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 

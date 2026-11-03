@@ -1,10 +1,10 @@
 #region
 
 using Avalonia.Controls;
-// SetTextAsync moved onto ClipboardExtensions in Avalonia 12; IClipboard no longer declares it.
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using DemoViewer.NET.ViewModels.PlayerOverview.Sections;
+// SetTextAsync moved onto ClipboardExtensions in Avalonia 12; IClipboard no longer declares it.
 
 #endregion
 

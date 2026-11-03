@@ -9,7 +9,6 @@ using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
-using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
 using DemoViewer.NET.Views.Shell;
 
 #endregion
@@ -131,11 +130,11 @@ public static partial class Variants
             JsonArray json =
                 [.. steps.Select(s => JsonSerializer.SerializeToNode(s, StratJsonContext.Default.StratStep))];
             vm.Session.Apply(PatchOp.ReplaceOp("/steps", null, json));
-        }, zones, null, "de_mirage");
+        }, zones);
         view.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() =>
         {
             strats!.Canvas.Transport.Pause();
-            strats.Canvas.Transport.Seek(5 * DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule
+            strats.Canvas.Transport.Seek(5 * Extensions.StratBook.Playback2D.Keyframes.StepSchedule
                 .TicksPerSecond);
             if (view.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault(c => c.Name == "StepRows") is
                 { } rows)

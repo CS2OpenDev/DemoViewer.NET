@@ -3,10 +3,10 @@
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
+using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
-using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.SuggestedTagsReviewHarness;
 
@@ -199,7 +199,7 @@ public class SuggestedTagsTuningServiceTests
         const string otherPath = "/d/other.dem";
         string otherSha = new('b', 64);
         h.Cache.Upsert(RoundIndexTestData.ParsedRecord(otherPath, SuggestedTagsTestData.Map, otherSha,
-            SuggestedTagsReviewHarness.Rows()));
+            Rows()));
         h.Profile = h.Profile.With("execute", "minSecond", 100);
         h.Service.Evaluate(otherPath, Parse());
         h.Profile = DetectorProfile.Default;

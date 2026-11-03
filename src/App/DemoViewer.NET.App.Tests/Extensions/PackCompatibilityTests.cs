@@ -2,7 +2,6 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Features;
 using Microsoft.Extensions.DependencyInjection;
 using TUnit.Assertions.Enums;
 

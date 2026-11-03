@@ -2,16 +2,12 @@
 
 using System.Text.Json;
 using CS2DemoKit.Analysis;
-using CS2DemoKit.Analysis.Graphs;
-using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.TestSupport;
-using TUnit.Core.Exceptions;
 
 #endregion
 

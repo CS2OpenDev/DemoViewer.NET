@@ -74,10 +74,9 @@ public class ExternalExtensionTests
         ];
 
         await Assert.That(references).IsEquivalentTo([
-                "DemoViewer.NET.Extensions.Sdk", "DemoViewer.NET.Extensions.Sdk.Ui",
-                "DemoViewer.NET.Modules.Abstractions", "DemoViewer.NET.Playback2D.Scene"
-            ],
-            TUnit.Assertions.Enums.CollectionOrdering.Any);
+            "DemoViewer.NET.Extensions.Sdk", "DemoViewer.NET.Extensions.Sdk.Ui",
+            "DemoViewer.NET.Modules.Abstractions", "DemoViewer.NET.Playback2D.Scene"
+        ]);
     }
 
     [Test]
@@ -325,7 +324,7 @@ public class ExternalExtensionTests
                     await Assert.That(contributed.DemoActions.Single().FeatureId).IsEqualTo("pack.hello")
                         .Because("an action with no feature of its own shows under the extension's master switch");
                     await Assert.That(contributed.PlaybackContributions.Single()).IsTypeOf<SdkPlaybackContribution>();
-                    await Assert.That(map).IsTypeOf<global::DemoViewer.NET.Extensions.Sdk.Ui.Controls.MapView>()
+                    await Assert.That(map).IsTypeOf<MapView>()
                         .Because("the UI kit resolves from the app, so the extension embeds the host's own map view");
                     await Assert.That(layers)
                         .IsEquivalentTo(["ext.dev.example.hello.rings"], CollectionOrdering.Matching);
@@ -364,7 +363,7 @@ public class ExternalExtensionTests
                     App.ComposeServices(new Services.DesktopWindowService(() => null), [hello]);
                 // The sample answered on, whatever the composed gate defaults a loaded extension to.
                 Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions
-                    .AddSingleton<Features.IFeatureGate>(
+                    .AddSingleton<IFeatureGate>(
                         services, new SwitchableGate());
                 await using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
                     Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions
@@ -467,7 +466,7 @@ public class ExternalExtensionTests
         }
     }
 
-    private sealed class SwitchableGate : Features.IFeatureGate
+    private sealed class SwitchableGate : IFeatureGate
     {
         private readonly HashSet<string> _off = [];
 
@@ -538,11 +537,11 @@ public class ExternalExtensionTests
             App.ComposeServices(new Services.DesktopWindowService(() => null), [new ReachesForHostServices()]);
 
         Microsoft.Extensions.DependencyInjection.ServiceDescriptor[] gates =
-            [.. services.Where(d => d.ServiceType == typeof(Features.IFeatureGate))];
+            [.. services.Where(d => d.ServiceType == typeof(IFeatureGate))];
         using (Assert.Multiple())
         {
             await Assert.That(gates.Length).IsEqualTo(1);
-            await Assert.That(gates[0].ImplementationType).IsEqualTo(typeof(Features.FeatureGate));
+            await Assert.That(gates[0].ImplementationType).IsEqualTo(typeof(FeatureGate));
             await Assert.That(services.Count(d => d.ServiceType == typeof(Theming.ThemeRegistry))).IsEqualTo(1)
                 .Because("RemoveAll inside Register only touched the pack's copy");
             await Assert.That(services.Any(d => d.ServiceType == typeof(ReachesForHostServices.Own))).IsTrue();
@@ -560,7 +559,7 @@ public class ExternalExtensionTests
         public void Register(Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
             Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
-                .TryAddSingleton<Features.IFeatureGate, FakeGateForRegister>(services);
+                .TryAddSingleton<IFeatureGate, FakeGateForRegister>(services);
             Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions
                 .RemoveAll<Theming.ThemeRegistry>(services);
             Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton<Own>(services);
@@ -571,7 +570,7 @@ public class ExternalExtensionTests
         }
     }
 
-    private sealed class FakeGateForRegister : Features.IFeatureGate
+    private sealed class FakeGateForRegister : IFeatureGate
     {
         public Configuration.UserCategory Category => Configuration.UserCategory.Developer;
         public int HiddenCount => 0;

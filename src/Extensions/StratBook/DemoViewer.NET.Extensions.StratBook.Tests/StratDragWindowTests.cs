@@ -8,12 +8,12 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Extensions.StratBook.Controls;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
-using DemoViewer.NET.Extensions.StratBook.Controls;
+using DemoViewer.NET.Modules.Playback2D;
 
 #endregion
 

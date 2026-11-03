@@ -8,7 +8,6 @@ using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
-using TUnit.Core.Exceptions;
 
 #endregion
 

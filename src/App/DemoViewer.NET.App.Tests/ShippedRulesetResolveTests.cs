@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis;
-using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;

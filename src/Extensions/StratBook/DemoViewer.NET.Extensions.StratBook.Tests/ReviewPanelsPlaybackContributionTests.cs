@@ -1,18 +1,18 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Extensions;
 using Avalonia.Input;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Palette;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Timeline;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
-using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Features;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Playback2D.Annotations;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 

@@ -1,4 +1,8 @@
+#region
+
 using DemoViewer.NET.TestSupport;
+
+#endregion
 
 namespace DemoViewer.NET.AppTests;
 

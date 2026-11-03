@@ -1,9 +1,13 @@
+#region
+
 using Avalonia.Controls;
 using Avalonia.Input;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D.Tools;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk.Playback;
 

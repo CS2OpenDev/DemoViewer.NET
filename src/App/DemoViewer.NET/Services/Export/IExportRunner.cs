@@ -1,14 +1,14 @@
 #region
 
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
+using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Hud;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Vision;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
+using DemoViewer.NET.Playback2D.Vision;
 
 #endregion
 

@@ -8,12 +8,12 @@ using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using DemoViewer.NET.AppTests.Extensions.StratBook;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
-using DemoViewer.NET.Views.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Views.RoundTagger;
-using ModeToggle = DemoViewer.NET.Extensions.Sdk.Playback.ModeToggle;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Views.Playback2D;
 using TUnit.Assertions.Enums;
+using ModeToggle = DemoViewer.NET.Extensions.Sdk.Playback.ModeToggle;
 
 #endregion
 

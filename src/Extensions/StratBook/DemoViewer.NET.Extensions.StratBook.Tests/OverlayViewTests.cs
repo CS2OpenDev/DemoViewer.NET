@@ -3,13 +3,13 @@
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using DemoViewer.NET.Playback2D.Overlay;
 using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 

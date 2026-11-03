@@ -187,7 +187,7 @@ public class HostLibraryTests
             new LibraryChange("/d/one.dem", LibraryChangeKind.Removed),
             new LibraryChange("/d/four.dem", LibraryChangeKind.Added),
             new LibraryChange("/d/four.dem", LibraryChangeKind.FactsUpdated)
-        ], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        ], CollectionOrdering.Matching);
         await Assert.That(library.Find("/d/two.dem")!.Fact("roundfacts")).IsNull();
     }
 
@@ -229,7 +229,7 @@ public class HostLibraryTests
         {
             await Assert.That(one.FilePath).IsEqualTo("/nfs/one.dem");
             await Assert.That(one.Locations).IsEquivalentTo(["/nfs/one.dem", "/smb/one.dem"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(library.Find("/SMB/one.dem")).IsSameReferenceAs(one);
             await Assert.That(library.Demos.Single(d => d.Sha256 == Sha)).IsSameReferenceAs(one);
             await Assert.That(unconfirmed.Sha256).IsNull();

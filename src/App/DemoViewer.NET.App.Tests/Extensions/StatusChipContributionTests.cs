@@ -6,7 +6,6 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.ViewModels.Playback2D;

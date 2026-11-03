@@ -4,7 +4,6 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:timeline="using:DemoViewer.NET.Modules.Playback2D.Timeline"
-             xmlns:controls="using:DemoViewer.NET.Controls"
              mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="70"
              x:Class="DemoViewer.NET.Views.Playback2D.TimelineControl"
              x:DataType="timeline:Playback2DTimelineViewModel"

@@ -3,7 +3,6 @@
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

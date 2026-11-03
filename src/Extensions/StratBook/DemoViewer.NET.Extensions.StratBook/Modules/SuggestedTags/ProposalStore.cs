@@ -200,7 +200,7 @@ public sealed class ProposalStore
     public IExtensionDemoData Data { get; }
 
     /// <summary>False on the browser host and in tests kept in memory: proposals die with the process.</summary>
-    public bool IsPersistent => Data is not Extensions.StratBook.MemoryDemoData;
+    public bool IsPersistent => Data is not MemoryDemoData;
 
     /// <summary>Raised on the UI thread when a demo's stamp moved, with its path, or null for many.</summary>
     public event Action<string?>? Changed

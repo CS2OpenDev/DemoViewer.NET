@@ -1,7 +1,7 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook.Modules;
 using CS2DemoKit.Analysis.Diagnostics;
+using DemoViewer.NET.Extensions.StratBook.Modules;
 using DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger;
@@ -17,6 +17,7 @@ using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
@@ -28,7 +29,6 @@ using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 
@@ -945,7 +945,7 @@ public sealed class StratBookPack : IExtension
             contributions.Context.Library.Facts.RoundFacts));
         contributions.Playback(
             new Modules.RoundTagger.Review.ReviewPanelsPlaybackContribution(Host(sp).Post, library: Library(sp)));
-        contributions.Playback(new Modules.Situations.SituationsPlaybackContribution());
+        contributions.Playback(new SituationsPlaybackContribution());
 
         // The Situations tab. The badge reads Watched Situations, so the service resolves now, but only
         // while the section's own id is on: resolving WatchedSituationsService unconditionally would build

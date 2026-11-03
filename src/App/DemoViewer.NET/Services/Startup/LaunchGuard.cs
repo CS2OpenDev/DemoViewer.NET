@@ -216,7 +216,7 @@ public sealed class LaunchGuard
         ExtensionIdentity[] known = [.. extensions];
         return known.Length == 0
             ? null
-            : DemoViewer.NET.Extensions.StackAttribution.Find(exception, a => known.FirstOrDefault(k => k.Owns(a)));
+            : Extensions.StackAttribution.Find(exception, a => known.FirstOrDefault(k => k.Owns(a)));
     }
 
     /// <summary>Reads a state file; null when it is missing or unreadable.</summary>

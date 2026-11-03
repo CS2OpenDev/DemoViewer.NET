@@ -1,5 +1,9 @@
+#region
+
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk.Playback;
 

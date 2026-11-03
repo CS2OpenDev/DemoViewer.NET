@@ -3,7 +3,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;

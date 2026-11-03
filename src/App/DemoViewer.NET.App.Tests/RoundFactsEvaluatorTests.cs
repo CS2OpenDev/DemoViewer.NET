@@ -1,10 +1,8 @@
 #region
 
 using CS2DemoKit.Parser;
-using CS2DemoKit.Parser.GameEvents;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 
@@ -58,7 +56,7 @@ public class RoundFactsEvaluatorTests
             [RoundFactsColumns.RoundNumber] = round,
             [RoundFactsColumns.Side] = side,
             [RoundFactsColumns.FreezeEndTick] = freezeEnd,
-            [RoundFactsColumns.Slots] = side == 3 ? (int[])[1, 2, 3, 4, 5] : (int[])[6, 7, 8, 9, 10],
+            [RoundFactsColumns.Slots] = side == 3 ? [1, 2, 3, 4, 5] : (int[])[6, 7, 8, 9, 10],
             [RoundFactsColumns.Players] = 5,
             [RoundFactsColumns.Equipment] = 4000,
             [RoundFactsColumns.WinnerSide] = winner,

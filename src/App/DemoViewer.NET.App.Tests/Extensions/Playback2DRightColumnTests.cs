@@ -10,9 +10,9 @@ using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using TUnit.Assertions.Enums;
 using IPanelHandle = DemoViewer.NET.Extensions.Sdk.Playback.IPanelHandle;
 using ModeToggle = DemoViewer.NET.Extensions.Sdk.Playback.ModeToggle;
-using TUnit.Assertions.Enums;
 
 #endregion
 

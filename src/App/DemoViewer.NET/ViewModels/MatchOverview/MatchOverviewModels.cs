@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 
 #endregion

@@ -1,23 +1,23 @@
 #region
 
 using System.Numerics;
-using CS2DemoKit.Analysis.Visibility;
-using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using CS2DemoKit.Analysis.Visibility;
+using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Views.UtilityBook;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
-using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using TUnit.Assertions.Enums;
 
 #endregion

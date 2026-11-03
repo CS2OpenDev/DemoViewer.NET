@@ -49,9 +49,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     private readonly PlayerSearch _search;
     private readonly PlayerOverviewServices _services;
     private bool _active;
-    private PlayerOverviewContext? _context;
     private bool _disposed;
-    private bool _pinned;
     private bool _queueRefreshQueued;
     private bool _clearingSearch;
     private bool _refreshQueued;
@@ -59,7 +57,6 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     private PlayerRows? _rows;
     private bool _stale = true;
     private int _shown;
-    private ulong? _subject;
     private bool _subjectWasMine;
 
     /// <summary>The message under the empty state's or the banner's title.</summary>
@@ -164,13 +161,13 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     public bool HasMeAccounts => MeAccounts.Count > 0;
 
     /// <summary>The account the page is about, or null.</summary>
-    public ulong? SubjectSteamId64 => _subject;
+    public ulong? SubjectSteamId64 { get; private set; }
 
     /// <summary>True when the user opened the subject; false while the tab follows the active Me account.</summary>
-    public bool IsPinned => _pinned;
+    public bool IsPinned { get; private set; }
 
     /// <summary>What the sections last rendered; null before the first refresh.</summary>
-    public PlayerOverviewContext? Context => _context;
+    public PlayerOverviewContext? Context { get; private set; }
 
     /// <summary>True when the page shows a full-page empty state instead of sections.</summary>
     public bool ShowEmpty => State is PlayerOverviewState.NoPlayers or PlayerOverviewState.NoSubject
@@ -225,7 +222,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     /// <inheritdoc />
     public object? SnapshotState() =>
-        new PlayerOverviewSession(_subject?.ToString(CultureInfo.InvariantCulture), _pinned,
+        new PlayerOverviewSession(SubjectSteamId64?.ToString(CultureInfo.InvariantCulture), IsPinned,
             SelectedPage.Kind.ToString());
 
     /// <summary>
@@ -419,15 +416,15 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     private void SetSubject(ulong? steamId64, bool pinned)
     {
-        _subject = steamId64;
-        _pinned = steamId64 is not null && pinned;
+        SubjectSteamId64 = steamId64;
+        IsPinned = steamId64 is not null && pinned;
         _subjectWasMine = steamId64 is { } id && _services.Identity.IsMine(id);
     }
 
     private void OnIdentityChanged()
     {
-        bool stillMine = _subject is { } id && _services.Identity.IsMine(id);
-        if (!_pinned || (_subjectWasMine && !stillMine))
+        bool stillMine = SubjectSteamId64 is { } id && _services.Identity.IsMine(id);
+        if (!IsPinned || (_subjectWasMine && !stillMine))
         {
             SetSubject(ParseId(_services.Identity.ActiveSteamId64), false);
         }
@@ -444,7 +441,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     // The rows are read already: a new window is a recompute over them, with no directory or file read.
     private void OnFilterChanged()
     {
-        if (_context is { } context)
+        if (Context is { } context)
         {
             Show(context with
             {
@@ -455,7 +452,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     private void OnQueueChanged()
     {
-        if (_queueRefreshQueued || !_active || _context is null)
+        if (_queueRefreshQueued || !_active || Context is null)
         {
             return;
         }
@@ -464,7 +461,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         _post(() =>
         {
             _queueRefreshQueued = false;
-            if (!_disposed && _context is { } context)
+            if (!_disposed && Context is { } context)
             {
                 ApplyState(context);
             }
@@ -497,7 +494,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         // A read still running for an earlier refresh finishes into the cache and is not shown.
         int load = ++_load;
         PlayerDirectory directory = _services.Directory;
-        PlayerEntry? player = _subject is { } id ? directory.Get(id) : null;
+        PlayerEntry? player = SubjectSteamId64 is { } id ? directory.Get(id) : null;
         IReadOnlyList<PlayerMatch> matches = player is null ? [] : directory.Matches(player.SteamId64);
         int withStats = 0;
         foreach (PlayerMatch match in matches)
@@ -509,8 +506,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         }
 
         // A new subject starts unfiltered; the same subject keeps the user's selection.
-        Filter.SetOptions(matches, reset: _optionsFor != _subject);
-        _optionsFor = _subject;
+        Filter.SetOptions(matches, reset: _optionsFor != SubjectSteamId64);
+        _optionsFor = SubjectSteamId64;
 
         PlayerRowCache? cache = _services.Rows;
         if (player is null || _rows?.SteamId64 != player.SteamId64)
@@ -553,7 +550,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         // A demo finishing in the background drops the subject from the caches; the stats read before stay on
         // show while the re-read runs, so the page does not flash a loading state for every demo the queue does.
         bool firstRead = reading && _rows is null;
-        PlayerOverviewContext context = Compose(new PlayerOverviewContext(_subject, player, matches, withStats,
+        PlayerOverviewContext context = Compose(new PlayerOverviewContext(SubjectSteamId64, player, matches, withStats,
             _subjectWasMine,
             _services, [], Filter.Filter, [], firstRead, _ranks, ranking && _ranks is null));
         RebuildMeAccounts();
@@ -579,7 +576,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
             // A sidecar that will not read leaves its demo "stats not read"; the next refresh tries again.
         }
 
-        if (_load != load || _disposed || _context is not { } context)
+        if (_load != load || _disposed || Context is not { } context)
         {
             return;
         }
@@ -601,7 +598,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
             // A record that will not read leaves its rank empty; the next refresh tries again.
         }
 
-        if (_load != load || _disposed || _context is not { } context)
+        if (_load != load || _disposed || Context is not { } context)
         {
             return;
         }
@@ -643,7 +640,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     // they are shown, so a section that reads files (highlights, head-to-head, benchmarks) reads none while hidden.
     private void Show(PlayerOverviewContext context)
     {
-        _context = context;
+        Context = context;
         _shown++;
         foreach (PlayerOverviewSection section in Persistent)
         {
@@ -655,7 +652,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     private void Render(PlayerOverviewPage page)
     {
-        if (_context is not { } context || page.RenderedFor == _shown)
+        if (Context is not { } context || page.RenderedFor == _shown)
         {
             return;
         }

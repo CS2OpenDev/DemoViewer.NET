@@ -7,7 +7,6 @@ using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -158,7 +157,7 @@ public class HeadToHeadTests
         {
             Store = store;
             Directory = new PlayerDirectory(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             PlayerRowCache rows = new(store, Directory, path => Facet(IndexOf(path)));
             Services = new PlayerOverviewServices(Directory, Identity, rows, _ => { }, _ => { }, (_, _) => { },
                 _ => { })
@@ -394,7 +393,7 @@ public class HeadToHeadRenderTests
         {
             DemoCacheStore store = HeadToHeadTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRowCache rows = new(store, directory, path => HeadToHeadTests.Facet(HeadToHeadTests.IndexOf(path)));
             await rows.LoadAsync(HeadToHeadTests.Grim);
             using PlayerOverviewTabViewModel vm =

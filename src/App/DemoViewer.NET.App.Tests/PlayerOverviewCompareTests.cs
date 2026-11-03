@@ -72,7 +72,7 @@ public class PlayerOverviewCompareTests
         {
             DemoCacheStore store = HeadToHeadTests.Library();
             Directory = new PlayerDirectory(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Rows = Cache(store, Directory);
             Services = new PlayerOverviewServices(Directory, Identity, Rows, _ => { }, _ => { }, (_, _) => { },
                 _ => { }) { OpenPlayer = id => Opened.Add(id) };
@@ -245,7 +245,7 @@ public class PlayerOverviewCompareRenderTests
         {
             DemoCacheStore store = HeadToHeadTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRowCache rows = PlayerOverviewCompareTests.Cache(store, directory);
             await rows.LoadAsync(PlayerOverviewCompareTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows, _ => { },

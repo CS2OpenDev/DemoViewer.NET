@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis.Visibility;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Zones;
@@ -26,7 +25,7 @@ public sealed class LoadedMapAsset : IMapAsset, IDisposable
     private readonly Lock _zoneLock = new();
     private bool _disposed;
     private IReadOnlyList<FloorSlice>? _floors;
-    private Lazy<IReadOnlyDictionary<string, SKImage>> _radarImages;
+    private readonly Lazy<IReadOnlyDictionary<string, SKImage>> _radarImages;
     private OverlayStamp _zoneStamp;
     private ZoneLoadResult? _zones;
 

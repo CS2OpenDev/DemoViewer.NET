@@ -2,8 +2,6 @@
 
 using System.Globalization;
 using DemoViewer.NET.Playback2D.Timeline;
-using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 

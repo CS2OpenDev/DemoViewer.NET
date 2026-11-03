@@ -14,22 +14,20 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Cameras;
-using DemoViewer.NET.Playback2D.Pipeline.Cameras;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Annotations;
+using DemoViewer.NET.Playback2D.Pipeline.Cameras;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
+using DemoViewer.NET.Playback2D.Pipeline.Input;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Vision;
 using DemoViewer.NET.Playback2D.Tools;
 using DemoViewer.NET.Playback2D.Zones;
-using DemoViewer.NET.Playback2D.Assets;
-using DemoViewer.NET.Playback2D.Pipeline.Assets;
-using DemoViewer.NET.Playback2D.Pipeline.Vision;
 using SkiaSharp;
 
 #endregion
@@ -105,8 +103,6 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     private long _submissionId;
     private TextBlobCache _text;
     private VisionLayer _visionLayer;
-    private ISceneFrameHost? _vm;
-    private ZoneOutlineLayer? _zoneLayer;
 
     // Layers a caller added through AddLayer (guides, for the strat canvas): kept here so BuildScene can
     // re-add them after a release/rebuild, which the fixed layer set already does for itself.
@@ -164,19 +160,19 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     internal InputToolRouter Router { get; }
 
     /// <summary>The frame currently being shown. Read by the tool services; never retained.</summary>
-    internal Scene2DFrame CurrentSceneFrame => _vm?.CurrentFrame ?? Scene2DFrame.Empty;
+    internal Scene2DFrame CurrentSceneFrame => FrameHost?.CurrentFrame ?? Scene2DFrame.Empty;
 
     /// <summary>
     ///     What the host is bound to: the 2D Playback tab, the strat canvas, or nothing. Read by the tool
     ///     services for the token editor; never retained.
     /// </summary>
-    public ISceneFrameHost? FrameHost => _vm;
+    public ISceneFrameHost? FrameHost { get; private set; }
 
     /// <summary>The annotation layer, once a session has been bound. Test hook.</summary>
     internal AnnotationLayer? AnnotationLayerForTest { get; private set; }
 
     /// <summary>The zone outline layer, once the toggle is on and the map has zones. Test hook.</summary>
-    internal ZoneOutlineLayer? ZoneLayerForTest => _zoneLayer;
+    internal ZoneOutlineLayer? ZoneLayerForTest { get; private set; }
 
     /// <summary>The layer stack other scene layers register themselves on.</summary>
     internal SceneCompositor Compositor => _compositor;
@@ -554,7 +550,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         _text = new TextBlobCache();
         _radarLayer = new RadarLayer();
         _visionLayer = new VisionLayer(
-            new VisibilityEngineSolver(() => _vm?.VisionEngine, _smoother), _smoother);
+            new VisibilityEngineSolver(() => FrameHost?.VisionEngine, _smoother), _smoother);
 
         _compositor = new SceneCompositor { Gate = _gate };
         _compositor.Add(_radarLayer);
@@ -581,7 +577,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         _boundAsset = null;
         AnnotationLayerForTest = null;
         _boundSession = null;
-        _zoneLayer = null;
+        ZoneLayerForTest = null;
         _released = false;
     }
 
@@ -851,7 +847,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
                                                     || Router.IsSpaceHeld || (sample.Modifiers
                                                                               & (ToolModifiers.Space
                                                                                   | ToolModifiers.Control)) != 0
-                                                    || _vm is not { } vm)
+                                                    || FrameHost is not { } vm)
         {
             return false;
         }
@@ -869,7 +865,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
                                                     || Router.IsSpaceHeld || (sample.Modifiers
                                                                               & (ToolModifiers.Space
                                                                                   | ToolModifiers.Control)) != 0
-                                                    || _vm is not { } vm || vm.ContributedTools is not
+                                                    || FrameHost is not { } vm || vm.ContributedTools is not
                                                         { Count: > 0 } tools)
         {
             return false;
@@ -923,7 +919,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     // own layers are never displaced by a contribution.
     private void AddContributedLayers()
     {
-        if (_vm?.ContributedLayers is not { Count: > 0 } layers)
+        if (FrameHost?.ContributedLayers is not { Count: > 0 } layers)
         {
             return;
         }
@@ -1100,7 +1096,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
 
     private SceneSubmission AdvanceAndSubmit(Rect bounds)
     {
-        Scene2DFrame frame = _vm?.CurrentFrame ?? Scene2DFrame.Empty;
+        Scene2DFrame frame = FrameHost?.CurrentFrame ?? Scene2DFrame.Empty;
 
         // A seek must be consumed exactly once. The animation loop re-renders the SAME frame many times
         // while markers glide, and re-applying the discontinuity on each of those would freeze every
@@ -1266,24 +1262,24 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
 
     private void AttachVm(ISceneFrameHost? vm)
     {
-        if (ReferenceEquals(_vm, vm))
+        if (ReferenceEquals(FrameHost, vm))
         {
             return;
         }
 
-        if (_vm is not null)
+        if (FrameHost is not null)
         {
-            _vm.FrameUpdated -= OnFrameUpdated;
-            _vm.ContributedLayersChanged -= OnContributedLayersChanged;
-            _vm.ContributedRenderRequested -= RequestToolRender;
+            FrameHost.FrameUpdated -= OnFrameUpdated;
+            FrameHost.ContributedLayersChanged -= OnContributedLayersChanged;
+            FrameHost.ContributedRenderRequested -= RequestToolRender;
         }
 
         CancelContributedGesture();
-        _vm = vm;
-        if (_vm is not null)
+        FrameHost = vm;
+        if (FrameHost is not null)
         {
-            _vm.ContributedLayersChanged += OnContributedLayersChanged;
-            _vm.ContributedRenderRequested += RequestToolRender;
+            FrameHost.ContributedLayersChanged += OnContributedLayersChanged;
+            FrameHost.ContributedRenderRequested += RequestToolRender;
         }
 
         OnContributedLayersChanged();
@@ -1301,13 +1297,13 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         // commit half a stroke into a different demo's annotations.
         Router.CancelActive();
 
-        if (_vm is null)
+        if (FrameHost is null)
         {
             BindAnnotations(null);
             return;
         }
 
-        _vm.FrameUpdated += OnFrameUpdated;
+        FrameHost.FrameUpdated += OnFrameUpdated;
         SyncFromViewModel();
         InvalidateVisual();
     }
@@ -1325,7 +1321,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     // re-activation, exactly as the pre-v2 AuthoritativeFloors pull did.
     private void SyncFromViewModel()
     {
-        if (_vm is not { } vm)
+        if (FrameHost is not { } vm)
         {
             return;
         }
@@ -1343,7 +1339,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         // Only asked for when shown: vm.Zones is the lazy read that parses the file, and a map whose
         // outlines nobody turned on must not pay for them on every sync.
         BindZones(vm.ShowZones ? vm.Zones : null);
-        _compositor.SetEnabled(SceneLayerIds.Zones, vm.ShowZones && _zoneLayer is not null);
+        _compositor.SetEnabled(SceneLayerIds.Zones, vm.ShowZones && ZoneLayerForTest is not null);
 
         IMapAsset? asset = vm.MapAsset;
         if (!ReferenceEquals(asset, _boundAsset))
@@ -1408,7 +1404,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     {
         if (resolver is null)
         {
-            if (_zoneLayer is null)
+            if (ZoneLayerForTest is null)
             {
                 return;
             }
@@ -1416,28 +1412,28 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
             using (_gate.Enter())
             {
                 _compositor.Remove(SceneLayerIds.Zones);
-                _zoneLayer = null;
+                ZoneLayerForTest = null;
             }
 
             return;
         }
 
-        if (_zoneLayer is null)
+        if (ZoneLayerForTest is null)
         {
             using (_gate.Enter())
             {
-                _zoneLayer = new ZoneOutlineLayer(resolver, _text);
-                _compositor.Add(_zoneLayer);
+                ZoneLayerForTest = new ZoneOutlineLayer(resolver, _text);
+                _compositor.Add(ZoneLayerForTest);
             }
 
             return;
         }
 
-        if (!ReferenceEquals(_zoneLayer.Resolver, resolver))
+        if (!ReferenceEquals(ZoneLayerForTest.Resolver, resolver))
         {
             using (_gate.Enter())
             {
-                _zoneLayer.Resolver = resolver;
+                ZoneLayerForTest.Resolver = resolver;
             }
         }
     }
@@ -1542,7 +1538,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     /// </summary>
     private void RebaseAnnotationAnchors()
     {
-        if (_vm is null)
+        if (FrameHost is null)
         {
             return;
         }
@@ -1577,7 +1573,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
 
         if (moved is not null)
         {
-            _vm.ApplyAnnotationLevelRebuild(moved);
+            FrameHost.ApplyAnnotationLevelRebuild(moved);
         }
     }
 
@@ -1587,5 +1583,5 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         LevelStateChanged?.Invoke();
     }
 
-    private WorldBounds CurrentExtent() => _vm?.CurrentFrame.Map.ObservedBounds ?? WorldBounds.Default;
+    private WorldBounds CurrentExtent() => FrameHost?.CurrentFrame.Map.ObservedBounds ?? WorldBounds.Default;
 }

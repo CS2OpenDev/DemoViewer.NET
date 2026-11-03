@@ -2,7 +2,6 @@
 
 using System.ComponentModel;
 using System.Globalization;
-using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Analysis.Output;

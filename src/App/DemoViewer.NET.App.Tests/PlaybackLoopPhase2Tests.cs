@@ -1,8 +1,8 @@
 #region
 
 using Avalonia.Controls;
-using Avalonia.Media.Imaging;
 using Avalonia.Headless;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.TestSupport;

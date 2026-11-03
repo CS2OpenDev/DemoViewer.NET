@@ -9,7 +9,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Controls.Stats;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Services.MatchMeta;
@@ -103,7 +102,7 @@ public class PlayerOverviewRankTests
 
             Store = store;
             PlayerDirectory directory = new(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts([new IdentityAccount(Id(Grim), null, DateTime.UtcNow)]);
             Ranks = new PlayerRankCache(store, directory, path =>
             {
@@ -359,7 +358,7 @@ public class PlayerOverviewRankRenderTests
         {
             DemoCacheStore store = PlayerOverviewRankTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRankCache ranks = new(store, directory);
             await ranks.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
@@ -402,7 +401,7 @@ public class PlayerOverviewRankRenderTests
         {
             DemoCacheStore store = PlayerOverviewRankTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRankCache ranks = new(store, directory);
             await ranks.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
@@ -466,7 +465,7 @@ public class PlayerOverviewRankRenderTests
         {
             DemoCacheStore store = PlayerOverviewRankTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRankCache ranks = new(store, directory);
             await ranks.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,

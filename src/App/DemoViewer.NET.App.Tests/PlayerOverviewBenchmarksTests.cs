@@ -3,7 +3,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -81,7 +80,7 @@ public class PlayerOverviewBenchmarksTests
             .. In(i).Select(k => new FactRow(
                 new Dictionary<string, FactValue>
                 {
-                    ["player_slot"] = FactValue.Of((long)k),
+                    ["player_slot"] = FactValue.Of(k),
                     ["steam_id"] = FactValue.Of(Id(Account(k))),
                     ["team"] = FactValue.Of(k % 2 == 0 ? 3L : 2L)
                 },
@@ -230,7 +229,7 @@ public class PlayerOverviewBenchmarksTests
     public async Task TheSection_NamesItsPopulation_AndTheRankBandNarrowsIt()
     {
         Fixture library = Library();
-        using IdentityService identity = new(new SettingsService((string?)null));
+        using IdentityService identity = new(new SettingsService(null));
         PlayerOverviewServices services = new(library.Directory, identity, library.Rows, _ => { }, _ => { },
             (_, _) => { }, _ => { }, Ranks: library.Ranks);
         BenchmarksSectionViewModel section = new(services);

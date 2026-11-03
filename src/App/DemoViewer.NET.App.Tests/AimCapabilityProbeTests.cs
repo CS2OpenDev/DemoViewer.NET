@@ -280,7 +280,7 @@ public class AimCapabilityProbeTests
             // the probe reads only the wire name and the count, so a payload-free fire keeps the
             // fixture about the thing under test. Field-name reporting is covered against the real
             // fixture, where the payloads are the ones the demo actually carried.
-            yield return new GameEvent("bullet_damage", -1, i, i, i, null!);
+            yield return new GameEvent("bullet_damage", -1, i, i, i);
         }
     }
 

@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
 using DemoViewer.NET.Extensions.StratBook.Views.Dossier;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 

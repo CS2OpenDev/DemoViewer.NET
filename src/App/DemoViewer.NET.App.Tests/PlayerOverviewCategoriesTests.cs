@@ -6,7 +6,6 @@ using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -57,7 +56,7 @@ public class PlayerOverviewCategoriesTests
             ["TFD"] = FactValue.Of(1L),
             ["TrdK"] = FactValue.Of(2L + i),
             ["TradedD"] = FactValue.Of(3L),
-            ["Clutch"] = FactValue.Of((long)(i % 2)),
+            ["Clutch"] = FactValue.Of(i % 2),
             ["Flash"] = FactValue.Of(10L),
             ["EFlash"] = FactValue.Of(7L + i),
             ["blind_duration_sum"] = FactValue.Of(15.5 + i),
@@ -70,10 +69,10 @@ public class PlayerOverviewCategoriesTests
             ["Pistol"] = FactValue.Of(3L),
             ["SMG"] = FactValue.Of(1L),
             ["Knife"] = FactValue.Of(0L),
-            ["DeagleHSRnds"] = FactValue.Of((long)(i % 2)),
+            ["DeagleHSRnds"] = FactValue.Of(i % 2),
             ["2K"] = FactValue.Of(3L),
             ["3K"] = FactValue.Of(1L),
-            ["4K"] = FactValue.Of((long)(i % 2)),
+            ["4K"] = FactValue.Of(i % 2),
             ["5K"] = FactValue.Of(0L),
             ["equipment_sum"] = FactValue.Of(80000.0 + (1000 * i)),
             ["equipment_rounds"] = FactValue.Of(20L + i),
@@ -121,7 +120,7 @@ public class PlayerOverviewCategoriesTests
         public Shell(DemoCacheStore store)
         {
             PlayerDirectory directory = new(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts([new IdentityAccount(Id(Grim), null, DateTime.UtcNow)]);
             Rows = Cache(store, directory);
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, Rows, _ => { },
@@ -272,7 +271,7 @@ public class PlayerOverviewCategoriesTests
     {
         DemoCacheStore store = Library(2);
         PlayerDirectory directory = new(store, _ => true);
-        using IdentityService identity = new(new SettingsService((string?)null));
+        using IdentityService identity = new(new SettingsService(null));
         identity.SetAccounts([new IdentityAccount(Id(Grim), null, DateTime.UtcNow)]);
         PlayerRowCache rows = new(store, directory, path =>
         {
@@ -328,7 +327,7 @@ public class PlayerOverviewCategoriesRenderTests
         {
             DemoCacheStore store = PlayerOverviewCategoriesTests.Library(3);
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRowCache rows = PlayerOverviewCategoriesTests.Cache(store, directory);
             await rows.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows,

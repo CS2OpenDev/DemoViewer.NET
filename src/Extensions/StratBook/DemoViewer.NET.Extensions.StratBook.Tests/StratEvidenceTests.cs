@@ -1,9 +1,9 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Services.Facts;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 

@@ -2,7 +2,6 @@
 
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -200,10 +199,10 @@ public class RoundFactsSourceTests
         {
             await Assert.That(all.Count).IsEqualTo(4).Because("the copy is the same two live rounds, not two more");
             await Assert.That(all.Where(h => h.Round.Number == 1).Select(h => h.Demo.Path))
-                .IsEquivalentTo([DemoA, DemoB], CollectionOrdering.Any)
+                .IsEquivalentTo([DemoA, DemoB])
                 .Because("an unfiltered hit names the primary path");
             await Assert.That(byCopy.Select(h => (h.Demo.Path, h.Round.Number)))
-                .IsEquivalentTo([("/e/a.dem", 1), ("/e/a.dem", 2)], CollectionOrdering.Any);
+                .IsEquivalentTo([("/e/a.dem", 1), ("/e/a.dem", 2)]);
         }
     }
 

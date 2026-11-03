@@ -188,7 +188,7 @@ public class PipStrip : TemplatedControl
         {
             if (EmptyBrush is { } empty)
             {
-                context.DrawEllipse(null, new Pen(empty, 1), new Point(content.X + r, cy), r, r);
+                context.DrawEllipse(null, new Pen(empty), new Point(content.X + r, cy), r, r);
             }
 
             return;

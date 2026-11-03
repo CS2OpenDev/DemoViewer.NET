@@ -3,15 +3,13 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
@@ -326,15 +324,15 @@ public class PackDataRemoverTests
             DemoCacheStore store = new(cacheRoot);
             DemoCacheRecord touched = ParsedRecord("/d/a.dem", map: "de_nuke");
             touched.Players.Add(new CachedPlayerInfo { Slot = 0, Name = "p1", SteamId64 = "1", Team = 2 });
-            touched.Packs[PackId] = System.Text.Json.JsonSerializer.SerializeToElement("mine");
-            touched.Packs[OtherPackId] = System.Text.Json.JsonSerializer.SerializeToElement("not mine");
+            touched.Packs[PackId] = JsonSerializer.SerializeToElement("mine");
+            touched.Packs[OtherPackId] = JsonSerializer.SerializeToElement("not mine");
             touched.SetStamp(new PackStamp("facet-a", 1, "fp-a"));
             touched.SetStamp(new PackStamp("facet-b", 1, "fp-b"));
             touched.SetStamp(new PackStamp("other-facet", 1, "fp-other"));
             store.Upsert(touched);
 
             DemoCacheRecord untouched = ParsedRecord("/d/b.dem", map: "de_dust2");
-            untouched.Packs[OtherPackId] = System.Text.Json.JsonSerializer.SerializeToElement("also not mine");
+            untouched.Packs[OtherPackId] = JsonSerializer.SerializeToElement("also not mine");
             untouched.SetStamp(new PackStamp("other-facet", 1, "fp-other"));
             store.Upsert(untouched);
             store.SaveIndex();
@@ -380,7 +378,7 @@ public class PackDataRemoverTests
         {
             DemoCacheStore store = new(cacheRoot);
             DemoCacheRecord record = ParsedRecord("/d/a.dem", sha: "sha-a");
-            record.Packs[PackId] = System.Text.Json.JsonSerializer.SerializeToElement("mine");
+            record.Packs[PackId] = JsonSerializer.SerializeToElement("mine");
             record.SetStamp(new PackStamp("facet-a", 1, "fp-a"));
             record.SetStamp(new PackStamp("other-facet", 1, "fp-other"));
             store.Upsert(record);
@@ -418,7 +416,7 @@ public class PackDataRemoverTests
             foreach (string path in new[] { "/nfs/a.dem", "/smb/a.dem" })
             {
                 DemoCacheRecord record = ParsedRecord(path, sha: "sha-a");
-                record.Packs[PackId] = System.Text.Json.JsonSerializer.SerializeToElement("mine");
+                record.Packs[PackId] = JsonSerializer.SerializeToElement("mine");
                 record.SetStamp(new PackStamp("facet-a", 1, "fp-a"));
                 store.Upsert(record);
             }

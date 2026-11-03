@@ -32,7 +32,7 @@ public class SprayDrilldownTests
         (StatsTabViewModel vm, _) = BuildTab();
 
         // Pick a player the sampler actually found sprays for, rather than assuming row 0 did.
-        SprayModel model = SpraySampler.Sample(vm.LoadedDemo!, SprayOrigin.FirstBullet);
+        SprayModel model = SpraySampler.Sample(vm.LoadedDemo!);
         await Assert.That(model.Players.Count).IsGreaterThan(0)
             .Because("a full match contains sprays");
 
@@ -60,7 +60,7 @@ public class SprayDrilldownTests
     {
         (StatsTabViewModel vm, _) = BuildTab();
 
-        SprayModel anchored = SpraySampler.Sample(vm.LoadedDemo!, SprayOrigin.FirstBullet);
+        SprayModel anchored = SpraySampler.Sample(vm.LoadedDemo!);
         int slot = anchored.Players.OrderByDescending(p => p.Runs.Count).First().Slot;
         vm.OpenPlayerDetailsCommand.Execute(vm.GameRows.First(r => r.PlayerSlot == slot));
         PlayerDetailsViewModel details = vm.PlayerDetails!;

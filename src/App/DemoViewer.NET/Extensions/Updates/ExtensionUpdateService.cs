@@ -28,10 +28,7 @@ public sealed class ExtensionUpdateService
     /// <summary>The queue owner tag every item here carries.</summary>
     public const string Owner = "extensions";
 
-    private static readonly TimeSpan _autoCheckInterval = TimeSpan.FromHours(1);
-
     private readonly string _extensionsDirectory;
-    private readonly IReadOnlyList<PackStatus> _statuses;
     private readonly ExtensionHostInfo _host;
     private readonly ITrustPolicy _trust;
     private readonly IExtensionFeedClient _client;
@@ -60,7 +57,7 @@ public sealed class ExtensionUpdateService
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(feedUrl);
         _extensionsDirectory = Path.GetFullPath(ExtensionLoader.ExtensionsDirectory(configRoot)!);
-        _statuses = statuses;
+        Statuses = statuses;
         _host = host;
         _trust = trust;
         _client = client;
@@ -78,7 +75,7 @@ public sealed class ExtensionUpdateService
             : StringComparison.Ordinal;
 
     /// <summary>How long a check result stands before opening Settings checks again.</summary>
-    public static TimeSpan AutoCheckInterval => _autoCheckInterval;
+    public static TimeSpan AutoCheckInterval { get; } = TimeSpan.FromHours(1);
 
     /// <summary>
     ///     Whether a published version may be offered to this app. This is
@@ -87,7 +84,7 @@ public sealed class ExtensionUpdateService
     public Func<ExtensionFeedEntry, ExtensionHostInfo, bool> IsOffered { get; }
 
     /// <summary>The packs this service knows, as handed in.</summary>
-    public IReadOnlyList<PackStatus> Statuses => _statuses;
+    public IReadOnlyList<PackStatus> Statuses { get; }
 
     /// <summary>
     ///     The most recent state of every extension that has been checked this run, in declaration order;
@@ -100,7 +97,7 @@ public sealed class ExtensionUpdateService
             lock (_sync)
             {
                 List<ExtensionUpdateState> states = [];
-                foreach (PackStatus status in _statuses)
+                foreach (PackStatus status in Statuses)
                 {
                     if (_last.TryGetValue(status.Pack.Id, out ExtensionUpdateState? state))
                     {
@@ -139,7 +136,7 @@ public sealed class ExtensionUpdateService
     public SemVersion? PendingVersion(string packId)
     {
         ArgumentNullException.ThrowIfNull(packId);
-        PackStatus? status = _statuses.FirstOrDefault(s => string.Equals(s.Pack.Id, packId, StringComparison.Ordinal));
+        PackStatus? status = Statuses.FirstOrDefault(s => string.Equals(s.Pack.Id, packId, StringComparison.Ordinal));
         if (status?.Manifest is not { } manifest)
         {
             return null;
@@ -162,7 +159,7 @@ public sealed class ExtensionUpdateService
     }
 
     /// <summary>True when any extension has a staged version waiting for a restart.</summary>
-    public bool PendingRestart => _statuses.Any(s => PendingVersion(s.Pack.Id) is not null);
+    public bool PendingRestart => Statuses.Any(s => PendingVersion(s.Pack.Id) is not null);
 
     /// <summary>
     ///     Fetches every extension's feed as one queue item at user priority and computes each one's
@@ -170,22 +167,22 @@ public sealed class ExtensionUpdateService
     /// </summary>
     public async Task<IReadOnlyList<ExtensionUpdateState>> CheckAsync(CancellationToken ct = default)
     {
-        ExtensionUpdateState?[] found = new ExtensionUpdateState?[_statuses.Count];
+        ExtensionUpdateState?[] found = new ExtensionUpdateState?[Statuses.Count];
         await QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, "Check for extension updates", Owner, async ctx =>
         {
             using CancellationTokenSource linked =
                 CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
-            for (int i = 0; i < _statuses.Count; i++)
+            for (int i = 0; i < Statuses.Count; i++)
             {
-                found[i] = await CheckCore(_statuses[i], linked.Token).ConfigureAwait(false);
+                found[i] = await CheckCore(Statuses[i], linked.Token).ConfigureAwait(false);
             }
         }, DemoJobPriority.UserRequested).ConfigureAwait(false);
 
         // A pack the item never reached (cancelled, or the queue dropped it) reads as unreachable.
-        ExtensionUpdateState[] states = new ExtensionUpdateState[_statuses.Count];
+        ExtensionUpdateState[] states = new ExtensionUpdateState[Statuses.Count];
         for (int i = 0; i < states.Length; i++)
         {
-            states[i] = found[i] ?? Unreachable(_statuses[i], "the check did not finish", null);
+            states[i] = found[i] ?? Unreachable(Statuses[i], "the check did not finish", null);
         }
 
         Remember(states);
@@ -196,7 +193,7 @@ public sealed class ExtensionUpdateService
     public async Task<ExtensionUpdateState> CheckAsync(string packId, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(packId);
-        PackStatus status = _statuses.FirstOrDefault(s => string.Equals(s.Pack.Id, packId, StringComparison.Ordinal))
+        PackStatus status = Statuses.FirstOrDefault(s => string.Equals(s.Pack.Id, packId, StringComparison.Ordinal))
                             ?? throw new ArgumentException($"'{packId}' is not a declared extension.", nameof(packId));
         ExtensionUpdateState? state = null;
         string name = status.Manifest?.Name ?? status.Pack.Id;
@@ -271,7 +268,7 @@ public sealed class ExtensionUpdateService
             }
 
             ExtensionLoader.Discovery discovery = ExtensionLoader.Discover(_extensionsDirectory);
-            foreach (PackStatus status in _statuses)
+            foreach (PackStatus status in Statuses)
             {
                 if (status.Manifest is not { } running)
                 {

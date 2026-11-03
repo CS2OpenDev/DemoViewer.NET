@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;

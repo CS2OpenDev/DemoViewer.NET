@@ -2,8 +2,8 @@
 
 using System.Globalization;
 using System.Text.RegularExpressions;
-using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Input;
 
 #endregion
 

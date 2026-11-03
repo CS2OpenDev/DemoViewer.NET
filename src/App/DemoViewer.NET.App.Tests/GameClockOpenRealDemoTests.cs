@@ -5,7 +5,6 @@ using CS2DemoKit.Parser.EntityTracking;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.ViewModels.Shell;
-using TUnit.Core.Exceptions;
 
 #endregion
 

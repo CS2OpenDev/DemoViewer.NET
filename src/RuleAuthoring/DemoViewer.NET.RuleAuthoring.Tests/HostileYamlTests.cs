@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis.Yaml;
-using DemoViewer.NET.RuleAuthoring;
 
 #endregion
 

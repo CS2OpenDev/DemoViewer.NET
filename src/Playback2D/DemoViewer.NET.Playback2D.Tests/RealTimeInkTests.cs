@@ -6,8 +6,8 @@ using System.Security.Cryptography;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
@@ -99,7 +99,7 @@ public class RealTimeInkTests
     public async Task TheTailFades_WhileTheHeadIsStillAdvancing()
     {
         using Fixture fixture = Fixture.With(RealTimeFakes.RealTime(
-            RealTimeFakes.Steady(RealTimeFakes.SampleCount, 128), 100, 32, 32));
+            RealTimeFakes.Steady(RealTimeFakes.SampleCount, 128), 100, 32));
 
         // Tick 150: sample 0 is 18 ticks past its 32-tick hold, so it sits mid-lead-out; the head is at
         // roughly sample 78 and has not begun to age at all.
@@ -167,7 +167,7 @@ public class RealTimeInkTests
     public async Task Reveal_IsAPureFunctionOfTheTick_HoweverTheTickWasReached()
     {
         StrokeTiming cadence = RealTimeFakes.WithPause(RealTimeFakes.SampleCount, 50, 60);
-        AnnotationElement element = RealTimeFakes.RealTime(cadence, 100, 40, 32);
+        AnnotationElement element = RealTimeFakes.RealTime(cadence, 100, 40);
         const int target = 196;
 
         using Fixture jumped = Fixture.With(element);
@@ -201,7 +201,7 @@ public class RealTimeInkTests
     public async Task ScrubbingBackwards_UnDrawsTheStroke()
     {
         AnnotationElement element = RealTimeFakes.RealTime(
-            RealTimeFakes.Steady(RealTimeFakes.SampleCount, 128), 100, 40, 32);
+            RealTimeFakes.Steady(RealTimeFakes.SampleCount, 128), 100, 40);
 
         using Fixture scrubbed = Fixture.With(element);
         using Fixture cold = Fixture.With(element);

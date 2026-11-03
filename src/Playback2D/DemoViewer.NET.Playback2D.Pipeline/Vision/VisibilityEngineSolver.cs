@@ -3,7 +3,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CS2DemoKit.Analysis.Visibility;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Vision;
 
 #endregion

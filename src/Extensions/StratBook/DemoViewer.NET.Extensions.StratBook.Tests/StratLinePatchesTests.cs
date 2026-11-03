@@ -50,8 +50,7 @@ public class StratLinePatchesTests
             using (Assert.Multiple())
             {
                 await Assert.That(ops.Select(o => o.Op + " " + o.Path)).IsEquivalentTo(
-                    ["replace /steps/0/to", "remove /steps/0/assignments"],
-                    TUnit.Assertions.Enums.CollectionOrdering.Any);
+                    ["replace /steps/0/to", "remove /steps/0/assignments"]);
                 await Assert.That(step.Actor).IsEqualTo(StratVocabulary.ActorAll)
                     .Because("five lines already summarise as all");
             }

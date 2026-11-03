@@ -3,7 +3,6 @@
 using Avalonia.Input;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Playback2D;
 using Microsoft.Extensions.DependencyInjection;
 using TUnit.Assertions.Enums;
@@ -26,7 +25,7 @@ public class CommandRegistryTests
         CommandRegistry registry = CommandRegistry.Build([]);
 
         await Assert.That(registry.EffectiveBindings)
-            .IsEquivalentTo(Playback2DKeymap.Default, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            .IsEquivalentTo(Playback2DKeymap.Default, CollectionOrdering.Matching);
         await Assert.That(registry.PackCommands).IsEmpty();
         await Assert.That(registry.Conflicts).IsEmpty();
         await Assert.That(registry.PackOwnerByAction).IsEmpty();
@@ -44,7 +43,7 @@ public class CommandRegistryTests
     public async Task Build_WithAPack_AddsItsChordToEffectiveBindings_AtTheDeclaredScope()
     {
         CommandDescriptor command = new(Fake + "AddStep", "insert a step", "playback2d",
-            new KeyGesture(Key.F9, KeyModifiers.None), _ => true);
+            new KeyGesture(Key.F9), _ => true);
         FakePack pack = new("pack.fake", [command]);
 
         CommandRegistry registry = CommandRegistry.Build([pack]);
@@ -68,7 +67,7 @@ public class CommandRegistryTests
         // NextRound ships on bare E, Always. A pack claiming the same chord for a different action must
         // not silently win OR silently lose: it must show up in Conflicts, and core keeps the chord.
         CommandDescriptor command = new(Fake + "AddStep", "insert a step", "playback2d",
-            new KeyGesture(Key.E, KeyModifiers.None), _ => true);
+            new KeyGesture(Key.E), _ => true);
         FakePack pack = new("pack.fake", [command]);
 
         CommandRegistry registry = CommandRegistry.Build([pack]);
@@ -87,9 +86,9 @@ public class CommandRegistryTests
     [Test]
     public async Task Build_TwoPacksCollidingWithEachOther_ReportsAgainstTheFirst()
     {
-        CommandDescriptor first = new("a.AddStep", "a", "playback2d", new KeyGesture(Key.F9, KeyModifiers.None),
+        CommandDescriptor first = new("a.AddStep", "a", "playback2d", new KeyGesture(Key.F9),
             _ => true);
-        CommandDescriptor second = new("b.DeleteStep", "b", "playback2d", new KeyGesture(Key.F9, KeyModifiers.None),
+        CommandDescriptor second = new("b.DeleteStep", "b", "playback2d", new KeyGesture(Key.F9),
             _ => true);
         FakePack packA = new("pack.a", [first]);
         FakePack packB = new("pack.b", [second]);
@@ -140,9 +139,9 @@ public class CommandRegistryTests
     public async Task Build_AThirdPartyCommandNamingACoreId_IsReportedAndDropped()
     {
         CommandDescriptor core = new(Fake + "NextRound", "ok", "playback2d", null, _ => true);
-        CommandDescriptor clash = new("NextRound", "clash", "playback2d", new KeyGesture(Key.F9, KeyModifiers.None),
+        CommandDescriptor clash = new("NextRound", "clash", "playback2d", new KeyGesture(Key.F9),
             _ => true);
-        CommandDescriptor fine = new(Fake + "Wave", "fine", "playback2d", new KeyGesture(Key.F10, KeyModifiers.None),
+        CommandDescriptor fine = new(Fake + "Wave", "fine", "playback2d", new KeyGesture(Key.F10),
             _ => true);
         FakePack pack = new("pack.fake", [clash, core, fine]);
 
@@ -161,7 +160,7 @@ public class CommandRegistryTests
     [Test]
     public async Task Build_AThirdPartyCommandWithoutTheExtensionPrefix_IsReportedAndDropped()
     {
-        CommandDescriptor bare = new("Wave", "bare", "playback2d", new KeyGesture(Key.F9, KeyModifiers.None),
+        CommandDescriptor bare = new("Wave", "bare", "playback2d", new KeyGesture(Key.F9),
             _ => true);
         CommandDescriptor other = new("net.demoviewer.test.pack.other.Wave", "someone else's", "playback2d", null,
             _ => true);
@@ -200,7 +199,7 @@ public class CommandRegistryTests
     public async Task Build_ADeclaredScope_IsTheRowsScope_AndSettingsReadsItsLabel()
     {
         CommandScope panel = new(Fake + "panel", "while the fake panel has focus");
-        CommandDescriptor command = new(Fake + "Poke", "poke", panel.Id, new KeyGesture(Key.P, KeyModifiers.None),
+        CommandDescriptor command = new(Fake + "Poke", "poke", panel.Id, new KeyGesture(Key.P),
             _ => true);
 
         CommandRegistry registry =
@@ -324,7 +323,7 @@ public class CommandRegistryTests
     public async Task TryResolve_PackOff_ResolvesToNothing_PackOn_ResolvesTheCommand()
     {
         CommandDescriptor command = new(Fake + "AddStep", "insert a step", "playback2d",
-            new KeyGesture(Key.F9, KeyModifiers.None), ctx => ctx.Target is string);
+            new KeyGesture(Key.F9), ctx => ctx.Target is string);
         FakePack pack = new("pack.fake", [command]);
         CommandRegistry registry = CommandRegistry.Build([pack]);
 
