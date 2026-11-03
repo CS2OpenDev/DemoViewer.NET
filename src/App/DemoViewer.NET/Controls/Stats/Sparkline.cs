@@ -60,6 +60,7 @@ public class Sparkline : TemplatedControl
         AvaloniaProperty.Register<Sparkline, double?>(nameof(Maximum));
 
     /// <summary>Draws a hairline at this value, for a zero line or an average. Null draws none.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double?> BaselineProperty =
         AvaloniaProperty.Register<Sparkline, double?>(nameof(Baseline));
 
@@ -68,6 +69,7 @@ public class Sparkline : TemplatedControl
         AvaloniaProperty.Register<Sparkline, IBrush?>(nameof(Stroke));
 
     /// <summary>Optional area fill under a <see cref="SparklineMode.Line" />.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<IBrush?> FillProperty =
         AvaloniaProperty.Register<Sparkline, IBrush?>(nameof(Fill));
 
@@ -84,6 +86,7 @@ public class Sparkline : TemplatedControl
         AvaloniaProperty.Register<Sparkline, IBrush?>(nameof(BaselineBrush));
 
     /// <summary>Stroke width for <see cref="SparklineMode.Line" />.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> StrokeThicknessProperty =
         AvaloniaProperty.Register<Sparkline, double>(nameof(StrokeThickness), 1.5);
 

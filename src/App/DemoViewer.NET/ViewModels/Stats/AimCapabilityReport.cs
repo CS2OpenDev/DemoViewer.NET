@@ -131,6 +131,7 @@ public enum MetricSupport
 ///     same event with different fields, and a metric that reads a field the source omits is as broken as
 ///     one whose event is missing.
 /// </param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record SignalObservation(
     AimSignal Signal,
     string Wire,
@@ -173,6 +174,7 @@ public sealed record SignalObservation(
 ///     <paramref name="SampledEvents" /> divided by <paramref name="SampledMessages" />, or 0 when there
 ///     were no payloads to decode.
 /// </param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record SubtickObservation(
     int MessageCount,
     int CarrierFrames,
@@ -227,6 +229,7 @@ public sealed record HitGroupObservation(int Fires, int DistinctValues, int NonZ
 /// <param name="RoundCount">Rounds the demo can be cut into, 0 when it carries no usable marker.</param>
 /// <param name="Strategy">Human-readable description of the segmentation the markers permit.</param>
 /// <param name="Counts">Every candidate boundary event and its fire count, zeros included.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record RoundBoundaryObservation(
     string? StartEvent,
     int StartCount,
@@ -281,6 +284,7 @@ public sealed record MetricVerdict(AimMetric Metric, MetricSupport Support, stri
 ///     One line per disagreement between the source's advertised <see cref="DemoFeatureSet" /> and the
 ///     observed fire counts. Empty when the advertisement holds.
 /// </param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AimCapabilityReport(
     DemoSourceKind SourceKind,
     int DistinctEventTypes,

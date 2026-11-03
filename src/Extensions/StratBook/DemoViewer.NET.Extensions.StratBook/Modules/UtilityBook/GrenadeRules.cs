@@ -58,19 +58,6 @@ public static class GrenadeRules
     /// <summary>Movement below this, world units, is not movement (a resting projectile is not re-sent).</summary>
     public const float MovedEpsilon = 0.1f;
 
-    /// <summary><c>FL_ONGROUND</c> in <c>m_fFlags</c>.</summary>
-    public const uint OnGroundFlag = 1;
-
-    /// <summary>
-    ///     <c>FL_DUCKING</c> in <c>m_fFlags</c>: the crouch read. <c>m_pMovementServices.m_bDucked</c> decodes on
-    ///     GOTV but stayed false on every pawn sample of a real demo, while this bit followed a full
-    ///     <c>m_flDuckAmount</c> on 58 of 59.
-    /// </summary>
-    public const uint DuckingFlag = 2;
-
-    /// <summary><c>IN_JUMP</c> in <c>buttonstate1</c> and in a sub-tick move's <c>button</c>.</summary>
-    public const ulong JumpButton = 1UL << 1;
-
     // weapon_fire's weapon, with or without the weapon_ prefix, to the projectile family it throws.
     private static readonly Dictionary<string, string> _weaponFamilies = new(StringComparer.OrdinalIgnoreCase)
     {

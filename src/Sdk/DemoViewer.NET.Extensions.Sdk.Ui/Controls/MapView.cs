@@ -231,7 +231,7 @@ internal interface IMapViewBackend
     Control View { get; }
 
     /// <summary>The map to show.</summary>
-    string? MapName { get; set; }
+    string? MapName { set; }
 
     /// <summary>True when art for the map was found.</summary>
     bool HasMap { get; }

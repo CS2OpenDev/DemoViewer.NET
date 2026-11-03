@@ -499,22 +499,22 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button x:Name="DetectedPreviewButton" Content="Preview" Classes="ghost"
                                                     FontSize="11" Padding="10 5" IsVisible="{Binding CanAdd}"
-                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.PreviewStratCommand}"
+                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.PreviewStratCommand, FallbackValue={x:Null}}"
                                                     ToolTip.Tip="See the strat this pattern would become, playing, before adding it. Nothing is saved." />
                                             <Button Content="Add to book" Classes="ghost" FontSize="11" Padding="10 5"
                                                     IsVisible="{Binding CanAdd}"
-                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.AddToBookCommand}"
+                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.AddToBookCommand, FallbackValue={x:Null}}"
                                                     ToolTip.Tip="Build a strat from the most typical round into the book selected above, with every round as a run" />
                                             <Button Content="Open strat" Classes="ghost" FontSize="11" Padding="10 5"
                                                     IsVisible="{Binding IsInBook}"
-                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.OpenStratCommand}" />
+                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.OpenStratCommand, FallbackValue={x:Null}}" />
                                             <Button Content="Dismiss" Classes="ghost" FontSize="11" Padding="10 5"
                                                     IsVisible="{Binding !IsDismissed}"
-                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.DismissCommand}"
+                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.DismissCommand, FallbackValue={x:Null}}"
                                                     ToolTip.Tip="Hide this pattern; it stays hidden when strats are found again" />
                                             <Button Content="Restore" Classes="ghost" FontSize="11" Padding="10 5"
                                                     IsVisible="{Binding IsDismissed}"
-                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.RestoreCommand}" />
+                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.RestoreCommand, FallbackValue={x:Null}}" />
                                         </StackPanel>
                                         <TextBlock Text="{Binding TeamsLine}" FontSize="12"
                                                    Foreground="{DynamicResource TextValue}" />
@@ -547,7 +547,7 @@
                                                                    Foreground="{DynamicResource TextValue}" />
                                                         <Button Grid.Column="1" Content="Open" Classes="ghost"
                                                                 FontSize="10" Padding="8 2"
-                                                                Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.OpenRoundCommand}"
+                                                                Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.OpenRoundCommand, FallbackValue={x:Null}}"
                                                                 CommandParameter="{Binding}"
                                                                 ToolTip.Tip="Open this round in 2D Playback" />
                                                     </Grid>
@@ -570,14 +570,14 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button Content="Add to book" Classes="ghost" FontSize="11" Padding="10 5"
                                                     IsEnabled="{Binding IsReady}"
-                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.AddToBookCommand}"
+                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.AddToBookCommand, FallbackValue={x:Null}}"
                                                     ToolTip.Tip="Save this strat into the book selected above, with every round as a run" />
                                             <Button Content="Dismiss" Classes="ghost" FontSize="11" Padding="10 5"
-                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.DismissCommand}"
+                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.DismissCommand, FallbackValue={x:Null}}"
                                                     ToolTip.Tip="Hide this pattern; it stays hidden when strats are found again" />
                                             <Button Content="Back to detected" Classes="ghost" FontSize="11"
                                                     Padding="10 5"
-                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.BackToDetectedCommand}" />
+                                                    Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.BackToDetectedCommand, FallbackValue={x:Null}}" />
                                         </StackPanel>
                                         <TextBlock Text="{Binding Notice}" FontSize="12" FontWeight="SemiBold"
                                                    TextWrapping="Wrap"
@@ -673,7 +673,7 @@
                                                                    Foreground="{DynamicResource TextValue}" />
                                                         <Button Grid.Column="1" Content="Open" Classes="ghost"
                                                                 FontSize="10" Padding="8 2"
-                                                                Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.OpenRoundCommand}"
+                                                                Command="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.OpenRoundCommand, FallbackValue={x:Null}}"
                                                                 CommandParameter="{Binding}"
                                                                 ToolTip.Tip="Open this round in 2D Playback" />
                                                     </Grid>
@@ -822,7 +822,7 @@
                                                         <ComboBox Grid.Column="3" FontSize="12" MinWidth="0"
                                                                   HorizontalAlignment="Stretch"
                                                                   ToolTip.Tip="Who plays this slot; the book default when unpinned"
-                                                                  ItemsSource="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).PinOptions}"
+                                                                  ItemsSource="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).PinOptions, FallbackValue={x:Null}}"
                                                                   SelectedItem="{Binding Pin}">
                                                             <ComboBox.ItemTemplate>
                                                                 <DataTemplate x:DataType="vm:StratPinOption">
@@ -886,7 +886,7 @@
                                                                            Classes="stratFieldLabel" />
                                                                 <TextBox x:Name="StartTrigger" FontSize="12"
                                                                          PlaceholderText="on call at 1:15, or contact at B apps"
-                                                                         Text="{Binding $parent[ScrollViewer].((vm:StratEditorViewModel)DataContext).TriggerText, UpdateSourceTrigger=LostFocus}" />
+                                                                         Text="{Binding $parent[ScrollViewer].((vm:StratEditorViewModel)DataContext).TriggerText, UpdateSourceTrigger=LostFocus, FallbackValue={x:Null}}" />
                                                             </StackPanel>
                                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                                                                 <TextBlock Grid.Column="0" Classes="stratFieldLabel"
@@ -1094,21 +1094,21 @@
                                                                                 <Button Content="↑"
                                                                                     Classes="icon-btn stepMove"
                                                                                     ToolTip.Tip="Move up (Alt+Up)"
-                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).MoveStepUpCommand}"
+                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).MoveStepUpCommand, FallbackValue={x:Null}}"
                                                                                     CommandParameter="{Binding}" />
                                                                                 <Button Content="↓"
                                                                                     Classes="icon-btn stepMove"
                                                                                     ToolTip.Tip="Move down (Alt+Down)"
-                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).MoveStepDownCommand}"
+                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).MoveStepDownCommand, FallbackValue={x:Null}}"
                                                                                     CommandParameter="{Binding}" />
                                                                             </StackPanel>
                                                                             <Button Content="⧉" Classes="icon-btn"
                                                                                     ToolTip.Tip="Duplicate the step after itself (Ctrl+D)"
-                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).DuplicateStepCommand}"
+                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).DuplicateStepCommand, FallbackValue={x:Null}}"
                                                                                     CommandParameter="{Binding}" />
                                                                             <Button Content="✕" Classes="icon-btn"
                                                                                     ToolTip.Tip="Remove the step and every branch that names it"
-                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).RemoveStepCommand}"
+                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).RemoveStepCommand, FallbackValue={x:Null}}"
                                                                                     CommandParameter="{Binding}" />
                                                                         </StackPanel>
                                                                     </Grid>
@@ -1373,7 +1373,7 @@
                                                                                     Classes="ghost" FontSize="11"
                                                                                     Padding="8 2" IsTabStop="False"
                                                                                     IsVisible="{Binding CanAddLine}"
-                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).AddLineCommand}"
+                                                                                    Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).AddLineCommand, FallbackValue={x:Null}}"
                                                                                     CommandParameter="{Binding}"
                                                                                     ToolTip.Tip="Send another player somewhere in this step" />
                                                                                 <Button Content="join" Classes="ghost"
@@ -1748,7 +1748,7 @@
                                                                    Foreground="{DynamicResource TextMid}"
                                                                    Margin="0 0 6 4" />
                                                         <ComboBox FontSize="12" MinWidth="150" Margin="0 0 8 4"
-                                                                  ItemsSource="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).StepOptions}"
+                                                                  ItemsSource="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).StepOptions, FallbackValue={x:Null}}"
                                                                   SelectedItem="{Binding AfterStep}">
                                                             <ComboBox.ItemTemplate>
                                                                 <DataTemplate x:DataType="vm:StratStepOption">
@@ -1767,7 +1767,7 @@
                                                                    Foreground="{DynamicResource TextMid}"
                                                                    Margin="0 0 6 4" />
                                                         <ComboBox FontSize="12" MinWidth="150" Margin="0 0 8 4"
-                                                                  ItemsSource="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).TargetStrats}"
+                                                                  ItemsSource="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).TargetStrats, FallbackValue={x:Null}}"
                                                                   SelectedItem="{Binding TargetStrat}">
                                                             <ComboBox.ItemTemplate>
                                                                 <DataTemplate x:DataType="vm:StratTargetOption">
@@ -1792,7 +1792,7 @@
                                                                  Text="{Binding Note, UpdateSourceTrigger=LostFocus}" />
                                                         <Button Content="Remove" Classes="ghost" FontSize="11"
                                                                 Padding="8 3" Margin="0 0 0 4"
-                                                                Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).RemoveBranchCommand}"
+                                                                Command="{Binding $parent[ItemsControl].((vm:StratEditorViewModel)DataContext).RemoveBranchCommand, FallbackValue={x:Null}}"
                                                                 CommandParameter="{Binding}" />
                                                     </WrapPanel>
                                                 </DataTemplate>
@@ -1817,7 +1817,7 @@
                                  Provenance Labels, the small-sample caution, the failure breakdown; every number
                                  sends its runs to the Review Queue. Reads the tab's RecordPanel, not the editor. -->
                                         <StackPanel Spacing="6"
-                                                    DataContext="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).RecordPanel}"
+                                                    DataContext="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).RecordPanel, FallbackValue={x:Null}}"
                                                     x:DataType="vm:StratRecordPanelViewModel">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                                 <TextBlock Grid.Column="0" Text="Record" Classes="col-label"
@@ -1870,7 +1870,7 @@
                                  screen, picked here, and a button that prints all five as one HTML page
                                  opened in the system browser. Reads the tab's RoleView, not the editor. -->
                                         <StackPanel Spacing="6"
-                                                    DataContext="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).RoleView}"
+                                                    DataContext="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).RoleView, FallbackValue={x:Null}}"
                                                     x:DataType="vm:StratRoleViewPanelViewModel">
                                             <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
                                                 <TextBlock Grid.Column="0" Text="Role View" Classes="col-label"
@@ -1939,7 +1939,7 @@
                                  before it, with the record split either side of the entry's revision.
                                  Reads the tab's HistoryPanel, not the editor. -->
                                         <StackPanel Spacing="6"
-                                                    DataContext="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).HistoryPanel}"
+                                                    DataContext="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).HistoryPanel, FallbackValue={x:Null}}"
                                                     x:DataType="vm:StratHistoryPanelViewModel">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                                 <TextBlock Grid.Column="0" Text="History" Classes="col-label"

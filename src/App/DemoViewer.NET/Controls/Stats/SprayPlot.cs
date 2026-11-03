@@ -53,6 +53,7 @@ public class SprayPlot : TemplatedControl
         AvaloniaProperty.Register<SprayPlot, IBrush?>(nameof(AxisBrush));
 
     /// <summary>Radius of a plotted bullet, in pixels.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> DotRadiusProperty =
         AvaloniaProperty.Register<SprayPlot, double>(nameof(DotRadius), 2.5);
 

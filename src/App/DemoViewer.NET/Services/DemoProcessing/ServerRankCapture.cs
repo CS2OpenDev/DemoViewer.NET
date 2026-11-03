@@ -14,6 +14,7 @@ namespace DemoViewer.NET.Services.DemoProcessing;
 /// <param name="RankChange">What the update says moved.</param>
 /// <param name="Wins">Wins after the match.</param>
 /// <param name="RankType">The rank system: 11 premier, 12 competitive.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record ServerRankUpdate(
     ulong SteamId64,
     int RankOld,

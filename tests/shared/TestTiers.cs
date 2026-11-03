@@ -44,10 +44,10 @@ public static class TestTiers
     ///     passing on others; carried so an in-flight run is not asked to interpret a red that means
     ///     nothing about the change under test.
     /// </summary>
-    public const string Environmental = "Environmental";
+    private const string Environmental = "Environmental";
 
     /// <summary>Needs a real GPU render surface (ANGLE/EGL). Pre-existing.</summary>
-    public const string Gpu = "Gpu";
+    private const string Gpu = "Gpu";
 
     /// <summary>
     ///     Crosses a host or process boundary: an Avalonia headless application, a web host on a fixed
@@ -75,10 +75,10 @@ public static class TestTiers
     // ── Informational tags: no tier reads these ──────────────────────────────────────────────────
 
     /// <summary>Pre-existing descriptive tag. No tier excludes it.</summary>
-    public const string Probe = "Probe";
+    private const string Probe = "Probe";
 
     /// <summary>Pre-existing descriptive tag. No tier excludes it.</summary>
-    public const string Unit = "Unit";
+    private const string Unit = "Unit";
 
     // ── Tier names ───────────────────────────────────────────────────────────────────────────────
 

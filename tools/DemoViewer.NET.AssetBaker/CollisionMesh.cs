@@ -167,5 +167,6 @@ public static class CollisionMesh
         return new FileInfo(gzPath).Length;
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     public sealed record Result(int TriangleCount, Vector3 Min, Vector3 Max, string Diagnostic);
 }

@@ -129,6 +129,7 @@ public sealed record BenchmarkReport(
 
     // A flat DTO rather than serializing the record directly: SKSizeI has no parameterless constructor
     // and would round-trip as an empty object.
+    [UsedImplicitly(ImplicitUseKindFlags.Access, ImplicitUseTargetFlags.WithMembers)]
     private sealed record Dto
     {
         public Dto(BenchmarkReport r)

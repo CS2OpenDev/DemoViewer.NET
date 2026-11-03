@@ -166,12 +166,14 @@ public sealed class CorpusManifest
         AllowTrailingCommas = true
     };
 
+    [UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
     private sealed class ManifestFile
     {
         [JsonPropertyName("demos")]
         public List<ManifestEntry>? Demos { get; init; }
     }
 
+    [UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
     private sealed class ManifestEntry
     {
         [JsonPropertyName("name")]

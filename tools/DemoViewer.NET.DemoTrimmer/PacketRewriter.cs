@@ -61,7 +61,7 @@ internal static class PacketRewriter
     ///     <paramref name="bitLength" /> written. The byte array is zero-padded past that point, so only
     ///     the first <paramref name="bitLength" /> bits are meaningful.
     /// </summary>
-    public static byte[] Rewrite(
+    private static byte[] Rewrite(
         ReadOnlySpan<byte> data, IReadOnlySet<int> dropTypeIds, out StripStats stats, out int bitLength)
     {
         BitBuffer reader = new(data);

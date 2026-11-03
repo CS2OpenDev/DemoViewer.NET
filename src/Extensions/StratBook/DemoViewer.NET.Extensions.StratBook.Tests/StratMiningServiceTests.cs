@@ -84,7 +84,7 @@ public class StratMiningServiceTests
     }
 
     // The Ts walk from spawn to the site over 45 s and stay; the CTs hold. `jitter` moves one demo's walk a little.
-    internal static RoundPositionsDocument Positions(int n, BombSite site, float jitter) => new()
+    internal static RoundPositionsDocument PositionsOf(int n, BombSite site, float jitter) => new()
     {
         Fingerprint = Sources.FingerprintFor(Map),
         Demo = new RoundPositionsDemo { StableKey = DemoCacheStore.StableKey($"/d/m{n}.dem"), Sha256 = Sha(n) },
@@ -162,7 +162,7 @@ public class StratMiningServiceTests
 
             for (int n = 1; n <= 4; n++)
             {
-                positions.WritePositions($"/d/m{n}.dem", Positions(n, n == 4 ? BombSite.B : BombSite.A, n * 40));
+                positions.WritePositions($"/d/m{n}.dem", PositionsOf(n, n == 4 ? BombSite.B : BombSite.A, n * 40));
             }
 
             return new Library
@@ -219,7 +219,7 @@ public class StratMiningServiceTests
         StratRecord record = StratEvidence.Build(doc.Id, doc.Revision, doc.Side,
             [.. Enumerable.Range(1, 3).Select(n => library.Tags.TryLoad(Sha(n))!)]);
         await Assert.That(record.Total.Run).IsEqualTo(3).Because("each member round is a run of the new strat");
-        await Assert.That(new StratEvidenceService(library.Tags).Compute(doc).Total.Run).IsEqualTo(3)
+        await Assert.That((await new StratEvidenceService(library.Tags).ComputeAsync(doc)).Total.Run).IsEqualTo(3)
             .Because("the record panel finds the runs through the tag index");
     }
 
@@ -267,7 +267,7 @@ public class StratMiningServiceTests
     [Test]
     public async Task ACachedGrenade_BecomesAThrowStep_WithItsLandingAndAnArrow()
     {
-        RoundPositionsDocument positions = Positions(1, BombSite.A, 0);
+        RoundPositionsDocument positions = PositionsOf(1, BombSite.A, 0);
         RoundFacts facts = Record(1, BombSite.A).RoundFacts!.Rounds[0];
         GrenadeRow incendiary = new()
         {

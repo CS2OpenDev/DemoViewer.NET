@@ -144,7 +144,7 @@ public class ChannelVideoFrameSourceTests
         // until the process runs out of room, and at 1080p each one is 8 MB.
         await Assert.That(third.IsCompleted).IsFalse();
 
-        IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
+        using IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
         await Assert.That(reader.MoveNext()).IsTrue();
         await third;
     }
@@ -159,7 +159,7 @@ public class ChannelVideoFrameSourceTests
         await bridge.WriteAsync(payload, 2, 2, CancellationToken.None);
         bridge.Complete();
 
-        IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
+        using IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
         int read = 0;
         while (reader.MoveNext())
         {
@@ -180,7 +180,7 @@ public class ChannelVideoFrameSourceTests
         await bridge.WriteAsync(payload, 2, 2, CancellationToken.None);
         bridge.Complete();
 
-        IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
+        using IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
         await Assert.That(reader.MoveNext()).IsTrue();
 
         IVideoFrame frame = reader.Current;
@@ -201,19 +201,20 @@ public class ChannelVideoFrameSourceTests
     {
         // The pool has no public census, so this measures the proxy that matters: renting the same size
         // after a full drain must not allocate a new array.
-        using ChannelVideoFrameSource bridge = new();
         byte[] payload = new byte[4096];
 
-        for (int i = 0; i < 32; i++)
+        using (ChannelVideoFrameSource bridge = new())
         {
-            await bridge.WriteAsync(payload, 32, 32, CancellationToken.None);
+            // The source is its own enumerator, so disposing either one returns the buffers.
+            using IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
+            for (int i = 0; i < 32; i++)
+            {
+                await bridge.WriteAsync(payload, 32, 32, CancellationToken.None);
+                reader.MoveNext();
+            }
 
-            IEnumerator<IVideoFrame> reader = i == 0 ? bridge.GetEnumerator() : bridge;
-            reader.MoveNext();
+            bridge.Complete();
         }
-
-        bridge.Complete();
-        bridge.Dispose();
 
         byte[] rented = ArrayPool<byte>.Shared.Rent(4096);
         ArrayPool<byte>.Shared.Return(rented);
@@ -224,11 +225,11 @@ public class ChannelVideoFrameSourceTests
     public async Task EnumeratingTwice_IsRefused()
     {
         using ChannelVideoFrameSource bridge = new();
-        bridge.GetEnumerator();
+        using IEnumerator<IVideoFrame> first = bridge.GetEnumerator();
 
         // A second pass would silently produce an empty stream, a video file with no frames and no
         // error, which is a much worse failure than saying so.
-        await Assert.That(SceneExportSessionLoopTests.Throws<InvalidOperationException>(() => bridge.GetEnumerator()))
+        await Assert.That(SceneExportSessionLoopTests.Throws<InvalidOperationException>(() => bridge.GetEnumerator().Dispose()))
             .IsNotNull();
     }
 }

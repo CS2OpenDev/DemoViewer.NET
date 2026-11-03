@@ -283,7 +283,7 @@ public class StratEvidenceTests
             await Assert.That(record.Total).IsEqualTo(Build().Total);
             await Assert.That(record.ByProvenance.Keys.Order(StringComparer.Ordinal))
                 .IsEquivalentTo(Build().ByProvenance.Keys.Order(StringComparer.Ordinal), CollectionOrdering.Matching);
-            await Assert.That(new StratEvidenceService(tags).Compute(strat).ByProvenance.Keys)
+            await Assert.That((await new StratEvidenceService(tags).ComputeAsync(strat)).ByProvenance.Keys)
                 .IsEquivalentTo([StratEvidence.Unlabeled], CollectionOrdering.Matching)
                 .Because("without Demo Provenance Labels every run is unlabeled");
         }

@@ -26,7 +26,7 @@ public class SampleNode : IGraphNode, INotifyPropertyChanged
     public string? DisplayValue
     {
         get;
-        set
+        init
         {
             field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayValue)));
@@ -37,7 +37,7 @@ public class SampleNode : IGraphNode, INotifyPropertyChanged
     public bool IsActive
     {
         get;
-        set
+        init
         {
             field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));

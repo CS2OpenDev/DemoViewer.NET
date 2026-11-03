@@ -147,10 +147,11 @@ public class ShapeToolTests
     [Test]
     public async Task Envelope_AndPen_AreResolvedAtPress_LikeTheDrawTool()
     {
-        Harness h = new(ToolKind.Rect);
-        h.Session.DefaultVisibility = EnvelopeMode.Fade;
-        h.Session.HoldTicks = 100;
-        h.Services.CurrentTick = 500;
+        Harness h = new(ToolKind.Rect)
+        {
+            Session = { DefaultVisibility = EnvelopeMode.Fade, HoldTicks = 100 },
+            Services = { CurrentTick = 500 }
+        };
 
         h.Press(0, 0, button: ToolPointerButton.Right);
         h.Services.CurrentTick = 900;
@@ -165,8 +166,7 @@ public class ShapeToolTests
     [Test]
     public async Task StartedOnATrackedPlayer_TheShapeFollowsThem()
     {
-        Harness h = new(ToolKind.Arrow);
-        h.Session.AnchorToEntities = true;
+        Harness h = new(ToolKind.Arrow) { Session = { AnchorToEntities = true } };
         h.Services.Markers.Add(AnnotationFakes.Marker(76561198000000001, 10, 10));
 
         h.Press(20, 20);

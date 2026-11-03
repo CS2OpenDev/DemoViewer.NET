@@ -75,8 +75,8 @@ public sealed class CreateStratPlaybackContribution(
     // IStratCapture only promises the parse; the store, Team Identity and the way into the Strat Book are
     // the pack's own host, so a registration of another shape offers nothing rather than half a review.
     private StratCaptureHost? Capture() =>
-        _context is { HasDemo: true } context && context.GetService<IStratCapture>() is StratCaptureHost host
-                                              && host.Demo() is not null
+        _context is { HasDemo: true } context && context.GetService<IStratCapture>() is { } capture
+                                              && capture.Demo() is not null && capture is StratCaptureHost host
             ? host
             : null;
 

@@ -30,10 +30,10 @@ public sealed class SampleTableRow : ITableRow
 public sealed class SampleTableCell : ITableCell
 {
     /// <summary>Display value.</summary>
-    public string? DisplayValue { get; set; }
+    public string? DisplayValue { get; init; }
 
     /// <summary>Is active.</summary>
-    public bool IsActive { get; set; }
+    public bool IsActive { get; init; }
 }
 
 /// <summary>Sample column edge data record.</summary>

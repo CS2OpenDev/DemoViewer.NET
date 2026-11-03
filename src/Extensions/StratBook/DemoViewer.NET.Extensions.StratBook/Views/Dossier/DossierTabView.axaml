@@ -33,7 +33,7 @@
         <DataTemplate x:Key="PostPlantChip" x:DataType="vm:TendencyLinkViewModel">
             <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                     ToolTip.Tip="{Binding ToolTip}"
-                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).PostPlant.OpenCommand}"
+                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).PostPlant.OpenCommand, FallbackValue={x:Null}}"
                     CommandParameter="{Binding}">
                 <StackPanel Orientation="Horizontal" Spacing="4">
                     <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -49,7 +49,7 @@
         <DataTemplate x:Key="SituationalChip" x:DataType="vm:TendencyLinkViewModel">
             <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                     ToolTip.Tip="{Binding ToolTip}"
-                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand}"
+                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                     CommandParameter="{Binding}">
                 <StackPanel Orientation="Horizontal" Spacing="4">
                     <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -93,7 +93,7 @@
                     <TextBlock Text="{Binding RotatingLabel}" FontSize="11" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMid}" />
                     <Button Content="{Binding OpenLabel}" Classes="ghost" FontSize="11" Padding="10 5"
-                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).OpenRoundsCommand}"
+                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).OpenRoundsCommand, FallbackValue={x:Null}}"
                             CommandParameter="{Binding}" />
                 </StackPanel>
             </Border>
@@ -109,7 +109,7 @@
                                    Foreground="{DynamicResource TextCardHeader}" />
                         <Button Classes="ghost" FontSize="11" Padding="6 2"
                                 Content="{Binding RoundsLink.ToolTip}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand}"
+                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding RoundsLink}" />
                     </StackPanel>
                     <TextBlock Text="{Binding UtilityNote}" FontSize="11" Foreground="{DynamicResource TextMid}" />
@@ -124,7 +124,7 @@
                             <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                 <Button Classes="ghost" Padding="2" Margin="0 0 2 0" MinWidth="44"
                                         IsEnabled="{Binding CanOpen}" ToolTip.Tip="{Binding ToolTip}"
-                                        Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}">
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="{Binding CountText}" FontSize="10"
@@ -151,7 +151,7 @@
                             <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                 <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                                         ToolTip.Tip="{Binding ToolTip}"
-                                        Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -173,7 +173,7 @@
                             <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                 <Button Classes="ghost" Padding="2" Margin="0 0 2 0" MinWidth="44"
                                         IsEnabled="{Binding CanOpen}" ToolTip.Tip="{Binding ToolTip}"
-                                        Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}">
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="{Binding CountText}" FontSize="10"
@@ -202,7 +202,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                                             ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand}"
+                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -224,7 +224,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                                             ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand}"
+                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -247,7 +247,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" Padding="2" Margin="0 0 2 0" MinWidth="44"
                                             IsEnabled="{Binding CanOpen}" ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand}"
+                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{Binding CountText}" FontSize="10"
@@ -276,7 +276,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                                             ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand}"
+                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -305,13 +305,13 @@
                         <Button Classes="ghost" FontSize="11" Padding="6 2"
                                 Content="{Binding PlantedLink.CountText}" ToolTip.Tip="{Binding PlantedLink.ToolTip}"
                                 IsEnabled="{Binding PlantedLink.CanOpen}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).PostPlant.OpenCommand}"
+                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).PostPlant.OpenCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding PlantedLink}" />
                         <TextBlock Text="of" FontSize="11" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextMid}" />
                         <Button Classes="ghost" FontSize="11" Padding="6 2"
                                 Content="{Binding RoundsLink.ToolTip}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).PostPlant.OpenCommand}"
+                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).PostPlant.OpenCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding RoundsLink}" />
                     </StackPanel>
                     <StackPanel Spacing="6" IsVisible="{Binding HasPlants}">
@@ -359,7 +359,7 @@
                                    Foreground="{DynamicResource TextCardHeader}" />
                         <Button Classes="ghost" FontSize="11" Padding="6 2"
                                 Content="{Binding RoundsLink.ToolTip}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand}"
+                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding RoundsLink}" />
                     </StackPanel>
 
@@ -368,7 +368,7 @@
                             <TextBlock Text="pistols" FontSize="11" Foreground="{DynamicResource TextMid}" />
                             <Button Classes="ghost" FontSize="11" Padding="6 2"
                                     Content="{Binding PistolLink.CountText}" ToolTip.Tip="{Binding PistolLink.ToolTip}"
-                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand}"
+                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding PistolLink}" />
                         </StackPanel>
                         <ItemsControl ItemsSource="{Binding PistolOutcomes}"
@@ -386,7 +386,7 @@
                             <Button Classes="ghost" FontSize="11" Padding="6 2"
                                     Content="{Binding AntiEcoLink.CountText}"
                                     ToolTip.Tip="{Binding AntiEcoLink.ToolTip}"
-                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand}"
+                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding AntiEcoLink}" />
                         </StackPanel>
                         <ItemsControl ItemsSource="{Binding AntiEcoBuyTypes}"
@@ -408,7 +408,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" Padding="2" Margin="0 0 2 0" MinWidth="44"
                                             IsEnabled="{Binding CanOpen}" ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand}"
+                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{Binding CountText}" FontSize="10"
@@ -435,7 +435,7 @@
                             <Button Classes="ghost" FontSize="11" Padding="6 2"
                                     Content="{Binding ManAdvantageLink.CountText}"
                                     ToolTip.Tip="{Binding ManAdvantageLink.ToolTip}"
-                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand}"
+                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding ManAdvantageLink}" />
                         </StackPanel>
                         <ItemsControl ItemsSource="{Binding ManAdvantage}"
@@ -454,7 +454,7 @@
                             <Button Classes="ghost" FontSize="11" Padding="6 2"
                                     Content="{Binding RoundsLostLink.CountText}"
                                     ToolTip.Tip="{Binding RoundsLostLink.ToolTip}"
-                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand}"
+                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding RoundsLostLink}" />
                             <TextBlock Text="losses" FontSize="11" Foreground="{DynamicResource TextMid}" />
                         </StackPanel>
@@ -472,7 +472,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
                     <Button Grid.Column="0" Content="{Binding StarGlyph}" Classes="ghost" FontSize="12" Padding="4 1"
                             ToolTip.Tip="{Binding StarToolTip}" VerticalAlignment="Top"
-                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.ToggleStarCommand}"
+                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.ToggleStarCommand, FallbackValue={x:Null}}"
                             CommandParameter="{Binding}" />
                     <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="11" TextWrapping="Wrap"
                                VerticalAlignment="Center" Foreground="{DynamicResource TextValue}"
@@ -489,17 +489,17 @@
                                 Command="{Binding BeginEditCommand}" />
                         <Button Content="Save" Classes="ghost" FontSize="10" Padding="8 3"
                                 IsVisible="{Binding IsEditing}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.CommitEditCommand}"
+                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.CommitEditCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}" />
                         <Button Content="Cancel" Classes="ghost" FontSize="10" Padding="8 3"
                                 IsVisible="{Binding IsEditing}"
                                 Command="{Binding CancelEditCommand}" />
                         <Button Content="Reset" Classes="ghost" FontSize="10" Padding="8 3"
                                 IsVisible="{Binding IsEdited}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.ResetEditCommand}"
+                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.ResetEditCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}" />
                         <Button Content="{Binding RemoveLabel}" Classes="ghost" FontSize="10" Padding="8 3"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.RemoveCommand}"
+                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.RemoveCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}" />
                     </StackPanel>
                 </Grid>
@@ -814,7 +814,7 @@
                                                                TextTrimming="CharacterEllipsis" />
                                                     <Button Grid.Column="5" Content="Remove" Classes="ghost"
                                                             FontSize="10" Padding="8 3"
-                                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).RemoveVetoCommand}"
+                                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).RemoveVetoCommand, FallbackValue={x:Null}}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
                                             </DataTemplate>

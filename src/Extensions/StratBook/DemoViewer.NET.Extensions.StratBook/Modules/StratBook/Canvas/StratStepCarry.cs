@@ -123,8 +123,9 @@ public static class StratStepCarry
     }
 
     private static bool Same(StepPosition stored, TokenPlacement placement) =>
-        (float)stored.X == placement.X && (float)stored.Y == placement.Y
-                                       && (stored.YawDegrees is { } yaw ? (float?)yaw : null) == placement.YawDegrees;
+        ((float)stored.X).Equals(placement.X) && ((float)stored.Y).Equals(placement.Y)
+                                              && Nullable.Equals(stored.YawDegrees is { } yaw ? (float?)yaw : null,
+                                                  placement.YawDegrees);
 
     private static StepPosition Clone(StepPosition position) =>
         JsonSerializer.Deserialize(JsonSerializer.Serialize(position, StratJsonContext.Default.StepPosition),

@@ -4193,7 +4193,7 @@ public static partial class Variants
     {
         public static readonly VisionEmptyEntities Instance = new();
 
-        public IEnumerable<IReadOnlyEntity> All() => [];
+        IEnumerable<IReadOnlyEntity> IReadOnlyEntityView.All() => [];
         public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
         public IReadOnlyEntity? BySerial(int serial) => null;
         public IReadOnlyEntity? ByIndex(int entityIndex) => null;

@@ -738,6 +738,7 @@ public class AnnotationStoreTests
     }
 
     /// <summary>The v1 element: every field that build knew, plus the bag everything else lands in.</summary>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class V1Element
     {
         public string? Id { get; set; }

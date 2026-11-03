@@ -18,6 +18,7 @@ internal sealed class CliUsageException : Exception
     }
 
     /// <summary>Parameterless overload required by CA1032.</summary>
+    [UsedImplicitly]
     public CliUsageException()
     {
     }

@@ -10,6 +10,7 @@ using DemoViewer.NET.ViewModels.PlayerOverview.Sections;
 
 namespace DemoViewer.NET.Views.PlayerOverview.Sections;
 
+[UsedImplicitly]
 public partial class HeaderSectionView : UserControl
 {
     public HeaderSectionView()

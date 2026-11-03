@@ -143,7 +143,7 @@ public sealed partial class NumberSettingRow : SchemaSettingRow
     /// <summary>The display format: no decimals for a whole step.</summary>
     public string FormatString => IsWhole ? "0" : "0.###";
 
-    private bool IsWhole => Descriptor.Step == Math.Floor(Descriptor.Step);
+    private bool IsWhole => double.IsInteger(Descriptor.Step);
 
     private protected override void Read()
     {

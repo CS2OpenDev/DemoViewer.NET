@@ -175,6 +175,7 @@ internal static class ZoneSetReader
         public ParametersDto? Parameters { get; init; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class FloorDto
     {
         public double Key { get; set; }
@@ -182,12 +183,14 @@ internal static class ZoneSetReader
         public double MaxZ { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class PlaceDto
     {
         public int Id { get; set; }
         public string? Name { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class VolumeDto
     {
         public string? Kind { get; set; }
@@ -200,11 +203,13 @@ internal static class ZoneSetReader
         public List<HullDto>? Hulls { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class HullDto
     {
         public List<double[]>? Planes { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class AreaDto
     {
         public int Id { get; set; }
@@ -215,6 +220,7 @@ internal static class ZoneSetReader
         public double[]? Xy { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class ParametersDto
     {
         [JsonPropertyName("bombRadius")]

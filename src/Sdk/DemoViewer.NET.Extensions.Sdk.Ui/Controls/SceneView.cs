@@ -251,7 +251,7 @@ internal interface ISceneViewBackend
     Control View { get; }
 
     /// <summary>What to draw.</summary>
-    ISceneSource? Source { get; set; }
+    ISceneSource? Source { set; }
 
     /// <summary>The panes as last arranged.</summary>
     IReadOnlyList<LevelPane> Panes { get; }

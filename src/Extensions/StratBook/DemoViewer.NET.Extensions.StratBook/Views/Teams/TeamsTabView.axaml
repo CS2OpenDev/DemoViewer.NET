@@ -88,15 +88,15 @@
                                            Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
                                 <Button Grid.Column="1" Content="Accept" Classes="ghost" FontSize="11" Padding="10 5"
                                         IsVisible="{Binding !IsDismissed}"
-                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).AcceptSuggestionCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).AcceptSuggestionCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                                 <Button Grid.Column="2" Content="Dismiss" Classes="ghost" FontSize="11" Padding="10 5"
                                         IsVisible="{Binding !IsDismissed}"
-                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).DismissSuggestionCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).DismissSuggestionCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                                 <Button Grid.Column="2" Content="Restore" Classes="ghost" FontSize="11" Padding="10 5"
                                         IsVisible="{Binding IsDismissed}"
-                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).RestoreSuggestionCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).RestoreSuggestionCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                             </Grid>
                         </DataTemplate>
@@ -257,9 +257,9 @@
                                                                            Foreground="{DynamicResource TextMid}" />
                                                                 <Button Grid.Column="5" Content="Open player overview"
                                                                         Classes="ghost" FontSize="11" Padding="8 1"
-                                                                        IsVisible="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OffersPlayerOverview}"
+                                                                        IsVisible="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OffersPlayerOverview, FallbackValue=False}"
                                                                         IsEnabled="{Binding SteamId64, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OpenPlayerOverviewCommand}"
+                                                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OpenPlayerOverviewCommand, FallbackValue={x:Null}}"
                                                                         CommandParameter="{Binding}"
                                                                         ToolTip.Tip="This player across every demo in the library" />
                                                             </Grid>
@@ -332,7 +332,7 @@
                                                        VerticalAlignment="Center" />
                                             <Button Grid.Column="6" Content="Open" Classes="ghost" FontSize="11"
                                                     Padding="8 3"
-                                                    Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OpenDemoCommand}"
+                                                    Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OpenDemoCommand, FallbackValue={x:Null}}"
                                                     CommandParameter="{Binding}" />
                                         </Grid>
                                     </DataTemplate>

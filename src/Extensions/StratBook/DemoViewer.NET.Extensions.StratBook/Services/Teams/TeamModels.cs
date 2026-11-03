@@ -76,6 +76,7 @@ public sealed class Roster
 }
 
 /// <summary>A team: user-owned continuity over one or more rosters.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class Team
 {
     public Guid Id { get; init; }
@@ -234,6 +235,7 @@ public sealed class TeamIndexSide
 }
 
 /// <summary>One demo's row in the derived index.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class TeamIndexDemo
 {
     public string Path { get; init; } = "";
@@ -278,6 +280,7 @@ public sealed class TeamIndexMember
 }
 
 /// <summary>A one-side candidate: a side that matched nothing and may found a roster later.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class TeamIndexUnaffiliated
 {
     public string Demo { get; set; } = "";

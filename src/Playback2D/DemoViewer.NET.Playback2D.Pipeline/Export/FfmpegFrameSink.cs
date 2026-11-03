@@ -397,6 +397,7 @@ public sealed class FfmpegFrameSink : IFrameSink
 ///     An ffmpeg subprocess failed. The message carries ffmpeg's own last words rather than the pipe
 ///     error that usually races ahead of them.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed class FfmpegEncodeException : InvalidOperationException
 {
     /// <summary>Creates the exception.</summary>

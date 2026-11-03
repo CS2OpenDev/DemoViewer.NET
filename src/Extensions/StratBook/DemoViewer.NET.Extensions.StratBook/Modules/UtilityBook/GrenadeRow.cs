@@ -157,7 +157,7 @@ public sealed class GrenadeRow
     public string? ThrowerSteamId64
     {
         get => field ?? (ThrowerSteamId is { } id ? id.ToString(CultureInfo.InvariantCulture) : null);
-        set
+        init
         {
             // Held as a number; text that would not print back identically is kept verbatim.
             if (value is not null
@@ -195,7 +195,7 @@ public sealed class GrenadeRow
     public ReleaseSource ReleaseSource { get; init; }
 
     /// <summary>The thrower's pawn origin at the release: the <c>setpos</c>.</summary>
-    public WorldPoint? ReleasePosition { get; set; }
+    public WorldPoint? ReleasePosition { get; init; }
 
     /// <summary><c>m_angEyeAngles</c> pitch at the release: the <c>setang</c> pitch.</summary>
     public float? ReleaseEyePitch { get; set; }
@@ -208,25 +208,25 @@ public sealed class GrenadeRow
     public bool? ReleaseCrouched { get; init; }
 
     /// <summary>The held grenade's <c>m_flThrowStrength</c> at the release.</summary>
-    public float? ThrowStrength { get; set; }
+    public float? ThrowStrength { get; init; }
 
     public ThrowStrengthClass ThrowStrengthClass { get; init; } = ThrowStrengthClass.Unknown;
 
     public MovementClass Movement { get; set; } = MovementClass.Unknown;
 
     /// <summary>Horizontal speed over the ticks before the release, units per second; kept so the thresholds can move without a re-walk.</summary>
-    public float? SpeedAtRelease { get; set; }
+    public float? SpeedAtRelease { get; init; }
 
     /// <summary>The frame the projectile appeared on.</summary>
     public int SpawnTick { get; set; }
 
     /// <summary><c>m_vInitialPosition</c>.</summary>
-    public WorldPoint? SpawnPosition { get; set; }
+    public WorldPoint? SpawnPosition { get; init; }
 
     /// <summary><c>m_vInitialVelocity</c>.</summary>
-    public WorldPoint? SpawnVelocity { get; set; }
+    public WorldPoint? SpawnVelocity { get; init; }
 
-    public WorldPoint? ThrowerPositionAtSpawn { get; set; }
+    public WorldPoint? ThrowerPositionAtSpawn { get; init; }
 
     /// <summary>The ground-flag fallback's input: the flag on the spawn frame, not the release one.</summary>
     public bool? ThrowerOnGroundAtSpawn { get; init; }
@@ -236,7 +236,7 @@ public sealed class GrenadeRow
     public JumpThrowSource JumpThrowSource { get; init; } = JumpThrowSource.None;
 
     /// <summary>The tick the jump rose, when <see cref="JumpThrowSource" /> is Inputs and one did.</summary>
-    public int? JumpPressTick { get; set; }
+    public int? JumpPressTick { get; init; }
 
     /// <summary>
     ///     The flight at the configured stride with every bounce vertex kept; first the spawn point, last
@@ -257,7 +257,7 @@ public sealed class GrenadeRow
 
     public int? DetonationTick { get; set; }
 
-    public WorldPoint? DetonationPosition { get; set; }
+    public WorldPoint? DetonationPosition { get; init; }
 
     public DetonationSource DetonationSource { get; init; } = DetonationSource.None;
 
@@ -267,10 +267,10 @@ public sealed class GrenadeRow
     public GrenadeEndKind EndKind { get; init; }
 
     /// <summary>A molotov's <c>inferno_startburn</c> entity index, for a later fire-area join.</summary>
-    public int? InfernoEntityIndex { get; set; }
+    public int? InfernoEntityIndex { get; init; }
 
     /// <summary>Reserved for Zone Baking's resolver at Grenade Index time; the walk leaves it null.</summary>
-    public string? LandingPlace { get; set; }
+    public string? LandingPlace { get; init; }
 }
 
 /// <summary>Writes a <see cref="WorldPoint" /> as <c>[x, y, z]</c> at two decimals.</summary>

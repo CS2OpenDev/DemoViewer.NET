@@ -94,7 +94,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
 
     // Read per add, not cached: the desktop head installs the process's tracker before the first view is
     // built, but a host built in a test or a designer may outlive one being installed.
-    private ExtensionFaults? Faults { get => field ?? ExtensionFaults.Current; }
+    private ExtensionFaults? Faults => field ?? ExtensionFaults.Current;
 
     /// <inheritdoc />
     public Control View => this;

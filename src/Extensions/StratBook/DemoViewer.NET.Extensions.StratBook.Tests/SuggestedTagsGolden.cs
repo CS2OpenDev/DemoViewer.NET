@@ -66,6 +66,7 @@ internal sealed class SuggestedTagsGolden
 
     public List<GoldenProposal> Proposals { get; set; } = [];
 
+    [UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
     internal sealed class GoldenRound
     {
         public int Number { get; init; }
@@ -85,8 +86,10 @@ internal sealed class SuggestedTagsGolden
 
     internal sealed record GoldenEvent(int Tick, string Kind, int Slot, float X, float Y, float Z, string? Place);
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     internal sealed record GoldenEvidence(string Kind, int Tick, string Text);
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     internal sealed record GoldenProposal(
         string Id,
         string Detector,

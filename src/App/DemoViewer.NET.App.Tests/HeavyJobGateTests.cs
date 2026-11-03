@@ -296,7 +296,7 @@ public class HeavyJobGateTests
     public async Task Export_PausesBackground_ButNeverBlocksAnInteractiveLoad()
     {
         using HeavyJobGate gate = new();
-        using IDisposable export = await gate.EnterExportSessionAsync();
+        IDisposable export = await gate.EnterExportSessionAsync();
 
         await Assert.That(gate.IsExportActive).IsTrue();
         await Assert.That(gate.CanStartBackground).IsFalse();

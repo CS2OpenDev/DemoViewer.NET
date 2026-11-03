@@ -819,8 +819,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     [RelayCommand]
     private void PlaceTokens()
     {
-        if (_session.Document is not { } document || Projection is not { } projection
-                                                  || EditableActiveStep() is not { } stepIndex)
+        if (_session.Document is null || Projection is not { } projection || EditableActiveStep() is not { } stepIndex)
         {
             return;
         }
@@ -833,7 +832,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
 
         WorldBounds bounds = CurrentFrame.Map.NetworkedBounds ?? BoundsFor(projection);
-        Apply(StepAuthoringPatches.PlaceTokens(document, stepIndex, missing,
+        Apply(StepAuthoringPatches.PlaceTokens(stepIndex, missing,
             (bounds.MinX + bounds.MaxX) / 2, (bounds.MinY + bounds.MaxY) / 2, PlacementSpacing,
             projection.Canvas.DefaultLevelMinZ ?? 0));
     }
@@ -876,7 +875,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
 
         // A destination pin drags as its token does.
-        if (best == double.MaxValue)
+        if (best.Equals(double.MaxValue))
         {
             foreach (GuidePin pin in Guides.Pins)
             {

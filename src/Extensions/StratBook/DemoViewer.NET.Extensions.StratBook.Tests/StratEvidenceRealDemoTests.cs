@@ -51,7 +51,7 @@ public class StratEvidenceRealDemoTests
         RoundFactsRows rows = facts.TryGet(path) ?? throw new InvalidOperationException("the evaluator wrote no rows");
         StratDocument strat = StratDocument.Create(stratId, StratOwner.Me(), parsed.MapName,
             StratVocabulary.SideT, "execute", "real", Created);
-        StratRecord record = new StratEvidenceService(tags).Compute(strat);
+        StratRecord record = await new StratEvidenceService(tags).ComputeAsync(strat);
 
         using (Assert.Multiple())
         {

@@ -757,7 +757,7 @@ public class PlayerOverviewTabTests
         public bool BackgroundEnabled { get; set; } = true;
         public bool IsPaused { get; private set; }
         public int QueuedCount { get; init; }
-        public int RunningCount { get; }
+        public int RunningCount => 0;
 
         public void SetPaused(bool paused)
         {

@@ -51,7 +51,7 @@ public sealed record CompositionRow(
     double MaxTotal,
     string Detail) : IBoardRow
 {
-    /// <inheritdoc />
+    /// <summary>True when <see cref="Team" /> is the CT side.</summary>
     public bool IsCt => Team == TeamBadge.TeamCt;
 
     /// <summary>Volume as text, beside the bar.</summary>
@@ -69,7 +69,7 @@ public sealed record DuelRow(
     string RateText,
     bool LowVolume) : IBoardRow
 {
-    /// <inheritdoc />
+    /// <summary>True when <see cref="Team" /> is the CT side.</summary>
     public bool IsCt => Team == TeamBadge.TeamCt;
 
     /// <summary>Total duels taken, which is the fact a bare rate hides.</summary>
@@ -95,7 +95,7 @@ public sealed record PipGroup(string Label, int Count, string Accent)
 /// <summary>One player's row of pip groups.</summary>
 public sealed record PipsRow(string PlayerName, int Team, IReadOnlyList<PipGroup> Groups) : IBoardRow
 {
-    /// <inheritdoc />
+    /// <summary>True when <see cref="Team" /> is the CT side.</summary>
     public bool IsCt => Team == TeamBadge.TeamCt;
 }
 

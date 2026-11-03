@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 /// <summary>Whether a veto step took a map out of the pool, or left it as the pick.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public enum VetoAction
 {
     Ban,
@@ -19,6 +20,7 @@ public enum VetoAction
 ///     no scraping: the veto model needs match-series metadata no demo carries).
 ///     <see cref="Order" /> is the pick order the user typed the step in, one-based.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class VetoEntry
 {
     public Guid Id { get; set; } = Guid.NewGuid();

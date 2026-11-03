@@ -175,7 +175,7 @@ public readonly struct ViewportTransform
         double minZoom = 0.05, double maxZoom = 40.0)
     {
         double newZoom = Math.Clamp(Zoom * factor, minZoom, maxZoom);
-        if (newZoom == Zoom)
+        if (newZoom.Equals(Zoom))
         {
             return this;
         }

@@ -46,6 +46,7 @@ public partial class PlaceField : UserControl
     public static readonly StyledProperty<object?> PickCommandParameterProperty =
         AvaloniaProperty.Register<PlaceField, object?>(nameof(PickCommandParameter));
 
+    [UsedImplicitly]
     public static readonly StyledProperty<bool> IsPickingProperty =
         AvaloniaProperty.Register<PlaceField, bool>(nameof(IsPicking));
 
@@ -58,6 +59,7 @@ public partial class PlaceField : UserControl
     public static readonly StyledProperty<string?> PlaceholderTextProperty =
         AvaloniaProperty.Register<PlaceField, string?>(nameof(PlaceholderText));
 
+    [UsedImplicitly]
     public static readonly DirectProperty<PlaceField, bool> IsDropDownOpenProperty =
         AvaloniaProperty.RegisterDirect<PlaceField, bool>(nameof(IsDropDownOpen), f => f.IsDropDownOpen);
 

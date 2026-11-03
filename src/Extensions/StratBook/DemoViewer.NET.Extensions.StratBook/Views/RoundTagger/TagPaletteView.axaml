@@ -67,7 +67,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:TagPaletteButtonViewModel">
                         <Button Focusable="False" Padding="6,2"
-                                Command="{Binding $parent[ItemsControl].((vm:TagPaletteViewModel)DataContext).PressButtonCommand}"
+                                Command="{Binding $parent[ItemsControl].((vm:TagPaletteViewModel)DataContext).PressButtonCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}">
                             <StackPanel Orientation="Horizontal" Spacing="5">
                                 <Border Width="8" Height="8" CornerRadius="2" VerticalAlignment="Center"

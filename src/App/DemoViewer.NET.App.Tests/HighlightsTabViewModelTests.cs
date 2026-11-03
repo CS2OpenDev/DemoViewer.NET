@@ -410,7 +410,7 @@ public class HighlightsTabViewModelTests
         StageAll(vm, b, a); // deliberately NOT store order: the snapshot must carry the user's sequence
         vm.TrayColumnWidth = new GridLength(2, GridUnitType.Star);
 
-        object? blob = vm.SnapshotState();
+        object blob = vm.SnapshotState();
 
         HighlightsTabViewModel restored = Vm(store, scanner);
         restored.RestoreState(blob);

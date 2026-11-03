@@ -6,6 +6,7 @@ namespace DemoViewer.NET.Testing.Tiers;
 ///     wants <c>[NotInParallel(nameof(TheClass))]</c> and needs nothing from here; a lane below
 ///     exists only where several classes contend for one process-wide thing.
 /// </remarks>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public static class TestLanes
 {
     /// <summary>

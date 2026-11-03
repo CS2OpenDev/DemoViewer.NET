@@ -12,6 +12,7 @@ namespace DemoViewer.NET.Browser;
 internal static class Program
 {
     /// <summary>Build avalonia app.</summary>
+    [UsedImplicitly]
     public static AppBuilder BuildAvaloniaApp()
     {
         // The XAML previewer calls this without Main, so it declares the same packs; a no-op after Main.

@@ -82,6 +82,7 @@ public sealed record PackClip(
 /// <summary>A queued clip the pack leaves out, and why.</summary>
 /// <param name="Entry">The Review Queue entry.</param>
 /// <param name="Reason">What is wrong with it.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record PackSkip(ReviewEntry Entry, string Reason);
 
 /// <summary>A planned pack: the segments in play order and the clips left out.</summary>

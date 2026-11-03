@@ -10,6 +10,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///         request already contained.
 ///     </para>
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed class ExportValidationException : InvalidOperationException
 {
     /// <summary>Creates the exception.</summary>

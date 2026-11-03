@@ -34,6 +34,7 @@ public class PipStrip : TemplatedControl
         AvaloniaProperty.Register<PipStrip, int>(nameof(Count));
 
     /// <summary>Above this the strip renders the number instead of drawing marks.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<int> MaxPipsProperty =
         AvaloniaProperty.Register<PipStrip, int>(nameof(MaxPips), 12);
 
@@ -46,10 +47,12 @@ public class PipStrip : TemplatedControl
         AvaloniaProperty.Register<PipStrip, IBrush?>(nameof(EmptyBrush));
 
     /// <summary>Mark radius.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> PipRadiusProperty =
         AvaloniaProperty.Register<PipStrip, double>(nameof(PipRadius), 3.5);
 
     /// <summary>Gap between mark centres, beyond the diameter.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> PipGapProperty =
         AvaloniaProperty.Register<PipStrip, double>(nameof(PipGap), 4);
 

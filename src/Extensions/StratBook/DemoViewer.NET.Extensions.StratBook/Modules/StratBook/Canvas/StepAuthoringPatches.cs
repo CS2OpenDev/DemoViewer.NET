@@ -259,17 +259,15 @@ public static class StepAuthoringPatches
     ///     active step: without a keyframe a token is not drawn, so there is nothing to drag. The strat's own
     ///     five sit left of centre, the opponents right. One gesture, so one undo entry.
     /// </summary>
-    /// <param name="document">The strat.</param>
     /// <param name="stepIndex">The step the entries land on.</param>
     /// <param name="slots">The slots with no track.</param>
     /// <param name="centreX">World X of the map's middle.</param>
     /// <param name="centreY">World Y of the map's middle.</param>
     /// <param name="spacing">World distance between tokens.</param>
     /// <param name="levelMinZ">The level to place them on.</param>
-    public static IReadOnlyList<PatchOp> PlaceTokens(StratDocument document, int stepIndex, IReadOnlyList<string> slots,
-        double centreX, double centreY, double spacing, double levelMinZ)
+    public static IReadOnlyList<PatchOp> PlaceTokens(int stepIndex, IReadOnlyList<string> slots, double centreX,
+        double centreY, double spacing, double levelMinZ)
     {
-        ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(slots);
         List<PatchOp> ops = [];
         int own = 0, other = 0;

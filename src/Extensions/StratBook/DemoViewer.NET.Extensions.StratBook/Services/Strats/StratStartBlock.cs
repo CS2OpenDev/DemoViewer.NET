@@ -312,9 +312,10 @@ public static class StratStartBlock
 
         // The same spot written back (a field losing focus, the same pick) is no edit: it would drop a capture's mark.
         if (current is not null && location is not null && StratLocations.IsSet(location)
-            && string.Equals(current.Place, location.Place, StringComparison.Ordinal) && current.X == location.X
-            && current.Y == location.Y
-            && current.LevelMinZ == location.LevelMinZ && (yawDegrees is null || current.YawDegrees == yawDegrees))
+            && string.Equals(current.Place, location.Place, StringComparison.Ordinal)
+            && Nullable.Equals(current.X, location.X) && Nullable.Equals(current.Y, location.Y)
+            && Nullable.Equals(current.LevelMinZ, location.LevelMinZ)
+            && (yawDegrees is null || Nullable.Equals(current.YawDegrees, yawDegrees)))
         {
             return [];
         }

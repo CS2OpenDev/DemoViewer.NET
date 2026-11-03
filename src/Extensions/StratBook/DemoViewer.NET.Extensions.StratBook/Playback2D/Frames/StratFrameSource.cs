@@ -389,7 +389,8 @@ public sealed class StratFrameSource : ISceneFrames
 
     private static bool Moving(TokenTrack track, int k) =>
         track.Segments[k] == TokenInterpolation.Linear
-        && (track.Keyframes[k].X != track.Keyframes[k + 1].X || track.Keyframes[k].Y != track.Keyframes[k + 1].Y);
+        && (!track.Keyframes[k].X.Equals(track.Keyframes[k + 1].X)
+            || !track.Keyframes[k].Y.Equals(track.Keyframes[k + 1].Y));
 
     // SceneFrameBuilder's m:ss cache: the text changes once a second, so a steady frame allocates nothing.
     private string FormatClock(double seconds)

@@ -77,7 +77,7 @@ internal sealed record TrimVariant(
     ///         two axes gives a candidate with V2's savings and V0's readability.
     ///     </para>
     /// </summary>
-    public static readonly TrimVariant V2C = new(
+    private static readonly TrimVariant V2C = new(
         "v2c-no-anim-contiguous",
         "V2's frame drops, but contiguous from frame 0 (no mid-stream entry)",
         false, _animationFrames, _noInner);

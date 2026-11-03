@@ -515,9 +515,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
                                   ?? throw new InvalidOperationException(
                                       "Stats tab requires snapshot-mode evaluation.");
 
-        List<MetricTable> extras = [];
-        extras.AddRange(run.ProjectConfiguredOutputs(demo, matchId));
-        extras.AddRange(new KeyedStatsProjector { MatchId = matchId }.Project(result, demo));
+        List<MetricTable> extras =
+        [
+            .. run.ProjectConfiguredOutputs(demo, matchId),
+            .. new KeyedStatsProjector { MatchId = matchId }.Project(result, demo)
+        ];
 
         Update(result, demo, extras);
     }

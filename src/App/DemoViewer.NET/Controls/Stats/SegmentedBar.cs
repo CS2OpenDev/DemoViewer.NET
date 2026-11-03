@@ -63,6 +63,7 @@ public class SegmentedBar : TemplatedControl
         AvaloniaProperty.Register<SegmentedBar, IBrush?>(nameof(TrackBrush));
 
     /// <summary>Label colour. Null uses <c>Foreground</c>.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<IBrush?> LabelBrushProperty =
         AvaloniaProperty.Register<SegmentedBar, IBrush?>(nameof(LabelBrush));
 

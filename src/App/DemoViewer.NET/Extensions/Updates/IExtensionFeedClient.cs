@@ -21,9 +21,4 @@ public interface IExtensionFeedClient
 }
 
 /// <summary>A download that did not match what the feed promised, or a transfer that stalled.</summary>
-public sealed class ExtensionDownloadException : Exception
-{
-    public ExtensionDownloadException(string message) : base(message)
-    {
-    }
-}
+public sealed class ExtensionDownloadException(string message) : Exception(message);

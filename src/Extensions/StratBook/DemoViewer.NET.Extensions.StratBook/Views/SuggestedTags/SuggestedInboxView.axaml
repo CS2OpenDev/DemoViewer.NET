@@ -71,21 +71,21 @@
                                         Spacing="6"
                                         VerticalAlignment="Center">
                                 <Button Content="Open" Classes="ghost" FontSize="11" Padding="10 4"
-                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).OpenCommand}"
+                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}"
                                         ToolTip.Tip="Open the demo in 2D Playback at this suggestion" />
                                 <Button Content="Accept" Classes="ghost" FontSize="11" Padding="10 4"
                                         IsVisible="{Binding IsNew}"
-                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).AcceptCommand}"
+                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).AcceptCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}"
                                         ToolTip.Tip="Write this tag into the demo's tags as proposed" />
                                 <Button Content="Dismiss" Classes="ghost" FontSize="11" Padding="10 4"
                                         IsVisible="{Binding IsNew}"
-                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).DismissCommand}"
+                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).DismissCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                                 <Button Content="Restore" Classes="ghost" FontSize="11" Padding="10 4"
                                         IsVisible="{Binding IsDismissed}"
-                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).RestoreCommand}"
+                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).RestoreCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                             </StackPanel>
                         </Grid>

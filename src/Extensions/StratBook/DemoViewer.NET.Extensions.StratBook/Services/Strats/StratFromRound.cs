@@ -462,7 +462,8 @@ public static class StratFromRound
         }
 
         double dx = pawn.X - from.X, dy = pawn.Y - from.Y;
-        return dx * dx + dy * dy > MoveThreshold * MoveThreshold || options.LevelMinZFor(pawn.Z) != from.LevelMinZ;
+        return dx * dx + dy * dy > MoveThreshold * MoveThreshold
+               || !options.LevelMinZFor(pawn.Z).Equals(from.LevelMinZ);
     }
 
     private static void Add(StratStep step, string token, CapturedPawn pawn, StratCaptureOptions options,

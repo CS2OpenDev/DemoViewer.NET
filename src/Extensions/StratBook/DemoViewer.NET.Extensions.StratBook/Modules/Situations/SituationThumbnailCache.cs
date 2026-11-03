@@ -10,6 +10,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 /// <param name="Round">The Round Facts round number.</param>
 /// <param name="Tick">The matched tick, frame clock.</param>
 /// <param name="Fingerprint">The index fingerprint in force for the demo's map.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public readonly record struct SituationThumbnailKey(string StableKey, int Round, int Tick, string Fingerprint);
 
 /// <summary>

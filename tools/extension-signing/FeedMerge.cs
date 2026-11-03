@@ -167,6 +167,7 @@ public static class ExtensionFeedMerge
 /// <summary>A feed merge that was refused: the input did not parse, or the version was a refused downgrade.</summary>
 public sealed class ExtensionFeedMergeException : Exception
 {
+    [UsedImplicitly]
     public ExtensionFeedMergeException()
     {
     }

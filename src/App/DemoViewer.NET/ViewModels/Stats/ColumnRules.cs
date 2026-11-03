@@ -88,6 +88,7 @@ public abstract record ColumnRule
     }
 
     /// <summary>A column with no cross-demo value, and why.</summary>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     public sealed record NotAggregable(string Reason) : ColumnRule
     {
         public override IReadOnlyList<string> Inputs => [];

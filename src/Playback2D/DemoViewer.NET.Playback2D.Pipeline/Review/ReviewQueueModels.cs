@@ -64,6 +64,7 @@ public sealed record ReviewHighlightRef(string RulesetId, string HighlightId, in
 ///         handed never sees a field change under it.
 ///     </para>
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed record ReviewEntry
 {
     /// <summary>Stable across edits and moves; the key every mutation names.</summary>
@@ -191,6 +192,7 @@ public sealed class ReviewQueueFile
 }
 
 /// <summary>The file's <c>clock</c> block: which clock every tick in it is on.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class ReviewClockHeader
 {
     public string Kind { get; set; } = ClockIdentity.DvFrameClock;

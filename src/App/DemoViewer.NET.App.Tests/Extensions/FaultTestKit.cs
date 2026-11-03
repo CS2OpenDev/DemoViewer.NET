@@ -90,8 +90,6 @@ internal sealed class RecordingSwitch : IFeatureSuspension
         Resumptions.Add(packFeatureId);
         _suspended.Remove(packFeatureId);
     }
-
-    public bool IsSuspended(string packFeatureId) => _suspended.Contains(packFeatureId);
 }
 
 /// <summary>Captures every diagnostics log entry while installed.</summary>

@@ -576,13 +576,6 @@ public static class DemoTestHelper
         return Corpus.TryResolveSetMember(set, which, out problem);
     }
 
-    /// <summary>Every demo of a manifest set in ordinal file-name order, fetching each as needed.</summary>
-    public static string[] RequireSet(string set)
-    {
-        ThrowIfCorpusRootMisconfigured();
-        return Corpus.RequireSet(set);
-    }
-
     // ── Folder-shaped DEMO_PATH, for tests that walk every demo ───────────────
 
     /// <summary>

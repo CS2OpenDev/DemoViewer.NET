@@ -1,9 +1,3 @@
-#region
-
-using System.Text.Json.Serialization;
-
-#endregion
-
 namespace DemoViewer.NET.Services.DemoCache;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,6 +25,7 @@ namespace DemoViewer.NET.Services.DemoCache;
 ///     One demo's row in the retired library-wide highlights cache.
 ///     Superseded by <see cref="DemoCacheRecord" />; read only by <see cref="LegacyCacheMigration" />.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class LegacyHighlightsRow
 {
     // ── Identity ──────────────────────────────────────────────────────────────
@@ -87,6 +82,7 @@ public sealed class LegacyCachedPlayer
 }
 
 /// <summary>A round boundary in frame clock. Superseded by <see cref="CachedRound" />.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class LegacyCachedRound
 {
     public int Number { get; set; }
@@ -95,6 +91,7 @@ public sealed class LegacyCachedRound
 }
 
 /// <summary>One harvested highlight. Superseded by <see cref="CachedHighlightEvent" />.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class LegacyCachedHighlight
 {
     public string RulesetId { get; init; } = "";
@@ -122,9 +119,6 @@ public sealed class LegacyCachedHighlight
 
     public string RenderedTitle { get; init; } = "";
 
-    /// <summary>Derived; was kept out of the persisted schema.</summary>
-    [JsonIgnore]
-    public string TypeKey => $"{RulesetId}.{HighlightId}";
 }
 
 /// <summary>

@@ -325,6 +325,7 @@ public static class NavFloors
         return sb.ToString();
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     public sealed record Result(IReadOnlyList<FloorBand> Floors, string Diagnostic);
 
     // One walkable nav area reduced to what the clusterer needs: a representative world Z, its walkable

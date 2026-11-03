@@ -24,6 +24,7 @@ internal static class Program
 {
     // Avalonia configuration, don't remove; also used by visual designer.
     /// <summary>Build avalonia app.</summary>
+    [UsedImplicitly]
     public static AppBuilder BuildAvaloniaApp()
     {
         // The XAML previewer calls this without Main, so it declares the same packs; a no-op after Main.

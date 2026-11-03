@@ -13,6 +13,7 @@ namespace DemoViewer.NET.Playback2D.Assets;
 /// <param name="Baked">The baked set before the overlay, or null.</param>
 /// <param name="OverlayPath">The overlay file that was looked for, whether or not it existed.</param>
 /// <param name="Diagnostics">Everything the overlay loader skipped or flagged.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record ZoneLoadResult(
     PlaceResolver? Resolver,
     ZoneSet? Baked,

@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 /// <param name="LicenseName">The licence the build carries: always <c>LGPL-2.1</c> here.</param>
 /// <param name="ApproxBytes">Archive size, for the progress UI and the "this is a big download" warning.</param>
 /// <param name="TargetDirectory">Where <c>ffmpeg</c> and <c>ffprobe</c> will be written.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record FfmpegDownloadOffer(
     string Url,
     string ArchiveSha256,
@@ -29,6 +30,7 @@ public sealed record FfmpegDownloadOffer(
 ///     asset, a SHA-256 mismatch, or an archive missing the binaries it should contain. Every one of
 ///     these degrades to the GIF floor rather than crashing, so the message is user-facing copy.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed class FfmpegAcquisitionException : InvalidOperationException
 {
     /// <summary>Creates the exception.</summary>

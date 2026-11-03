@@ -55,6 +55,7 @@ public enum DemoAnalysisState
 ///     own tier: the single whole-record <c>CurrentSchema</c> the library cache uses today is exactly why
 ///     that cache has been conservative about growing new fields.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class TierStamp
 {
     /// <summary>Schema version of the tier's payload. 0 = the tier has never been written.</summary>
@@ -180,6 +181,7 @@ public sealed class CachedStatRow
 ///     <see cref="DemoCacheRecord.Players" /> rather than re-stored per event: the highlights cache repeats
 ///     name + steamId on every row today, which is pure redundancy and makes renames incoherent.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class CachedHighlightEvent
 {
     public string RulesetId { get; init; } = "";
@@ -952,6 +954,7 @@ public sealed class DemoCacheIndexEntry : IJsonOnDeserialized
 public sealed record DemoLocation(string Path, bool Confirmed, long Size, long ModifiedTicks, long LastSeenUtcTicks);
 
 /// <summary>The on-disk shape of <c>index.json</c>: a versioned wrapper so migrations have a hook.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class DemoCacheIndexFile
 {
     /// <summary>

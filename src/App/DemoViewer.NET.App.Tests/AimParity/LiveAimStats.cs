@@ -252,6 +252,7 @@ public sealed record AimPlayerRow(string Name, int Slot, int Team, IReadOnlyDict
 ///     reading 0.0, and comparing it against a reference would manufacture a divergence.
 /// </param>
 /// <param name="Players">Per-player rows, keyed by display name.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AimRunResult(
     string DemoFileName,
     string DemoSha256,
@@ -282,6 +283,7 @@ public sealed record AimRunResult(
 ///         it.
 ///     </para>
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed class AimSchemaDriftException : Exception
 {
     /// <summary>Creates an empty exception.</summary>

@@ -89,7 +89,7 @@ public sealed class RoundIndexEvaluator : IExtensionPass
     private static ILogger Log => _diagLog ??= DiagnosticsLog.CreateLogger(RoundIndexLog.Category);
 
     /// <summary>The scheduling of the extension's passes, so a retry or a rebuild can ask for the demo again. Null in tests.</summary>
-    public IExtensionPasses? Passes { get; set; }
+    public IExtensionPasses? Passes { get; init; }
 
     /// <summary>True while the scheduler has index work in flight.</summary>
     public bool IsIndexing => Passes?.IsBusy(EvaluatorId) ?? false;

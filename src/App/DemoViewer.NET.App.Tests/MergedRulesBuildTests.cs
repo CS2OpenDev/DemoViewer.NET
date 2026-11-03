@@ -902,7 +902,7 @@ public class MergedRulesBuildTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(plan.Cut!.Order(StringComparer.Ordinal))
+            await Assert.That(plan.Cut.Order(StringComparer.Ordinal))
                 .IsEquivalentTo(WithLibrary(RoundFacts), CollectionOrdering.Matching);
             await Assert.That(seeded).IsFalse();
             await Assert.That(visit).IsNotSameReferenceAs(run);

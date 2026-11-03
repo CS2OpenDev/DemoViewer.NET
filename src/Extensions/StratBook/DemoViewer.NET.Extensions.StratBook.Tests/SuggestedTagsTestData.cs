@@ -19,8 +19,8 @@ internal static class SuggestedTagsTestData
     private const int Rate = 64;
     internal const int Start = 6400;
 
-    internal static readonly int[] CtSlots = [1, 2, 3, 4, 5];
-    internal static readonly int[] TSlots = [6, 7, 8, 9, 10];
+    private static readonly int[] CtSlots = [1, 2, 3, 4, 5];
+    private static readonly int[] TSlots = [6, 7, 8, 9, 10];
 
     internal static SiteRegionTable Table { get; } = new()
     {

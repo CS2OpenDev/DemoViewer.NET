@@ -390,6 +390,7 @@ public sealed class UpdateSettings
 ///     The extension updater's settings. Desktop only: the browser head has no
 ///     filesystem to stage into, so it never reads these.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class ExtensionsSettings
 {
     /// <summary>
@@ -448,6 +449,7 @@ public sealed class IdentityAccountSettings
 }
 
 /// <summary>Demo-library settings.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class LibrarySettings
 {
     /// <summary>Folders the library indexer watches. Empty by default.</summary>
@@ -463,6 +465,7 @@ public sealed class LibrarySettings
 }
 
 /// <summary>Feature-flag state read by the feature-gating layer.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class FeatureFlags
 {
     /// <summary>Per-feature explicit on/off overrides, keyed by feature id.</summary>

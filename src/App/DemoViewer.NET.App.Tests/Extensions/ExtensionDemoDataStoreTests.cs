@@ -55,7 +55,7 @@ public class ExtensionDemoDataStoreTests
             List<string?> told = [];
             store.Changed += told.Add;
 
-            DemoDataStamp written = store.Write(Demo, Rounds("one"))!;
+            DemoDataStamp written = store.Write(Demo, Rounds("one"));
 
             DemoDataStamp stamp = store.Stamp(Demo, "rounds")!;
             using (Assert.Multiple())

@@ -78,6 +78,7 @@ public static class StratVocabulary
 }
 
 /// <summary>The four lifecycle states. The file spells them as the enum names.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public enum StratStatus
 {
     Theory,

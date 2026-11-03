@@ -93,7 +93,7 @@ public class LibraryContributionsTests
             await Assert.That(resolveCalls).IsEqualTo(0)
                 .Because("constructing the contribution must not resolve TeamIdentityService");
 
-            LibraryFilter? filter = contribution.Filter;
+            LibraryFilter filter = contribution.Filter;
 
             using (Assert.Multiple())
             {
@@ -102,7 +102,7 @@ public class LibraryContributionsTests
             }
 
             // Resolved once and cached: a second read does not resolve again.
-            LibraryFilter? second = contribution.Filter;
+            LibraryFilter second = contribution.Filter;
             await Assert.That(resolveCalls).IsEqualTo(1);
             await Assert.That(second).IsNotNull();
         }
@@ -115,12 +115,12 @@ public class LibraryContributionsTests
         using (teams)
         {
             TeamLibraryContribution contribution = new(() => teams);
-            LibraryFilter? filter = contribution.Filter;
+            LibraryFilter filter = contribution.Filter;
 
             await Assert.That(filter).IsNotNull();
             using (Assert.Multiple())
             {
-                await Assert.That(filter!.Items.Count).IsEqualTo(4).Because("All, Us, and two teams");
+                await Assert.That(filter.Items.Count).IsEqualTo(4).Because("All, Us, and two teams");
                 await Assert.That(filter.Items[0]).IsEqualTo(new LibraryFilterItem("", "All teams"));
                 await Assert.That(filter.Items[1]).IsEqualTo(new LibraryFilterItem("us", "Us"));
                 await Assert.That(filter.Tooltip).IsEqualTo("Filter by team");
@@ -143,7 +143,7 @@ public class LibraryContributionsTests
             }
 
             teams.SetUs(teamId);
-            await Assert.That(contribution.Filter!.Matches(a, "us")).IsTrue()
+            await Assert.That(contribution.Filter.Matches(a, "us")).IsTrue()
                 .Because("a's side is now the us team, so \"us\" matches it");
         }
     }
@@ -240,7 +240,7 @@ public class LibraryContributionsTests
 
             // A single-entry update still goes through Resolve, not ResolveAll.
             counting.ResolveAllCalls = 0;
-            LibraryBadge? single = contribution.BadgeFor(entries[0]);
+            LibraryBadge single = contribution.BadgeFor(entries[0]);
             using (Assert.Multiple())
             {
                 await Assert.That(single).IsNotNull();
@@ -301,26 +301,26 @@ public class LibraryContributionsTests
             ProvenanceLibraryContribution contribution = new(() => source, () => teams);
             LibraryDemo a = Entry("/d/a.dem");
 
-            LibraryBadge? before = contribution.BadgeFor(a);
+            LibraryBadge before = contribution.BadgeFor(a);
             using (Assert.Multiple())
             {
                 await Assert.That(before).IsNotNull();
-                await Assert.That(before!.IsPinned).IsFalse();
+                await Assert.That(before.IsPinned).IsFalse();
                 await Assert.That(before.Tooltip).Contains("automatic");
             }
 
             contribution.SetLabel(a, "our scrim");
-            LibraryBadge? pinned = contribution.BadgeFor(a);
+            LibraryBadge pinned = contribution.BadgeFor(a);
             using (Assert.Multiple())
             {
-                await Assert.That(pinned!.Label).IsEqualTo("our scrim");
+                await Assert.That(pinned.Label).IsEqualTo("our scrim");
                 await Assert.That(pinned.IsPinned).IsTrue();
                 await Assert.That(pinned.Tooltip).Contains("set by you");
             }
 
             contribution.SetLabel(a, null);
-            LibraryBadge? automaticAgain = contribution.BadgeFor(a);
-            await Assert.That(automaticAgain!.IsPinned).IsFalse().Because("null goes back to the heuristic");
+            LibraryBadge automaticAgain = contribution.BadgeFor(a);
+            await Assert.That(automaticAgain.IsPinned).IsFalse().Because("null goes back to the heuristic");
 
             source.Dispose();
         }

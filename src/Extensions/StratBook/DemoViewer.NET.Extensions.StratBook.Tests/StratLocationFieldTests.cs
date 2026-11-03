@@ -160,6 +160,7 @@ public partial class StratLocationFieldTests
         public Dictionary<string, JsonElement>? Extra { get; init; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class OldRotate
     {
         public double? AtSeconds { get; set; }

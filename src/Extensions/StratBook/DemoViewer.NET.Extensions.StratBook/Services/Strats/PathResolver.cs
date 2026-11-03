@@ -66,7 +66,7 @@ public abstract class PathResolver
     /// <param name="y">World Y.</param>
     /// <param name="level">The level key.</param>
     public bool OnMesh(double x, double y, double level) =>
-        Snap(x, y, level, null, 0) is { } at && at.X == x && at.Y == y;
+        Snap(x, y, level, null, 0) is { } at && at.X.Equals(x) && at.Y.Equals(y);
 }
 
 /// <summary>

@@ -22,6 +22,7 @@ public sealed class GrenadeWalkerHeader
 }
 
 /// <summary>Which demo the rows belong to.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class GrenadeDemoHeader
 {
     /// <summary>Null until Content Identity has hashed the demo; a reader with a hash ignores a mismatching file.</summary>
@@ -36,6 +37,7 @@ public sealed class GrenadeDemoHeader
 }
 
 /// <summary>Where the demo came from and how its inputs and paths were read.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class GrenadeSourceHeader
 {
     /// <summary>The demo's <c>DemoSourceKind</c> by name, or null when the parse did not classify it.</summary>
@@ -54,6 +56,7 @@ public sealed class GrenadeSourceHeader
 ///     <see cref="GrenadeStore" />. Read across the library by the Grenade Index and per demo by the
 ///     Lineup Cards.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class GrenadeDocument
 {
     public int SchemaVersion { get; init; } = GrenadeSidecar.CurrentSchema;
@@ -74,6 +77,7 @@ public sealed class GrenadeDocument
 ///     The same header and each row's trajectory by id, at the configured stride with the bounce vertices
 ///     kept. Built with the rows; the walk hands the flights to the lineup store and nothing writes them per demo.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class GrenadePathsDocument
 {
     public int SchemaVersion { get; init; } = GrenadeSidecar.CurrentSchema;

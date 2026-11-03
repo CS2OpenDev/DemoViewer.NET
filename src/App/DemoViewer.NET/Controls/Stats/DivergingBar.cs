@@ -54,6 +54,7 @@ public class DivergingBar : TemplatedControl
         AvaloniaProperty.Register<DivergingBar, IBrush?>(nameof(AxisBrush));
 
     /// <summary>Height of the arms. The axis line always spans the full control height.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> BarHeightProperty =
         AvaloniaProperty.Register<DivergingBar, double>(nameof(BarHeight), 14);
 

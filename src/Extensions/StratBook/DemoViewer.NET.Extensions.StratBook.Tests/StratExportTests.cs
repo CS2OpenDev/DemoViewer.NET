@@ -211,7 +211,7 @@ public class StratExportTests
                 {
                     await Assert.That(key).IsSameReferenceAs(scene.Ink);
                     await Assert.That(setup.Annotations).IsSameReferenceAs(scene.Ink);
-                    await Assert.That(setup.Source).IsNotNull().Because("a strat has no demo behind it");
+                    await Assert.That(setup.Source is not null).IsTrue().Because("a strat has no demo behind it");
                     await Assert.That(setup.Frames).IsEmpty();
                     await Assert.That(setup.DisplayMode).IsEqualTo(LevelDisplayMode.Stacked);
                     await Assert.That(setup.Palette).IsEqualTo(ScenePalette.Dark).Because("the request named none");

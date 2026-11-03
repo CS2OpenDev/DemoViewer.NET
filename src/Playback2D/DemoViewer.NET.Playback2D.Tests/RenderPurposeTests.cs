@@ -49,7 +49,7 @@ public class RenderPurposeTests
         await Assert.That(File.Exists(path)).IsTrue()
             .Because($"RenderPurpose.cs moved; this suite is reading nothing (looked at '{path}')");
 
-        string source = File.ReadAllText(path);
+        string source = await File.ReadAllTextAsync(path);
         Console.WriteLine($"[render-purpose] {path} — {source.Length} chars");
 
         await Assert.That(source).Contains("RESERVED")

@@ -27,9 +27,6 @@ public sealed class PanZoomGesture
     private const double ZoomStep = 1.1;
     private float _lastX, _lastY;
 
-    /// <summary>Whether a drag is in progress.</summary>
-    public bool IsDragging => DragPane is not null;
-
     /// <summary>The pane the current drag began on, or null.</summary>
     private LevelPane? DragPane { get; set; }
 

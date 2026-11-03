@@ -314,7 +314,7 @@ public class ReviewQueueTests
             (_, HighlightsTabViewModel before) = Tray(first, a, b);
             before.Stage(b, b.Highlights[0]);
             before.Stage(a, a.Highlights[0]);
-            object? session = before.SnapshotState();
+            object session = before.SnapshotState();
             first.Flush();
 
             // The restart: a fresh queue over the same file, a fresh tray over it.

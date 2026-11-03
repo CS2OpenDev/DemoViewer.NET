@@ -79,6 +79,7 @@ public readonly record struct ExportJobStatus(
 ///     user-facing copy: the dialog and the chip show it verbatim, which is the whole point of refusing
 ///     rather than silently queueing.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed class ExportRefusedException : InvalidOperationException
 {
     /// <summary>Creates the exception.</summary>

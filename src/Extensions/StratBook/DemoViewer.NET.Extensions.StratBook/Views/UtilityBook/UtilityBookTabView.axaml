@@ -82,7 +82,7 @@
                                                FontWeight="SemiBold"
                                                TextWrapping="Wrap" Foreground="{DynamicResource TextValue}" />
                                     <Button Grid.Column="1" Content="✕" Classes="icon-btn" ToolTip.Tip="Close (Escape)"
-                                            Command="{Binding $parent[UserControl].((vm:UtilityBookTabViewModel)DataContext).BackCommand}" />
+                                            Command="{Binding $parent[UserControl].((vm:UtilityBookTabViewModel)DataContext).BackCommand, FallbackValue={x:Null}}" />
                                 </Grid>
                                 <TextBlock Text="{Binding StyleLine}" FontSize="11" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextMid}" />

@@ -379,7 +379,7 @@ public static class FeatureCatalog
 
     /// <summary>Looks up a descriptor by its stable id, or <c>null</c> if the id is not in the catalog.</summary>
     public static FeatureDescriptor? ById(string id) =>
-        Index.TryGetValue(id, out FeatureDescriptor? d) ? d : null;
+        Index.GetValueOrDefault(id);
 
     /// <summary>True for an id that names a pack, known or not: such an id never fails open.</summary>
     public static bool IsPackId(string? id) =>

@@ -10,6 +10,7 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 
 /// <summary>Which Strat Book panes were collapsed. The session blob's shape: field names are the JSON member names.</summary>
 /// <param name="ListCollapsed">The Strats section's list.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record StratBookLayoutState(bool ListCollapsed);
 
 /// <summary>

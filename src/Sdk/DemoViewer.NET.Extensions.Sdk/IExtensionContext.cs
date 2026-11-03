@@ -192,4 +192,5 @@ public static class ExtensionServiceProviderExtensions
 ///     with one context per extension.
 /// </summary>
 /// <param name="ExtensionId">The extension's id.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record ExtensionContextKey(string ExtensionId);

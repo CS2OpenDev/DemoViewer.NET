@@ -383,6 +383,7 @@ public static class CounterStrafeAdmissionFold
 /// </param>
 /// <param name="SpeedAtShot">Derived 2D speed on the shot's own tick, in units per second.</param>
 /// <param name="Threshold"><c>0.34 * m_flMaxspeed</c> at the shot, the line the server charges movement inaccuracy above.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AdmissionShot(
     int Slot,
     int Tick,
@@ -430,6 +431,7 @@ public sealed record AdmissionShot(
 /// </param>
 /// <param name="NamesBySlot">Slot to display name, for joining against a reference keyed by name.</param>
 /// <param name="Shots">Every admitted-or-not bullet shot from a live round.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AdmissionFoldResult(
     double TickRate,
     int MaxLookbackTicks,

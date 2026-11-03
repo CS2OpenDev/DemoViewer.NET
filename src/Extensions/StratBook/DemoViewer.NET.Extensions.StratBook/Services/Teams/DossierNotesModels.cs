@@ -14,6 +14,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///     what it counts, never an index), so a star or an edit survives a rebuild that reorders or adds
 ///     findings; one whose finding no longer exists is kept and simply not shown.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class DossierTeamNotes
 {
     public Guid TeamId { get; init; }
@@ -35,6 +36,7 @@ public sealed class DossierTeamNotes
 }
 
 /// <summary>One finding the user wrote by hand. Its key is <c>note:</c> plus <see cref="Id" />.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class DossierNote
 {
     public Guid Id { get; set; } = Guid.NewGuid();

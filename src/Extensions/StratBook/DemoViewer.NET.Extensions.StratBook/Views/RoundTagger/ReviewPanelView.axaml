@@ -60,7 +60,7 @@
                                 Padding="6,3" Margin="0,0,0,2" Focusable="False"
                                 Background="{DynamicResource Pb2dPanelBg}"
                                 Classes="tagRow" Classes.selected="{Binding IsSelected}"
-                                Command="{Binding $parent[ItemsControl].((rv:ReviewPanelViewModel)DataContext).SelectLabelCommand}"
+                                Command="{Binding $parent[ItemsControl].((rv:ReviewPanelViewModel)DataContext).SelectLabelCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}">
                             <StackPanel Spacing="1">
                                 <TextBlock FontSize="11">
@@ -86,7 +86,7 @@
                                 Padding="6,3" Margin="0,0,0,2" Focusable="False"
                                 Background="{DynamicResource Pb2dPanelBg}"
                                 Classes="tagRow" Classes.selected="{Binding IsSelected}"
-                                Command="{Binding $parent[ItemsControl].((rv:ReviewPanelViewModel)DataContext).SelectLabelCommand}"
+                                Command="{Binding $parent[ItemsControl].((rv:ReviewPanelViewModel)DataContext).SelectLabelCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}">
                             <StackPanel Spacing="1">
                                 <TextBlock FontSize="11">

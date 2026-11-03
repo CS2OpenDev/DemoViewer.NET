@@ -6,6 +6,7 @@ using Avalonia.Controls;
 
 namespace ThirdPartyFake.Views;
 
+[UsedImplicitly]
 public partial class FakeTabView : UserControl
 {
     public FakeTabView() => InitializeComponent();

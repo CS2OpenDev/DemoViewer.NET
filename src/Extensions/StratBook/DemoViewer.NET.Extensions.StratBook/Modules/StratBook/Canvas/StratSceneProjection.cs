@@ -931,9 +931,9 @@ public sealed class StratSceneProjection
                 : new TokenStep(e.Tick, 0, e.Leg ? steps[e.Order].Interpolation : TokenInterpolation.Linear);
             if (e.Kind == SlotEventKind.Face)
             {
-                if (standing && FacingOf(e.Watch!, Placement(at), places.Centres) is { } yaw)
+                if (standing && FacingOf(e.Watch!, PlacementOf(at), places.Centres) is { } yaw)
                 {
-                    Place(entries, e, shape, Placement(at) with { YawDegrees = yaw });
+                    Place(entries, e, shape, PlacementOf(at) with { YawDegrees = yaw });
                 }
 
                 continue;
@@ -970,10 +970,10 @@ public sealed class StratSceneProjection
                 // Already there: it stops where it is, turned to what it watches.
                 if (cut || watched is not null)
                 {
-                    Place(entries, e, shape, Placement(at) with { YawDegrees = watched ?? at.YawDegrees });
+                    Place(entries, e, shape, PlacementOf(at) with { YawDegrees = watched ?? at.YawDegrees });
                 }
 
-                ChainAreas(plan, queue, i, slot, Placement(at), e.Tick + shape.HoldTicks, entries, places, stays);
+                ChainAreas(plan, queue, i, slot, PlacementOf(at), e.Tick + shape.HoldTicks, entries, places, stays);
                 continue;
             }
 
@@ -1010,10 +1010,10 @@ public sealed class StratSceneProjection
         if (LastKeyTick(entries, tick - 1) < tick - 1
             && TrySampleRouted(track, tick - 1, entries, places, out TokenKeyframe held))
         {
-            Insert(entries, tick - 1, Placement(held));
+            Insert(entries, tick - 1, PlacementOf(held));
         }
 
-        Place(entries, e, shape, Placement(start) with { YawDegrees = leaveYaw });
+        Place(entries, e, shape, PlacementOf(start) with { YawDegrees = leaveYaw });
         int next = entries.FindIndex(x => x.Step.Tick > tick && x.Placement is not null);
         bool blocked = next >= 0 && entries[next].Step.Tick <= arrive;
         int until = blocked ? entries[next].Step.Tick : arrive;
@@ -1021,7 +1021,7 @@ public sealed class StratSceneProjection
         // A step with no entry inside the run would pin the token where it started.
         entries.RemoveAll(x => x.Placement is null && x.Step.Tick > tick && x.Step.Tick < until);
         runs?.Add(new RunSpan(e.Order, IsRotate(e), tick + shape.HoldTicks, until,
-            blocked ? null : ViaTicks(route, stops, tick + shape.HoldTicks, arrive)));
+            blocked ? null : ViaTicksOf(route, stops, tick + shape.HoldTicks, arrive)));
         if (blocked)
         {
             return null;
@@ -1126,7 +1126,7 @@ public sealed class StratSceneProjection
                 continue;
             }
 
-            routed |= Leg(route, paths, from, stop, vias[v].Place);
+            routed |= AppendLeg(route, paths, from, stop, vias[v].Place);
             from = stop;
             if (stops is not null)
             {
@@ -1134,11 +1134,11 @@ public sealed class StratSceneProjection
             }
         }
 
-        routed |= Leg(route, paths, from, (target.X, target.Y, target.LevelMinZ), e.To?.Place);
+        routed |= AppendLeg(route, paths, from, (target.X, target.Y, target.LevelMinZ), e.To?.Place);
         return route.Count >= 2 && (routed || route.Count > 2) ? route : null;
     }
 
-    private static bool Leg(List<NavWaypoint> route, PathResolver paths, (double X, double Y, double Level) from,
+    private static bool AppendLeg(List<NavWaypoint> route, PathResolver paths, (double X, double Y, double Level) from,
         (double X, double Y, double Level) to, string? place)
     {
         IReadOnlyList<NavWaypoint>? leg = paths.Route(from.X, from.Y, from.Level, to.X, to.Y, to.Level, place);
@@ -1150,7 +1150,7 @@ public sealed class StratSceneProjection
         // No repeated point: a via that is also the destination would end the route on a leg with no heading.
         foreach (NavWaypoint point in route.Count == 0 ? points : points.Skip(1))
         {
-            if (route.Count == 0 || Distance(route[^1], point) > 1e-3 || route[^1].FloorKey != point.FloorKey)
+            if (route.Count == 0 || Distance(route[^1], point) > 1e-3 || !route[^1].FloorKey.Equals(point.FloorKey))
             {
                 route.Add(point);
             }
@@ -1173,7 +1173,7 @@ public sealed class StratSceneProjection
     }
 
     // When the run passes each via stop, by its share of the route's length; null for a stop that did not resolve.
-    private static int?[]? ViaTicks(List<NavWaypoint>? route, int[]? stops, int fromTick, int untilTick)
+    private static int?[]? ViaTicksOf(List<NavWaypoint>? route, int[]? stops, int fromTick, int untilTick)
     {
         if (route is null || stops is null)
         {
@@ -1425,7 +1425,7 @@ public sealed class StratSceneProjection
             NavWaypoint here = route[kept[j]];
             NavWaypoint ahead = route[j + 1 < kept.Count ? kept[j + 1] : route.Count - 1];
             int tick = ticks[j];
-            if (here.FloorKey != level && tick - 1 > lastTick)
+            if (!here.FloorKey.Equals(level) && tick - 1 > lastTick)
             {
                 double f = (tick - 1 - lastTick) / (double)(tick - lastTick);
                 corners.Add(new Corner(tick - 1, (float)(last.X + (here.X - last.X) * f),
@@ -1477,7 +1477,7 @@ public sealed class StratSceneProjection
         double turn = Math.Abs(Math.Atan2(
             (here.X - before.X) * (after.Y - here.Y) - (here.Y - before.Y) * (after.X - here.X),
             (here.X - before.X) * (after.X - here.X) + (here.Y - before.Y) * (after.Y - here.Y)));
-        return turn + (here.FloorKey != route[i - 1].FloorKey ? 2 * Math.PI : 0);
+        return turn + (!here.FloorKey.Equals(route[i - 1].FloorKey) ? 2 * Math.PI : 0);
     }
 
     private static double Distance(NavWaypoint a, NavWaypoint b) =>
@@ -1691,7 +1691,7 @@ public sealed class StratSceneProjection
         return -1;
     }
 
-    private static TokenPlacement Placement(TokenKeyframe k) => new(k.X, k.Y, k.LevelMinZ, k.YawDegrees);
+    private static TokenPlacement PlacementOf(TokenKeyframe k) => new(k.X, k.Y, k.LevelMinZ, k.YawDegrees);
 
     // The tick of the last entry at or before `tick` that places the token, or int.MinValue for none.
     private static int LastKeyTick(List<TrackEntry> entries, int tick)

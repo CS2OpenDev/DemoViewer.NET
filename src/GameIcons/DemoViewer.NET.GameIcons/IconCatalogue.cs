@@ -259,7 +259,7 @@ public static class IconCatalogue
 
     /// <summary>Looks up a fully-qualified key such as <c>equipment/ak47</c>; null when absent.</summary>
     /// <param name="key">Namespace-qualified icon key.</param>
-    public static IconRef? Get(string key) =>
+    public static IconRef? Get(string? key) =>
         key is not null && _catalogue.TryGetValue(key, out IconRef? icon) ? icon : null;
 
     /// <summary>

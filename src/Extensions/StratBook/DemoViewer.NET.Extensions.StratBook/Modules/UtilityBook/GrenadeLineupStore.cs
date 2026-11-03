@@ -16,11 +16,13 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 /// <param name="Origin">The members' mean release point when it was minted.</param>
 /// <param name="Landing">The members' mean landing when it was minted.</param>
 /// <param name="Seed">The key of the throw it was seeded from.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record LineupAnchor(Guid Id, GrenadeKind Kind, WorldPoint Origin, WorldPoint Landing, string Seed);
 
 /// <summary>One position's representative flight: the throw it came from and its trajectory.</summary>
 /// <param name="Throw">The throw's <see cref="IndexedGrenade.Key" />.</param>
 /// <param name="Points">The flight at the walk's stride.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record LineupPath(string Throw, IReadOnlyList<TrajectoryPoint> Points);
 
 /// <summary>One map's lineups.</summary>

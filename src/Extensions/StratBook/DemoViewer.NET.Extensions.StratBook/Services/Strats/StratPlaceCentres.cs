@@ -62,7 +62,7 @@ public sealed class StratPlaceCentres
 
             floors[floor] = (x / w, y / w);
             if (!largest.TryGetValue(name, out (double Floor, double W) best) || w > best.W
-                                                                              || (w == best.W && floor < best.Floor))
+                || (w.Equals(best.W) && floor < best.Floor))
             {
                 largest[name] = (floor, w);
             }

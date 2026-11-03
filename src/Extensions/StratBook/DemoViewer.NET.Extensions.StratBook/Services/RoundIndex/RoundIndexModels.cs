@@ -114,6 +114,7 @@ public sealed class RoundIndexDocument
 }
 
 /// <summary>The demo block: the join key and what a human needs to recognise the file.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class RoundIndexDemo
 {
     /// <summary>Null until Content Identity has hashed the demo; a reader with a hash ignores a mismatching file.</summary>

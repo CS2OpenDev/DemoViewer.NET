@@ -17,6 +17,7 @@ namespace DemoViewer.NET.Services.ErrorReports;
 ///         run at all.
 ///     </para>
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class DemoErrorReport
 {
     /// <summary>Schema of this payload. A report at a newer schema is left alone rather than rewritten.</summary>
@@ -59,6 +60,7 @@ public sealed class DemoErrorReport
 ///         load-bearing one in this file.
 ///     </para>
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class DemoErrorReportSnapshot
 {
     /// <summary>When the snapshot was taken, UTC ticks.</summary>
@@ -174,6 +176,7 @@ public sealed class DemoErrorReportSnapshot
 }
 
 /// <summary>One rule chain in force, as a report records it.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class DemoErrorReportRuleset
 {
     /// <summary>The ruleset's id.</summary>

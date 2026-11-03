@@ -1489,7 +1489,7 @@ public class App : Application
         // passed so BuildRegistry can DI-resolve module deps (the Highlights cache/scanner) + defer the
         // shell-bound delegates (never eagerly resolving MainViewModel here, which would recurse through
         // ModuleRegistry).
-        services.AddSingleton(sp => BuildRegistry(sp));
+        services.AddSingleton(BuildRegistry);
 
         // The shell, constructed by an explicit factory so DI does not auto-fill every optional ctor param:
         // only the deps it needs are supplied; the rest default. The feature gate is

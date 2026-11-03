@@ -830,6 +830,7 @@ public static class Zones
     }
 
     /// <summary>One bake's outcome: the coverage row, the stamp written, and what the diag mode prints.</summary>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     public sealed record Result(
         Coverage Coverage,
         IReadOnlyList<string> Notes,

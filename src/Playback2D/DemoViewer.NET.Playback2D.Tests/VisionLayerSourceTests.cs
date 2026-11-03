@@ -161,19 +161,17 @@ public class VisionLayerSourceTests
     // Enough of an IVisionSolver to say "I produced N cones" or "I produced nothing".
     private sealed class StubSolver(int cones) : IVisionSolver
     {
-        private readonly int _cones = cones;
-
-        public bool IsReady => _cones > 0;
+        public bool IsReady => cones > 0;
 
         public void Solve(Scene2DFrame frame, VisionSolution into)
         {
             into.Clear();
-            if (_cones == 0)
+            if (cones == 0)
             {
                 return;
             }
 
-            for (int i = 0; i < _cones; i++)
+            for (int i = 0; i < cones; i++)
             {
                 ConePolygon cone = into.AddCone(i, 2, i * 10f, 0f, 0f, 2);
                 cone.RayEndsWritable.Clear();

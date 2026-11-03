@@ -334,6 +334,7 @@ internal static class GifTestDecoder
 }
 
 /// <summary>A decoded animation.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record DecodedGif(int Width, int Height, int? LoopCount, IReadOnlyList<DecodedFrame> Frames);
 
 /// <summary>One frame as composited onto the canvas, packed RGB, plus its control block and rectangle.</summary>

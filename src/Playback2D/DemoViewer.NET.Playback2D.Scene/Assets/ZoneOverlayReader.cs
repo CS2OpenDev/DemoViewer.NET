@@ -62,6 +62,7 @@ internal static class ZoneOverlayReader
         public List<string>? Hidden { get; init; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class ZoneDto
     {
         public string? Name { get; set; }
@@ -72,6 +73,7 @@ internal static class ZoneOverlayReader
         public bool Replaces { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class MergeDto
     {
         public string? Into { get; set; }

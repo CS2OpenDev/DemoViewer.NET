@@ -14,6 +14,7 @@ namespace DemoViewer.NET.Visualization.Tests;
 ///     "good layout" gates from the v2 layout review used to baseline v1 and to
 ///     judge v2 against. All computation is in logical (pre-zoom) coordinates.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record LayoutMetrics(
     int NodeNodeOverlaps,
     int EdgeNodeIntersections,

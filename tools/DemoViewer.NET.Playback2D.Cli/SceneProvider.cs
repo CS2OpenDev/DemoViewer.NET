@@ -166,13 +166,11 @@ internal sealed class DemoSceneProvider : SceneProvider
     private readonly TrackerFrameSource _source;
     private bool _disposed;
 
-    private DemoSceneProvider(ParsedDemo demo, TrackerFrameSource source, string name, int demoFrameIndex,
-        double parseMs)
+    private DemoSceneProvider(ParsedDemo demo, TrackerFrameSource source, string name, double parseMs)
     {
         _demo = demo;
         _source = source;
         Name = name;
-        DemoFrameIndex = demoFrameIndex;
         ParseMs = parseMs;
     }
 
@@ -184,9 +182,6 @@ internal sealed class DemoSceneProvider : SceneProvider
 
     /// <inheritdoc />
     public override string Name { get; }
-
-    /// <summary>The demo frame index output frame 0 sits on.</summary>
-    private int DemoFrameIndex { get; }
 
     /// <inheritdoc />
     public override double ParseMs { get; }
@@ -232,7 +227,7 @@ internal sealed class DemoSceneProvider : SceneProvider
             demo.Frames.Count - 1, fps, speed, tickRate) { MapName = demo.MapName };
         source.Prepare(CancellationToken.None);
 
-        return new DemoSceneProvider(demo, source, Path.GetFileName(demoPath), start, parseMs);
+        return new DemoSceneProvider(demo, source, Path.GetFileName(demoPath), parseMs);
     }
 
     /// <inheritdoc />

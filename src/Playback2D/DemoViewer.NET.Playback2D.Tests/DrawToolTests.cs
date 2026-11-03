@@ -60,10 +60,15 @@ public class DrawToolTests
     [Test]
     public async Task MinDistanceFilter_DecimatesJitter()
     {
-        Harness h = new();
-        h.Session.Style = AnnotationStyle.Default with
+        Harness h = new()
         {
-            WidthWorld = 20f // spacing filter = 20 * 0.35 = 7 world units
+            Session =
+            {
+                Style = AnnotationStyle.Default with
+                {
+                    WidthWorld = 20f // spacing filter = 20 * 0.35 = 7 world units
+                }
+            }
         };
 
         h.Press(0, 0);
@@ -96,8 +101,7 @@ public class DrawToolTests
     [Test]
     public async Task AnchorMode_On_And_MarkerNearby_ProducesEntitySpaceRef()
     {
-        Harness h = new();
-        h.Session.AnchorToEntities = true;
+        Harness h = new() { Session = { AnchorToEntities = true } };
         h.Services.Markers.Add(AnnotationFakes.Marker(76561198000000042, 100, 100));
 
         h.Press(120, 90);
@@ -116,8 +120,7 @@ public class DrawToolTests
     [Test]
     public async Task AnchorMode_On_And_NoMarker_FallsBackToWorldSpaceRef()
     {
-        Harness h = new(-384);
-        h.Session.AnchorToEntities = true;
+        Harness h = new(-384) { Session = { AnchorToEntities = true } };
 
         h.Press(0, 0);
         h.Release(20, 0);
@@ -146,13 +149,18 @@ public class DrawToolTests
     [Test]
     public async Task NewElement_UsesSessionStyleAndEnvelope()
     {
-        Harness h = new();
-        h.Session.Style = new AnnotationStyle(0xFF00FF00, 12f, 0.75f, true);
-        h.Session.DefaultVisibility = EnvelopeMode.Fade;
-        h.Session.HoldTicks = 100;
-        h.Session.FadeInTicks = 4;
-        h.Session.FadeOutTicks = 9;
-        h.Services.CurrentTick = 1234;
+        Harness h = new()
+        {
+            Session =
+            {
+                Style = new AnnotationStyle(0xFF00FF00, 12f, 0.75f, true),
+                DefaultVisibility = EnvelopeMode.Fade,
+                HoldTicks = 100,
+                FadeInTicks = 4,
+                FadeOutTicks = 9
+            },
+            Services = { CurrentTick = 1234 }
+        };
 
         h.Press(0, 0);
         h.Release(30, 0);
@@ -179,8 +187,7 @@ public class DrawToolTests
     [Arguments(EnvelopeMode.Custom)]
     public async Task EveryModeButRealTime_CommitsNoTiming(EnvelopeMode mode)
     {
-        Harness h = new();
-        h.Session.DefaultVisibility = mode;
+        Harness h = new() { Session = { DefaultVisibility = mode } };
         h.Session.SetCustomWindow(500, 800);
 
         h.Press(0, 0);
@@ -200,8 +207,7 @@ public class DrawToolTests
     [Test]
     public async Task RealTime_CommitsTheCadenceItWasDrawnAt()
     {
-        Harness h = new();
-        h.Session.DefaultVisibility = EnvelopeMode.RealTime;
+        Harness h = new() { Session = { DefaultVisibility = EnvelopeMode.RealTime } };
 
         h.Press(0, 0);
         h.Services.Advance(250);
@@ -223,8 +229,7 @@ public class DrawToolTests
     [Test]
     public async Task VisibilityChosenAtPress_SurvivesAModeChangeMidGesture()
     {
-        Harness h = new();
-        h.Session.DefaultVisibility = EnvelopeMode.Always;
+        Harness h = new() { Session = { DefaultVisibility = EnvelopeMode.Always } };
 
         h.Press(0, 0);
         h.Session.DefaultVisibility = EnvelopeMode.RealTime;
@@ -278,9 +283,14 @@ public class DrawToolTests
     [Arguments(ToolPointerButton.Middle, 0xFFFFC107u)]
     public async Task TheButtonPicksTheInk(ToolPointerButton button, uint expected)
     {
-        Harness h = new();
-        h.Session.Style = new AnnotationStyle(0xFFFFC107, 6f, 1f);
-        h.Session.SecondaryStyle = new AnnotationStyle(0xFF29B6F6, 6f, 1f);
+        Harness h = new()
+        {
+            Session =
+            {
+                Style = new AnnotationStyle(0xFFFFC107, 6f, 1f),
+                SecondaryStyle = new AnnotationStyle(0xFF29B6F6, 6f, 1f)
+            }
+        };
 
         h.Press(0, 0, button);
         h.Move(60, 0, button: button);
@@ -296,8 +306,7 @@ public class DrawToolTests
     [Test]
     public async Task InkChosenAtPress_SurvivesAStyleChangeMidGesture()
     {
-        Harness h = new();
-        h.Session.SecondaryStyle = new AnnotationStyle(0xFF29B6F6, 6f, 1f);
+        Harness h = new() { Session = { SecondaryStyle = new AnnotationStyle(0xFF29B6F6, 6f, 1f) } };
 
         h.Press(0, 0, ToolPointerButton.Right);
         h.Session.SecondaryStyle = new AnnotationStyle(0xFF00FF00, 6f, 1f);

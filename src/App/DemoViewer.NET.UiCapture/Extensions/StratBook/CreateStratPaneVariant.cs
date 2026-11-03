@@ -121,7 +121,7 @@ public static partial class Variants
 
         private sealed class NoEntities : IReadOnlyEntityView
         {
-            public IEnumerable<IReadOnlyEntity> All() => [];
+            IEnumerable<IReadOnlyEntity> IReadOnlyEntityView.All() => [];
             public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
             public IReadOnlyEntity? BySerial(int serial) => null;
             public IReadOnlyEntity? ByIndex(int entityIndex) => null;

@@ -54,6 +54,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 ///         reachable where it is read, so the read has to happen at Start and travel with the request.
 ///     </para>
 /// </param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record Scene2DExportRequest(
     ExportRequest Core,
     string OutputPath,

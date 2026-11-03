@@ -609,6 +609,7 @@ public static class Icons
     ///     consumer can tell "absent because the game means nothing here" from "absent because it is
     ///     missing" — the first must draw nothing and stay silent, the second is worth reporting.
     /// </param>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record IconManifest(
         int SchemaVersion,
         string BakerVersion,
@@ -623,6 +624,7 @@ public static class Icons
     /// <param name="Name">Key suffix, e.g. <c>tier3</c>.</param>
     /// <param name="Hex">CS2's wash colour.</param>
     /// <param name="MinRating">Lowest CS Rating in the tier.</param>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record PremierTierEntry(string Name, string Hex, int MinRating);
 
     /// <summary>
@@ -636,5 +638,6 @@ public static class Icons
     ///     True when the artwork is a white alpha mask and may be recoloured; false when it is a picture
     ///     (rank badges, the Premier emblem, a handful of multi-colour UI icons) and must be drawn as-is.
     /// </param>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record IconEntry(double W, double H, bool Tintable);
 }

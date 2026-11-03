@@ -163,8 +163,8 @@ internal sealed class FakeToolServices : IInkToolServices
 
     public void RequestTextEdit(Guid elementId) => TextEditRequests.Add(elementId);
 
-    /// <summary>The token editor the token tool drives; null, as on the 2D Playback tab, until a test sets it.</summary>
-    public ITokenEditor? Tokens { get; }
+    /// <summary>The token editor the token tool drives; always null, as on the 2D Playback tab.</summary>
+    public ITokenEditor? Tokens => null;
 
     public void RequestRender() => RenderRequests++;
 

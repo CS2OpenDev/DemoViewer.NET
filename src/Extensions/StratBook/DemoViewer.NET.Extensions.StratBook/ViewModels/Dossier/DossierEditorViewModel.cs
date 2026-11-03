@@ -132,14 +132,14 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     ];
 
     /// <summary>The picker's row for <see cref="ExportForm" />.</summary>
-    public DossierExportOption<DossierForm> SelectedFormOption
+    public DossierExportOption<DossierForm>? SelectedFormOption
     {
         get => FormOptions.First(o => o.Value == ExportForm);
         set => ExportForm = value?.Value ?? DossierForm.OnePager;
     }
 
     /// <summary>The picker's row for <see cref="ExportFormat" />.</summary>
-    public DossierExportOption<DossierFormat> SelectedFormatOption
+    public DossierExportOption<DossierFormat>? SelectedFormatOption
     {
         get => FormatOptions.First(o => o.Value == ExportFormat);
         set => ExportFormat = value?.Value ?? DossierFormat.Html;

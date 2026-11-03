@@ -162,8 +162,7 @@ public class StrokeCadenceTests
     [Test]
     public async Task AStrokeDrawnWhileThePlayheadIsFrozen_StillRecordsRealCadence()
     {
-        Hand h = new();
-        h.Services.CurrentTick = 4096; // paused: nothing below moves it
+        Hand h = new() { Services = { CurrentTick = 4096 } }; // paused: nothing below moves it
 
         h.Press();
         for (int i = 0; i < 25; i++)

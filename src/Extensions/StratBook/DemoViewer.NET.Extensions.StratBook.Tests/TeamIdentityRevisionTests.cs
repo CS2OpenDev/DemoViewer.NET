@@ -20,8 +20,10 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class TeamIdentityRevisionTests
 {
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record FixtureSide(List<string> Key, string? Clan);
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record FixtureDemo(string Id, string Kind, long OrderTicks, Dictionary<string, FixtureSide> Sides);
 
     private sealed record Fixture(int SchemaVersion, string Note, List<FixtureDemo> Demos);

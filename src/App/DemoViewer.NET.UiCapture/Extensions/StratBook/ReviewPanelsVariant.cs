@@ -48,7 +48,7 @@ public static partial class Variants
             // A session-only document (no store in this process) with a hand-made label and an accepted one.
             DemoIdentity demo = new("ab", "match730_capture_dust2.dem", 549_715_968);
             ClockIdentity clock = new(ClockIdentity.DvFrameClock, 64, 180_000, 0, 0);
-            session.AttachAsync(demo, clock, ctx.DemoPath!).GetAwaiter().GetResult();
+            session.AttachAsync(demo, clock, ctx.DemoPath).GetAwaiter().GetResult();
             DateTime now = DateTime.UtcNow;
             TagInstance execute = new()
             {

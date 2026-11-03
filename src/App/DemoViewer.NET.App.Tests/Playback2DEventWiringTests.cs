@@ -13,6 +13,7 @@ namespace DemoViewer.NET.AppTests;
 /// <param name="Implementers">Every concrete declaring type in the group.</param>
 /// <param name="Raisers">Production methods that load the backing field, i.e. that can raise it.</param>
 /// <param name="Subscribers">Production methods that call an <c>add_</c> accessor for it.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record EventContract(
     string Key,
     IReadOnlyList<string> Implementers,

@@ -263,7 +263,7 @@ public class DetectedStratsTests
 
             // A fifth A take joins the library and a re-mine grows the pattern under the same key.
             library.Cache.Upsert(StratMiningServiceTests.Record(5, BombSite.A));
-            library.Positions.WritePositions("/d/m5.dem", StratMiningServiceTests.Positions(5, BombSite.A, 200));
+            library.Positions.WritePositions("/d/m5.dem", StratMiningServiceTests.PositionsOf(5, BombSite.A, 200));
             await mining.MineAsync();
             MinedPattern now = mining.Patterns.Single(p => p.Pattern.Key == row.Key).Pattern;
             await Assert.That(now.Support).IsGreaterThan(before.Pattern.Support);

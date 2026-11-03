@@ -176,7 +176,7 @@ public sealed class NavPathfinder
                 foreach (int i in list)
                 {
                     ZoneArea a = _areas[i];
-                    if ((floorKey is { } f && a.FloorKey != f) || (placeId is { } p && a.PlaceId != p))
+                    if ((floorKey is { } f && !a.FloorKey.Equals(f)) || (placeId is { } p && a.PlaceId != p))
                     {
                         continue;
                     }
@@ -451,7 +451,7 @@ public sealed class NavPathfinder
             }
         }
 
-        if (corners[^1].X != q.Ex || corners[^1].Y != q.Ey)
+        if (!corners[^1].X.Equals(q.Ex) || !corners[^1].Y.Equals(q.Ey))
         {
             corners.Add((q.Ex, q.Ey, count - 1));
         }
@@ -467,7 +467,7 @@ public sealed class NavPathfinder
             for (int portal = pa + 1; portal < pb && portal < corridor.Count; portal++)
             {
                 double before = portal == 0 ? startFloor : floorAfter[portal - 1];
-                if (floorAfter[portal] == before)
+                if (floorAfter[portal].Equals(before))
                 {
                     continue;
                 }

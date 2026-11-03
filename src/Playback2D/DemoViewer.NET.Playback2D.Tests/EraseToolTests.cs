@@ -173,8 +173,7 @@ public class EraseToolTests
     [Test]
     public async Task StrokeOutsideItsEnvelope_IsNotErased()
     {
-        Harness h = new();
-        h.Services.CurrentTick = 5000;
+        Harness h = new() { Services = { CurrentTick = 5000 } };
         h.Document.Reset([
             AnnotationFakes.Stroke(time: new TimeEnvelope(100, 200, 0, 0), x: 0, y: 0)
         ]);

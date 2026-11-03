@@ -342,7 +342,7 @@ public static class StratLocationPatches
     internal static bool SameEntry(PlaceRef a, PlaceRef b) =>
         StratLocations.HasPlace(a) || StratLocations.HasPlace(b)
             ? string.Equals(a.Place, b.Place, StringComparison.Ordinal)
-            : a.X == b.X && a.Y == b.Y && a.LevelMinZ == b.LevelMinZ;
+            : Nullable.Equals(a.X, b.X) && Nullable.Equals(a.Y, b.Y) && Nullable.Equals(a.LevelMinZ, b.LevelMinZ);
 
     private static List<PatchOp> Member(string path, PlaceRef? stored, PlaceRef? next)
     {

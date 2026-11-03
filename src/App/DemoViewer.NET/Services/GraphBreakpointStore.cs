@@ -52,6 +52,7 @@ public sealed record PersistedGraphBreakpoint(
 ///     is exact for every record such a file can contain (see
 ///     <see cref="GraphBreakpointStore.MigrateLegacyFile" />).
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record LegacyGraphBreakpoint(
     GraphBreakpointTarget TargetKind,
     string? NodeName,

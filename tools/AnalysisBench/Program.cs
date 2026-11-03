@@ -814,7 +814,7 @@ static string FormatStat(object? value)
         null => "-",
         true => "ON",
         int i => i.ToString(CultureInfo.InvariantCulture),
-        double d => d.ToString(d == Math.Truncate(d) ? "F0" : "F2", CultureInfo.InvariantCulture),
+        double d => d.ToString(double.IsInteger(d) ? "F0" : "F2", CultureInfo.InvariantCulture),
         string s => s,
         _ => value.ToString() ?? "-"
     };

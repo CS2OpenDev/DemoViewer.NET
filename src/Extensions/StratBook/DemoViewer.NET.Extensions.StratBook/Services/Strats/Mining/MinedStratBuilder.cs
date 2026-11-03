@@ -173,6 +173,7 @@ public static class MinedStratBuilder
 }
 
 /// <summary>What <c>extra.mined</c> holds.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record MinedExtra(
     string Key,
     int Support,
@@ -181,4 +182,5 @@ public sealed record MinedExtra(
     IReadOnlyList<MinedExtraMember> Members);
 
 /// <summary>A member round in <c>extra.mined</c>.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record MinedExtraMember(string? Sha256, string FileName, int Round, bool? Won);

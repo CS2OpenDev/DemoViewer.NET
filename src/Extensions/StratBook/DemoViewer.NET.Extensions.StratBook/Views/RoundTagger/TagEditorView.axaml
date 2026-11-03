@@ -56,7 +56,7 @@
                                            Foreground="{DynamicResource Pb2dTextBright}" />
                                 <Button Content="✕" Padding="3,0" FontSize="9" Focusable="False"
                                         Background="Transparent"
-                                        Command="{Binding $parent[UserControl].((vm:TagEditorViewModel)DataContext).RemoveLabelCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:TagEditorViewModel)DataContext).RemoveLabelCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" ToolTip.Tip="Remove this label" />
                             </StackPanel>
                         </Border>
@@ -83,7 +83,7 @@
                         <DataTemplate x:DataType="vm:TagPositionRow">
                             <DockPanel>
                                 <Button DockPanel.Dock="Right" Content="✕" Padding="3,0" FontSize="9" Focusable="False"
-                                        Command="{Binding $parent[UserControl].((vm:TagEditorViewModel)DataContext).RemovePositionCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:TagEditorViewModel)DataContext).RemovePositionCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" ToolTip.Tip="Remove this position" />
                                 <TextBlock Text="{Binding Text}" FontSize="10" VerticalAlignment="Center"
                                            Foreground="{DynamicResource Pb2dTextBright}" />

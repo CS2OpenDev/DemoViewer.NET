@@ -562,7 +562,7 @@ public sealed class AnnotationDocument
             || !zMinMap.TryGetValue(world.LevelMinZ, out double target)
             || target.Equals(world.LevelMinZ))
         {
-            return element!;
+            return element;
         }
 
         return element with { Space = new SpaceRef.World(target) };

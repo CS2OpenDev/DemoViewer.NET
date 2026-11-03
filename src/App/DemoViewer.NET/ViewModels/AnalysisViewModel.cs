@@ -983,7 +983,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
             // Load errors + semantic warnings feed the diagnostics panel; errors pop it open
             // unprompted (a skipped user file must not be discoverable only behind a toggle).
-            PopulateRuleDiagnostics(loadedRules, demo, build, result);
+            PopulateRuleDiagnostics(loadedRules, build, result);
             if (!loadedRules.Success)
             {
                 IsDiagnosticsOpen = true;
@@ -1140,8 +1140,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     ///     fire-count badges onto the VM. Thin wrapper over the pure
     ///     <see cref="ComputeRuleDiagnostics" />.
     /// </summary>
-    private void PopulateRuleDiagnostics(RuleConfigLoadResult loadedRules, ParsedDemo demo,
-        BuildResult build, EvaluationResult result)
+    private void PopulateRuleDiagnostics(RuleConfigLoadResult loadedRules, BuildResult build,
+        EvaluationResult result)
     {
         (List<RuleDiagnostic> diags, List<RuleFireStat> fireStats) =
             ComputeRuleDiagnostics(loadedRules, build, result);

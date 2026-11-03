@@ -189,19 +189,17 @@ public sealed class VisionSolution
     // directly would leak stale cones from a previous, busier frame.
     private sealed class ConeView(VisionSolution owner) : IReadOnlyList<ConePolygon>
     {
-        private readonly VisionSolution _owner = owner;
-
-        public ConePolygon this[int index] => index >= 0 && index < _owner._coneCount
-            ? _owner._conePool[index]
+        public ConePolygon this[int index] => index >= 0 && index < owner._coneCount
+            ? owner._conePool[index]
             : throw new ArgumentOutOfRangeException(nameof(index));
 
-        public int Count => _owner._coneCount;
+        public int Count => owner._coneCount;
 
         public IEnumerator<ConePolygon> GetEnumerator()
         {
-            for (int i = 0; i < _owner._coneCount; i++)
+            for (int i = 0; i < owner._coneCount; i++)
             {
-                yield return _owner._conePool[i];
+                yield return owner._conePool[i];
             }
         }
 

@@ -108,7 +108,7 @@ public sealed partial class AimQualitySectionViewModel : PlayerOverviewSection
             return "";
         }
 
-        string noun = count == 1 && over.Noun.EndsWith('s') ? over.Noun[..^1] : over.Noun;
+        string noun = count is 1 && over.Noun.EndsWith('s') ? over.Noun[..^1] : over.Noun;
         return string.Create(CultureInfo.InvariantCulture, $"{over.Preposition} {count:0} {noun}");
     }
 

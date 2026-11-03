@@ -1179,6 +1179,7 @@ public class StratBookShellTests
         public object SnapshotState() => new SectionState(id);
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record SectionState(string Id);
 
     private sealed class FakeGate : IFeatureGate

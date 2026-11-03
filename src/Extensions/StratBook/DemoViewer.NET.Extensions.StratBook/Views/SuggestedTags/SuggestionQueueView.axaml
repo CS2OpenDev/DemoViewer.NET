@@ -106,15 +106,15 @@
                                     <Button Grid.Row="0" Grid.Column="3" Content="Restore" Padding="4,0"
                                             Focusable="False" FontSize="10"
                                             IsVisible="{Binding IsDismissed}"
-                                            Command="{Binding $parent[ItemsControl].((vm:SuggestionQueueViewModel)DataContext).RestoreRowCommand}"
+                                            Command="{Binding $parent[ItemsControl].((vm:SuggestionQueueViewModel)DataContext).RestoreRowCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}" ToolTip.Tip="Offer this suggestion again" />
                                     <Button Grid.Row="0" Grid.Column="2" Content="✓" Padding="4,0" Focusable="False"
                                             IsVisible="{Binding IsNew}"
-                                            Command="{Binding $parent[ItemsControl].((vm:SuggestionQueueViewModel)DataContext).AcceptRowCommand}"
+                                            Command="{Binding $parent[ItemsControl].((vm:SuggestionQueueViewModel)DataContext).AcceptRowCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}" ToolTip.Tip="Accept (Y)" />
                                     <Button Grid.Row="0" Grid.Column="3" Content="✕" Padding="4,0" Margin="2,0,0,0"
                                             Focusable="False" IsVisible="{Binding IsNew}"
-                                            Command="{Binding $parent[ItemsControl].((vm:SuggestionQueueViewModel)DataContext).RejectRowCommand}"
+                                            Command="{Binding $parent[ItemsControl].((vm:SuggestionQueueViewModel)DataContext).RejectRowCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}" ToolTip.Tip="Dismiss (N)" />
                                     <!-- Why it fired in plain words; the score's factors stay in the chip's hover. -->
                                     <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"

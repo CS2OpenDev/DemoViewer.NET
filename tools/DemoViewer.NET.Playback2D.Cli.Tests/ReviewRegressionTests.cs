@@ -106,7 +106,7 @@ public class ReviewRegressionTests
     [Test]
     public async Task ResolvedBackend_ReportsItsBackend_AfterTheProviderIsDisposed()
     {
-        using DisposeTrackingProvider provider = new();
+        DisposeTrackingProvider provider = new();
         ResolvedBackend resolved = new(provider, "cpu", null);
 
         RenderBackend before = resolved.Backend;

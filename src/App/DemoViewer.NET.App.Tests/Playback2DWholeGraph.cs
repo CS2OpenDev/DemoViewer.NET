@@ -40,6 +40,7 @@ internal enum IlAccess
 /// <param name="TargetType">The referenced member's declaring type, fully qualified.</param>
 /// <param name="TargetMember">The referenced member's name.</param>
 /// <param name="Access">Which instruction reached it.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal readonly record struct IlSite(
     string Assembly,
     string Type,

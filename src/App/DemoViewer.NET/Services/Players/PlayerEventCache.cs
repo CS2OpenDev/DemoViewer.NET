@@ -8,6 +8,7 @@ using DemoViewer.NET.Services.Facts;
 namespace DemoViewer.NET.Services.Players;
 
 /// <summary>How far a read has got: demos read of those it has to read.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public readonly record struct PlayerEventsProgress(int Done, int Total);
 
 /// <summary>

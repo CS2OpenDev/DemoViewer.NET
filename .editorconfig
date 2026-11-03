@@ -4888,10 +4888,10 @@ resharper_access_to_disposed_closure_highlighting = hint
 resharper_access_to_modified_closure_highlighting = hint
 resharper_compare_of_floats_by_equality_operator_highlighting = hint
 
-# Sources compiled into more than one project (Extensions.Testing via its .props, StratBookFixtures and
-# the app files AnalysisBench links). ReSharper judges usage from a single project, so these rules miss
+# Sources compiled into more than one project (Extensions.Testing via its .props, StratBookFixtures, the
+# app files AnalysisBench links, and the App.Tests helpers StratBook.Tests links). ReSharper judges usage from a single project, so these rules miss
 # the other consumer's calls and report live members as unused or narrowable.
-[{src/Testing/DemoViewer.NET.Extensions.Testing/**.cs,src/Testing/StratBookFixtures/**.cs,src/App/DemoViewer.NET/Services/CollisionSoup.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ForwardDemoPass.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorSet.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorObserver.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/ICollectorFaultReporter.cs,src/App/DemoViewer.NET/Modules/Library/LibraryTeamTables.cs,src/App/DemoViewer.NET/Modules/Library/LibraryFinalStateReplay.cs,src/App/DemoViewer.NET/Services/DemoProcessing/DecodeSites.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ServerRankCapture.cs}]
+[{src/Testing/DemoViewer.NET.Extensions.Testing/**.cs,src/Testing/StratBookFixtures/**.cs,src/App/DemoViewer.NET/Services/CollisionSoup.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ForwardDemoPass.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorSet.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorObserver.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/ICollectorFaultReporter.cs,src/App/DemoViewer.NET/Modules/Library/LibraryTeamTables.cs,src/App/DemoViewer.NET/Modules/Library/LibraryFinalStateReplay.cs,src/App/DemoViewer.NET/Services/DemoProcessing/DecodeSites.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ServerRankCapture.cs,src/App/DemoViewer.NET.App.Tests/CompiledInPacks.cs,src/App/DemoViewer.NET.App.Tests/Extensions/FakeManifests.cs,src/App/DemoViewer.NET.App.Tests/FakeTimelineData.cs,src/App/DemoViewer.NET.App.Tests/GlobalUsings.cs,src/App/DemoViewer.NET.App.Tests/Playback2DActivation.cs,src/App/DemoViewer.NET.App.Tests/Playback2DTimelineHeadlessSupport.cs,src/App/DemoViewer.NET.App.Tests/QueuedPost.cs,src/App/DemoViewer.NET.App.Tests/SdkSceneHostsInstall.cs,src/App/DemoViewer.NET.App.Tests/SessionIsolation.cs,src/App/DemoViewer.NET.App.Tests/SingleWalkSession.cs,src/App/DemoViewer.NET.App.Tests/SyntheticParsedDemo.cs,src/App/DemoViewer.NET.App.Tests/TestAppBuilder.cs,src/App/DemoViewer.NET.App.Tests/TestLibraries.cs}]
 resharper_unused_member_global_highlighting = none
 resharper_member_can_be_private_global_highlighting = none
 resharper_property_can_be_made_init_only_global_highlighting = none
@@ -4901,6 +4901,7 @@ resharper_collection_never_queried_global_highlighting = none
 resharper_unused_type_global_highlighting = none
 resharper_class_never_instantiated_global_highlighting = none
 resharper_unused_method_return_value_global_highlighting = none
+resharper_redundant_using_directive_global_highlighting = none
 
 # The bench's report records are the JSON schema of its output; their positional properties are written,
 # not read back.
