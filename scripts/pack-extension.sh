@@ -295,8 +295,7 @@ if [ -z "$KEY_PATH" ]; then
         echo "[pack-extension] no --key given (DV_EXTENSION_SIGNING_KEY is ignored in dry-run mode); shipping an unsigned zip"
     else
         echo "error: no signing key available. Pass --key <private.pem>, or set DV_EXTENSION_SIGNING_KEY" >&2
-        echo "       (store the private key's PEM as that GitHub repo secret; see" >&2
-        echo "       docs/architecture/extension-system.md)." >&2
+        echo "       to the private key's PEM; see docs/architecture/extension-system.md." >&2
         exit 1
     fi
 else

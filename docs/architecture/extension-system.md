@@ -449,8 +449,8 @@ four failure buckets (missing, malformed, wrong key, one byte flipped after sign
 tool and the real embedded key.
 
 **The private key.** It is not in the repository. It is generated with `keygen` outside every git working
-tree and stored as the GitHub repository secret `DV_EXTENSION_SIGNING_KEY`, the same pattern the
-`DV_SIGN_*` / `DV_NOTARY_PROFILE` secrets use in `release.yml`. Rotating it is `keygen` again, adding the new
+tree and reaches CI as `DV_EXTENSION_SIGNING_KEY`, scoped so that only a real publish can resolve it: a dry
+run reads an empty value whatever it asks for. Rotating it is `keygen` again, adding the new
 public constant to `PublisherKeys.Current` ahead of removing the old one (so an extension signed with the old
 key still loads until every shipped build has the new constant), then updating the stored secret once
 releases move to the new key.

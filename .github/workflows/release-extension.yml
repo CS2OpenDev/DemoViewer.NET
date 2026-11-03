@@ -77,10 +77,10 @@ jobs:
     needs: verify-ci
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # A real publish runs in release-signing, so it waits for an approval. Decided from the github
-    # context alone, like publish's own gate below: an environment is fixed before any step runs, and
-    # an empty name means no environment. What keeps the signing key out of a dry run is the
-    # do_publish conditional on the pack step, not this.
+    # A real publish runs in the signing environment, so it waits for an approval and is the only
+    # case in which the signing secret resolves to anything. Decided from the github context alone,
+    # like publish's own gate below: an environment is fixed before any step runs, and an empty name
+    # means no environment. The do_publish conditional on the pack step is a second guard.
     environment: ${{ startsWith(github.ref, 'refs/tags/extensions/') && (github.event_name == 'push' || github.event.inputs.dry_run == 'false') && 'release-signing' || '' }}
     outputs:
       id: ${{ steps.resolve.outputs.id }}
