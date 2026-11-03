@@ -2,7 +2,6 @@
 
 using Avalonia;
 using Avalonia.Browser;
-using DemoViewer.NET;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
 

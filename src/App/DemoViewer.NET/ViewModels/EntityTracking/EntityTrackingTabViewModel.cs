@@ -2,14 +2,12 @@
 
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.Models;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Services.Diagnostics;
-using DemoViewer.NET.ViewModels.Common;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.Logging;
@@ -1005,12 +1003,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                     }
                 }
 
-                return new PayloadNode
-                {
-                    Name = kv.Key,
-                    Value = currVal,
-                    PreviousValue = prevVal
-                };
+                return new PayloadNode { Name = kv.Key, Value = currVal, PreviousValue = prevVal };
             })
         ];
 

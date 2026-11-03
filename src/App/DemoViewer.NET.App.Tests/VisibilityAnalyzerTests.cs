@@ -295,7 +295,7 @@ public class VisibilityAnalyzerTests
                 synthCandidates++;
                 Vector3 chest = vv.Feet with { Z = vv.Feet.Z + 48f };
                 Vector3 mid = (kv.Eye + chest) * 0.5f;
-                Vector4[] inject = [new Vector4(mid, SmokeVolumes.DefaultRadius)];
+                Vector4[] inject = [new(mid, SmokeVolumes.DefaultRadius)];
                 (_, bool couldSeeInj) = VisibilityAnalyzer.EvaluatePair(engine, kv, vv, 53f, 37f, inject);
                 if (!couldSeeInj)
                 {

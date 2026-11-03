@@ -3,7 +3,6 @@
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DemoViewer.NET.Models;
-using DemoViewer.NET.ViewModels.Common;
 
 #endregion
 

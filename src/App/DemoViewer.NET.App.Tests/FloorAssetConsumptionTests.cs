@@ -18,7 +18,7 @@ public class FloorAssetConsumptionTests
 {
     private static readonly List<FloorSlice> _nukeLikeFloors =
     [
-        new FloorSlice(-100_000, -528), new FloorSlice(-528, 100_000)
+        new(-100_000, -528), new(-528, 100_000)
     ];
 
     [Test]

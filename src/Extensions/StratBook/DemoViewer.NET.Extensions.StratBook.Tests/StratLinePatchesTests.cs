@@ -1,6 +1,5 @@
 #region
 
-using System.Text.Json;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
@@ -17,7 +16,6 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class StratLinePatchesTests
 {
-
     // Step 1 of FiveSteps as five bare lines to BombsiteA, with its positions kept.
     private static StratDocument FiveLines(string? oddPlace = null)
     {

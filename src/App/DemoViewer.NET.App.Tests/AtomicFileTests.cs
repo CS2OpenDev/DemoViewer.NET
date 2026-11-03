@@ -1,6 +1,5 @@
 #region
 
-using System.Text;
 using DemoViewer.NET.Services;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;

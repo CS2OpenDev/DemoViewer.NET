@@ -30,7 +30,7 @@ public class StratStepMotionTests
     private const int One = 320, Two = 960;
 
     // TSpawn and BombsiteA on the upper floor, BombsiteB on the lower one only.
-    private static ZonePlaceResolverAdapter Zones() => new ZonePlaceResolverAdapter(new PlaceResolver(new ZoneSet(
+    private static ZonePlaceResolverAdapter Zones() => new(new PlaceResolver(new ZoneSet(
         "de_motion", "1", "1", null, 64,
         [new ZoneFloor(-512, -528, 100_000), new ZoneFloor(-2048, -100_000, -528)],
         [
@@ -1025,7 +1025,10 @@ public class StratStepMotionTests
             template.Type, template.Name, Created);
         StratStep seed = new()
         {
-            Id = Guid.NewGuid(), AtSeconds = 115, Actor = StratVocabulary.ActorAll, Verb = "hold",
+            Id = Guid.NewGuid(),
+            AtSeconds = 115,
+            Actor = StratVocabulary.ActorAll,
+            Verb = "hold",
             Positions = [.. StratVocabulary.Slots.Select((s, i) => Upper(s, 20 + 40 * i, 100)), .. Opponents()]
         };
         document.Steps = [seed];

@@ -2,7 +2,6 @@
 
 using System.Numerics;
 using System.Security.Cryptography;
-using System.Text;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;

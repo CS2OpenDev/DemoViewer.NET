@@ -639,8 +639,8 @@ public static partial class Variants
         // throwaway temp-dir SettingsService, then load via the store (mirrors the real DI wiring).
         List<RecentFile> seeded =
         [
-            new RecentFile("/demos/nuke_ecoround.dem", "de_nuke", DateTime.UtcNow.AddDays(-2)), // missing → dimmed
-            new RecentFile(realDemo, "de_mirage", DateTime.UtcNow.AddDays(-6)) // exists
+            new("/demos/nuke_ecoround.dem", "de_nuke", DateTime.UtcNow.AddDays(-2)), // missing → dimmed
+            new(realDemo, "de_mirage", DateTime.UtcNow.AddDays(-6)) // exists
         ];
         SettingsService recentsSettings = new(dir);
         recentsSettings.SaveRecents(seeded);
@@ -763,11 +763,8 @@ public static partial class Variants
     {
         List<HarvestFrameRowViewModel> rows =
         [
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 1, FrameType = "DEM_FileHeader", MessageCount = 0, ByteSize = 320
-            },
-            new HarvestFrameRowViewModel
+            new() { FrameNumber = 1, FrameType = "DEM_FileHeader", MessageCount = 0, ByteSize = 320 },
+            new()
             {
                 FrameNumber = 2,
                 FrameType = "DEM_SignonPacket",
@@ -775,26 +772,11 @@ public static partial class Variants
                 ByteSize = 4096,
                 IsBreakpointSet = true
             },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 3, FrameType = "DEM_Packet", MessageCount = 24, ByteSize = 12800
-            },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 4, FrameType = "DEM_FullPacket", MessageCount = 41, ByteSize = 65536
-            },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 5, FrameType = "DEM_StringTables", MessageCount = 3, ByteSize = 2048
-            },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 6, FrameType = "DEM_ConsoleCmd", MessageCount = 0, ByteSize = 96
-            },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 7, FrameType = "DEM_Packet", MessageCount = 19, ByteSize = 9600
-            }
+            new() { FrameNumber = 3, FrameType = "DEM_Packet", MessageCount = 24, ByteSize = 12800 },
+            new() { FrameNumber = 4, FrameType = "DEM_FullPacket", MessageCount = 41, ByteSize = 65536 },
+            new() { FrameNumber = 5, FrameType = "DEM_StringTables", MessageCount = 3, ByteSize = 2048 },
+            new() { FrameNumber = 6, FrameType = "DEM_ConsoleCmd", MessageCount = 0, ByteSize = 96 },
+            new() { FrameNumber = 7, FrameType = "DEM_Packet", MessageCount = 19, ByteSize = 9600 }
         ];
 
         MainViewModel vm = new() { HasFile = true };

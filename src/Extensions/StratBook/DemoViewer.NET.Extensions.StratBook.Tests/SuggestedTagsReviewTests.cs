@@ -2,7 +2,6 @@
 
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
-using DemoViewer.NET.Services.DemoCache;
 using static DemoViewer.NET.AppTests.SuggestedTagsReviewHarness;
 
 #endregion
@@ -226,7 +225,7 @@ public class SuggestedTagsReviewTests
         Dictionary<string, SuggestionVerdict> verdicts = new(StringComparer.Ordinal)
         {
             ["exec|r1|T|BombsiteA|s=10"] =
-                new()
+                new SuggestionVerdict
                 {
                     Verdict = SuggestionVerdicts.Rejected,
                     Detector = "execute",
@@ -234,7 +233,7 @@ public class SuggestedTagsReviewTests
                     TriggerTick = 1000 + 3 * 64,
                     FrameCount = 2
                 },
-            ["exec|r3|T|BombsiteA|s=10"] = new()
+            ["exec|r3|T|BombsiteA|s=10"] = new SuggestionVerdict
             {
                 Verdict = SuggestionVerdicts.Rejected,
                 Detector = "execute",

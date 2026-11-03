@@ -177,8 +177,8 @@ public class Playback2DTrajectoryTests
         View view = new();
         Ent[] nades =
         [
-            new Ent("CHEGrenadeProjectile", 1), new Ent("CFlashbangProjectile", 2),
-            new Ent("CSmokeGrenadeProjectile", 3), new Ent("CMolotovProjectile", 4), new Ent("CDecoyProjectile", 5)
+            new("CHEGrenadeProjectile", 1), new("CFlashbangProjectile", 2),
+            new("CSmokeGrenadeProjectile", 3), new("CMolotovProjectile", 4), new("CDecoyProjectile", 5)
         ];
         for (int i = 0; i < nades.Length; i++)
         {

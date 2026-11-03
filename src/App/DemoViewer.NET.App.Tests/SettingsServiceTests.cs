@@ -396,7 +396,7 @@ public class SettingsServiceTests
             SessionPayload session = new(
                 new TabSessionState(7, "root/x", true), null, null,
                 true, false, "parser");
-            List<RecentFile> recents = [new RecentFile("/demos/a.dem", "de_dust2", DateTime.UtcNow)];
+            List<RecentFile> recents = [new("/demos/a.dem", "de_dust2", DateTime.UtcNow)];
             svc.SaveSession(session);
             svc.SaveRecents(recents);
 
@@ -482,7 +482,7 @@ public class SettingsServiceTests
                 new TabSessionState(3, null, false), null, null, false, true, "entity");
             await File.WriteAllTextAsync(
                 Path.Combine(dir, "session.json"), JsonSerializer.Serialize(legacySession));
-            List<RecentFile> legacyRecents = [new RecentFile("/demos/legacy.dem", "de_nuke", DateTime.UtcNow)];
+            List<RecentFile> legacyRecents = [new("/demos/legacy.dem", "de_nuke", DateTime.UtcNow)];
             await File.WriteAllTextAsync(
                 Path.Combine(dir, "recent-files.json"), JsonSerializer.Serialize(legacyRecents));
 
