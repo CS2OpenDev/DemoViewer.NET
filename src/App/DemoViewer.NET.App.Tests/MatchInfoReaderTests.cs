@@ -67,7 +67,8 @@ public class MatchInfoReaderTests
     public async Task ReadsPackedScoresAndSkipsUnknownWireTypes()
     {
         // matchtime = 1, an unknown fixed64 and fixed32, then one round with a packed team_scores [16, 9].
-        byte[] bytes = [0x10, 0x01, 0x49, 1, 2, 3, 4, 5, 6, 7, 8, 0x55, 1, 2, 3, 4, 0x2A, 0x06, 0x08, 0x07, 0x62, 0x02, 16, 9];
+        byte[] bytes =
+            [0x10, 0x01, 0x49, 1, 2, 3, 4, 5, 6, 7, 8, 0x55, 1, 2, 3, 4, 0x2A, 0x06, 0x08, 0x07, 0x62, 0x02, 16, 9];
         MatchInfo info = MatchInfoReader.Read(bytes);
         using (Assert.Multiple())
         {
@@ -84,6 +85,7 @@ public class MatchInfoReaderTests
         byte[] info = CommittedInfo();
         Assert.Throws<InvalidDataException>(() => MatchInfoReader.Read(info.AsSpan(0, info.Length - 3)));
         Assert.Throws<InvalidDataException>(() => MatchInfoReader.Read([0x10, 0x80]));
-        await Assert.That(MatchInfoReader.Read([]).MatchTimeUtc).IsNull().Because("an empty message is a message with no fields");
+        await Assert.That(MatchInfoReader.Read([]).MatchTimeUtc).IsNull()
+            .Because("an empty message is a message with no fields");
     }
 }

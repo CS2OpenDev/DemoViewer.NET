@@ -59,7 +59,9 @@ internal static class EdgeLabelText
         string full = Expanded(edge);
         return full.Length <= InlineBudget
             ? full
-            : edge.Label.Length == 0 ? Chip : edge.Label + Gap + Chip;
+            : edge.Label.Length == 0
+                ? Chip
+                : edge.Label + Gap + Chip;
     }
 
     /// <summary>The full text, chip expanded to the predicate. Render-only: layout never reserves it.</summary>

@@ -154,7 +154,8 @@ public class ErrorReportSnapshotTests
     }
 
     // The one row the three-state semantics are read off.
-    private static string ExclusionRow(DemoErrorReportSnapshot snapshot, string key = "excluded rulesets (cached run)") =>
+    private static string ExclusionRow(DemoErrorReportSnapshot snapshot,
+        string key = "excluded rulesets (cached run)") =>
         ErrorReportSnapshotBuilder.Groups(snapshot)
             .First(g => g.Title == "Rules").Rows
             .First(r => r.Key == key).Value;

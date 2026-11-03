@@ -27,11 +27,11 @@ internal static class SuggestedTagsTestData
         Map = Map,
         DemoCount = 1,
         RoundCount = 10,
-        Plants = new Dictionary<string, int>(StringComparer.Ordinal)
-        {
-            [SiteRegions.SiteA] = 5,
-            [SiteRegions.SiteB] = 5
-        },
+        Plants =
+            new Dictionary<string, int>(StringComparer.Ordinal)
+            {
+                [SiteRegions.SiteA] = 5, [SiteRegions.SiteB] = 5
+            },
         Regions = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
         {
             [SiteRegions.SiteA] = [SiteRegions.SiteA, "ALong", "ASmall"],
@@ -88,7 +88,9 @@ internal static class SuggestedTagsTestData
         foreach (int slot in CtSlots)
         {
             sides[slot] = 3;
-            places[slot] = ct is not null && ct.TryGetValue(slot, out string?[]? given) ? given : Path(seconds, "CTSpawn");
+            places[slot] = ct is not null && ct.TryGetValue(slot, out string?[]? given)
+                ? given
+                : Path(seconds, "CTSpawn");
         }
 
         foreach (int slot in tSlots)
@@ -120,8 +122,11 @@ internal static class SuggestedTagsTestData
 
     /// <summary>A proposal as comparable text: every field, labels and factors in key order.</summary>
     internal static string Describe(TagProposal p) =>
-        FormattableString.Invariant($"{p.Id} {p.Round} {p.Side} {p.FromTick}-{p.ToTick}@{p.TriggerTick} c={p.Confidence} ") +
-        string.Join(',', p.Factors.OrderBy(f => f.Key, StringComparer.Ordinal).Select(f => FormattableString.Invariant($"{f.Key}={f.Value}"))) + " " +
+        FormattableString.Invariant(
+            $"{p.Id} {p.Round} {p.Side} {p.FromTick}-{p.ToTick}@{p.TriggerTick} c={p.Confidence} ") +
+        string.Join(',',
+            p.Factors.OrderBy(f => f.Key, StringComparer.Ordinal)
+                .Select(f => FormattableString.Invariant($"{f.Key}={f.Value}"))) + " " +
         string.Join(',', p.Labels.OrderBy(l => l.Key, StringComparer.Ordinal).Select(l => $"{l.Key}={l.Value}"));
 
     // ── The scenarios the parameter table moves one number in ─────────────────────────────────────
@@ -206,7 +211,8 @@ internal static class SuggestedTagsTestData
         {
             string early = i < fakers ? "BTunnel" : "Middle";
             t[slots[i]] = i == 0
-                ? Path(seconds, "TSpawn", (20, 30, early), (31, 39, "Middle"), (40, 41, "ALong"), (42, 89, SiteRegions.SiteA))
+                ? Path(seconds, "TSpawn", (20, 30, early), (31, 39, "Middle"), (40, 41, "ALong"),
+                    (42, 89, SiteRegions.SiteA))
                 : Path(seconds, "TSpawn", (20, 30, early), (31, 39, "Middle"), (40, 89, "ALong"));
         }
 
@@ -241,10 +247,7 @@ internal static class SuggestedTagsTestData
             ct[slot] = DiesAt(ct[slot], 45);
         }
 
-        Dictionary<int, string?[]> t = new()
-        {
-            [6] = Path(seconds, "TSpawn", (40, 89, SiteRegions.SiteA))
-        };
+        Dictionary<int, string?[]> t = new() { [6] = Path(seconds, "TSpawn", (40, 89, SiteRegions.SiteA)) };
         return Round(seconds, t, ct, Plant(50, SiteRegions.SiteA, defused ? 70 : null, defused ? null : 90));
     }
 }

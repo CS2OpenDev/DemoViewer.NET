@@ -43,11 +43,13 @@ public sealed class PlayerEventCache
     /// <param name="rows">The demos' index rows.</param>
     /// <param name="progress">Told the count of demos to read, then each one read.</param>
     /// <param name="cancellationToken">Stops between reads; what was read is kept.</param>
-    public Task<IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>>> LoadAsync(IReadOnlyList<DemoCacheIndexEntry> rows,
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>>> LoadAsync(
+        IReadOnlyList<DemoCacheIndexEntry> rows,
         IProgress<PlayerEventsProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(rows);
-        return Task.Run<IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>>>(() => Fill(rows, progress, cancellationToken), cancellationToken);
+        return Task.Run<IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>>>(
+            () => Fill(rows, progress, cancellationToken), cancellationToken);
     }
 
     private Dictionary<string, IReadOnlyList<PlayerKill>> Fill(IReadOnlyList<DemoCacheIndexEntry> rows,

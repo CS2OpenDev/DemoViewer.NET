@@ -68,7 +68,8 @@ public class SignedTrustPolicyTests
     [Test]
     public async Task Default_DoesNotTrustADirectorySignedWithAKeyOutsidePublisherKeysCurrent()
     {
-        if (string.Equals(Environment.GetEnvironmentVariable(TrustPolicy.TrustUnsignedEnvVar)?.Trim(), "1", StringComparison.Ordinal))
+        if (string.Equals(Environment.GetEnvironmentVariable(TrustPolicy.TrustUnsignedEnvVar)?.Trim(), "1",
+                StringComparison.Ordinal))
         {
             throw new TUnit.Core.Exceptions.SkipTestException(
                 $"{TrustPolicy.TrustUnsignedEnvVar} is set in this process; Default would bypass regardless of the signature");
@@ -78,7 +79,8 @@ public class SignedTrustPolicyTests
         using ECDsa notThePublisher = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         try
         {
-            File.WriteAllText(Path.Combine(dir, ExtensionSignature.FileName), ExtensionSignature.Sign(dir, notThePublisher));
+            File.WriteAllText(Path.Combine(dir, ExtensionSignature.FileName),
+                ExtensionSignature.Sign(dir, notThePublisher));
 
             TrustVerdict verdict = TrustPolicy.Default.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));
 
@@ -124,7 +126,8 @@ public class SignedTrustPolicyTests
         try
         {
             ITrustPolicy withoutOptIn = TrustPolicy.SignedOrOptIn([publicKey], static _ => null);
-            ITrustPolicy withOptIn = TrustPolicy.SignedOrOptIn([publicKey], name => name == TrustPolicy.TrustUnsignedEnvVar ? "1" : null);
+            ITrustPolicy withOptIn = TrustPolicy.SignedOrOptIn([publicKey],
+                name => name == TrustPolicy.TrustUnsignedEnvVar ? "1" : null);
 
             TrustVerdict refused = withoutOptIn.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));
             TrustVerdict allowed = withOptIn.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));
@@ -158,7 +161,8 @@ public class SignedTrustPolicyTests
 
             TrustVerdict verdict = withOptIn.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));
 
-            await Assert.That(verdict.Trusted).IsTrue().Because("the opt-in still trusts it, just not on the strength of the signature");
+            await Assert.That(verdict.Trusted).IsTrue()
+                .Because("the opt-in still trusts it, just not on the strength of the signature");
         }
         finally
         {

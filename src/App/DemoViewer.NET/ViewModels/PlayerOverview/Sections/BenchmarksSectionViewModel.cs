@@ -149,7 +149,8 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
 
         PlayerAggregate subject = PlayerAggregate.Of(context.Window);
         RankBand? band = UseRankBand && CanUseRankBand ? SubjectBand(context.Ranks) : null;
-        Request request = new(player.SteamId64, subject, context.Filter, Math.Max(SelectedMinimum, 1), band, context.IsFiltered);
+        Request request = new(player.SteamId64, subject, context.Filter, Math.Max(SelectedMinimum, 1), band,
+            context.IsFiltered);
         Loading = RunAsync(rows, request, load);
     }
 
@@ -168,7 +169,8 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
             {
                 if (reading && _load == load && p.Total > 0)
                 {
-                    LoadText = string.Create(CultureInfo.InvariantCulture, $"Reading library stats {p.Done} of {p.Total}");
+                    LoadText = string.Create(CultureInfo.InvariantCulture,
+                        $"Reading library stats {p.Done} of {p.Total}");
                 }
             }
         });
@@ -225,7 +227,8 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
         List<PlayerAggregate> population = new(pooled.Population.Count);
         foreach ((ulong steamId64, PlayerAggregate pool) in pooled.Population)
         {
-            if (request.Band is not { } band || (ranks?.Premier.TryGetValue(steamId64, out int rating) == true && band.Contains(rating)))
+            if (request.Band is not { } band
+                || (ranks?.Premier.TryGetValue(steamId64, out int rating) == true && band.Contains(rating)))
             {
                 population.Add(pool);
             }
@@ -249,7 +252,9 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
         if (request.SubjectPool.WithStats == 0)
         {
             Rows = [];
-            NoteText = request.IsFiltered ? "No match in the window has stats to compare." : "No match has stats to compare yet.";
+            NoteText = request.IsFiltered
+                ? "No match in the window has stats to compare."
+                : "No match has stats to compare yet.";
         }
         else if (benchmark.Population < MinimumPopulation)
         {
@@ -260,7 +265,11 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
         else
         {
             Dictionary<string, BenchmarkStat> byKey = benchmark.Stats.ToDictionary(s => s.Key, StringComparer.Ordinal);
-            Rows = [.. Keys.Where(k => byKey.ContainsKey(k.Key)).Select(k => new BenchmarkRowItem(byKey[k.Key], k.Label, k.Format, benchmark.Population))];
+            Rows =
+            [
+                .. Keys.Where(k => byKey.ContainsKey(k.Key)).Select(k =>
+                    new BenchmarkRowItem(byKey[k.Key], k.Label, k.Format, benchmark.Population))
+            ];
             NoteText = "";
         }
     }
@@ -282,14 +291,16 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
         return filtered ? text + " · same filter" : text;
     }
 
-    private static string Describe(int population, Request request) => Describe(population, request.Minimum, request.Band, request.IsFiltered);
+    private static string Describe(int population, Request request) =>
+        Describe(population, request.Minimum, request.Band, request.IsFiltered);
 
     /// <summary>The subject's latest CS Rating's tier, from their newest rated Premier demo; null when there is none.</summary>
     internal static RankBand? SubjectBand(PlayerRanks? ranks)
     {
         foreach (PlayerRank demo in ranks?.Demos ?? [])
         {
-            if (demo.Rank is { RankType: PlayerRankCache.PremierRankType } rank && RankDisplay.After(rank) is { } rating)
+            if (demo.Rank is { RankType: PlayerRankCache.PremierRankType } rank
+                && RankDisplay.After(rank) is { } rating)
             {
                 return RankBand.For(rating);
             }
@@ -298,7 +309,13 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
         return null;
     }
 
-    private sealed record Request(ulong Subject, PlayerAggregate SubjectPool, PlayerFilter Filter, int Minimum, RankBand? Band, bool IsFiltered);
+    private sealed record Request(
+        ulong Subject,
+        PlayerAggregate SubjectPool,
+        PlayerFilter Filter,
+        int Minimum,
+        RankBand? Band,
+        bool IsFiltered);
 
     private sealed record Pooled(
         LibraryRows Library,
@@ -323,7 +340,7 @@ public sealed class BenchmarkRowItem
         Label = label;
         ValueText = stat.Value.ToString(format, CultureInfo.InvariantCulture);
         MedianText = "median " + stat.Median.ToString(format, CultureInfo.InvariantCulture);
-        int rank = (int) Math.Round(stat.Percentile, MidpointRounding.AwayFromZero);
+        int rank = (int)Math.Round(stat.Percentile, MidpointRounding.AwayFromZero);
         PercentileText = Ordinal(rank);
         StatPolarity polarity = stat.Key == PlayerBenchmark.WinRate
             ? StatPolarity.HigherIsBetter
@@ -331,7 +348,8 @@ public sealed class BenchmarkRowItem
         Scale = StatScale.Absolute(0, 100, 40, 60, polarity);
         string of = stat.Population == population
             ? string.Create(CultureInfo.InvariantCulture, $"the {population:N0} players compared")
-            : string.Create(CultureInfo.InvariantCulture, $"the {stat.Population:N0} of {population:N0} players with enough attempts");
+            : string.Create(CultureInfo.InvariantCulture,
+                $"the {stat.Population:N0} of {population:N0} players with enough attempts");
         Tooltip = string.Create(CultureInfo.InvariantCulture,
             $"Higher than {stat.Percentile:0}% of {of}, a tie counting half. Their median is {stat.Median.ToString(format, CultureInfo.InvariantCulture)}.");
     }

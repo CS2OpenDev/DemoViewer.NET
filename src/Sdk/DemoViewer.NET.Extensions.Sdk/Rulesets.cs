@@ -48,15 +48,18 @@ public sealed record RulesetContribution(string Id, Func<Stream> Yaml, string? F
         ArgumentException.ThrowIfNullOrEmpty(extensionId);
         if (!IsValidId(id))
         {
-            throw new ArgumentException($"'{id}' is not a ruleset name: use lowercase letters, digits and underscores.", nameof(id));
+            throw new ArgumentException($"'{id}' is not a ruleset name: use lowercase letters, digits and underscores.",
+                nameof(id));
         }
 
-        return string.Concat(extensionId.ToLowerInvariant().Select(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') ? c : '_'))
+        return string.Concat(extensionId.ToLowerInvariant()
+                   .Select(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') ? c : '_'))
                + Separator + id;
     }
 
     /// <summary>True when <paramref name="id" /> is a valid ruleset name: lowercase letters, digits and underscores, starting with a letter.</summary>
     /// <param name="id">The candidate.</param>
     public static bool IsValidId(string? id) =>
-        id is { Length: > 0 } && id[0] is >= 'a' and <= 'z' && id.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
+        id is { Length: > 0 } && id[0] is >= 'a' and <= 'z'
+                              && id.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_');
 }

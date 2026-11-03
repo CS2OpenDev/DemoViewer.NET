@@ -64,10 +64,12 @@ public class RoleSheetTests
     public async Task SlotCsOwnLine_CarriesItsNote()
     {
         RoleSheet sheet = RoleSheet.Derive(SchemaSample(), "C", Callouts());
-        RoleSheetLine? molotov = sheet.Lines.FirstOrDefault(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal));
+        RoleSheetLine? molotov =
+            sheet.Lines.FirstOrDefault(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal));
 
         await Assert.That(molotov).IsNotNull();
-        await Assert.That(molotov!.Text).IsEqualTo("C throws molotov A ramp → A site (Jungle) [lineup: e4f5a6b7-c8d9-4e0f-9a1b-2c3d4e5f6a7b]");
+        await Assert.That(molotov!.Text)
+            .IsEqualTo("C throws molotov A ramp → A site (Jungle) [lineup: e4f5a6b7-c8d9-4e0f-9a1b-2c3d4e5f6a7b]");
     }
 
     [Test]
@@ -77,7 +79,8 @@ public class RoleSheetTests
         RoleSheet a = RoleSheet.Derive(SchemaSample(), "A");
 
         await Assert.That(c.Branches.Select(b => b.Text))
-            .IsEquivalentTo(["if contact at Connector before 1:05 → A exec, double smoke, step 4"], CollectionOrdering.Matching);
+            .IsEquivalentTo(["if contact at Connector before 1:05 → A exec, double smoke, step 4"],
+                CollectionOrdering.Matching);
         await Assert.That(a.Branches).IsEmpty();
     }
 
@@ -103,7 +106,8 @@ public class RoleSheetTests
     [Test]
     public async Task ARoster_ResolvesTheSlotsName()
     {
-        RoleSheet sheet = RoleSheet.Derive(SchemaSample(), "B", roster: new Dictionary<string, string?> { ["B"] = "Ferris" });
+        RoleSheet sheet = RoleSheet.Derive(SchemaSample(), "B",
+            roster: new Dictionary<string, string?> { ["B"] = "Ferris" });
 
         await Assert.That(sheet.Header.SlotName).IsEqualTo("Ferris");
     }
@@ -117,7 +121,8 @@ public class RoleSheetTests
 
         static string Point(RoleSheetPoint p) => $"{p.AtSeconds}:{p.X},{p.Y}";
 
-        await Assert.That(a.Positions.Select(Point)).IsEquivalentTo(["90:400,-1800", "65:-600,-1400"], CollectionOrdering.Matching);
+        await Assert.That(a.Positions.Select(Point))
+            .IsEquivalentTo(["90:400,-1800", "65:-600,-1400"], CollectionOrdering.Matching);
         await Assert.That(b.Positions.Select(Point)).IsEquivalentTo(["90:420,-1750"], CollectionOrdering.Matching);
         await Assert.That(e.Positions).IsEmpty();
     }
@@ -126,9 +131,11 @@ public class RoleSheetTests
     public async Task WithNoCallouts_PlacesPrintTheCanonicalNameSplitIntoWords()
     {
         RoleSheet sheet = RoleSheet.Derive(SchemaSample(), "C");
-        RoleSheetLine molotov = sheet.Lines.Single(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal));
+        RoleSheetLine molotov =
+            sheet.Lines.Single(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal));
 
-        await Assert.That(molotov.Text).IsEqualTo("C throws molotov T Ramp → Bombsite A (Jungle) [lineup: e4f5a6b7-c8d9-4e0f-9a1b-2c3d4e5f6a7b]");
+        await Assert.That(molotov.Text)
+            .IsEqualTo("C throws molotov T Ramp → Bombsite A (Jungle) [lineup: e4f5a6b7-c8d9-4e0f-9a1b-2c3d4e5f6a7b]");
     }
 
     [Test]
@@ -157,11 +164,14 @@ public class RoleSheetTests
     {
         RoleSheet resolved = RoleSheet.Derive(SchemaSample(), "C", Callouts(),
             lineupTitle: id => id == Guid.Parse("e4f5a6b7-c8d9-4e0f-9a1b-2c3d4e5f6a7b") ? "Molotov into Jungle" : null);
-        RoleSheetLine molotov = resolved.Lines.Single(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal));
-        await Assert.That(molotov.Text).IsEqualTo("C throws molotov A ramp → A site (Jungle) [lineup: Molotov into Jungle]");
+        RoleSheetLine molotov =
+            resolved.Lines.Single(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal));
+        await Assert.That(molotov.Text)
+            .IsEqualTo("C throws molotov A ramp → A site (Jungle) [lineup: Molotov into Jungle]");
 
         RoleSheet unresolved = RoleSheet.Derive(SchemaSample(), "C", Callouts(), lineupTitle: _ => null);
-        RoleSheetLine raw = unresolved.Lines.Single(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal));
+        RoleSheetLine raw =
+            unresolved.Lines.Single(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal));
         await Assert.That(raw.Text).EndsWith("[lineup: e4f5a6b7-c8d9-4e0f-9a1b-2c3d4e5f6a7b]");
     }
 }

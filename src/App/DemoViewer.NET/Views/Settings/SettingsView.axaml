@@ -266,7 +266,8 @@
                                                                  CommandParameter="{Binding}" />
                                                     <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding Title}"
-                                                                   Foreground="{DynamicResource TextValue}" FontSize="12"
+                                                                   Foreground="{DynamicResource TextValue}"
+                                                                   FontSize="12"
                                                                    TextTrimming="CharacterEllipsis" />
                                                         <TextBlock Text="{Binding Detail}" Classes="mono"
                                                                    Foreground="{DynamicResource TextDim}" FontSize="10"
@@ -286,7 +287,8 @@
                                                  Watermark="SteamID64, profile link, [U:1:n] or STEAM_X:Y:Z"
                                                  Text="{Binding IdentityInput, Mode=TwoWay}">
                                             <TextBox.KeyBindings>
-                                                <KeyBinding Gesture="Enter" Command="{Binding AddIdentityAccountCommand}" />
+                                                <KeyBinding Gesture="Enter"
+                                                            Command="{Binding AddIdentityAccountCommand}" />
                                             </TextBox.KeyBindings>
                                         </TextBox>
                                         <Button Grid.Column="1" Content="Add Account" Classes="primary" Padding="14,4"
@@ -301,9 +303,11 @@
                                             <TextBlock Grid.Column="0" Text="{Binding IdentitySuggestionText}"
                                                        Foreground="{DynamicResource TextValue}" FontSize="11"
                                                        TextWrapping="Wrap" VerticalAlignment="Center" />
-                                            <Button Grid.Column="1" Classes="ghost" Padding="8,2" FontSize="10" Content="That's me"
+                                            <Button Grid.Column="1" Classes="ghost" Padding="8,2" FontSize="10"
+                                                    Content="That's me"
                                                     Command="{Binding AcceptIdentitySuggestionCommand}" />
-                                            <Button Grid.Column="2" Classes="ghost" Padding="8,2" FontSize="10" Content="Not me"
+                                            <Button Grid.Column="2" Classes="ghost" Padding="8,2" FontSize="10"
+                                                    Content="Not me"
                                                     Command="{Binding DismissIdentitySuggestionCommand}" />
                                         </Grid>
                                     </Border>
@@ -325,9 +329,12 @@
                                             <ComboBox.ItemTemplate>
                                                 <DataTemplate x:DataType="theming:Theme">
                                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
-                                                        <Border Classes="badge" Padding="5,1" IsVisible="{Binding IsBuiltIn}">
-                                                            <TextBlock Text="Built-in" FontSize="10" Foreground="{DynamicResource TextMid}" />
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   VerticalAlignment="Center" />
+                                                        <Border Classes="badge" Padding="5,1"
+                                                                IsVisible="{Binding IsBuiltIn}">
+                                                            <TextBlock Text="Built-in" FontSize="10"
+                                                                       Foreground="{DynamicResource TextMid}" />
                                                         </Border>
                                                     </StackPanel>
                                                 </DataTemplate>
@@ -344,10 +351,12 @@
                                                 Command="{Binding ReloadThemesCommand}"
                                                 ToolTip.Tip="Re-scan the themes folder for added, edited, or removed drop-in files." />
                                     </StackPanel>
-                                    <TextBlock Foreground="{DynamicResource AccentCaution}" FontSize="11" TextWrapping="Wrap"
+                                    <TextBlock Foreground="{DynamicResource AccentCaution}" FontSize="11"
+                                               TextWrapping="Wrap"
                                                IsVisible="{Binding SelectedThemeMissingText, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                Text="{Binding SelectedThemeMissingText}" />
-                                    <TextBlock Foreground="{DynamicResource AccentCaution}" FontSize="11" TextWrapping="Wrap"
+                                    <TextBlock Foreground="{DynamicResource AccentCaution}" FontSize="11"
+                                               TextWrapping="Wrap"
                                                IsVisible="{Binding ThemeLoadProblemsText, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                Text="{Binding ThemeLoadProblemsText}" />
                                     <TextBlock Foreground="{DynamicResource TextDim}" FontSize="11" TextWrapping="Wrap"
@@ -842,16 +851,19 @@
                         </StackPanel>
 
                         <!-- Third-party extensions: the unverified switch (read at launch) and what is installed. -->
-                        <StackPanel Spacing="0" IsVisible="{x:Static settings:SettingsViewModel.ShowExternalExtensions}">
+                        <StackPanel Spacing="0"
+                                    IsVisible="{x:Static settings:SettingsViewModel.ShowExternalExtensions}">
                             <Border Classes="card" Margin="12,10">
                                 <StackPanel Spacing="12">
                                     <Grid ColumnDefinitions="*,Auto">
                                         <StackPanel Grid.Column="0" Spacing="1">
-                                            <TextBlock Text="{x:Static settings:SettingsViewModel.AllowUnverifiedLabel}"
-                                                       Foreground="{DynamicResource TextValue}" FontSize="12" />
+                                            <TextBlock
+                                                Text="{x:Static settings:SettingsViewModel.AllowUnverifiedLabel}"
+                                                Foreground="{DynamicResource TextValue}" FontSize="12" />
                                             <TextBlock
                                                 Text="Loads extensions nobody has verified. An extension runs inside the app with the same access to your files and network as the app itself, so only allow this for extensions you trust. Takes effect the next time the app starts."
-                                                Foreground="{DynamicResource TextDim}" FontSize="10" TextWrapping="Wrap" />
+                                                Foreground="{DynamicResource TextDim}" FontSize="10"
+                                                TextWrapping="Wrap" />
                                         </StackPanel>
                                         <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                                       OnContent="" OffContent=""
@@ -867,23 +879,31 @@
                                             <DataTemplate x:DataType="settings:ExternalExtensionRow">
                                                 <StackPanel Spacing="1" Margin="0,4">
                                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextValue}" FontSize="12" />
-                                                        <TextBlock Text="{Binding Version}" Foreground="{DynamicResource TextDim}" FontSize="11"
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   Foreground="{DynamicResource TextValue}"
+                                                                   FontSize="12" />
+                                                        <TextBlock Text="{Binding Version}"
+                                                                   Foreground="{DynamicResource TextDim}" FontSize="11"
                                                                    VerticalAlignment="Bottom" />
                                                     </StackPanel>
                                                     <TextBlock Text="{Binding State}" TextWrapping="Wrap" FontSize="10"
                                                                Foreground="{DynamicResource TextDim}" />
                                                     <StackPanel Spacing="3" Margin="0,3,0,0"
                                                                 IsVisible="{Binding Fault.IsShown, FallbackValue=False}">
-                                                        <TextBlock Text="{Binding Fault.Text, FallbackValue=''}" TextWrapping="Wrap"
-                                                                   FontSize="10" Foreground="{DynamicResource AccentCaution}" />
+                                                        <TextBlock Text="{Binding Fault.Text, FallbackValue=''}"
+                                                                   TextWrapping="Wrap"
+                                                                   FontSize="10"
+                                                                   Foreground="{DynamicResource AccentCaution}" />
                                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                                            <Button Classes="ghost" Padding="8,2" FontSize="10" Content="Turn on again"
+                                                            <Button Classes="ghost" Padding="8,2" FontSize="10"
+                                                                    Content="Turn on again"
                                                                     Command="{Binding Fault.TurnOnAgainCommand, FallbackValue={x:Null}}"
                                                                     IsVisible="{Binding Fault.CanTurnOnAgain, FallbackValue=False}" />
-                                                            <Button Classes="ghost" Padding="8,2" FontSize="10" Content="Keep off"
+                                                            <Button Classes="ghost" Padding="8,2" FontSize="10"
+                                                                    Content="Keep off"
                                                                     Command="{Binding Fault.KeepOffCommand, FallbackValue={x:Null}}" />
-                                                            <Button Classes="ghost" Padding="8,2" FontSize="10" Content="Open log"
+                                                            <Button Classes="ghost" Padding="8,2" FontSize="10"
+                                                                    Content="Open log"
                                                                     Command="{Binding Fault.OpenLogCommand, FallbackValue={x:Null}}"
                                                                     IsVisible="{Binding Fault.CanOpenLog, FallbackValue=False}" />
                                                         </StackPanel>
@@ -933,10 +953,13 @@
                                                                Foreground="{DynamicResource TextValue}" FontSize="12" />
                                                     <TextBlock
                                                         Text="Removes everything this extension wrote, on and off disk alike. Regenerable caches are rebuilt automatically; anything you wrote by hand is gone."
-                                                        Foreground="{DynamicResource TextDim}" FontSize="10" TextWrapping="Wrap" />
+                                                        Foreground="{DynamicResource TextDim}" FontSize="10"
+                                                        TextWrapping="Wrap" />
                                                 </StackPanel>
-                                                <Button Grid.Column="1" Classes="ghost" Padding="10,4" VerticalAlignment="Top"
-                                                        Content="Delete extension data" Foreground="{DynamicResource AccentError}"
+                                                <Button Grid.Column="1" Classes="ghost" Padding="10,4"
+                                                        VerticalAlignment="Top"
+                                                        Content="Delete extension data"
+                                                        Foreground="{DynamicResource AccentError}"
                                                         Command="{Binding ArmCommand}" IsEnabled="{Binding !IsBusy}"
                                                         IsVisible="{Binding !IsConfirming}" />
                                             </Grid>
@@ -947,17 +970,21 @@
                                                     <TextBlock Text="{Binding ConfirmationText}"
                                                                Foreground="{DynamicResource TextValue}" FontSize="11"
                                                                TextWrapping="Wrap" />
-                                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                                                HorizontalAlignment="Right">
                                                         <Button Classes="ghost" Padding="10,4" Content="Cancel"
-                                                                Command="{Binding CancelCommand}" IsEnabled="{Binding !IsBusy}" />
+                                                                Command="{Binding CancelCommand}"
+                                                                IsEnabled="{Binding !IsBusy}" />
                                                         <Button Classes="ghost" Padding="10,4" Content="Delete"
                                                                 Foreground="{DynamicResource AccentError}"
-                                                                Command="{Binding ConfirmCommand}" IsEnabled="{Binding !IsBusy}" />
+                                                                Command="{Binding ConfirmCommand}"
+                                                                IsEnabled="{Binding !IsBusy}" />
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Border>
 
-                                            <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource TextMid}"
+                                            <TextBlock Text="{Binding StatusText}"
+                                                       Foreground="{DynamicResource TextMid}"
                                                        FontSize="11" TextWrapping="Wrap"
                                                        IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                         </StackPanel>

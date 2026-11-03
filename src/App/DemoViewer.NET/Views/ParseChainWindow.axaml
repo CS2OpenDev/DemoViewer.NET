@@ -29,10 +29,10 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:ParseChainEntry">
                         <ui:ParseLinkChip Label="{Binding Label}"
-                                                Detail="{Binding Detail}"
-                                                SourceBadge="{Binding SourceBadge}"
-                                                Indent="{Binding Indent}"
-                                                Command="{Binding OpenCommand}" />
+                                          Detail="{Binding Detail}"
+                                          SourceBadge="{Binding SourceBadge}"
+                                          Indent="{Binding Indent}"
+                                          Command="{Binding OpenCommand}" />
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

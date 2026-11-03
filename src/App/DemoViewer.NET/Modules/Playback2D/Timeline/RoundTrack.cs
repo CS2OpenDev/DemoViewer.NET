@@ -170,11 +170,7 @@ public sealed class RoundTrack : ITimelineTrack
         }
 
         TimelineBand band = bands[index];
-        bands[index] = band with
-        {
-            Argb = tint,
-            Tooltip = $"{band.Tooltip} · won by {(team == TeamT ? "T" : "CT")}"
-        };
+        bands[index] = band with { Argb = tint, Tooltip = $"{band.Tooltip} · won by {(team == TeamT ? "T" : "CT")}" };
     }
 
     private static int IndexOfBandLabelled(List<TimelineBand> bands, int roundNumber)

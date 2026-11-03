@@ -40,16 +40,8 @@ public class StratBookShellRenderTests
             vm.RestoreSession();
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
 
@@ -59,7 +51,8 @@ public class StratBookShellRenderTests
                 Dispatcher.UIThread.RunJobs();
                 if (window.CaptureRenderedFrame() is { } rail)
                 {
-                    rail.Save(Path.Combine(HeadlessSession.ArtifactDir, "stratbook-rail.png"), new PngBitmapEncoderOptions());
+                    rail.Save(Path.Combine(HeadlessSession.ArtifactDir, "stratbook-rail.png"),
+                        new PngBitmapEncoderOptions());
                     railInk = NonBackground(rail);
                 }
 
@@ -69,7 +62,8 @@ public class StratBookShellRenderTests
                 Dispatcher.UIThread.RunJobs();
                 if (window.CaptureRenderedFrame() is { } teams)
                 {
-                    teams.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-teams.png"), new PngBitmapEncoderOptions());
+                    teams.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-teams.png"),
+                        new PngBitmapEncoderOptions());
                     teamsInk = NonBackground(teams);
                 }
 
@@ -118,7 +112,8 @@ public class StratBookShellRenderTests
                     seen.Add((id, content?.IsEffectivelyVisible ?? false, content?.Bounds.Width ?? 0));
                     if (id == "review.queue" && window.CaptureRenderedFrame() is { } frame)
                     {
-                        frame.Save(Path.Combine(HeadlessSession.ArtifactDir, "stratbook-rail-collapsed.png"), new PngBitmapEncoderOptions());
+                        frame.Save(Path.Combine(HeadlessSession.ArtifactDir, "stratbook-rail-collapsed.png"),
+                            new PngBitmapEncoderOptions());
                     }
                 }
 
@@ -180,7 +175,8 @@ public class StratBookShellRenderTests
             yield return Section("teams.browser", "Teams", 0, LibraryTabViewModel.HostId, null);
         }
 
-        private static WorkspaceTabDescriptor Section(string id, string header, int order, string hostId, string? badge) =>
+        private static WorkspaceTabDescriptor
+            Section(string id, string header, int order, string hostId, string? badge) =>
             new()
             {
                 TabId = id,

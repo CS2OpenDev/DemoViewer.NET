@@ -38,7 +38,9 @@ public class StratLineupPickerTests
                 lineupMap: defaultPicker
                     ? null
                     : map => new UtilityBookTabViewModel(Index, loadMapAsset: _ => null, lockedMap: map,
-                        background: queue is null ? null : QueueWork.Section(queue, "Lineup picker", "utility", "section:lineup-picker")));
+                        background: queue is null
+                            ? null
+                            : QueueWork.Section(queue, "Lineup picker", "utility", "section:lineup-picker")));
             Tab.Session.AutoSaveDelay = TimeSpan.FromHours(1);
             Tab.Session.IdleCommitDelay = TimeSpan.FromHours(1);
             Tab.SelectedMap = Map;
@@ -78,7 +80,8 @@ public class StratLineupPickerTests
             return Editor.Steps[^1];
         }
 
-        public string StepJson() => JsonSerializer.SerializeToNode(Step, StratJsonContext.Default.StratStep)!.ToJsonString();
+        public string StepJson() =>
+            JsonSerializer.SerializeToNode(Step, StratJsonContext.Default.StratStep)!.ToJsonString();
     }
 
     // Records each queued job's priority and runs it at once, as a queue with nothing else in it would.
@@ -161,7 +164,10 @@ public class StratLineupPickerTests
         private sealed class DoneHandle(Task completion) : IDemoQueueHandle
         {
             public Guid Id { get; } = Guid.NewGuid();
-            public DemoQueueItemState State => completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Running;
+
+            public DemoQueueItemState State =>
+                completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Running;
+
             public Task Completion => completion;
 
             public void Cancel()
@@ -202,8 +208,10 @@ public class StratLineupPickerTests
             {
                 await Assert.That(choice?.Id).IsEqualTo(h.Lineup.Id);
                 await Assert.That(choice?.UtilityKind).IsEqualTo("smoke");
-                await Assert.That(choice?.Techniques.Select(t => t.Key)).IsEquivalentTo(h.Lineup.Techniques.Select(t => t.Key), CollectionOrdering.Matching);
-                await Assert.That(catalog.Options(Map, "smoke").Select(o => o.Id)).IsEquivalentTo(new Guid?[] { h.Lineup.Id }, CollectionOrdering.Matching);
+                await Assert.That(choice?.Techniques.Select(t => t.Key))
+                    .IsEquivalentTo(h.Lineup.Techniques.Select(t => t.Key), CollectionOrdering.Matching);
+                await Assert.That(catalog.Options(Map, "smoke").Select(o => o.Id))
+                    .IsEquivalentTo(new Guid?[] { h.Lineup.Id }, CollectionOrdering.Matching);
                 await Assert.That(catalog.Options(Map, "flash")).IsEmpty();
             }
         });
@@ -229,7 +237,8 @@ public class StratLineupPickerTests
                 await Assert.That(row.LineupOptions).Contains(row.Lineup!);
                 await Assert.That(h.Step.Utility!.LineupId).IsEqualTo(alias).Because("projection never writes");
                 await Assert.That(row.ShowTechnique).IsTrue();
-                await Assert.That(row.Technique?.Key).IsEqualTo(h.Lineup.Techniques[0].Key).Because("null is the most thrown one");
+                await Assert.That(row.Technique?.Key).IsEqualTo(h.Lineup.Techniques[0].Key)
+                    .Because("null is the most thrown one");
                 await Assert.That(h.Step.Utility!.Technique).IsNull();
             }
         });
@@ -258,7 +267,8 @@ public class StratLineupPickerTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(h.StepJson()).IsEqualTo(before).Because("no explicit copy of the default is left behind");
+                await Assert.That(h.StepJson()).IsEqualTo(before)
+                    .Because("no explicit copy of the default is left behind");
                 await Assert.That(h.Tab.Session.UndoDepth).IsEqualTo(depth);
             }
         });
@@ -314,11 +324,13 @@ public class StratLineupPickerTests
                 await Assert.That(h.StepJson()).IsEqualTo(before);
                 await Assert.That(h.Tab.Session.UndoDepth).IsEqualTo(depth);
                 await Assert.That(h.Step.Utility!.LineupId).IsEqualTo(alias);
-                await Assert.That(h.Editor.ApplyLineupPick(h.Step.Id, "smoke", h.Lineup.Id, h.Lineup.Techniques[0].Key)).IsFalse();
+                await Assert.That(h.Editor.ApplyLineupPick(h.Step.Id, "smoke", h.Lineup.Id, h.Lineup.Techniques[0].Key))
+                    .IsFalse();
             }
 
             // Another technique of the same lineup writes the technique only, and still keeps the alias id.
-            await Assert.That(h.Editor.ApplyLineupPick(h.Step.Id, "smoke", h.Lineup.Id, h.Lineup.Techniques[1].Key)).IsTrue();
+            await Assert.That(h.Editor.ApplyLineupPick(h.Step.Id, "smoke", h.Lineup.Id, h.Lineup.Techniques[1].Key))
+                .IsTrue();
             using (Assert.Multiple())
             {
                 await Assert.That(h.Step.Utility!.LineupId).IsEqualTo(alias);
@@ -403,7 +415,8 @@ public class StratLineupPickerTests
             using (Assert.Multiple())
             {
                 await Assert.That(picker.Map.HasGroups).IsTrue();
-                await Assert.That(h.Tab.Canvas.MapAsset).IsNotNull().Because("the baked de_mirage bundle ships with the app");
+                await Assert.That(h.Tab.Canvas.MapAsset).IsNotNull()
+                    .Because("the baked de_mirage bundle ships with the app");
                 await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before + 2)
                     .Because("the canvas and the picker each hold the one decode");
                 // The radar image is the decode: two holds, one SKImage.
@@ -416,7 +429,8 @@ public class StratLineupPickerTests
             h.Pump();
             using (Assert.Multiple())
             {
-                await Assert.That(h.Tab.Canvas.MapAsset).IsSameReferenceAs(canvas).Because("the canvas keeps its own hold");
+                await Assert.That(h.Tab.Canvas.MapAsset).IsSameReferenceAs(canvas)
+                    .Because("the canvas keeps its own hold");
                 await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(before + 1)
                     .Because("only the picker's hold went back");
             }
@@ -440,7 +454,8 @@ public class StratLineupPickerTests
             picker.Map.ClickLanding(picker.Map.Groups.Single().Id);
             await Assert.That(picker.Positions.Count).IsEqualTo(2).Because("one position per technique");
             LineupTechnique second = h.Lineup.Techniques[1];
-            picker.SelectedPosition = picker.Positions.Single(p => p.Key == UtilityBookTabViewModel.PositionKey(h.Lineup, second));
+            picker.SelectedPosition =
+                picker.Positions.Single(p => p.Key == UtilityBookTabViewModel.PositionKey(h.Lineup, second));
             await Assert.That(picker.CanConfirm).IsTrue();
             picker.ConfirmCommand.Execute(null);
 
@@ -467,11 +482,14 @@ public class StratLineupPickerTests
         {
             using Harness h = new();
             h.AddThrow();
-            h.Tab.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null, new JsonObject
-            {
-                ["kind"] = "flash", ["lineupId"] = Guid.NewGuid().ToString(), ["technique"] = "stand-left",
-                ["landing"] = new JsonObject { ["x"] = 1.0, ["y"] = 2.0 }
-            }));
+            h.Tab.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null,
+                new JsonObject
+                {
+                    ["kind"] = "flash",
+                    ["lineupId"] = Guid.NewGuid().ToString(),
+                    ["technique"] = "stand-left",
+                    ["landing"] = new JsonObject { ["x"] = 1.0, ["y"] = 2.0 }
+                }));
             string before = h.StepJson();
             int depth = h.Tab.Session.UndoDepth;
 
@@ -527,7 +545,10 @@ public class StratLineupPickerTests
             StratStepRow row = h.AddThrow();
             LineupTechnique second = h.Lineup.Techniques[1];
             h.Tab.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null,
-                new JsonObject { ["kind"] = "smoke", ["lineupId"] = AliasOf(h.Lineup).ToString(), ["technique"] = second.Key }));
+                new JsonObject
+                {
+                    ["kind"] = "smoke", ["lineupId"] = AliasOf(h.Lineup).ToString(), ["technique"] = second.Key
+                }));
             await h.WarmAsync();
 
             h.Tab.OpenLineupPickerCommand.Execute(h.Editor.Steps[0]);
@@ -535,7 +556,8 @@ public class StratLineupPickerTests
             using (Assert.Multiple())
             {
                 await Assert.That(picker.Map.FocusedGroup).IsNotNull();
-                await Assert.That(picker.SelectedPosition?.Key).IsEqualTo(UtilityBookTabViewModel.PositionKey(h.Lineup, second));
+                await Assert.That(picker.SelectedPosition?.Key)
+                    .IsEqualTo(UtilityBookTabViewModel.PositionKey(h.Lineup, second));
                 await Assert.That(picker.CanConfirm).IsTrue();
             }
 
@@ -552,7 +574,8 @@ public class StratLineupPickerTests
             using UtilityBookTabViewModel tab = new(h.Index, loadMapAsset: _ => null);
             using (Assert.Multiple())
             {
-                await Assert.That(tab.SelectedMap).IsEqualTo(Map).Because("the tab still falls back to the first indexed map");
+                await Assert.That(tab.SelectedMap).IsEqualTo(Map)
+                    .Because("the tab still falls back to the first indexed map");
                 await Assert.That(tab.QueryKinds).IsNull();
                 await Assert.That(tab.HasGroups).IsTrue();
             }
@@ -560,7 +583,8 @@ public class StratLineupPickerTests
             using UtilityBookTabViewModel locked = new(h.Index, loadMapAsset: _ => null, lockedMap: "de_nuke");
             using (Assert.Multiple())
             {
-                await Assert.That(locked.SelectedMap).IsEqualTo("de_nuke").Because("the picker never shows another map");
+                await Assert.That(locked.SelectedMap).IsEqualTo("de_nuke")
+                    .Because("the picker never shows another map");
                 await Assert.That(locked.HasGroups).IsFalse();
             }
         });

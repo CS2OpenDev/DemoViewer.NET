@@ -80,12 +80,7 @@ public static class StressTestGraphs
                 });
             }
 
-            rows.Add(new SampleTableRow
-            {
-                Label = $"Player_{p:D2}",
-                FilterAnnotation = $"slot == {p}",
-                Cells = cells
-            });
+            rows.Add(new SampleTableRow { Label = $"Player_{p:D2}", FilterAnnotation = $"slot == {p}", Cells = cells });
         }
 
         IReadOnlyList<ITableColumnEdge> columnEdges =
@@ -97,12 +92,7 @@ public static class StressTestGraphs
         ];
         IReadOnlyList<INodeTable> tables =
         [
-            new SampleTable
-            {
-                ColumnNames = columns,
-                Rows = rows,
-                ColumnEdges = columnEdges
-            }
+            new SampleTable { ColumnNames = columns, Rows = rows, ColumnEdges = columnEdges }
         ];
 
         return (nodes.Cast<IGraphNode>().ToList(), edges, groups, tables);
@@ -293,10 +283,7 @@ public static class StressTestGraphs
                 displayValue: i.ToString(CultureInfo.InvariantCulture)));
         }
 
-        List<IGraphNode> nodes = new()
-        {
-            root
-        };
+        List<IGraphNode> nodes = new() { root };
         nodes.AddRange(children);
 
         List<IGraphEdge> edges = new();
@@ -327,10 +314,7 @@ public static class StressTestGraphs
                 displayValue: i.ToString(CultureInfo.InvariantCulture)));
         }
 
-        List<IGraphNode> nodes = new()
-        {
-            hub
-        };
+        List<IGraphNode> nodes = new() { hub };
         nodes.AddRange(spokes);
 
         List<IGraphEdge> edges = new();
@@ -404,16 +388,13 @@ public static class StressTestGraphs
                 {
                     cells.Add(new SampleTableCell
                     {
-                        IsActive = c < 2,
-                        DisplayValue = ((p + c + t) % 7).ToString(CultureInfo.InvariantCulture)
+                        IsActive = c < 2, DisplayValue = ((p + c + t) % 7).ToString(CultureInfo.InvariantCulture)
                     });
                 }
 
                 rows.Add(new SampleTableRow
                 {
-                    Label = $"{tableNames[t]}_P{p}",
-                    FilterAnnotation = $"slot == {p}",
-                    Cells = cells
+                    Label = $"{tableNames[t]}_P{p}", FilterAnnotation = $"slot == {p}", Cells = cells
                 });
             }
 
@@ -425,12 +406,7 @@ public static class StressTestGraphs
                 new SampleColumnEdge(roundActive, 2, "player_hurt", VisualEdgeEffect.SetValue, "attacker == player"),
                 new SampleColumnEdge(root, 3, "round_freeze_end", VisualEdgeEffect.Activate)
             ];
-            tables.Add(new SampleTable
-            {
-                ColumnNames = columns,
-                Rows = rows,
-                ColumnEdges = columnEdges
-            });
+            tables.Add(new SampleTable { ColumnNames = columns, Rows = rows, ColumnEdges = columnEdges });
         }
 
         return (nodes, edges, groups, tables);

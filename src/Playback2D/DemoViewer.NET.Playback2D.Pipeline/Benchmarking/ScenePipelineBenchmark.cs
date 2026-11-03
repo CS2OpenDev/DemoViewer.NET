@@ -173,10 +173,7 @@ public sealed class ScenePipelineBenchmark
             // whole capture exists to undo.
             perf?.BeginStage(PerfStage.Source);
             Scene2DFrame frame = source.FrameAt(index);
-            SceneTime time = source.TimeAt(index) with
-            {
-                DeltaSeconds = dt
-            };
+            SceneTime time = source.TimeAt(index) with { DeltaSeconds = dt };
             perf?.EndStage(PerfStage.Source);
 
             clock.Restart();
@@ -229,10 +226,7 @@ public sealed class ScenePipelineBenchmark
 
         perf?.BeginStage(PerfStage.Source);
         Scene2DFrame frame = source.FrameAt(index);
-        SceneTime time = source.TimeAt(index) with
-        {
-            DeltaSeconds = dt
-        };
+        SceneTime time = source.TimeAt(index) with { DeltaSeconds = dt };
         perf?.EndStage(PerfStage.Source);
 
         perf?.BeginStage(PerfStage.Advance);

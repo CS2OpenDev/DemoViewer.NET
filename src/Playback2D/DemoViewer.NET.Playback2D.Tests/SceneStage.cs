@@ -72,11 +72,7 @@ internal sealed class SceneStage : IDisposable
         }
 
         Renderer = new HeadlessSceneRenderer(Compositor, _provider, new StackedLayout(),
-            palette ?? ScenePalette.Dark)
-        {
-            Size = size,
-            Purpose = RenderPurpose.Export
-        };
+            palette ?? ScenePalette.Dark) { Size = size, Purpose = RenderPurpose.Export };
 
         // Exactly as Scene2DHost wires it, so the level-crossing snap and its per-frame cost
         // are inside the allocation and budget gates rather than beside them.

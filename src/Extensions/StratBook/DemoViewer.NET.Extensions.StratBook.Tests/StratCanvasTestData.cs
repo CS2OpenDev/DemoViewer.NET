@@ -27,7 +27,8 @@ internal static class StratCanvasTestData
     /// </summary>
     public static StratDocument FiveSteps(Guid? id = null)
     {
-        StratDocument document = StratDocument.Create(id ?? Guid.NewGuid(), Team, "de_mirage", "T", "execute", "A exec", Created);
+        StratDocument document =
+            StratDocument.Create(id ?? Guid.NewGuid(), Team, "de_mirage", "T", "execute", "A exec", Created);
         document.Canvas = new StratCanvas();
 
         StratStep one = Step(1, 110, "all", "move", "TRamp", "BombsiteA");
@@ -38,7 +39,9 @@ internal static class StratCanvasTestData
         ];
         one.Strokes =
         [
-            JsonNode.Parse($$"""{ "id": "{{ArrowId}}", "kind": "Arrow", "colorArgb": 4294951175, "widthWorld": 6, "opacity": 1, "revealOnFadeIn": false, "space": "world", "levelMinZ": 0, "points": [0, 0, 0.5, 600, 0, 0.5], "futureStroke": "kept" }""")!.AsObject()
+            JsonNode.Parse(
+                    $$"""{ "id": "{{ArrowId}}", "kind": "Arrow", "colorArgb": 4294951175, "widthWorld": 6, "opacity": 1, "revealOnFadeIn": false, "space": "world", "levelMinZ": 0, "points": [0, 0, 0.5, 600, 0, 0.5], "futureStroke": "kept" }""")
+                !.AsObject()
         ];
 
         StratStep two = Step(2, 100, "A", "move");
@@ -48,7 +51,9 @@ internal static class StratCanvasTestData
         three.Positions = [Position("A", 1200, 0), Position("B", 100, 900)];
         three.Strokes =
         [
-            JsonNode.Parse($$"""{ "id": "{{TextId}}", "kind": "Text", "colorArgb": 4294951175, "widthWorld": 6, "opacity": 1, "space": "world", "levelMinZ": 0, "points": [100, 900, 0.5], "text": "peek here" }""")!.AsObject()
+            JsonNode.Parse(
+                    $$"""{ "id": "{{TextId}}", "kind": "Text", "colorArgb": 4294951175, "widthWorld": 6, "opacity": 1, "space": "world", "levelMinZ": 0, "points": [100, 900, 0.5], "text": "peek here" }""")
+                !.AsObject()
         ];
 
         StratStep four = Step(4, 80, "A", "move");
@@ -72,7 +77,14 @@ internal static class StratCanvasTestData
     }
 
     public static StepPosition Position(string slot, double x, double y, double? yaw = null) =>
-        new() { Slot = slot, X = x, Y = y, LevelMinZ = 0, YawDegrees = yaw };
+        new()
+        {
+            Slot = slot,
+            X = x,
+            Y = y,
+            LevelMinZ = 0,
+            YawDegrees = yaw
+        };
 
     /// <summary>An in-memory store holding the strat, and a session with it open and its timers parked.</summary>
     public static (StratStore Store, StratSession Session) Opened(StratDocument document)
@@ -86,8 +98,7 @@ internal static class StratCanvasTestData
 
         StratSession session = new(store, null, () => false, () => Created)
         {
-            AutoSaveDelay = TimeSpan.FromHours(1),
-            IdleCommitDelay = TimeSpan.FromHours(1)
+            AutoSaveDelay = TimeSpan.FromHours(1), IdleCommitDelay = TimeSpan.FromHours(1)
         };
         session.Open(document.Id);
         return (store, session);
@@ -96,7 +107,8 @@ internal static class StratCanvasTestData
     /// <summary>A canvas over the session with no map bundle, a hand-cranked clock and the shipped keymap.</summary>
     public static StratCanvasViewModel Canvas(StratSession session, ManualTicker ticker, StratStore? store = null)
     {
-        return new StratCanvasViewModel(session, _ => null, ticker, id => store?.Load(id).Document, StratTestKeymap.Shipped);
+        return new StratCanvasViewModel(session, _ => null, ticker, id => store?.Load(id).Document,
+            StratTestKeymap.Shipped);
     }
 }
 

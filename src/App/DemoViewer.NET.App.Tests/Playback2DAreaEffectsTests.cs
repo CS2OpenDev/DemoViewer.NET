@@ -24,12 +24,7 @@ public class Playback2DAreaEffectsTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
         vm.OnActivated(ctx);
 
         View view = new();
@@ -64,12 +59,7 @@ public class Playback2DAreaEffectsTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
         vm.OnActivated(ctx);
 
         ctx.Push(new FakeSnap(1, new View()));

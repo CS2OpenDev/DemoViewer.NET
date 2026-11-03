@@ -146,10 +146,7 @@ public class BudgetTests
         {
             // The animation-frame timestamp jitters in reality, so a varying dt matches the real steady
             // state, and it also stops MarkerSmoother.AdvanceOnce from de-duplicating the loop away.
-            SceneTime frameTime = time with
-            {
-                DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6
-            };
+            SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6 };
             stage.Renderer.Advance(fixture.Frame, in frameTime);
             stage.Renderer.Render();
         }
@@ -167,8 +164,7 @@ public class BudgetTests
         ScenePipelineBenchmark benchmark = new(stage.Compositor, provider, new StackedLayout(),
             ScenePalette.Dark)
         {
-            Id = SyntheticScenes.FullSceneBudgetName,
-            AuthoritativeFloors = SyntheticScenes.BudgetFloors
+            Id = SyntheticScenes.FullSceneBudgetName, AuthoritativeFloors = SyntheticScenes.BudgetFloors
         };
 
         BenchmarkReport report = benchmark.Run(new FixtureFrameSource(fixture),
@@ -245,8 +241,7 @@ public class BudgetTests
         ScenePipelineBenchmark benchmark = new(stage.Compositor, provider, new StackedLayout(),
             ScenePalette.Dark)
         {
-            Id = SyntheticScenes.FullSceneBudgetName + "-ink",
-            AuthoritativeFloors = SyntheticScenes.BudgetFloors
+            Id = SyntheticScenes.FullSceneBudgetName + "-ink", AuthoritativeFloors = SyntheticScenes.BudgetFloors
         };
 
         FixtureFrameSource source = new(fixture);
@@ -357,10 +352,7 @@ public class BudgetTests
     }
 
     private static AnnotationStyle InkStyle(float width) =>
-        AnnotationStyle.Default with
-        {
-            WidthWorld = width
-        };
+        AnnotationStyle.Default with { WidthWorld = width };
 
     // A doubling-back arc across the map, which is the case a gradient shader gets wrong and the case a
     // straight line would let through: the outliner emits its 13-point corner sweeps here.
@@ -407,10 +399,7 @@ public class BudgetTests
             long before = GC.GetAllocatedBytesForCurrentThread();
             for (int i = 0; i < 128; i++)
             {
-                SceneTime frameTime = time with
-                {
-                    DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6
-                };
+                SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6 };
                 probe.Renderer.Advance(fixture.Frame, in frameTime);
                 probe.Renderer.Render();
             }

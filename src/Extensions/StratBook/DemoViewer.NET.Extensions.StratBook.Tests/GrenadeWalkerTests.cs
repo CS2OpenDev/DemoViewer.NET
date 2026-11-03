@@ -26,23 +26,31 @@ public class GrenadeWalkerTests
     private static readonly int[] BounceTicks = [117, 133, 151];
 
     // A pawn read with the fields a row prints.
-    private static ThrowerRead Read(int tick, Vector3? at, float? pitch = null, float? yaw = null, bool? onGround = null, bool? ducked = null,
+    private static ThrowerRead Read(int tick, Vector3? at, float? pitch = null, float? yaw = null,
+        bool? onGround = null, bool? ducked = null,
         int team = 2, float? strength = null, bool held = false) =>
         new(tick, at, pitch, yaw, onGround, ducked, team, strength, held);
 
-    private static ReleaseFacts Release(int slot, int tick, string weapon, ThrowerRead? pawn = null, Vector3? before = null) =>
-        new(slot, tick, GrenadeRules.ProjectileClassOfWeapon(weapon)!, weapon, pawn ?? Read(tick, null, team: 0), before);
+    private static ReleaseFacts Release(int slot, int tick, string weapon, ThrowerRead? pawn = null,
+        Vector3? before = null) =>
+        new(slot, tick, GrenadeRules.ProjectileClassOfWeapon(weapon)!, weapon, pawn ?? Read(tick, null, team: 0),
+            before);
 
     // An HE thrown at tick 100, flying east, bouncing twice, at rest from 190, removed on 204.
-    private static ProjectileFacts He(int thrower = Slot, ThrowerAtSpawn? atSpawn = null, ThrowerRead? offset = null, Vector3? offsetBefore = null,
+    private static ProjectileFacts He(int thrower = Slot, ThrowerAtSpawn? atSpawn = null, ThrowerRead? offset = null,
+        Vector3? offsetBefore = null,
         int? explode = null, int index = Index, bool removed = true) =>
-        new(index, Serial, GrenadeProjectileClasses.HEGrenade, thrower, 100, 100, 204, removed, new Vector3(0, 0, 64), new Vector3(500, 0, 100),
+        new(index, Serial, GrenadeProjectileClasses.HEGrenade, thrower, 100, 100, 204, removed, new Vector3(0, 0, 64),
+            new Vector3(500, 0, 100),
             new Vector3(460, 0, 64), 190, 2, null, explode, null, null, atSpawn, offset, offsetBefore);
 
-    private static ProjectileFacts Facts(int index, string cls, int thrower, int spawn, int end, Vector3? last = null, bool removed = true,
+    private static ProjectileFacts Facts(int index, string cls, int thrower, int spawn, int end, Vector3? last = null,
+        bool removed = true,
         int? smokeTick = null, Vector3? smokeAt = null) =>
-        new(index, Serial, cls, thrower, spawn, spawn, end, removed, thrower >= 0 ? new Vector3(1, 1, 1) : null, null, last, end, 0, null, null,
-            smokeTick, smokeAt, thrower >= 0 ? new ThrowerAtSpawn(new Vector3(1, 1, 1), true, 2, -1, 0) : null, null, null);
+        new(index, Serial, cls, thrower, spawn, spawn, end, removed, thrower >= 0 ? new Vector3(1, 1, 1) : null, null,
+            last, end, 0, null, null,
+            smokeTick, smokeAt, thrower >= 0 ? new ThrowerAtSpawn(new Vector3(1, 1, 1), true, 2, -1, 0) : null, null,
+            null);
 
     private static GrenadeTrajectories NoFlights => new(new Dictionary<(int, int), List<TrajectoryPoint>>(), 4);
 
@@ -69,7 +77,8 @@ public class GrenadeWalkerTests
     [Arguments(0.0f, true, ThrowStrengthClass.Underhand)]
     [Arguments(0.8f, true, ThrowStrengthClass.Other)]
     [Arguments(1.0f, false, ThrowStrengthClass.Unknown)]
-    public async Task Strength_ClassesAtTheNamedThresholds_AndUnknownOffAGrenade(float strength, bool held, ThrowStrengthClass expected) =>
+    public async Task Strength_ClassesAtTheNamedThresholds_AndUnknownOffAGrenade(float strength, bool held,
+        ThrowStrengthClass expected) =>
         await Assert.That(GrenadeRules.ClassifyStrength(strength, held)).IsEqualTo(expected);
 
     [Test]
@@ -79,14 +88,19 @@ public class GrenadeWalkerTests
         {
             // Covered with a press: a jump-throw, whatever the ground flag says (the press-after-release bind
             // leaves the pawn grounded at the release but not at the spawn).
-            await Assert.That(GrenadeRules.ClassifyJumpThrow(true, 95, true)).IsEqualTo((true, JumpThrowSource.Inputs, (int?)95));
+            await Assert.That(GrenadeRules.ClassifyJumpThrow(true, 95, true))
+                .IsEqualTo((true, JumpThrowSource.Inputs, (int?)95));
             // Covered with no press: standing, even when the pawn is airborne (a ledge drop).
-            await Assert.That(GrenadeRules.ClassifyJumpThrow(true, null, false)).IsEqualTo((false, JumpThrowSource.Inputs, (int?)null));
+            await Assert.That(GrenadeRules.ClassifyJumpThrow(true, null, false))
+                .IsEqualTo((false, JumpThrowSource.Inputs, (int?)null));
             // Not covered: the spawn frame's ground flag.
-            await Assert.That(GrenadeRules.ClassifyJumpThrow(false, null, false)).IsEqualTo((true, JumpThrowSource.GroundFlag, (int?)null));
-            await Assert.That(GrenadeRules.ClassifyJumpThrow(false, null, true)).IsEqualTo((false, JumpThrowSource.GroundFlag, (int?)null));
+            await Assert.That(GrenadeRules.ClassifyJumpThrow(false, null, false))
+                .IsEqualTo((true, JumpThrowSource.GroundFlag, (int?)null));
+            await Assert.That(GrenadeRules.ClassifyJumpThrow(false, null, true))
+                .IsEqualTo((false, JumpThrowSource.GroundFlag, (int?)null));
             // Nothing to read at all.
-            await Assert.That(GrenadeRules.ClassifyJumpThrow(false, null, null)).IsEqualTo((false, JumpThrowSource.None, (int?)null));
+            await Assert.That(GrenadeRules.ClassifyJumpThrow(false, null, null))
+                .IsEqualTo((false, JumpThrowSource.None, (int?)null));
         }
     }
 
@@ -95,14 +109,21 @@ public class GrenadeWalkerTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Molotov, "weapon_incgrenade", false)).IsEqualTo(GrenadeKind.Incendiary);
-            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Molotov, "weapon_molotov", true)).IsEqualTo(GrenadeKind.Molotov);
-            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Molotov, null, true)).IsEqualTo(GrenadeKind.Incendiary);
-            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Molotov, null, null)).IsEqualTo(GrenadeKind.Molotov);
-            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Flashbang, null, null)).IsEqualTo(GrenadeKind.Flash);
+            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Molotov, "weapon_incgrenade", false))
+                .IsEqualTo(GrenadeKind.Incendiary);
+            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Molotov, "weapon_molotov", true))
+                .IsEqualTo(GrenadeKind.Molotov);
+            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Molotov, null, true))
+                .IsEqualTo(GrenadeKind.Incendiary);
+            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Molotov, null, null))
+                .IsEqualTo(GrenadeKind.Molotov);
+            await Assert.That(GrenadeRules.KindOf(GrenadeProjectileClasses.Flashbang, null, null))
+                .IsEqualTo(GrenadeKind.Flash);
             await Assert.That(GrenadeRules.KindOf("CBaseEntity", null, null)).IsNull();
-            await Assert.That(GrenadeRules.ProjectileClassOfWeapon("weapon_smokegrenade")).IsEqualTo(GrenadeProjectileClasses.Smoke);
-            await Assert.That(GrenadeRules.ProjectileClassOfWeapon("incgrenade")).IsEqualTo(GrenadeProjectileClasses.Molotov);
+            await Assert.That(GrenadeRules.ProjectileClassOfWeapon("weapon_smokegrenade"))
+                .IsEqualTo(GrenadeProjectileClasses.Smoke);
+            await Assert.That(GrenadeRules.ProjectileClassOfWeapon("incgrenade"))
+                .IsEqualTo(GrenadeProjectileClasses.Molotov);
             await Assert.That(GrenadeRules.ProjectileClassOfWeapon("weapon_ak47")).IsNull();
         }
     }
@@ -125,7 +146,8 @@ public class GrenadeWalkerTests
             {
                 await Assert.That(GrenadeConsole.Format(row))
                     .IsEqualTo("setpos -2260.00 -1036.00 -414.46; setang -18.12 -15.30 0.00");
-                await Assert.That(GrenadeConsole.Format(new GrenadeRow { ReleasePosition = new WorldPoint(1, 2, 3) })).IsNull()
+                await Assert.That(GrenadeConsole.Format(new GrenadeRow { ReleasePosition = new WorldPoint(1, 2, 3) }))
+                    .IsNull()
                     .Because("no eye angles is no setang, never a zero one");
             }
         }
@@ -167,7 +189,8 @@ public class GrenadeWalkerTests
             await Assert.That(points[^1].Tick).IsEqualTo(160);
             foreach (int bounceTick in BounceTicks)
             {
-                await Assert.That(points.Any(p => p.Tick == bounceTick)).IsTrue().Because($"bounce at {bounceTick}, stride {stride}");
+                await Assert.That(points.Any(p => p.Tick == bounceTick)).IsTrue()
+                    .Because($"bounce at {bounceTick}, stride {stride}");
             }
 
             await Assert.That(points.Zip(points.Skip(1)).All(pair => pair.First.Tick < pair.Second.Tick)).IsTrue();
@@ -183,7 +206,8 @@ public class GrenadeWalkerTests
     [Test]
     public async Task Plan_AResolvedThrowerTakesItsLatestFireInTheLookback()
     {
-        ReleaseFacts latest = Release(Slot, 93, "weapon_hegrenade", Read(93, new Vector3(0, 0, 0)), new Vector3(-40, 0, 0));
+        ReleaseFacts latest = Release(Slot, 93, "weapon_hegrenade", Read(93, new Vector3(0, 0, 0)),
+            new Vector3(-40, 0, 0));
         List<ReleaseFacts> releases =
         [
             Release(Slot, 40, "weapon_hegrenade"), // outside the 40-tick lookback
@@ -272,15 +296,19 @@ public class GrenadeWalkerTests
             new GrenadeDetonation(GrenadeEventIndex.HeDetonate, 150, Index + 1, Vector3.Zero)
         ]);
 
-        (int? tick, Vector3? position, DetonationSource source, _) = GrenadeWalker.ResolveDetonation(He(), events, 0, []);
+        (int? tick, Vector3? position, DetonationSource source, _) =
+            GrenadeWalker.ResolveDetonation(He(), events, 0, []);
         await Assert.That((tick, position, source)).IsEqualTo(((int?)204, (Vector3?)pop, DetonationSource.Event));
 
         // The same index reused by a later projectile: its event is not this one's.
-        GrenadeEventIndex later = GrenadeEventIndex.FromDetonations([new GrenadeDetonation(GrenadeEventIndex.HeDetonate, 900, Index, pop)]);
+        GrenadeEventIndex later =
+            GrenadeEventIndex.FromDetonations([new GrenadeDetonation(GrenadeEventIndex.HeDetonate, 900, Index, pop)]);
         (tick, _, source, _) = GrenadeWalker.ResolveDetonation(He(), later, 0, []);
-        await Assert.That((tick, source)).IsEqualTo(((int?)203, DetonationSource.LastSample)).Because("the last sample sits the tick before the removal");
+        await Assert.That((tick, source)).IsEqualTo(((int?)203, DetonationSource.LastSample))
+            .Because("the last sample sits the tick before the removal");
 
-        (tick, _, source, _) = GrenadeWalker.ResolveDetonation(He(explode: 1204), GrenadeEventIndex.FromDetonations([]), 1000, []);
+        (tick, _, source, _) =
+            GrenadeWalker.ResolveDetonation(He(explode: 1204), GrenadeEventIndex.FromDetonations([]), 1000, []);
         await Assert.That((tick, source)).IsEqualTo(((int?)204, DetonationSource.Entity))
             .Because("the effect tick is server clock: minus the server start tick");
     }
@@ -292,10 +320,13 @@ public class GrenadeWalkerTests
         GrenadeEventIndex none = GrenadeEventIndex.FromDetonations([]);
 
         (int? tick, Vector3? position, DetonationSource source, _) = GrenadeWalker.ResolveDetonation(
-            Facts(Index, GrenadeProjectileClasses.Smoke, Slot, 10, 11, new Vector3(9, 2, 3), smokeTick: 70, smokeAt: at), none, 10, []);
+            Facts(Index, GrenadeProjectileClasses.Smoke, Slot, 10, 11, new Vector3(9, 2, 3), smokeTick: 70,
+                smokeAt: at), none, 10, []);
         await Assert.That((tick, position, source)).IsEqualTo(((int?)60, (Vector3?)at, DetonationSource.Entity));
 
-        (tick, _, source, _) = GrenadeWalker.ResolveDetonation(Facts(Index, GrenadeProjectileClasses.Smoke, Slot, 10, 11, new Vector3(9, 2, 3)), none, 0, []);
+        (tick, _, source, _) =
+            GrenadeWalker.ResolveDetonation(
+                Facts(Index, GrenadeProjectileClasses.Smoke, Slot, 10, 11, new Vector3(9, 2, 3)), none, 0, []);
         await Assert.That((tick, source)).IsEqualTo(((int?)null, DetonationSource.None));
     }
 
@@ -305,13 +336,15 @@ public class GrenadeWalkerTests
         ProjectileFacts molotov = Facts(Index, GrenadeProjectileClasses.Molotov, Slot, 10, 41, new Vector3(300, 0, 0));
         GrenadeEventIndex events = GrenadeEventIndex.FromDetonations(
         [
-            new GrenadeDetonation(GrenadeEventIndex.InfernoStart, 47, 900, new Vector3(300, 0, 0)), // six ticks after the removal
+            new GrenadeDetonation(GrenadeEventIndex.InfernoStart, 47, 900,
+                new Vector3(300, 0, 0)), // six ticks after the removal
             new GrenadeDetonation(GrenadeEventIndex.InfernoStart, 42, 901, new Vector3(2000, 0, 0)),
             new GrenadeDetonation(GrenadeEventIndex.InfernoStart, 42, 902, new Vector3(305, 0, 0))
         ]);
         HashSet<GrenadeDetonation> claimed = [];
 
-        (int? tick, _, DetonationSource source, int? inferno) = GrenadeWalker.ResolveDetonation(molotov, events, 0, claimed);
+        (int? tick, _, DetonationSource source, int? inferno) =
+            GrenadeWalker.ResolveDetonation(molotov, events, 0, claimed);
 
         using (Assert.Multiple())
         {
@@ -333,16 +366,23 @@ public class GrenadeWalkerTests
         ProjectileFacts he = He(atSpawn: new ThrowerAtSpawn(new Vector3(20, 0, 30), false, 2, 94, 1));
         List<ReleaseFacts> releases =
         [
-            Release(Slot, 93, "weapon_hegrenade", Read(93, new Vector3(0, 0, 0), -12.5f, 90f, true, true, 2, 1.0f, true), new Vector3(-40, 0, 0))
+            Release(Slot, 93, "weapon_hegrenade",
+                Read(93, new Vector3(0, 0, 0), -12.5f, 90f, true, true, 2, 1.0f, true), new Vector3(-40, 0, 0))
         ];
-        GrenadeEventIndex events = GrenadeEventIndex.FromDetonations([new GrenadeDetonation(GrenadeEventIndex.HeDetonate, 204, Index, new Vector3(460, 0, 64))]);
-        GrenadeTrajectories flights = new(new Dictionary<(int, int), List<TrajectoryPoint>>
-        {
-            [(Index, Serial)] = [new TrajectoryPoint(100, 0, 0, 64, 0), new TrajectoryPoint(190, 460, 0, 64, 2)]
-        }, 4);
+        GrenadeEventIndex events = GrenadeEventIndex.FromDetonations([
+            new GrenadeDetonation(GrenadeEventIndex.HeDetonate, 204, Index, new Vector3(460, 0, 64))
+        ]);
+        GrenadeTrajectories flights =
+            new(
+                new Dictionary<(int, int), List<TrajectoryPoint>>
+                {
+                    [(Index, Serial)] =
+                        [new TrajectoryPoint(100, 0, 0, 64, 0), new TrajectoryPoint(190, 460, 0, 64, 2)]
+                }, 4);
         PlayerInfo thrower = new(Slot, "thrower", 76561198000000001UL, 12, 2, false);
 
-        GrenadeWalk walk = GrenadeWalker.Assemble(new GrenadeWalkInputs(new GrenadeTableRows([he], releases, events), flights),
+        GrenadeWalk walk = GrenadeWalker.Assemble(
+            new GrenadeWalkInputs(new GrenadeTableRows([he], releases, events), flights),
             [new ClipRound(1, 10), new ClipRound(2, 90)], [thrower], 64, 0);
         GrenadeRow row = walk.Rows.Single();
 
@@ -377,7 +417,8 @@ public class GrenadeWalkerTests
             await Assert.That(row.EndTick).IsEqualTo(204);
             await Assert.That(row.BounceCount).IsEqualTo(2);
             await Assert.That(row.AirTimeTicks).IsEqualTo(90).Because("at rest from tick 190, before the fuse at 204");
-            await Assert.That(row.Trajectory.Select(p => p.Tick)).IsEquivalentTo([100, 190], CollectionOrdering.Matching);
+            await Assert.That(row.Trajectory.Select(p => p.Tick))
+                .IsEquivalentTo([100, 190], CollectionOrdering.Matching);
             await Assert.That(GrenadeConsole.Format(row)).IsEqualTo("setpos 0.00 0.00 0.00; setang -12.50 90.00 0.00");
         }
     }
@@ -389,7 +430,8 @@ public class GrenadeWalkerTests
         ProjectileFacts early = He(atSpawn: new ThrowerAtSpawn(null, true, 2, 70, 1), index: 1);
         ProjectileFacts silent = He(atSpawn: new ThrowerAtSpawn(null, false, 2, -1, 0), index: 2);
 
-        List<GrenadeRow> rows = GrenadeWalker.Assemble(GrenadeWalker.Plan([early, silent], []), GrenadeEventIndex.FromDetonations([]), NoFlights,
+        List<GrenadeRow> rows = GrenadeWalker.Assemble(GrenadeWalker.Plan([early, silent], []),
+            GrenadeEventIndex.FromDetonations([]), NoFlights,
             [], [], 64, 0);
 
         using (Assert.Multiple())
@@ -408,7 +450,8 @@ public class GrenadeWalkerTests
         GrenadeEventIndex events = GrenadeEventIndex.FromDetonations([]);
         ProjectileFacts landing = Facts(2, GrenadeProjectileClasses.Decoy, -1, 500, 900, new Vector3(5, 5, 5));
 
-        List<GrenadeRow> rows = GrenadeWalker.Assemble(GrenadeWalker.Plan([He(), landing], []), events, NoFlights, [], [], 64, 0);
+        List<GrenadeRow> rows =
+            GrenadeWalker.Assemble(GrenadeWalker.Plan([He(), landing], []), events, NoFlights, [], [], 64, 0);
         GrenadeRow he = rows[0], decoy = rows[1];
 
         using (Assert.Multiple())
@@ -427,9 +470,11 @@ public class GrenadeWalkerTests
             await Assert.That(decoy.ThrowerSlot).IsEqualTo(-1);
             await Assert.That(decoy.ThrowerSource).IsEqualTo(ThrowerSource.None);
             await Assert.That(decoy.ThrowerSteamId64).IsNull();
-            await Assert.That(decoy.SpawnPosition).IsNull().Because("a landing row carries no release point, and no flight gave one");
+            await Assert.That(decoy.SpawnPosition).IsNull()
+                .Because("a landing row carries no release point, and no flight gave one");
             await Assert.That(decoy.EndKind).IsEqualTo(GrenadeEndKind.Removed);
-            await Assert.That(decoy.AirTimeTicks).IsEqualTo(400).Because("the landing says nothing about when it came to rest");
+            await Assert.That(decoy.AirTimeTicks).IsEqualTo(400)
+                .Because("the landing says nothing about when it came to rest");
         }
     }
 
@@ -438,21 +483,28 @@ public class GrenadeWalkerTests
     {
         // A smoke whose chain never resolved: the table has only its landing, the observer saw its flight.
         ProjectileFacts landing = Facts(Index, GrenadeProjectileClasses.Smoke, -1, 200, 1400, new Vector3(800, 0, 0));
-        ReleaseFacts fire = Release(6, 193, "weapon_smokegrenade", Read(193, new Vector3(10, 0, 0), -5f, 0f, true, false, 3, 1f, true),
+        ReleaseFacts fire = Release(6, 193, "weapon_smokegrenade",
+            Read(193, new Vector3(10, 0, 0), -5f, 0f, true, false, 3, 1f, true),
             new Vector3(10, 0, 0));
-        GrenadeTrajectories flights = new(new Dictionary<(int, int), List<TrajectoryPoint>>
-        {
-            [(Index, Serial)] = [new TrajectoryPoint(200, 12, 0, 64, 0), new TrajectoryPoint(260, 800, 0, 0, 1)]
-        }, 4)
-        {
-            Facts = new Dictionary<(int, int), FlightFacts>
+        GrenadeTrajectories flights =
+            new(
+                new Dictionary<(int, int), List<TrajectoryPoint>>
+                {
+                    [(Index, Serial)] =
+                        [new TrajectoryPoint(200, 12, 0, 64, 0), new TrajectoryPoint(260, 800, 0, 0, 1)]
+                }, 4)
             {
-                [(Index, Serial)] = new(GrenadeProjectileClasses.Smoke, 200, new Vector3(12, 0, 64), new Vector3(700, 0, 200), null, 1400, true,
-                    new Vector3(800, 0, 0), 260, 1)
-            }
-        };
+                Facts = new Dictionary<(int, int), FlightFacts>
+                {
+                    [(Index, Serial)] = new(GrenadeProjectileClasses.Smoke, 200, new Vector3(12, 0, 64),
+                        new Vector3(700, 0, 200), null, 1400, true,
+                        new Vector3(800, 0, 0), 260, 1)
+                }
+            };
 
-        GrenadeWalk walk = GrenadeWalker.Assemble(new GrenadeWalkInputs(new GrenadeTableRows([landing], [fire], GrenadeEventIndex.FromDetonations([])), flights),
+        GrenadeWalk walk = GrenadeWalker.Assemble(
+            new GrenadeWalkInputs(new GrenadeTableRows([landing], [fire], GrenadeEventIndex.FromDetonations([])),
+                flights),
             [], [new PlayerInfo(6, "joined", 76561198000000006UL, 12, 3, false)], 64, 0);
         GrenadeRow row = walk.Rows.Single();
 
@@ -465,7 +517,8 @@ public class GrenadeWalkerTests
             await Assert.That(row.SpawnPosition).IsEqualTo(new WorldPoint(12, 0, 64));
             await Assert.That(row.SpawnVelocity).IsEqualTo(new WorldPoint(700, 0, 200));
             await Assert.That(row.AirTimeTicks).IsEqualTo(60).Because("the flight says when it came to rest");
-            await Assert.That(row.ThrowerPositionAtSpawn).IsNull().Because("nothing read the joined thrower at the spawn");
+            await Assert.That(row.ThrowerPositionAtSpawn).IsNull()
+                .Because("nothing read the joined thrower at the spawn");
             await Assert.That(row.JumpThrowSource).IsEqualTo(JumpThrowSource.None);
             await Assert.That(walk.InputCoverage).IsEqualTo(0).Because("no throw was read at the spawn");
         }
@@ -474,22 +527,28 @@ public class GrenadeWalkerTests
     [Test]
     public async Task Assemble_AFlightWithNoTableRow_IsAGrenadeStillLiveWhenTheRunEnded()
     {
-        GrenadeTrajectories flights = new(new Dictionary<(int, int), List<TrajectoryPoint>>
-        {
-            [(Index, Serial)] = [new TrajectoryPoint(100, 0, 0, 64, 0)],
-            [(140, 2)] = [new TrajectoryPoint(950, 5, 5, 64, 0), new TrajectoryPoint(990, 50, 5, 64, 0)]
-        }, 4)
-        {
-            Facts = new Dictionary<(int, int), FlightFacts>
+        GrenadeTrajectories flights =
+            new(
+                new Dictionary<(int, int), List<TrajectoryPoint>>
+                {
+                    [(Index, Serial)] = [new TrajectoryPoint(100, 0, 0, 64, 0)],
+                    [(140, 2)] = [new TrajectoryPoint(950, 5, 5, 64, 0), new TrajectoryPoint(990, 50, 5, 64, 0)]
+                }, 4)
             {
-                [(Index, Serial)] = new(GrenadeProjectileClasses.HEGrenade, 100, new Vector3(0, 0, 64), null, null, 204, true, new Vector3(460, 0, 64), 190, 2),
-                [(140, 2)] = new(GrenadeProjectileClasses.Flashbang, 950, new Vector3(5, 5, 64), new Vector3(600, 0, 0), null, 1000, false,
-                    new Vector3(50, 5, 64), 990, 0)
-            }
-        };
+                Facts = new Dictionary<(int, int), FlightFacts>
+                {
+                    [(Index, Serial)] =
+                        new(GrenadeProjectileClasses.HEGrenade, 100, new Vector3(0, 0, 64), null, null, 204, true,
+                            new Vector3(460, 0, 64), 190, 2),
+                    [(140, 2)] = new(GrenadeProjectileClasses.Flashbang, 950, new Vector3(5, 5, 64),
+                        new Vector3(600, 0, 0), null, 1000, false,
+                        new Vector3(50, 5, 64), 990, 0)
+                }
+            };
 
         List<ProjectileFacts> all = GrenadeWalker.WithFlights([He()], flights);
-        List<GrenadeRow> rows = GrenadeWalker.Assemble(GrenadeWalker.Plan(all, []), GrenadeEventIndex.FromDetonations([]), flights, [], [], 64, 0);
+        List<GrenadeRow> rows = GrenadeWalker.Assemble(GrenadeWalker.Plan(all, []),
+            GrenadeEventIndex.FromDetonations([]), flights, [], [], 64, 0);
 
         using (Assert.Multiple())
         {

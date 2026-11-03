@@ -436,7 +436,8 @@ public class Playback2DLevelStabilityTests
             return staged;
         }
 
-        string bundled = Path.Combine(DemoTestHelper.RequireRepoRoot(), NukeSample.Replace('/', Path.DirectorySeparatorChar));
+        string bundled = Path.Combine(DemoTestHelper.RequireRepoRoot(),
+            NukeSample.Replace('/', Path.DirectorySeparatorChar));
         if (File.Exists(bundled))
         {
             return bundled;

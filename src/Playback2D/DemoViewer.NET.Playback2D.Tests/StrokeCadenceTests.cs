@@ -202,10 +202,7 @@ public class StrokeCadenceTests
         Hand at64 = new();
         Hand at128 = new(ticksPerSecond: 128);
 
-        foreach (Hand h in new[]
-                 {
-                     at64, at128
-                 })
+        foreach (Hand h in new[] { at64, at128 })
         {
             h.Press();
             for (int i = 0; i < 24; i++)
@@ -377,8 +374,7 @@ public class StrokeCadenceTests
             Document = new AnnotationDocument();
             Session = new AnnotationSession(Document)
             {
-                DefaultVisibility = visibility,
-                TicksPerSecond = ticksPerSecond
+                DefaultVisibility = visibility, TicksPerSecond = ticksPerSecond
             };
             Services = new FakeToolServices(Session, Pane);
             Tool = new DrawTool();

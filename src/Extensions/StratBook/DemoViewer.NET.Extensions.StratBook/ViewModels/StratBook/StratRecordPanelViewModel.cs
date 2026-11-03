@@ -144,7 +144,7 @@ public sealed partial class StratRecordPanelViewModel : ObservableObject, IDispo
         }
 
         if (document.Id != _lastId || !string.Equals(document.Side, _lastSide, StringComparison.Ordinal)
-                                    || document.Revision != _lastRevision)
+                                   || document.Revision != _lastRevision)
         {
             Schedule(document);
         }
@@ -381,7 +381,8 @@ public sealed partial class StratRecordCountCell : ObservableObject
 {
     private readonly StratRecordPanelViewModel? _owner;
 
-    internal StratRecordCountCell(StratRecordPanelViewModel? owner, string scope, string label, IReadOnlyList<StratRun> runs)
+    internal StratRecordCountCell(StratRecordPanelViewModel? owner, string scope, string label,
+        IReadOnlyList<StratRun> runs)
     {
         _owner = owner;
         Scope = scope;

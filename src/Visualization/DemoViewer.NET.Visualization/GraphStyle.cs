@@ -70,20 +70,21 @@ public sealed record GraphStyle
             GroupBorder = C("GraphGroupBorder", variant, "#1E1E42"),
             GroupLabelColor = C("GraphGroupLabel", variant, "#505080"),
             LabelBackground = C("GraphLabelBg", variant, "#F00C0C1A"),
-            Node = new NodeStyleConfig
-            {
-                ActiveBackground = C("GraphNodeActiveBg", variant, "#0A2550"),
-                ActiveBorder = C("GraphNodeActiveBorder", variant, "#3060A0"),
-                ActiveForeground = C("GraphNodeActiveFg", variant, "#A0C8FF"),
-                ActiveSubForeground = C("GraphNodeActiveSubFg", variant, "#4080C0"),
-                InactiveBackground = C("GraphNodeInactiveBg", variant, "#14143A"),
-                InactiveBorder = C("GraphNodeInactiveBorder", variant, "#252545"),
-                InactiveForeground = C("GraphNodeInactiveFg", variant, "#606080"),
-                InactiveSubForeground = C("GraphNodeInactiveSubFg", variant, "#30304A"),
-                RootBackground = C("GraphNodeRootBg", variant, "#141428"),
-                RootBorder = C("GraphNodeRootBorder", variant, "#303050"),
-                RootForeground = C("GraphNodeRootFg", variant, "#505068")
-            },
+            Node =
+                new NodeStyleConfig
+                {
+                    ActiveBackground = C("GraphNodeActiveBg", variant, "#0A2550"),
+                    ActiveBorder = C("GraphNodeActiveBorder", variant, "#3060A0"),
+                    ActiveForeground = C("GraphNodeActiveFg", variant, "#A0C8FF"),
+                    ActiveSubForeground = C("GraphNodeActiveSubFg", variant, "#4080C0"),
+                    InactiveBackground = C("GraphNodeInactiveBg", variant, "#14143A"),
+                    InactiveBorder = C("GraphNodeInactiveBorder", variant, "#252545"),
+                    InactiveForeground = C("GraphNodeInactiveFg", variant, "#606080"),
+                    InactiveSubForeground = C("GraphNodeInactiveSubFg", variant, "#30304A"),
+                    RootBackground = C("GraphNodeRootBg", variant, "#141428"),
+                    RootBorder = C("GraphNodeRootBorder", variant, "#303050"),
+                    RootForeground = C("GraphNodeRootFg", variant, "#505068")
+                },
             Edge = new EdgeStyleConfig
             {
                 ActivateColor = C("GraphEdgeActivate", variant, "#2E7D32"),

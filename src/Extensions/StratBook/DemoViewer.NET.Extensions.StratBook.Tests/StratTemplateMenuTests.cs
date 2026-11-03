@@ -31,8 +31,10 @@ public class StratTemplateMenuTests
             window.Show();
             Dispatcher.UIThread.RunJobs();
 
-            SplitButton newStrat = window.GetVisualDescendants().OfType<SplitButton>().Single(b => b.Name == "NewStratButton");
-            DropDownButton apply = window.GetVisualDescendants().OfType<DropDownButton>().Single(b => b.Name == "ApplyTemplateButton");
+            SplitButton newStrat = window.GetVisualDescendants().OfType<SplitButton>()
+                .Single(b => b.Name == "NewStratButton");
+            DropDownButton apply = window.GetVisualDescendants().OfType<DropDownButton>()
+                .Single(b => b.Name == "ApplyTemplateButton");
             MenuItem[] items = [.. ((MenuFlyout)newStrat.Flyout!).Items.OfType<MenuItem>()];
             string[] ids =
             [
@@ -43,11 +45,13 @@ public class StratTemplateMenuTests
             using (Assert.Multiple())
             {
                 await Assert.That(items[0].Header).IsEqualTo("Blank");
-                await Assert.That(ids).IsEquivalentTo(StratTemplates.Templates.Select(t => t.Id), CollectionOrdering.Matching);
+                await Assert.That(ids)
+                    .IsEquivalentTo(StratTemplates.Templates.Select(t => t.Id), CollectionOrdering.Matching);
                 await Assert.That(apply.IsEffectivelyVisible).IsTrue().Because("a blank strat can take a template");
             }
 
-            await Assert.That(items.Single(i => Equals(i.Header, "Default (T)")).Command).IsSameReferenceAs(vm.NewStratCommand);
+            await Assert.That(items.Single(i => Equals(i.Header, "Default (T)")).Command)
+                .IsSameReferenceAs(vm.NewStratCommand);
             vm.ApplyTemplateCommand.Execute("default");
             Dispatcher.UIThread.RunJobs();
 

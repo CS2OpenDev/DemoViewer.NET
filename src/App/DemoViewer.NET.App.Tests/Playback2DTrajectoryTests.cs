@@ -177,7 +177,8 @@ public class Playback2DTrajectoryTests
         View view = new();
         Ent[] nades = new[]
         {
-            new Ent("CHEGrenadeProjectile", 1), new Ent("CFlashbangProjectile", 2), new Ent("CSmokeGrenadeProjectile", 3), new Ent("CMolotovProjectile", 4), new Ent("CDecoyProjectile", 5)
+            new Ent("CHEGrenadeProjectile", 1), new Ent("CFlashbangProjectile", 2),
+            new Ent("CSmokeGrenadeProjectile", 3), new Ent("CMolotovProjectile", 4), new Ent("CDecoyProjectile", 5)
         };
         for (int i = 0; i < nades.Length; i++)
         {
@@ -195,10 +196,10 @@ public class Playback2DTrajectoryTests
 
         await Assert.That(vm.GrenadeTrails.Count).IsEqualTo(5);
         GrenadeKind[] kinds = vm.GrenadeTrails.Select(t => t.Kind).OrderBy(k => k).ToArray();
-        await Assert.That(kinds).IsEquivalentTo(new[]
-        {
-            GrenadeKind.He, GrenadeKind.Flash, GrenadeKind.Smoke, GrenadeKind.Molotov, GrenadeKind.Decoy
-        }, CollectionOrdering.Matching);
+        await Assert.That(kinds)
+            .IsEquivalentTo(
+                new[] { GrenadeKind.He, GrenadeKind.Flash, GrenadeKind.Smoke, GrenadeKind.Molotov, GrenadeKind.Decoy },
+                CollectionOrdering.Matching);
     }
 
     // ── Builders ──
@@ -206,12 +207,7 @@ public class Playback2DTrajectoryTests
     private static Playback2DFakeContext NewCtx()
     {
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
         return ctx;
     }
 

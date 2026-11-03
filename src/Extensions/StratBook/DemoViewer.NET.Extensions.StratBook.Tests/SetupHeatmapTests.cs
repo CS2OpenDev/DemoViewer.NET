@@ -119,27 +119,42 @@ public class SetupHeatmapTests
         [
             new RoundPositionsRound
             {
-                Number = 1, FreezeEndTick = 1000, Ct = TeamBSlots,
-                Pos = Steps(_ => [new RoundPosition(5, 600, -400, -416, 0), new RoundPosition(6, 1400, -700, -700, 1), new RoundPosition(0, -200, -900, -300, 2)])
+                Number = 1,
+                FreezeEndTick = 1000,
+                Ct = TeamBSlots,
+                Pos = Steps(_ =>
+                [
+                    new RoundPosition(5, 600, -400, -416, 0), new RoundPosition(6, 1400, -700, -700, 1),
+                    new RoundPosition(0, -200, -900, -300, 2)
+                ])
             },
             new RoundPositionsRound
             {
-                Number = 2, FreezeEndTick = 10000, Ct = TeamBSlots,
-                Pos = Steps(_ => [new RoundPosition(5, 610, -410, -416, 0), new RoundPosition(7, 500, -100, -200, 3)])
+                Number = 2,
+                FreezeEndTick = 10000,
+                Ct = TeamBSlots,
+                Pos = Steps(_ =>
+                    [new RoundPosition(5, 610, -410, -416, 0), new RoundPosition(7, 500, -100, -200, 3)])
             },
             new RoundPositionsRound
             {
-                Number = 3, FreezeEndTick = 20000, Ct = TeamBSlots,
+                Number = 3,
+                FreezeEndTick = 20000,
+                Ct = TeamBSlots,
                 Pos = Steps(_ => [new RoundPosition(5, 620, -420, -416, 0)])
             },
             new RoundPositionsRound
             {
-                Number = 4, FreezeEndTick = 30000, Ct = TeamASlots,
+                Number = 4,
+                FreezeEndTick = 30000,
+                Ct = TeamASlots,
                 Pos = Steps(_ => [new RoundPosition(0, 600, -400, -416, 0)])
             },
             new RoundPositionsRound
             {
-                Number = 5, FreezeEndTick = 40000, Ct = TeamBSlots,
+                Number = 5,
+                FreezeEndTick = 40000,
+                Ct = TeamBSlots,
                 Pos = Steps(_ => [new RoundPosition(5, 630, -430, -416, 0)])
             }
         ]
@@ -162,16 +177,19 @@ public class SetupHeatmapTests
 
             await Assert.That(pistol.Map).IsEqualTo("de_nuke");
             await Assert.That(pistol.Buy).IsEqualTo(BuyType.Pistol);
-            await Assert.That(pistol.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1], CollectionOrdering.Matching);
+            await Assert.That(pistol.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([1], CollectionOrdering.Matching);
             // Steps 15..35 inclusive, two CT tuples each; the T tuple at Outside never counts.
             await Assert.That(pistol.StateCount).IsEqualTo(21);
             await Assert.That(pistol.Points.Count).IsEqualTo(42);
             await Assert.That(pistol.Points.All(p => p.Side == QuerySide.Ct)).IsTrue();
             await Assert.That(pistol.Points[0]).IsEqualTo(new OverlayPoint(600, -400, -416, QuerySide.Ct));
-            await Assert.That(pistol.Positions.Select(p => p.Place)).IsEquivalentTo(["BombsiteA", "Ramp"], CollectionOrdering.Matching);
+            await Assert.That(pistol.Positions.Select(p => p.Place))
+                .IsEquivalentTo(["BombsiteA", "Ramp"], CollectionOrdering.Matching);
 
             await Assert.That(full.Buy).IsEqualTo(BuyType.Full);
-            await Assert.That(full.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([2, 3, 5], CollectionOrdering.Matching)
+            await Assert.That(full.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([2, 3, 5], CollectionOrdering.Matching)
                 .Because("round 4 is the team's T side, and round 3 belongs even with no window");
             await Assert.That(full.Rounds.Single(r => r.RoundNumber == 3).Sampled).IsFalse();
             await Assert.That(full.SampledRounds).IsEqualTo(2);
@@ -187,7 +205,8 @@ public class SetupHeatmapTests
         using (Assert.Multiple())
         {
             await Assert.That(first.FreezeEndTick).IsEqualTo(1000);
-            await Assert.That(first.ClipEndTick).IsEqualTo(1000 + (SetupHeatmapService.SetupToSeconds + SetupHeatmapService.ClipTailSeconds) * Rate);
+            await Assert.That(first.ClipEndTick)
+                .IsEqualTo(1000 + (SetupHeatmapService.SetupToSeconds + SetupHeatmapService.ClipTailSeconds) * Rate);
             await Assert.That(first.TickRate).IsEqualTo(Rate);
             await Assert.That(first.Sha256).IsEqualTo("abc123");
         }
@@ -269,7 +288,8 @@ public class SetupHeatmapTests
             await Assert.That(full.RotatingLabel).IsEqualTo("rotating: Heaven 1/2");
             await Assert.That(full.OpenLabel).IsEqualTo("Open 3 rounds");
             await Assert.That(full.Overlay.MapName).IsEqualTo("de_nuke");
-            await Assert.That(full.Overlay.Count).IsEqualTo(31).Because("the heatmap's points are an Overlay View document");
+            await Assert.That(full.Overlay.Count).IsEqualTo(31)
+                .Because("the heatmap's points are an Overlay View document");
             await Assert.That(full.ImagePng).IsNotNull();
             await Assert.That(full.HasImageNote).IsFalse();
         }
@@ -285,9 +305,11 @@ public class SetupHeatmapTests
         using (Assert.Multiple())
         {
             await Assert.That(queue.ClipCount).IsEqualTo(3);
-            await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue().Because("a Dossier clip carries its team");
+            await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
+                .Because("a Dossier clip carries its team");
             await Assert.That(queue.Clips.All(c => c.Source == ReviewSources.Dossier)).IsTrue();
-            await Assert.That(queue.Clips.Select(c => c.FromTick)).IsEquivalentTo([10000, 20000, 40000], CollectionOrdering.Matching);
+            await Assert.That(queue.Clips.Select(c => c.FromTick))
+                .IsEquivalentTo([10000, 20000, 40000], CollectionOrdering.Matching);
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke · full buy · round 2");
             await Assert.That(queue.SectionOf(queue.Clips[0].Id)).IsNotNull();
             await Assert.That(vm.ReviewLine).IsEqualTo("3 rounds sent to Review");
@@ -304,7 +326,8 @@ public class SetupHeatmapTests
 
     private sealed class Harness : IDisposable
     {
-        private Harness(DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, SetupHeatmapService service,
+        private Harness(DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store,
+            SetupHeatmapService service,
             Guid teamA, Guid teamB)
         {
             Cache = cache;
@@ -343,7 +366,8 @@ public class SetupHeatmapTests
             RoundIndexStore store = new(cache.Data());
             RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
             store.WritePositions(Demo, Positions(positionsFingerprint ?? sources.FingerprintFor("de_nuke")));
-            SetupHeatmapService service = new(teams, cache.Library(), cache.RoundFacts(), store, sources.FingerprintFor);
+            SetupHeatmapService service = new(teams, cache.Library(), cache.RoundFacts(), store,
+                sources.FingerprintFor);
 
             Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(1)) == true)).Id;
             Guid teamB = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(11)) == true)).Id;

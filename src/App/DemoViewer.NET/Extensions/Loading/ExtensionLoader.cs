@@ -51,7 +51,8 @@ public static class ExtensionLoader
 
             if (!IsInside(root, idDir))
             {
-                rejected.Add(new LoadOutcome(idDir, null, LoadFailure.PathEscapes, "the extension folder is a link or resolves outside the extensions folder"));
+                rejected.Add(new LoadOutcome(idDir, null, LoadFailure.PathEscapes,
+                    "the extension folder is a link or resolves outside the extensions folder"));
                 continue;
             }
 
@@ -77,7 +78,8 @@ public static class ExtensionLoader
     ///     version means no staged copy can be shown to be newer, so none is chosen.
     /// </summary>
     public static Selection Select(
-        IReadOnlyList<ExtensionCandidate> candidates, string packId, SemVersion? shippedVersion, ExtensionHostInfo host, ITrustPolicy trust)
+        IReadOnlyList<ExtensionCandidate> candidates, string packId, SemVersion? shippedVersion, ExtensionHostInfo host,
+        ITrustPolicy trust)
     {
         ArgumentNullException.ThrowIfNull(candidates);
         ArgumentNullException.ThrowIfNull(packId);
@@ -106,7 +108,8 @@ public static class ExtensionLoader
             PackCompatibility compatibility = PackCompatibility.Check(m, host);
             if (!compatibility.IsCompatible)
             {
-                rejected.Add(new LoadOutcome(candidate.Directory, m, LoadFailure.Incompatible, compatibility.Describe(m, packId)!));
+                rejected.Add(new LoadOutcome(candidate.Directory, m, LoadFailure.Incompatible,
+                    compatibility.Describe(m, packId)!));
                 continue;
             }
 
@@ -152,9 +155,11 @@ public static class ExtensionLoader
             context ??= new ExtensionLoadContext(candidate);
             assembly = context.LoadFromAssemblyPath(candidate.AssemblyPath);
         }
-        catch (Exception ex) when (ex is IOException or BadImageFormatException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or BadImageFormatException or UnauthorizedAccessException
+                                       or ArgumentException)
         {
-            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.AssemblyLoadFailed, $"'{m.Assembly}' could not be loaded", ex.Message));
+            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.AssemblyLoadFailed,
+                $"'{m.Assembly}' could not be loaded", ex.Message));
         }
 
         Type? entry;
@@ -162,36 +167,42 @@ public static class ExtensionLoader
         {
             entry = assembly.GetType(m.EntryType, throwOnError: false);
         }
-        catch (Exception ex) when (ex is TypeLoadException or ReflectionTypeLoadException or FileLoadException or BadImageFormatException)
+        catch (Exception ex) when (ex is TypeLoadException or ReflectionTypeLoadException or FileLoadException
+                                       or BadImageFormatException)
         {
-            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.EntryTypeMissing, $"'{m.EntryType}' could not be loaded", ex.Message));
+            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.EntryTypeMissing,
+                $"'{m.EntryType}' could not be loaded", ex.Message));
         }
 
         if (entry is null)
         {
-            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.EntryTypeMissing, $"'{m.Assembly}' has no type '{m.EntryType}'"));
+            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.EntryTypeMissing,
+                $"'{m.Assembly}' has no type '{m.EntryType}'"));
         }
 
         if (!typeof(IExtension).IsAssignableFrom(entry) || entry.IsAbstract)
         {
-            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.NotAPack, $"'{m.EntryType}' is not an extension entry type"));
+            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.NotAPack,
+                $"'{m.EntryType}' is not an extension entry type"));
         }
 
         IExtension pack;
         try
         {
             pack = Activator.CreateInstance(entry) as IExtension
-                ?? throw new MissingMethodException($"'{m.EntryType}' has no public parameterless constructor");
+                   ?? throw new MissingMethodException($"'{m.EntryType}' has no public parameterless constructor");
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Exception cause = ex is TargetInvocationException { InnerException: { } inner } ? inner : ex;
-            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.NotAPack, $"'{m.EntryType}' could not be constructed", cause.Message));
+            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.NotAPack,
+                $"'{m.EntryType}' could not be constructed", cause.Message));
         }
 
         if (!string.Equals(pack.Id, m.Id, StringComparison.Ordinal))
         {
-            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.IdentityMismatch, $"the loaded extension is '{pack.Id}', not '{m.Id}'"));
+            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.IdentityMismatch,
+                $"the loaded extension is '{pack.Id}', not '{m.Id}'"));
         }
 
         ExtensionManifest embedded;
@@ -201,7 +212,8 @@ public static class ExtensionLoader
         }
         catch (ExtensionManifestException ex)
         {
-            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.IdentityMismatch, "the extension's embedded manifest is invalid", ex.Message));
+            return LoadResult.Failed(new LoadOutcome(dir, m, LoadFailure.IdentityMismatch,
+                "the extension's embedded manifest is invalid", ex.Message));
         }
 
         if (!string.Equals(embedded.Id, m.Id, StringComparison.Ordinal) || embedded.Version != m.Version)
@@ -221,7 +233,8 @@ public static class ExtensionLoader
     ///     is a <see cref="LoadFailure.LoaderFailed" /> outcome on the shipped pack, never an exception.
     ///     A shipped pack's <see cref="ShippedPack.Create" /> runs only when its shipped copy is the result.
     /// </summary>
-    public static IReadOnlyList<PackStatus> Resolve(string? configRoot, IReadOnlyList<ShippedPack> shipped, ExtensionHostInfo host, ITrustPolicy trust)
+    public static IReadOnlyList<PackStatus> Resolve(string? configRoot, IReadOnlyList<ShippedPack> shipped,
+        ExtensionHostInfo host, ITrustPolicy trust)
     {
         ArgumentNullException.ThrowIfNull(shipped);
         ArgumentNullException.ThrowIfNull(host);
@@ -247,8 +260,9 @@ public static class ExtensionLoader
                     {
                         LoadResult loaded = Load(chosen);
                         LoadOutcome? failure = loaded.Failure
-                            ?? CheckReferences(chosen, loaded.Pack!.GetType().Assembly, RunningVersion)
-                            ?? Probe(chosen, loaded.Pack!);
+                                               ?? CheckReferences(chosen, loaded.Pack!.GetType().Assembly,
+                                                   RunningVersion)
+                                               ?? Probe(chosen, loaded.Pack!);
                         if (failure is null)
                         {
                             staged = loaded.Pack;
@@ -265,7 +279,8 @@ public static class ExtensionLoader
             {
                 staged = null;
                 source = PackSource.Bundled;
-                rejected.Add(new LoadOutcome(extensionsDir ?? string.Empty, null, LoadFailure.LoaderFailed, "the extension loader failed", $"{ex.GetType().Name}: {ex.Message}"));
+                rejected.Add(new LoadOutcome(extensionsDir ?? string.Empty, null, LoadFailure.LoaderFailed,
+                    "the extension loader failed", $"{ex.GetType().Name}: {ex.Message}"));
             }
 
             IExtension pack = staged ?? s.Create();
@@ -283,11 +298,13 @@ public static class ExtensionLoader
     ///     (<c>System.*</c>, <c>netstandard</c>, <c>mscorlib</c>) come from the shared runtime and are not
     ///     compared.
     /// </summary>
-    public static LoadOutcome? CheckReferences(ExtensionCandidate candidate, Assembly staged, Func<string, Version?> runningVersion)
+    public static LoadOutcome? CheckReferences(ExtensionCandidate candidate, Assembly staged,
+        Func<string, Version?> runningVersion)
     {
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(staged);
-        (string Name, Version Built, Version Running)? mismatch = FindReferenceMismatch(staged.GetReferencedAssemblies(), runningVersion);
+        (string Name, Version Built, Version Running)? mismatch =
+            FindReferenceMismatch(staged.GetReferencedAssemblies(), runningVersion);
         return mismatch is null
             ? null
             : new LoadOutcome(candidate.Directory, candidate.Manifest, LoadFailure.ReferenceMismatch,
@@ -339,7 +356,8 @@ public static class ExtensionLoader
             string path = Path.Combine(AppContext.BaseDirectory, simpleName + ".dll");
             return File.Exists(path) ? AssemblyName.GetAssemblyName(path).Version : null;
         }
-        catch (Exception ex) when (ex is IOException or BadImageFormatException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or BadImageFormatException or UnauthorizedAccessException
+                                       or ArgumentException)
         {
             return null;
         }
@@ -425,24 +443,28 @@ public static class ExtensionLoader
                || (parent is not null && string.Equals(Path.GetFileName(parent), packId, StringComparison.Ordinal));
     }
 
-    private static void Inspect(string root, string idDir, string versionDir, List<ExtensionCandidate> candidates, List<LoadOutcome> rejected)
+    private static void Inspect(string root, string idDir, string versionDir, List<ExtensionCandidate> candidates,
+        List<LoadOutcome> rejected)
     {
         if (!IsInside(root, versionDir))
         {
-            rejected.Add(new LoadOutcome(versionDir, null, LoadFailure.PathEscapes, "the version folder is a link or resolves outside the extensions folder"));
+            rejected.Add(new LoadOutcome(versionDir, null, LoadFailure.PathEscapes,
+                "the version folder is a link or resolves outside the extensions folder"));
             return;
         }
 
         string manifestPath = Path.Combine(versionDir, ExtensionManifest.FileName);
         if (!File.Exists(manifestPath))
         {
-            rejected.Add(new LoadOutcome(versionDir, null, LoadFailure.ManifestInvalid, $"no {ExtensionManifest.FileName}"));
+            rejected.Add(new LoadOutcome(versionDir, null, LoadFailure.ManifestInvalid,
+                $"no {ExtensionManifest.FileName}"));
             return;
         }
 
         if (IsReparsePoint(manifestPath))
         {
-            rejected.Add(new LoadOutcome(versionDir, null, LoadFailure.PathEscapes, $"{ExtensionManifest.FileName} is a link"));
+            rejected.Add(new LoadOutcome(versionDir, null, LoadFailure.PathEscapes,
+                $"{ExtensionManifest.FileName} is a link"));
             return;
         }
 
@@ -458,7 +480,8 @@ public static class ExtensionLoader
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            rejected.Add(new LoadOutcome(versionDir, null, LoadFailure.ManifestInvalid, $"{ExtensionManifest.FileName} could not be read", ex.Message));
+            rejected.Add(new LoadOutcome(versionDir, null, LoadFailure.ManifestInvalid,
+                $"{ExtensionManifest.FileName} could not be read", ex.Message));
             return;
         }
 
@@ -475,7 +498,8 @@ public static class ExtensionLoader
         string assemblyPath = Path.Combine(versionDir, manifest.Assembly);
         if (File.Exists(assemblyPath) && IsReparsePoint(assemblyPath))
         {
-            rejected.Add(new LoadOutcome(versionDir, manifest, LoadFailure.PathEscapes, $"'{manifest.Assembly}' is a link"));
+            rejected.Add(new LoadOutcome(versionDir, manifest, LoadFailure.PathEscapes,
+                $"'{manifest.Assembly}' is a link"));
             return;
         }
 
@@ -491,7 +515,8 @@ public static class ExtensionLoader
             return false;
         }
 
-        string rootWithSeparator = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
+        string rootWithSeparator =
+            root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
         string full = Path.GetFullPath(path);
         return full.StartsWith(rootWithSeparator, StringComparison.Ordinal) && full.Length > rootWithSeparator.Length;
     }

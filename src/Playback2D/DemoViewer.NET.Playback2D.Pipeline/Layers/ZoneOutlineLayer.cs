@@ -59,12 +59,7 @@ public sealed class ZoneOutlineLayer : ISceneLayer
 
         // Hairline: width 0 draws one device pixel under any matrix, which is what an outline replayed
         // under the camera needs. A world-unit width would thicken with every zoom step.
-        _baked = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 0,
-            IsAntialias = true
-        };
+        _baked = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 0, IsAntialias = true };
         _custom = new SKPaint
         {
             Style = SKPaintStyle.Stroke,
@@ -72,11 +67,7 @@ public sealed class ZoneOutlineLayer : ISceneLayer
             IsAntialias = true,
             PathEffect = SKPathEffect.CreateDash(_customDash, 0)
         };
-        _label = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+        _label = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
     }
 
     /// <summary>

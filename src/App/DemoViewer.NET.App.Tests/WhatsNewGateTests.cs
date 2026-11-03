@@ -270,8 +270,10 @@ public class WhatsNewGateTests
         // Beta labels survive: the release tag carries them, and each beta gets its own What's New.
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0-beta0001")).IsEqualTo("0.9.0-beta0001");
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion("v0.9.0-beta0002")).IsEqualTo("0.9.0-beta0002");
-        await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0.1-beta0001+abcea5a99b")).IsEqualTo("0.9.0-beta0001");
-        await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0-beta0001-gabcea5a99b")).IsEqualTo("0.9.0-beta0001");
+        await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0.1-beta0001+abcea5a99b"))
+            .IsEqualTo("0.9.0-beta0001");
+        await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0-beta0001-gabcea5a99b"))
+            .IsEqualTo("0.9.0-beta0001");
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion("(unknown)")).IsNull();
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion(null)).IsNull();
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion("")).IsNull();

@@ -132,9 +132,7 @@ public static class GrenadeSidecar
 
         GrenadeWalkerHeader walker = new()
         {
-            Version = GrenadeWalker.Version,
-            Engine = GrenadeWalker.EngineVersion,
-            InputDecoder = walk.InputDecoder
+            Version = GrenadeWalker.Version, Engine = GrenadeWalker.EngineVersion, InputDecoder = walk.InputDecoder
         };
         GrenadeSourceHeader source = new()
         {
@@ -154,10 +152,7 @@ public static class GrenadeSidecar
         };
         GrenadePathsDocument paths = new()
         {
-            Walker = walker,
-            Demo = DemoHeader(path, record),
-            Clock = clock,
-            Source = source
+            Walker = walker, Demo = DemoHeader(path, record), Clock = clock, Source = source
         };
         foreach (GrenadeRow row in walk.Rows)
         {
@@ -217,7 +212,8 @@ public static class GrenadeSidecar
     /// <summary>A file with no hash is path-keyed only and is accepted; two hashes must agree.</summary>
     public static bool SameDemo(string? recordSha256, string? fileSha256) =>
         string.IsNullOrEmpty(recordSha256) || string.IsNullOrEmpty(fileSha256)
-                                           || string.Equals(recordSha256, fileSha256, StringComparison.OrdinalIgnoreCase);
+                                           || string.Equals(recordSha256, fileSha256,
+                                               StringComparison.OrdinalIgnoreCase);
 
     private static GrenadeDemoHeader DemoHeader(string path, LibraryDemo? record) => new()
     {

@@ -35,7 +35,12 @@ public readonly record struct ThrowerRead(
 /// <param name="Team">2 = T, 3 = CT, 0 when unread.</param>
 /// <param name="LastJumpTick">The frame-clock tick <c>IN_JUMP</c> last rose on, -1 before the first.</param>
 /// <param name="Coverage">The thrower's commands over the last 64 ticks divided by 64; 0 says the lane carries none.</param>
-public readonly record struct ThrowerAtSpawn(Vector3? Position, bool? OnGround, int Team, int LastJumpTick, double Coverage);
+public readonly record struct ThrowerAtSpawn(
+    Vector3? Position,
+    bool? OnGround,
+    int Team,
+    int LastJumpTick,
+    double Coverage);
 
 /// <summary>
 ///     One grenade as the rules run recorded it: the <c>grenade_projectiles</c> row of a grenade whose thrower
@@ -100,7 +105,13 @@ public sealed record ProjectileFacts(
 /// <param name="Weapon">The event's weapon name, which tells a molotov from an incendiary.</param>
 /// <param name="Pawn">The thrower's pawn on that frame, the state before its entity update.</param>
 /// <param name="Before">The thrower's position eight ticks earlier, or null when unread.</param>
-public sealed record ReleaseFacts(int Slot, int Tick, string ProjectileClass, string Weapon, ThrowerRead Pawn, Vector3? Before);
+public sealed record ReleaseFacts(
+    int Slot,
+    int Tick,
+    string ProjectileClass,
+    string Weapon,
+    ThrowerRead Pawn,
+    Vector3? Before);
 
 /// <summary>A projectile with its thrower and release decided, before any row is built.</summary>
 /// <param name="Projectile">The grenade.</param>
@@ -141,7 +152,8 @@ public sealed record GrenadeWalkInputs(GrenadeTableRows Tables, GrenadeTrajector
     {
         ArgumentNullException.ThrowIfNull(context);
         GrenadeTrajectories flights = context.Collected<GrenadeTrajectories>(GrenadeTrajectoryCollector.CollectorId)
-                                      ?? throw new InvalidOperationException("the grenade trajectory collector put no collection");
+                                      ?? throw new InvalidOperationException(
+                                          "the grenade trajectory collector put no collection");
         return new GrenadeWalkInputs(GrenadeTables.Read(context.Table, context.Demo.ServerStartTick), flights);
     }
 

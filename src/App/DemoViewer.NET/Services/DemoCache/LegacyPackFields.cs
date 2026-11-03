@@ -54,9 +54,11 @@ internal static class LegacyPackFields
 
         Stamps(record.PackStamps,
             roundFactsSchema, String(members, "RoundFactsFingerprint"),
-            riSchema, riTicks, State(members, "RoundIndexState"), String(members, "RoundIndexFingerprint"), Int(members, "RoundIndexRowCount"),
+            riSchema, riTicks, State(members, "RoundIndexState"), String(members, "RoundIndexFingerprint"),
+            Int(members, "RoundIndexRowCount"),
             String(members, "SuggestionsFingerprint"), Int(members, "SuggestionCount"),
-            gSchema, gTicks, State(members, "GrenadeState"), String(members, "GrenadeWalker"), Int(members, "GrenadeCount"));
+            gSchema, gTicks, State(members, "GrenadeState"), String(members, "GrenadeWalker"),
+            Int(members, "GrenadeCount"));
     }
 
     /// <summary>
@@ -120,7 +122,8 @@ internal static class LegacyPackFields
     public static void Fold(DemoCacheIndexEntry entry, Dictionary<string, JsonElement> members) =>
         Stamps(entry.PackStamps,
             Int(members, "RoundFactsSchema"), String(members, "RoundFactsFingerprint"),
-            Int(members, "RoundIndexSchema"), Long(members, "RoundIndexComputedAtTicks"), State(members, "RoundIndexState"),
+            Int(members, "RoundIndexSchema"), Long(members, "RoundIndexComputedAtTicks"),
+            State(members, "RoundIndexState"),
             String(members, "RoundIndexFingerprint"), Int(members, "RoundIndexRowCount"),
             String(members, "SuggestionsFingerprint"), Int(members, "SuggestionCount"),
             Int(members, "GrenadeSchema"), 0, State(members, "GrenadeState"),
@@ -137,39 +140,39 @@ internal static class LegacyPackFields
     {
         if (rfSchema != 0 || rfFingerprint is not null)
         {
-            Add(stamps, new PackStamp(RoundFactsId, rfSchema, rfFingerprint)
-            {
-                State = rfSchema > 0 ? DemoAnalysisState.Indexed : DemoAnalysisState.Pending
-            });
+            Add(stamps,
+                new PackStamp(RoundFactsId, rfSchema, rfFingerprint)
+                {
+                    State = rfSchema > 0 ? DemoAnalysisState.Indexed : DemoAnalysisState.Pending
+                });
         }
 
         if (riSchema != 0 || riState != DemoAnalysisState.Pending || riFingerprint is not null || riCount != 0)
         {
-            Add(stamps, new PackStamp(RoundIndexId, riSchema, riFingerprint)
-            {
-                State = riState,
-                ComputedAtTicks = riTicks,
-                Count = riCount
-            });
+            Add(stamps,
+                new PackStamp(RoundIndexId, riSchema, riFingerprint)
+                {
+                    State = riState, ComputedAtTicks = riTicks, Count = riCount
+                });
         }
 
         if (sgFingerprint is not null || sgCount != 0)
         {
-            Add(stamps, new PackStamp(SuggestionsId, sgFingerprint is null ? 0 : 1, sgFingerprint)
-            {
-                State = sgFingerprint is null ? DemoAnalysisState.Pending : DemoAnalysisState.Indexed,
-                Count = sgCount
-            });
+            Add(stamps,
+                new PackStamp(SuggestionsId, sgFingerprint is null ? 0 : 1, sgFingerprint)
+                {
+                    State = sgFingerprint is null ? DemoAnalysisState.Pending : DemoAnalysisState.Indexed,
+                    Count = sgCount
+                });
         }
 
         if (gSchema != 0 || gState != DemoAnalysisState.Pending || gWalker is not null || gCount != 0)
         {
-            Add(stamps, new PackStamp(GrenadesId, gSchema, gWalker)
-            {
-                State = gState,
-                ComputedAtTicks = gTicks,
-                Count = gCount
-            });
+            Add(stamps,
+                new PackStamp(GrenadesId, gSchema, gWalker)
+                {
+                    State = gState, ComputedAtTicks = gTicks, Count = gCount
+                });
         }
     }
 
@@ -208,23 +211,30 @@ internal static class LegacyPackFields
     }
 
     private static JsonElement? Object(Dictionary<string, JsonElement> members, string name) =>
-        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Object ? element : null;
+        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Object
+            ? element
+            : null;
 
     private static string? String(Dictionary<string, JsonElement> members, string name) =>
-        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.String ? element.GetString() : null;
+        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.String
+            ? element.GetString()
+            : null;
 
     private static int Int(Dictionary<string, JsonElement> members, string name) =>
-        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out int value)
+        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number
+                                                           && element.TryGetInt32(out int value)
             ? value
             : 0;
 
     private static long Long(Dictionary<string, JsonElement> members, string name) =>
-        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out long value)
+        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number
+                                                           && element.TryGetInt64(out long value)
             ? value
             : 0;
 
     private static double Number(Dictionary<string, JsonElement> members, string name) =>
-        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out double value)
+        members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number
+                                                           && element.TryGetDouble(out double value)
             ? value
             : 0;
 
@@ -237,7 +247,7 @@ internal static class LegacyPackFields
         }
 
         if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out int ordinal)
-            && Enum.IsDefined(typeof(DemoAnalysisState), ordinal))
+                                                      && Enum.IsDefined(typeof(DemoAnalysisState), ordinal))
         {
             return (DemoAnalysisState)ordinal;
         }

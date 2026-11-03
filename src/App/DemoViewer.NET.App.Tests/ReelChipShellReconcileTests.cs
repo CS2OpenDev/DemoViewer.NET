@@ -60,7 +60,8 @@ public class ReelChipShellReconcileTests
 
             job.Raise(Status(ReelJobPhase.Capturing, 0, 2));
             job.Raise(Status(ReelJobPhase.Cancelled));
-            await Assert.That(vm.Chips.Count).IsEqualTo(1).Because("a cancelled result is a result — shown until dismissed");
+            await Assert.That(vm.Chips.Count).IsEqualTo(1)
+                .Because("a cancelled result is a result — shown until dismissed");
 
             ReelJobStatusViewModel reelVm = (ReelJobStatusViewModel)vm.Chips[0].FlyoutContent!;
             reelVm.DismissCommand.Execute(null);

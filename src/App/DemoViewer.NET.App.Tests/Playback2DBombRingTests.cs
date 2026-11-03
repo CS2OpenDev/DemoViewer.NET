@@ -52,12 +52,7 @@ public class Playback2DBombRingTests
 
         ModuleContext context = new(controller, () => path);
         context.SetRoster(demo.Players.Values.Select(p =>
-            new PlayerRosterEntry
-            {
-                Slot = p.Slot,
-                SteamId = p.SteamId64,
-                Name = p.Name
-            }));
+            new PlayerRosterEntry { Slot = p.Slot, SteamId = p.SteamId64, Name = p.Name }));
 
         Playback2DTabViewModel vm = new();
         vm.OnActivated(context);
@@ -83,7 +78,8 @@ public class Playback2DBombRingTests
         for (int i = 0; i < frames.Count; i++)
         {
             if (frames[i].InnerMessages.Any(m => m is GameEventMessage gem &&
-                                                 gem.DecodedEvent.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                                                 gem.DecodedEvent.Name.Equals(name,
+                                                     StringComparison.OrdinalIgnoreCase)))
             {
                 return i;
             }

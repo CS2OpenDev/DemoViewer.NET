@@ -41,7 +41,8 @@ public class StratNewStratButtonsTests
             await Settle();
             using (Assert.Multiple())
             {
-                await Assert.That(hint.IsEffectivelyVisible).IsTrue().Because("the click says why nothing was made yet");
+                await Assert.That(hint.IsEffectivelyVisible).IsTrue()
+                    .Because("the click says why nothing was made yet");
                 await Assert.That(maps.IsDropDownOpen).IsTrue().Because("the click asks for the map");
                 await Assert.That(vm.Strats.Count).IsEqualTo(0);
             }
@@ -50,7 +51,8 @@ public class StratNewStratButtonsTests
             await Settle();
             using (Assert.Multiple())
             {
-                await Assert.That(vm.Session.Document?.Map).IsEqualTo("de_mirage").Because("the pick finishes the create");
+                await Assert.That(vm.Session.Document?.Map).IsEqualTo("de_mirage")
+                    .Because("the pick finishes the create");
                 await Assert.That(vm.Session.Document?.Name).IsEqualTo("New strat");
                 await Assert.That(hint.IsEffectivelyVisible).IsFalse();
                 await Assert.That(vm.CanApplyTemplate).IsTrue();

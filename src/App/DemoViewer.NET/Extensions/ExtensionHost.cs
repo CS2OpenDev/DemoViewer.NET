@@ -40,7 +40,9 @@ public static class ExtensionHost
     ///     when unstamped. A 0.9.0 beta must satisfy an extension's <c>minAppVersion</c> of 0.9.0.
     /// </summary>
     public static SemVersion? AppVersion { get; } =
-        SemVersion.TryParse(AppVersionInfo.CurrentReleaseVersion, out SemVersion? app) ? app with { Prerelease = null } : null;
+        SemVersion.TryParse(AppVersionInfo.CurrentReleaseVersion, out SemVersion? app)
+            ? app with { Prerelease = null }
+            : null;
 
     /// <summary>
     ///     The CS2DemoKit version this build references, read from <c>CS2DemoKit.Analysis</c>'s

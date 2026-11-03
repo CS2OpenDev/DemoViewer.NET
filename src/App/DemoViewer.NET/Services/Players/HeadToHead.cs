@@ -21,7 +21,13 @@ public sealed record PlayerOpponent(ulong SteamId64, string Name, int Matches);
 /// <param name="Kills">Times the subject killed the opponent.</param>
 /// <param name="Deaths">Times the opponent killed the subject.</param>
 /// <param name="HeadshotKills">Of <paramref name="Kills" />, the headshots.</param>
-public sealed record HeadToHeadMatch(PlayerMatch Match, MatchOutcome? Outcome, bool HasKills, int Kills, int Deaths, int HeadshotKills);
+public sealed record HeadToHeadMatch(
+    PlayerMatch Match,
+    MatchOutcome? Outcome,
+    bool HasKills,
+    int Kills,
+    int Deaths,
+    int HeadshotKills);
 
 /// <summary>
 ///     The subject against one opponent over the demos they ended on opposite sides: the match record from the
@@ -76,12 +82,15 @@ public sealed record HeadToHead(IReadOnlyList<HeadToHeadMatch> Matches)
 
             foreach (IndexSidePlayer player in (side == 3 ? match.Row.TPlayers : match.Row.CtPlayers) ?? [])
             {
-                if (!ulong.TryParse(player.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) || id == 0 || id == subject)
+                if (!ulong.TryParse(player.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+                    || id == 0 || id == subject)
                 {
                     continue;
                 }
 
-                met[id] = met.TryGetValue(id, out (string Name, int Matches) seen) ? (seen.Name, seen.Matches + 1) : (player.Name, 1);
+                met[id] = met.TryGetValue(id, out (string Name, int Matches) seen)
+                    ? (seen.Name, seen.Matches + 1)
+                    : (player.Name, 1);
             }
         }
 
@@ -97,7 +106,8 @@ public sealed record HeadToHead(IReadOnlyList<HeadToHeadMatch> Matches)
     /// <summary>The subject's demos the opponent ended on the other side of, newest first, each once.</summary>
     /// <param name="subject">The subject's demos.</param>
     /// <param name="opponent">The opponent's demos.</param>
-    public static IReadOnlyList<PlayerMatch> Against(IReadOnlyList<PlayerMatch> subject, IReadOnlyList<PlayerMatch> opponent)
+    public static IReadOnlyList<PlayerMatch> Against(IReadOnlyList<PlayerMatch> subject,
+        IReadOnlyList<PlayerMatch> opponent)
     {
         ArgumentNullException.ThrowIfNull(subject);
         ArgumentNullException.ThrowIfNull(opponent);
@@ -125,7 +135,8 @@ public sealed record HeadToHead(IReadOnlyList<HeadToHeadMatch> Matches)
     /// <param name="against">The demos they met in (<see cref="Against" />).</param>
     /// <param name="outcome">How a demo ended for the subject; null when its stats are not read.</param>
     /// <param name="kills">Each demo's kills by content id (<see cref="PlayerEventCache.LoadAsync" />); a demo absent is unread.</param>
-    public static HeadToHead Of(ulong subject, ulong opponent, IReadOnlyList<PlayerMatch> against, Func<PlayerMatch, MatchOutcome?> outcome,
+    public static HeadToHead Of(ulong subject, ulong opponent, IReadOnlyList<PlayerMatch> against,
+        Func<PlayerMatch, MatchOutcome?> outcome,
         IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>> kills)
     {
         ArgumentNullException.ThrowIfNull(against);

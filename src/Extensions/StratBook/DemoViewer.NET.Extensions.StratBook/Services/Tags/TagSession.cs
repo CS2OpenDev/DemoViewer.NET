@@ -242,7 +242,9 @@ public sealed class TagSession : IDisposable
         }
 
         DemoPath = demoPath;
-        _rounds = string.IsNullOrEmpty(demoPath) || _roundsFor is null ? null : await _roundsFor(demoPath).ConfigureAwait(true);
+        _rounds = string.IsNullOrEmpty(demoPath) || _roundsFor is null
+            ? null
+            : await _roundsFor(demoPath).ConfigureAwait(true);
         _factRows = null;
         _factRowsRead = false;
         _saveFailed = false;
@@ -614,10 +616,12 @@ public sealed class TagSession : IDisposable
 
         List<TagPosition> currentPoints =
             [.. current.Positions, .. current.Movements.SelectMany(m => new[] { m.From, m.To })];
-        foreach (TagPosition point in restored.Positions.Concat(restored.Movements.SelectMany(m => new[] { m.From, m.To })))
+        foreach (TagPosition point in restored.Positions.Concat(
+                     restored.Movements.SelectMany(m => new[] { m.From, m.To })))
         {
             TagPosition? same = currentPoints.FirstOrDefault(p =>
-                p.X.Equals(point.X) && p.Y.Equals(point.Y) && p.LevelMinZ.Equals(point.LevelMinZ) && p.Tick == point.Tick);
+                p.X.Equals(point.X) && p.Y.Equals(point.Y) && p.LevelMinZ.Equals(point.LevelMinZ)
+                && p.Tick == point.Tick);
             if (same is not null)
             {
                 point.Place = same.Place;

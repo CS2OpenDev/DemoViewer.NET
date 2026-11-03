@@ -61,7 +61,8 @@ public interface ITokenEditor
     /// </param>
     /// <param name="modifiers">The keys held at this sample: Shift and Alt change what the drop stores.</param>
     /// <param name="worldUnitsPerPixel">The pane's scale, for screen-sized snaps; 0 when unknown.</param>
-    void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None, double worldUnitsPerPixel = 0);
+    void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None,
+        double worldUnitsPerPixel = 0);
 
     /// <summary>Closes the drag as one edit.</summary>
     /// <param name="modifiers">The keys held at the release.</param>
@@ -97,7 +98,8 @@ public static class TokenHitTest
     /// <param name="world">The point, world space.</param>
     /// <param name="worldRadius">The marker radius in world units (<see cref="WorldRadius" />).</param>
     /// <param name="cone">Whether the marker draws a view cone, whose whole wedge turns the token.</param>
-    public static TokenGrip? Classify(float tokenX, float tokenY, float yawDegrees, SKPoint world, float worldRadius, bool cone = false)
+    public static TokenGrip? Classify(float tokenX, float tokenY, float yawDegrees, SKPoint world, float worldRadius,
+        bool cone = false)
     {
         double dx = world.X - (double)tokenX;
         double dy = world.Y - (double)tokenY;

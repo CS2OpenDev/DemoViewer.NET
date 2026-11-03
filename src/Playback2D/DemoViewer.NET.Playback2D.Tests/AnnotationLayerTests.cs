@@ -202,11 +202,7 @@ public class AnnotationLayerTests
         AnnotationSession session = new(doc);
         using AnnotationLayer layer = new(session);
 
-        AnnotationStyle style = AnnotationStyle.Default with
-        {
-            RevealOnFadeIn = true,
-            WidthWorld = 24f
-        };
+        AnnotationStyle style = AnnotationStyle.Default with { RevealOnFadeIn = true, WidthWorld = 24f };
 
         AnnotationElement element = new(Guid.NewGuid(), AnnotationKind.Freehand, style,
             new SpaceRef.World(0), new TimeEnvelope(100, 200, 100, 0), LongLine(), null);
@@ -291,10 +287,7 @@ public class AnnotationLayerTests
             AnnotationDocument doc = new();
             using AnnotationLayer layer = new(new AnnotationSession(doc));
             AnnotationElement element = new(Guid.NewGuid(), AnnotationKind.Text,
-                AnnotationStyle.Default with
-                {
-                    WidthWorld = width
-                },
+                AnnotationStyle.Default with { WidthWorld = width },
                 new SpaceRef.World(0), TimeEnvelope.Static, [new InkPoint(-400, 400, 0.5f)], text);
             doc.Apply(new DocDelta.Add(element, 0));
             return Ink(layer, Scene2DFrame.Empty);
@@ -316,10 +309,8 @@ public class AnnotationLayerTests
         AnnotationSession session = new(doc);
         using AnnotationLayer layer = new(session);
 
-        session.Wet.Begin(AnnotationStyle.Default with
-        {
-            WidthWorld = 20
-        }, new SpaceRef.World(0), null, new InkPoint(-300, -300, 0.5f), kind: AnnotationKind.Rect);
+        session.Wet.Begin(AnnotationStyle.Default with { WidthWorld = 20 }, new SpaceRef.World(0), null,
+            new InkPoint(-300, -300, 0.5f), kind: AnnotationKind.Rect);
         session.Wet.ReplaceLast(new InkPoint(300, 300, 0.5f));
 
         SKColor[] pixels = RenderPixels(layer, Scene2DFrame.Empty);
@@ -505,21 +496,12 @@ public class AnnotationLayerTests
     {
         MapLevel level = space is not null && levelIndex >= 0
             ? space.Levels[levelIndex]
-            : new MapLevel
-            {
-                Id = new MapLevelId(0),
-                Name = "floor 0",
-                ZMin = -1000,
-                ZMax = 1000
-            };
+            : new MapLevel { Id = new MapLevelId(0), Name = "floor 0", ZMin = -1000, ZMax = 1000 };
 
         ViewportTransform transform = ViewportTransform.Fit(_size.Width, _size.Height,
             -500, -500, 500, 500);
 
-        SceneTime time = frame.Time with
-        {
-            Tick = tick
-        };
+        SceneTime time = frame.Time with { Tick = tick };
 
         return new SceneRenderContext(frame, time, transform, SKRect.Create(_size.Width, _size.Height),
             levelIndex, level.ZMin, level.ZMax, RenderPurpose.Export, ScenePalette.Dark, 1f)
@@ -540,10 +522,7 @@ public class AnnotationLayerTests
     // pixel; text is a short label anchored there.
     private static AnnotationElement Shape(AnnotationKind kind, TimeEnvelope time) =>
         new(Guid.NewGuid(), kind,
-            AnnotationStyle.Default with
-            {
-                WidthWorld = 20
-            },
+            AnnotationStyle.Default with { WidthWorld = 20 },
             new SpaceRef.World(0), time,
             kind == AnnotationKind.Text
                 ? [new InkPoint(-300, 100, 0.5f)]

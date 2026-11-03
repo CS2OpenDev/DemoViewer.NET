@@ -56,7 +56,9 @@ public sealed class SiteRegions
     /// <summary>A site's region; the site alone for a site the table does not know.</summary>
     /// <param name="site">A site place.</param>
     public IReadOnlySet<string> RegionOf(string site) =>
-        _regions.TryGetValue(site, out HashSet<string>? region) ? region : new HashSet<string>(StringComparer.Ordinal) { site };
+        _regions.TryGetValue(site, out HashSet<string>? region)
+            ? region
+            : new HashSet<string>(StringComparer.Ordinal) { site };
 
     /// <summary>The sites whose region holds <paramref name="place" />, A first. Regions can overlap.</summary>
     /// <param name="place">A place.</param>
@@ -78,7 +80,8 @@ public sealed class SiteRegions
     /// <param name="shipped">A shipped table, or null (none ship in the first release).</param>
     /// <param name="learned">The library's learned table, or null.</param>
     /// <param name="profile">The profile whose <see cref="DetectorProfile.SiteRegionOverrides" /> apply.</param>
-    public static SiteRegions Compose(string map, SiteRegionTable? shipped, SiteRegionTable? learned, DetectorProfile profile)
+    public static SiteRegions Compose(string map, SiteRegionTable? shipped, SiteRegionTable? learned,
+        DetectorProfile profile)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(profile);
@@ -398,7 +401,7 @@ public sealed class SiteRegionStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(map);
         if (map.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || map.Contains('/', StringComparison.Ordinal)
-                                                                 || map.Contains('\\', StringComparison.Ordinal))
+                                                                || map.Contains('\\', StringComparison.Ordinal))
         {
             throw new ArgumentException($"'{map}' cannot name a file", nameof(map));
         }

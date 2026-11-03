@@ -71,7 +71,11 @@ public sealed class PlayerDirectory
             return projection.Accounts.TryGetValue(id, out Account? account) ? [account.Entry] : [];
         }
 
-        return [.. projection.Players.Where(p => p.Aliases.Any(a => a.Name.Contains(query, StringComparison.OrdinalIgnoreCase)))];
+        return
+        [
+            .. projection.Players.Where(p =>
+                p.Aliases.Any(a => a.Name.Contains(query, StringComparison.OrdinalIgnoreCase)))
+        ];
     }
 
     /// <summary>The account's demos that pass <paramref name="filter" />, newest match first.</summary>
@@ -178,19 +182,26 @@ public sealed class PlayerDirectory
         Dictionary<ulong, Account> accounts = new(builders.Count);
         foreach ((ulong id, Builder builder) in builders)
         {
-            List<PlayerAlias> aliases = [.. builder.Aliases
-                .Select(a => new PlayerAlias(a.Key, a.Value.First, a.Value.Last, a.Value.Demos))
-                .OrderByDescending(a => a.LastSeenTicks)
-                .ThenByDescending(a => a.Demos)
-                .ThenBy(a => a.Name, StringComparer.Ordinal)];
+            List<PlayerAlias> aliases =
+            [
+                .. builder.Aliases
+                    .Select(a => new PlayerAlias(a.Key, a.Value.First, a.Value.Last, a.Value.Demos))
+                    .OrderByDescending(a => a.LastSeenTicks)
+                    .ThenByDescending(a => a.Demos)
+                    .ThenBy(a => a.Name, StringComparer.Ordinal)
+            ];
             List<DemoCacheIndexEntry> demos = builder.Rows;
-            accounts[id] = new Account(new PlayerEntry(id, aliases, demos.Count, TimeOf(demos[^1]), TimeOf(demos[0])), demos);
+            accounts[id] = new Account(new PlayerEntry(id, aliases, demos.Count, TimeOf(demos[^1]), TimeOf(demos[0])),
+                demos);
         }
 
-        List<PlayerEntry> players = [.. accounts.Values.Select(a => a.Entry)
-            .OrderByDescending(p => p.DemoCount)
-            .ThenByDescending(p => p.LastSeenTicks)
-            .ThenBy(p => p.SteamId64)];
+        List<PlayerEntry> players =
+        [
+            .. accounts.Values.Select(a => a.Entry)
+                .OrderByDescending(p => p.DemoCount)
+                .ThenByDescending(p => p.LastSeenTicks)
+                .ThenBy(p => p.SteamId64)
+        ];
         return new Projection(accounts, players, demoCount);
     }
 
@@ -226,7 +237,8 @@ public sealed class PlayerDirectory
                         inDemo.Collect(row, Entry.SteamId64);
                         InDemo here = inDemo.Accounts[Entry.SteamId64];
                         here.Slots.Sort();
-                        matches.Add(new PlayerMatch(row, here.Side, [.. here.Names], [.. here.Slots], here.Side is null));
+                        matches.Add(
+                            new PlayerMatch(row, here.Side, [.. here.Names], [.. here.Slots], here.Side is null));
                     }
 
                     return _matches = matches;
@@ -345,7 +357,8 @@ public sealed class PlayerDirectory
 
         public void Seen(string name, long time)
         {
-            ref (long First, long Last, int Demos) seen = ref CollectionsMarshal.GetValueRefOrAddDefault(Aliases, name, out bool exists);
+            ref (long First, long Last, int Demos) seen =
+                ref CollectionsMarshal.GetValueRefOrAddDefault(Aliases, name, out bool exists);
             seen = exists ? (Math.Min(seen.First, time), Math.Max(seen.Last, time), seen.Demos + 1) : (time, time, 1);
         }
     }

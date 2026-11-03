@@ -65,7 +65,8 @@ public sealed class DemoProvenanceSource : IDemoProvenanceSource, IDisposable
 
         // A pin outlives the demo leaving the library: the hash still names it, and a tag document
         // joined on that hash still wants the answer the user gave.
-        return _teams.ProvenanceOverrides.FirstOrDefault(o => string.Equals(o.DemoSha256, sha256, StringComparison.Ordinal))?.Label;
+        return _teams.ProvenanceOverrides
+            .FirstOrDefault(o => string.Equals(o.DemoSha256, sha256, StringComparison.Ordinal))?.Label;
     }
 
     /// <inheritdoc />

@@ -81,7 +81,9 @@ public sealed class AnalysisFacts : IAnalysisFacts, IFactsVisibility
         string? fingerprint = _facts.Fingerprint(key.RulesetId, ProbeTickRate);
         if (stamp.State == DemoAnalysisState.Failed)
         {
-            return string.Equals(stamp.Fingerprint, fingerprint, StringComparison.Ordinal) ? FactStatus.Failed : FactStatus.Stale;
+            return string.Equals(stamp.Fingerprint, fingerprint, StringComparison.Ordinal)
+                ? FactStatus.Failed
+                : FactStatus.Stale;
         }
 
         return stamp.IsCurrent(StampedFacts.Schema, fingerprint) ? FactStatus.Current : FactStatus.Stale;
@@ -105,7 +107,8 @@ public sealed class AnalysisFacts : IAnalysisFacts, IFactsVisibility
             : null;
     }
 
-    string IFactsVisibility.ShownKey => _facts is null ? "" : string.Join('\n', _facts.Facets().Select(f => f.RulesetId));
+    string IFactsVisibility.ShownKey =>
+        _facts is null ? "" : string.Join('\n', _facts.Facets().Select(f => f.RulesetId));
 
     bool IFactsVisibility.Shows(string stampId) =>
         StampedFacts.RulesetOf(stampId) is not { } rulesetId || _facts?.Facet(rulesetId) is not null;

@@ -78,7 +78,8 @@
                              Background="Transparent" SelectionMode="Single">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="c:PlaceOption">
-                                <TextBlock Text="{Binding Display}" FontSize="12" Foreground="{DynamicResource TextValue}"
+                                <TextBlock Text="{Binding Display}" FontSize="12"
+                                           Foreground="{DynamicResource TextValue}"
                                            TextTrimming="CharacterEllipsis" />
                             </DataTemplate>
                         </ListBox.ItemTemplate>

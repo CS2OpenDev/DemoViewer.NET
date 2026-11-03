@@ -98,7 +98,8 @@ public class StratRecordPanelTests
         await fixture.Panel.Pending;
         using (Assert.Multiple())
         {
-            await Assert.That(fixture.Panel.Total.Run.Count).IsEqualTo(2).Because("a tag written elsewhere reaches the open panel");
+            await Assert.That(fixture.Panel.Total.Run.Count).IsEqualTo(2)
+                .Because("a tag written elsewhere reaches the open panel");
             await Assert.That(fixture.Panel.Total.Lost.Count).IsEqualTo(1);
         }
     }
@@ -163,8 +164,10 @@ public class StratRecordPanelTests
             await Assert.That(entries.Count).IsEqualTo(3).Because("one title card, then the two won clips");
             await Assert.That(entries[0].Kind).IsEqualTo(ReviewEntryKind.Section);
             await Assert.That(entries[0].Title).IsEqualTo("Strat record · total · All runs");
-            await Assert.That(entries.Skip(1).All(e => e.DemoPath == "/d/a.dem" && e.Source == ReviewSources.Tag)).IsTrue();
-            await Assert.That(fixture.SelectedTabs).IsEquivalentTo([ReviewQueueModule.TabId], CollectionOrdering.Matching);
+            await Assert.That(entries.Skip(1).All(e => e.DemoPath == "/d/a.dem" && e.Source == ReviewSources.Tag))
+                .IsTrue();
+            await Assert.That(fixture.SelectedTabs)
+                .IsEquivalentTo([ReviewQueueModule.TabId], CollectionOrdering.Matching);
             await Assert.That(fixture.Panel.StatusLine).IsEqualTo("2 clips sent to Review");
         }
 
@@ -222,7 +225,8 @@ public class StratRecordPanelTests
             Cache = new DemoCacheStore(null);
             Queue = new ReviewQueue(null);
             StratEvidenceService evidence = new(Tags, new FixedProvenance(Provenance));
-            Panel = new StratRecordPanelViewModel(evidence, Tags, new ExtensionReviewQueue(Queue), Cache.Library().FindBySha256,
+            Panel = new StratRecordPanelViewModel(evidence, Tags, new ExtensionReviewQueue(Queue),
+                Cache.Library().FindBySha256,
                 tab =>
                 {
                     SelectedTabs.Add(tab);

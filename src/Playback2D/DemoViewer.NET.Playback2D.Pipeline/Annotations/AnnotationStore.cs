@@ -289,12 +289,8 @@ public sealed class AnnotationStore
         AnnotationDocumentDto dto = new()
         {
             SchemaVersion = SchemaVersion,
-            Demo = new DemoIdentityDto
-            {
-                Sha256 = demo.Sha256,
-                FileName = demo.FileName,
-                SizeBytes = demo.SizeBytes
-            },
+            Demo =
+                new DemoIdentityDto { Sha256 = demo.Sha256, FileName = demo.FileName, SizeBytes = demo.SizeBytes },
             Clock = new ClockIdentityDto
             {
                 Kind = clock.Kind,
@@ -535,11 +531,7 @@ public sealed class AnnotationStore
                 runs.Add(run.TickOffset);
             }
 
-            dto.Timing = new AnnotationTimingDto
-            {
-                Runs = runs,
-                DurationTicks = timing.DurationTicks
-            };
+            dto.Timing = new AnnotationTimingDto { Runs = runs, DurationTicks = timing.DurationTicks };
         }
 
         return dto;

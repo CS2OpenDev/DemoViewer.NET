@@ -112,15 +112,15 @@ public class ZoneOverlayLoadTests
             await Assert.That(before!.PlaceId("Sandwich")).IsNull();
 
             ConfigDir.WriteOverlay("""
-                                {
-                                  "schemaVersion": 1,
-                                  "mapName": "de_nuke",
-                                  "zones": [
-                                    { "name": "Sandwich", "floor": -512,
-                                      "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
-                                  ]
-                                }
-                                """);
+                                   {
+                                     "schemaVersion": 1,
+                                     "mapName": "de_nuke",
+                                     "zones": [
+                                       { "name": "Sandwich", "floor": -512,
+                                         "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
+                                     ]
+                                   }
+                                   """);
 
             vm.ReloadZonesCommand.Execute(null);
 
@@ -130,7 +130,8 @@ public class ZoneOverlayLoadTests
             await Assert.That(after!.PlaceId("Sandwich")).IsNotNull();
             await Assert.That(after.Zones.HasOverlay).IsTrue();
             await Assert.That(after.Zones.EffectiveVersion).IsNotEqualTo(before.Zones.EffectiveVersion);
-            await Assert.That(after.Zones.Places.Single(p => p.Name == "Sandwich").Origin).IsEqualTo(PlaceOrigin.Custom);
+            await Assert.That(after.Zones.Places.Single(p => p.Name == "Sandwich").Origin)
+                .IsEqualTo(PlaceOrigin.Custom);
             await Assert.That(ZoneOverlayDiagnostics.Current.Count).IsEqualTo(0);
             await Assert.That(vm.Status).Contains("Zones reloaded");
 
@@ -166,21 +167,22 @@ public class ZoneOverlayLoadTests
         }
 
         ConfigDir.WriteOverlay("""
-                            {
-                              "schemaVersion": 1,
-                              "mapName": "de_nuke",
-                              "zones": [
-                                { "name": "Sandwich", "floor": -512,
-                                  "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
-                              ]
-                            }
-                            """);
+                               {
+                                 "schemaVersion": 1,
+                                 "mapName": "de_nuke",
+                                 "zones": [
+                                   { "name": "Sandwich", "floor": -512,
+                                     "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
+                                 ]
+                               }
+                               """);
 
         PlaceResolver? second = lease.RefreshZones();
         await Assert.That(second).IsNotNull();
         using (Assert.Multiple())
         {
-            await Assert.That(ReferenceEquals(second, first)).IsFalse().Because("the overlay was saved after the first read");
+            await Assert.That(ReferenceEquals(second, first)).IsFalse()
+                .Because("the overlay was saved after the first read");
             await Assert.That(second!.PlaceId("Sandwich")).IsNotNull();
             await Assert.That(second.Zones.HasOverlay).IsTrue();
             await Assert.That(second.Zones.EffectiveVersion).IsNotEqualTo(first!.Zones.EffectiveVersion);
@@ -200,11 +202,7 @@ public class ZoneOverlayLoadTests
 
     private static (Playback2DTabViewModel Vm, Playback2DFakeContext Ctx) ActivatedTab()
     {
-        Playback2DFakeContext ctx = new()
-        {
-            MapName = Map,
-            Gate = new FakeModuleFeatureGate()
-        };
+        Playback2DFakeContext ctx = new() { MapName = Map, Gate = new FakeModuleFeatureGate() };
         ctx.AddPlayer(0, "Alpha", 2);
         Playback2DTabViewModel vm = new();
         vm.OnActivated(ctx);

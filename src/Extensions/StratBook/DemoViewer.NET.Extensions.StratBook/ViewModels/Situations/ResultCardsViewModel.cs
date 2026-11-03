@@ -190,7 +190,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         get
         {
             int rest = Cards.Count - ShownCount;
-            return string.Create(CultureInfo.InvariantCulture, $"Show {Math.Min(PageSize, rest)} more ({rest} not shown)");
+            return string.Create(CultureInfo.InvariantCulture,
+                $"Show {Math.Min(PageSize, rest)} more ({rest} not shown)");
         }
     }
 
@@ -359,7 +360,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         catch (Exception ex)
         {
             shown = false;
-            WalkLine = $"{SelectedIndex} of {Cards.Count} · could not open {Path.GetFileName(card.Hit.DemoPath)}: {ex.Message}";
+            WalkLine =
+                $"{SelectedIndex} of {Cards.Count} · could not open {Path.GetFileName(card.Hit.DemoPath)}: {ex.Message}";
             return;
         }
 
@@ -448,8 +450,9 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// <param name="points">How many positions were stacked.</param>
     public static string OverlayLineFor(int rounds, int withoutPositions, int states, int points)
     {
-        string line = $"{rounds} {(rounds == 1 ? "round" : "rounds")} · {states} {(states == 1 ? "state" : "states")} · "
-                      + $"{points.ToString("N0", CultureInfo.InvariantCulture)} positions";
+        string line =
+            $"{rounds} {(rounds == 1 ? "round" : "rounds")} · {states} {(states == 1 ? "state" : "states")} · "
+            + $"{points.ToString("N0", CultureInfo.InvariantCulture)} positions";
         return withoutPositions > 0 ? $"{line} · {withoutPositions} without positions" : line;
     }
 
@@ -516,7 +519,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
             if (!string.Equals(currentPath, hit.DemoPath, StringComparison.Ordinal))
             {
                 currentPath = hit.DemoPath;
-                positions = _store.TryReadPositions(hit.DemoPath, _sources.FingerprintFor(hit.Map), _library.Find(hit.DemoPath)?.Sha256);
+                positions = _store.TryReadPositions(hit.DemoPath, _sources.FingerprintFor(hit.Map),
+                    _library.Find(hit.DemoPath)?.Sha256);
             }
 
             if (positions?.Round(hit.RoundNumber) is not { } round)
@@ -602,7 +606,9 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
                 positions = _store.TryReadPositions(hit.DemoPath, fingerprint, record?.Demo.Sha256);
             }
 
-            RoundFacts? round = record is null ? null : _roundFacts?.TryGet(hit.DemoPath)?.Rounds.FirstOrDefault(r => r.Number == hit.RoundNumber);
+            RoundFacts? round = record is null
+                ? null
+                : _roundFacts?.TryGet(hit.DemoPath)?.Rounds.FirstOrDefault(r => r.Number == hit.RoundNumber);
             int tickRate = record?.TickRate ?? 0;
 
             byte[]? png = null;
@@ -649,7 +655,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         }
     }
 
-    private static byte[]? TryRender(SituationThumbnailRenderer renderer, SituationHit hit, RoundPositionsDocument positions)
+    private static byte[]? TryRender(SituationThumbnailRenderer renderer, SituationHit hit,
+        RoundPositionsDocument positions)
     {
         try
         {

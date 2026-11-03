@@ -14,7 +14,9 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 /// <summary>One table row as either reader hands it over: the dimensions and the column values, by name.</summary>
 /// <param name="Dimensions">The row's dimensions.</param>
 /// <param name="Values">The row's column values.</param>
-public readonly record struct GrenadeTableRow(IReadOnlyDictionary<string, object?> Dimensions, IReadOnlyDictionary<string, object?> Values);
+public readonly record struct GrenadeTableRow(
+    IReadOnlyDictionary<string, object?> Dimensions,
+    IReadOnlyDictionary<string, object?> Values);
 
 /// <summary>
 ///     The grenade walk's contributed rulesets and the fold of their tables: <c>grenade_projectiles</c> (one row per
@@ -85,10 +87,12 @@ public static class GrenadeTables
     /// <summary>The shipped rulesets, parsed. Throws when one does not load.</summary>
     public static IReadOnlyList<RulesetDoc> LoadRulesets()
     {
-        RuleConfigLoadResult read = YamlConfigLoader.LoadDocuments([.. Rulesets.Select(r => (r + ".rules.yaml", ReadYaml(r)))]);
+        RuleConfigLoadResult read =
+            YamlConfigLoader.LoadDocuments([.. Rulesets.Select(r => (r + ".rules.yaml", ReadYaml(r)))]);
         return read.Success && read.Rulesets.Count == Rulesets.Count
             ? read.Rulesets
-            : throw new InvalidOperationException("the grenade rulesets do not load: " + string.Join("; ", read.Errors));
+            : throw new InvalidOperationException("the grenade rulesets do not load: "
+                                                  + string.Join("; ", read.Errors));
     }
 
     /// <summary>The tables as a pass reads them off its visit's run.</summary>
@@ -97,7 +101,8 @@ public static class GrenadeTables
     public static GrenadeTableRows Read(Func<string, IReadOnlyList<FactRow>> table, int serverStartTick)
     {
         ArgumentNullException.ThrowIfNull(table);
-        return Read(name => table(name).Select(r => new GrenadeTableRow(Cells(r.Dimensions), Cells(r.Values))), serverStartTick);
+        return Read(name => table(name).Select(r => new GrenadeTableRow(Cells(r.Dimensions), Cells(r.Values))),
+            serverStartTick);
     }
 
     /// <summary>The tables off a run made outside a visit, a held parse's or a test's.</summary>
@@ -106,11 +111,14 @@ public static class GrenadeTables
     public static GrenadeTableRows Read(AnalysisRun run, int serverStartTick)
     {
         ArgumentNullException.ThrowIfNull(run);
-        Dictionary<string, MetricTable> tables = run.ProjectConfiguredOutputs().ToDictionary(t => t.Name, StringComparer.Ordinal);
+        Dictionary<string, MetricTable> tables =
+            run.ProjectConfiguredOutputs().ToDictionary(t => t.Name, StringComparer.Ordinal);
         return Read(name => tables.TryGetValue(name, out MetricTable? table)
-            ? table.Rows.Select(r => new GrenadeTableRow(r.Dimensions, r.Values))
-            : throw new InvalidOperationException($"the run recorded no {name} table: "
-                                                  + string.Join("; ", run.Build.ExcludedRulesets.SelectMany(e => e.Diagnostics))), serverStartTick);
+                ? table.Rows.Select(r => new GrenadeTableRow(r.Dimensions, r.Values))
+                : throw new InvalidOperationException($"the run recorded no {name} table: "
+                                                      + string.Join("; ",
+                                                          run.Build.ExcludedRulesets.SelectMany(e => e.Diagnostics))),
+            serverStartTick);
     }
 
     /// <summary>Folds the rows of every table, by name.</summary>
@@ -121,22 +129,27 @@ public static class GrenadeTables
         ArgumentNullException.ThrowIfNull(rows);
         List<ProjectileFacts> projectiles = [.. rows(ProjectilesTable).Select(Projectile).OfType<ProjectileFacts>()];
         projectiles.AddRange(rows(LandingsTable).Select(Landing).OfType<ProjectileFacts>());
-        projectiles.Sort((a, b) => a.SpawnTick != b.SpawnTick ? a.SpawnTick.CompareTo(b.SpawnTick) : a.EntityIndex.CompareTo(b.EntityIndex));
+        projectiles.Sort((a, b) =>
+            a.SpawnTick != b.SpawnTick ? a.SpawnTick.CompareTo(b.SpawnTick) : a.EntityIndex.CompareTo(b.EntityIndex));
 
-        List<ReleaseFacts> releases = [.. rows(ReleasesTable).Select(r => Release(r, serverStartTick)).OfType<ReleaseFacts>()];
+        List<ReleaseFacts> releases =
+            [.. rows(ReleasesTable).Select(r => Release(r, serverStartTick)).OfType<ReleaseFacts>()];
         releases.Sort((a, b) => a.Tick.CompareTo(b.Tick));
 
         List<GrenadeDetonation> detonations = [];
         foreach ((string table, string name) in new[]
                  {
-                     (HeDetonationsTable, GrenadeEventIndex.HeDetonate), (FlashDetonationsTable, GrenadeEventIndex.FlashDetonate),
-                     (SmokeDetonationsTable, GrenadeEventIndex.SmokeDetonate), (DecoyStartsTable, GrenadeEventIndex.DecoyStarted),
+                     (HeDetonationsTable, GrenadeEventIndex.HeDetonate),
+                     (FlashDetonationsTable, GrenadeEventIndex.FlashDetonate),
+                     (SmokeDetonationsTable, GrenadeEventIndex.SmokeDetonate),
+                     (DecoyStartsTable, GrenadeEventIndex.DecoyStarted),
                      (InfernoStartsTable, GrenadeEventIndex.InfernoStart)
                  })
         {
             foreach (GrenadeTableRow row in rows(table))
             {
-                if (Int(row.Dimensions, "tick") is { } tick && Int(row.Values, "entity") is { } entity && Vector(row.Values, "x", "y", "z") is { } at)
+                if (Int(row.Dimensions, "tick") is { } tick && Int(row.Values, "entity") is { } entity
+                                                            && Vector(row.Values, "x", "y", "z") is { } at)
                 {
                     detonations.Add(new GrenadeDetonation(name, tick, entity, at));
                 }
@@ -150,14 +163,17 @@ public static class GrenadeTables
     private static ProjectileFacts? Projectile(GrenadeTableRow row)
     {
         IReadOnlyDictionary<string, object?> d = row.Dimensions, v = row.Values;
-        if (Int(d, "entity_index") is not { } index || Int(d, "serial") is not { } serial || Str(v, "class_name") is not { } className
-            || Int(d, "first_seen_tick") is not { } spawn || Int(d, "removed_tick") is not { } end)
+        if (Int(d, "entity_index") is not { } index || Int(d, "serial") is not { } serial
+                                                    || Str(v, "class_name") is not { } className
+                                                    || Int(d, "first_seen_tick") is not { } spawn
+                                                    || Int(d, "removed_tick") is not { } end)
         {
             return null;
         }
 
         int slot = Int(d, "player_slot") ?? -1;
-        ThrowerAtSpawn atSpawn = new(Vector(v, "spawn_x", "spawn_y", "spawn_z"), Bool(v, "spawn_on_ground"), Math.Max(0, Int(d, "team") ?? 0),
+        ThrowerAtSpawn atSpawn = new(Vector(v, "spawn_x", "spawn_y", "spawn_z"), Bool(v, "spawn_on_ground"),
+            Math.Max(0, Int(d, "team") ?? 0),
             Int(v, "last_jump_tick") ?? -1, Float(v, "coverage") ?? 0);
         // A look-back from before the thrower had a pawn reads 0 on every column; the pawn index tells.
         ThrowerRead? offset = null;
@@ -165,15 +181,21 @@ public static class GrenadeTables
         if (Int(v, "offset_pawn") is > 0)
         {
             bool held = GrenadeRules.IsGrenadeWeaponClass(Str(v, "offset_weapon"));
-            offset = new ThrowerRead(spawn - GrenadeRules.ReleaseToSpawnTicks, Vector(v, "offset_x", "offset_y", "offset_z"),
-                Float(v, "offset_pitch"), Float(v, "offset_yaw"), Bool(v, "offset_on_ground"), Bool(v, "offset_ducking"), atSpawn.Team,
+            offset = new ThrowerRead(spawn - GrenadeRules.ReleaseToSpawnTicks,
+                Vector(v, "offset_x", "offset_y", "offset_z"),
+                Float(v, "offset_pitch"), Float(v, "offset_yaw"), Bool(v, "offset_on_ground"),
+                Bool(v, "offset_ducking"), atSpawn.Team,
                 held ? Float(v, "offset_strength") : null, held);
-            offsetBefore = Float(v, "offset_before_x") is { } bx && Float(v, "offset_before_y") is { } by ? new Vector3(bx, by, 0) : null;
+            offsetBefore = Float(v, "offset_before_x") is { } bx && Float(v, "offset_before_y") is { } by
+                ? new Vector3(bx, by, 0)
+                : null;
         }
 
-        return new ProjectileFacts(index, serial, className, slot, spawn, Int(d, "created_tick") ?? spawn, end, Bool(d, "removed") ?? true,
+        return new ProjectileFacts(index, serial, className, slot, spawn, Int(d, "created_tick") ?? spawn, end,
+            Bool(d, "removed") ?? true,
             Vector(v, "initial_x", "initial_y", "initial_z"), Vector(v, "velocity_x", "velocity_y", "velocity_z"),
-            Vector(v, "end_x", "end_y", "end_z"), Int(v, "last_moved_tick") ?? spawn, Int(v, "bounces") ?? 0, Bool(v, "is_incendiary"),
+            Vector(v, "end_x", "end_y", "end_z"), Int(v, "last_moved_tick") ?? spawn, Int(v, "bounces") ?? 0,
+            Bool(v, "is_incendiary"),
             Positive(Int(v, "explode_effect_tick")), Positive(Int(v, "smoke_effect_tick")),
             Vector(v, "smoke_detonation_x", "smoke_detonation_y", "smoke_detonation_z"), atSpawn, offset, offsetBefore);
     }
@@ -183,12 +205,14 @@ public static class GrenadeTables
     {
         IReadOnlyDictionary<string, object?> d = row.Dimensions, v = row.Values;
         if ((Int(v, "slot") ?? -1) >= 0 || Int(v, "entity") is not { } index || Int(v, "serial") is not { } serial
-            || Str(v, "class_name") is not { } className || Int(v, "first_seen_tick") is not { } spawn || Int(d, "tick") is not { } end)
+            || Str(v, "class_name") is not { } className || Int(v, "first_seen_tick") is not { } spawn
+            || Int(d, "tick") is not { } end)
         {
             return null;
         }
 
-        return new ProjectileFacts(index, serial, className, -1, spawn, spawn, end, true, null, null, Vector(v, "x", "y", "z"), end,
+        return new ProjectileFacts(index, serial, className, -1, spawn, spawn, end, true, null, null,
+            Vector(v, "x", "y", "z"), end,
             Int(v, "bounces") ?? 0, null, null, null, null, null, null, null);
     }
 
@@ -196,8 +220,10 @@ public static class GrenadeTables
     private static ReleaseFacts? Release(GrenadeTableRow row, int serverStartTick)
     {
         IReadOnlyDictionary<string, object?> d = row.Dimensions, v = row.Values;
-        if (Int(d, "tick") is not { } frameTick || Int(d, "player_slot") is not { } slot || Str(v, "weapon") is not { } weapon
-            || GrenadeRules.ProjectileClassOfWeapon(weapon) is not { } projectileClass)
+        if (Int(d, "tick") is not { } frameTick || Int(d, "player_slot") is not { } slot
+                                                || Str(v, "weapon") is not { } weapon
+                                                || GrenadeRules.ProjectileClassOfWeapon(weapon) is not
+                                                    { } projectileClass)
         {
             return null;
         }
@@ -207,16 +233,19 @@ public static class GrenadeTables
         if (Int(v, "pawn") is not > 0)
         {
             // No pawn yet: the row's reads are defaults, as a walker that found no pawn read nothing.
-            return new ReleaseFacts(slot, tick, projectileClass, weapon, new ThrowerRead(tick, null, null, null, null, null, team, null, false), null);
+            return new ReleaseFacts(slot, tick, projectileClass, weapon,
+                new ThrowerRead(tick, null, null, null, null, null, team, null, false), null);
         }
 
         bool held = GrenadeRules.IsGrenadeWeaponClass(Str(v, "weapon_class"));
-        ThrowerRead pawn = new(tick, Vector(v, "pos_x", "pos_y", "pos_z"), Float(v, "eye_pitch"), Float(v, "eye_yaw"), Bool(v, "on_ground"),
+        ThrowerRead pawn = new(tick, Vector(v, "pos_x", "pos_y", "pos_z"), Float(v, "eye_pitch"), Float(v, "eye_yaw"),
+            Bool(v, "on_ground"),
             Bool(v, "ducking"), team, held ? Float(v, "throw_strength") : null, held);
         // The look-back reads 0 from before the slot had a pawn, as offset_pawn does on a projectile row.
-        Vector3? before = Int(v, "before_pawn") is > 0 && Float(v, "before_x") is { } bx && Float(v, "before_y") is { } by
-            ? new Vector3(bx, by, 0)
-            : null;
+        Vector3? before =
+            Int(v, "before_pawn") is > 0 && Float(v, "before_x") is { } bx && Float(v, "before_y") is { } by
+                ? new Vector3(bx, by, 0)
+                : null;
         return new ReleaseFacts(slot, tick, projectileClass, weapon, pawn, before);
     }
 

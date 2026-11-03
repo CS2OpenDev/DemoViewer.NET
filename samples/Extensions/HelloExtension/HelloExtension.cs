@@ -54,13 +54,16 @@ public sealed class HelloExtension : IExtension
 
     public IEnumerable<ExtensionFeature> Features =>
     [
-        new(MasterSwitch, ExtensionFeatureKind.Extension, "Hello", "A sample extension.", null, AudienceDefaults.Everyone),
-        new(TabFeature, ExtensionFeatureKind.Tab, "Hello tab", "Shows the open demo.", MasterSwitch, AudienceDefaults.Everyone)
+        new(MasterSwitch, ExtensionFeatureKind.Extension, "Hello", "A sample extension.", null,
+            AudienceDefaults.Everyone),
+        new(TabFeature, ExtensionFeatureKind.Tab, "Hello tab", "Shows the open demo.", MasterSwitch,
+            AudienceDefaults.Everyone)
     ];
 
     public IEnumerable<CommandDescriptor> Commands =>
     [
-        new(WhereAction, "Hello: log the tick shown", "playback2d", new KeyGesture(Key.H, KeyModifiers.Shift), _ => false)
+        new(WhereAction, "Hello: log the tick shown", "playback2d", new KeyGesture(Key.H, KeyModifiers.Shift),
+            _ => false)
     ];
 
     public void Register(IServiceCollection services)
@@ -84,13 +87,16 @@ public sealed class HelloExtension : IExtension
         // A page under Settings, Extensions that the host draws from this list and stores in context.Settings.
         contributions.SettingsSchema(new SettingsSchema("hello.settings", "HELLO",
         [
-            SettingDescriptor.Toggle(ShowFramesKey, "Show frame counts", true, "The tab names how many frames the open demo has."),
-            SettingDescriptor.Choice(GreetingKey, "Greeting", "Hello", [new SettingChoice("Hello", "Hello"), new SettingChoice("Hi", "Hi")])
+            SettingDescriptor.Toggle(ShowFramesKey, "Show frame counts", true,
+                "The tab names how many frames the open demo has."),
+            SettingDescriptor.Choice(GreetingKey, "Greeting", "Hello",
+                [new SettingChoice("Hello", "Hello"), new SettingChoice("Hi", "Hi")])
         ]));
 
         // Runs on every visit of a demo, but wants only the one the shell has open, so it rides the open's
         // parse and never makes the library read a demo for it.
-        contributions.Pass(FrameCountPass.PassId, () => new FrameCountPass(services.GetRequiredService<HelloTabViewModel>(), context.Data));
+        contributions.Pass(FrameCountPass.PassId,
+            () => new FrameCountPass(services.GetRequiredService<HelloTabViewModel>(), context.Data));
 
         // The host runs the ruleset with the highlights on every demo while the extension is on and keeps its
         // table as library facts. extension.json lists it under "rulesets" too.
@@ -99,7 +105,8 @@ public sealed class HelloExtension : IExtension
 
         // A job that names the demo runs on that demo's parse: the shell's when the demo is open. The chip
         // shows the demo greeted; it may be told from any thread.
-        contributions.DemoAction(new DemoAction(ExtensionId + ".greet", "Say hello", "Greets this demo with its frame count",
+        contributions.DemoAction(new DemoAction(ExtensionId + ".greet", "Say hello",
+            "Greets this demo with its frame count",
             _ => true,
             path =>
             {
@@ -114,7 +121,9 @@ public sealed class HelloExtension : IExtension
                     bool read = result.Status == JobStatus.Completed;
                     services.GetRequiredService<HelloTabViewModel>().Greeted =
                         context.Settings.Get(GreetingKey, "Hello") + " "
-                        + (read ? $"{Path.GetFileName(path)} ({frames} frames)" : Path.GetFileName(path));
+                                                                   + (read
+                                                                       ? $"{Path.GetFileName(path)} ({frames} frames)"
+                                                                       : Path.GetFileName(path));
                     chip.Greeted(Path.GetFileName(path));
 
                     // One id, so greeting again replaces the card rather than stacking another.
@@ -196,11 +205,15 @@ public sealed class HelloTabViewModel : IWorkspaceTabViewModel
             string demos = You is { } you && _context.Library.Players.Account(you) is { } account
                 ? $" ({account.DemoCount} demos)"
                 : "";
-            return $"Open demo: {open ?? "none"}{frames}.{kills} Last greeted: {Greeted ?? "nobody"}. You: {_context.Identity.ActiveAccount ?? "not set"}{demos}.";
+            return
+                $"Open demo: {open ?? "none"}{frames}.{kills} Last greeted: {Greeted ?? "nobody"}. You: {_context.Identity.ActiveAccount ?? "not set"}{demos}.";
         }
     }
 
-    private ulong? You => ulong.TryParse(_context.Identity.ActiveAccount, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) ? id : null;
+    private ulong? You => ulong.TryParse(_context.Identity.ActiveAccount, NumberStyles.None,
+        CultureInfo.InvariantCulture, out ulong id)
+        ? id
+        : null;
 
     /// <summary>Opens the user's active account in the host's Player Overview. False when the host could not.</summary>
     public bool OpenYou() => You is { } you && _context.Shell.OpenPlayerOverview(you);
@@ -261,11 +274,14 @@ public static class HelloFacts
     public const string RulesetName = "kills";
 
     /// <summary>The table the ruleset declares: one row per player, the match's kills.</summary>
-    public static FactKey Key { get; } = new(RulesetContribution.QualifiedId(HelloExtension.ExtensionId, RulesetName), "hello_kills");
+    public static FactKey Key { get; } = new(RulesetContribution.QualifiedId(HelloExtension.ExtensionId, RulesetName),
+        "hello_kills");
 
     /// <summary>Every player's kills in the demo summed, or null when the library has not written the table.</summary>
     public static int? TotalKills(IAnalysisFacts facts, string demoPath) =>
-        facts.TryGet(demoPath, Key) is { } table ? (int)table.Rows.Sum(r => r.Values.GetValueOrDefault("kills")?.AsNumber() ?? 0) : null;
+        facts.TryGet(demoPath, Key) is { } table
+            ? (int)table.Rows.Sum(r => r.Values.GetValueOrDefault("kills")?.AsNumber() ?? 0)
+            : null;
 }
 
 /// <summary>
@@ -387,7 +403,10 @@ internal sealed class HelloModule(Func<HelloTabViewModel> viewModel) : IWorkspac
 /// </summary>
 internal sealed class HelloLayer(string id) : ISceneLayer
 {
-    private readonly SKPaint _paint = new() { Color = new SKColor(0xFF, 0xC8, 0x40), IsAntialias = true, IsStroke = true, StrokeWidth = 2 };
+    private readonly SKPaint _paint = new()
+    {
+        Color = new SKColor(0xFF, 0xC8, 0x40), IsAntialias = true, IsStroke = true, StrokeWidth = 2
+    };
 
     public string Id => id;
 

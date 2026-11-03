@@ -50,27 +50,30 @@ public class MatchOverviewFacetScoreboardRealDemoTests
             facts.EvaluateForward(path, ForwardDemoPass.Run(reader, ForwardNeeds.Rules, rules.Docs, outputs: cut));
         }
 
-        FactTable facet = library.TryGet(path, PlayerMatchFacet.Key) ?? throw new InvalidOperationException("the visit wrote no facet");
+        FactTable facet = library.TryGet(path, PlayerMatchFacet.Key)
+                          ?? throw new InvalidOperationException("the visit wrote no facet");
         List<CachedStatRow> projected = DemoCacheAnalysisProjector.ProjectScoreboard(facet);
         DemoCacheRecord record = cache.TryLoadRecord(path)!;
 
         AnalysisOptions options = new();
-        AnalysisRun retained = DemoAnalysis.Evaluate(parsed, DemoAnalysis.Build(parsed, rules.CoreDocs, options), options);
+        AnalysisRun retained =
+            DemoAnalysis.Evaluate(parsed, DemoAnalysis.Build(parsed, rules.CoreDocs, options), options);
         MetricTable game = new PlayerGameStatsProjector().Project(retained.Snapshots!, parsed).Single();
         List<CachedStatRow> statsTab =
         [
-            .. game.Rows.Where(r => r.Dimensions.GetValueOrDefault("player_slot") is not null).Select(r => new CachedStatRow
-            {
-                Slot = Whole(r.Dimensions["player_slot"]),
-                Team = Whole(r.Dimensions.GetValueOrDefault("team")),
-                Kills = Whole(r.Values["TotalK"]),
-                Deaths = Whole(r.Values["TotalD"]),
-                Assists = Whole(r.Values["TotalA"]),
-                Adr = Number(r.Values["ADR"]),
-                Rating = Number(r.Values["HLTV"]),
-                CtWins = Whole(r.Values["CTW"]),
-                TWins = Whole(r.Values["TW"])
-            })
+            .. game.Rows.Where(r => r.Dimensions.GetValueOrDefault("player_slot") is not null).Select(r =>
+                new CachedStatRow
+                {
+                    Slot = Whole(r.Dimensions["player_slot"]),
+                    Team = Whole(r.Dimensions.GetValueOrDefault("team")),
+                    Kills = Whole(r.Values["TotalK"]),
+                    Deaths = Whole(r.Values["TotalD"]),
+                    Assists = Whole(r.Values["TotalA"]),
+                    Adr = Number(r.Values["ADR"]),
+                    Rating = Number(r.Values["HLTV"]),
+                    CtWins = Whole(r.Values["CTW"]),
+                    TWins = Whole(r.Values["TW"])
+                })
         ];
 
         Dictionary<int, CachedStatRow> bySlot = projected.ToDictionary(r => r.Slot);
@@ -88,21 +91,25 @@ public class MatchOverviewFacetScoreboardRealDemoTests
                 || Math.Abs(actual.Adr - expected.Adr) > 1e-9
                 || Math.Abs(actual.Rating - expected.Rating) > 1e-9)
             {
-                mismatches.Add($"slot {expected.Slot}: facet {actual.Team} {actual.Kills}/{actual.Deaths}/{actual.Assists} {actual.Adr} {actual.Rating} {actual.CtWins}:{actual.TWins}, "
-                               + $"Stats tab {expected.Team} {expected.Kills}/{expected.Deaths}/{expected.Assists} {expected.Adr} {expected.Rating} {expected.CtWins}:{expected.TWins}");
+                mismatches.Add(
+                    $"slot {expected.Slot}: facet {actual.Team} {actual.Kills}/{actual.Deaths}/{actual.Assists} {actual.Adr} {actual.Rating} {actual.CtWins}:{actual.TWins}, "
+                    + $"Stats tab {expected.Team} {expected.Kills}/{expected.Deaths}/{expected.Assists} {expected.Adr} {expected.Rating} {expected.CtWins}:{expected.TWins}");
             }
         }
 
         (int? ct, int? t) = DemoCacheAnalysisProjector.ComputeSideWins(statsTab);
-        Console.WriteLine($"{Path.GetFileName(path)}: {statsTab.Count} Stats tab rows, {projected.Count} facet rows, sides {ct}:{t}");
+        Console.WriteLine(
+            $"{Path.GetFileName(path)}: {statsTab.Count} Stats tab rows, {projected.Count} facet rows, sides {ct}:{t}");
 
         using (Assert.Multiple())
         {
             await Assert.That(statsTab.Count).IsGreaterThanOrEqualTo(10);
             await Assert.That(mismatches).IsEmpty().Because(string.Join("; ", mismatches));
-            await Assert.That(record.CtSideWins).IsEqualTo(ct).Because("the facts pass stores the side wins the open used to");
+            await Assert.That(record.CtSideWins).IsEqualTo(ct)
+                .Because("the facts pass stores the side wins the open used to");
             await Assert.That(record.TSideWins).IsEqualTo(t);
-            await Assert.That(cache.TryGetIndex(path)!.CtSideWins).IsEqualTo(ct).Because("the index row carries them to Strat Book");
+            await Assert.That(cache.TryGetIndex(path)!.CtSideWins).IsEqualTo(ct)
+                .Because("the index row carries them to Strat Book");
             await Assert.That(DemoCacheAnalysisProjector.Rounds(facet)).IsGreaterThan(0);
         }
     }

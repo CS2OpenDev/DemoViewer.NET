@@ -302,8 +302,10 @@ public class DemoOpenQueueTests
 
             using IDemoOpenTicket second = rig.Queue.BeginOpen("/d/c.dem", "c.dem");
             Task<ParsedDemo> secondParse = second.ParseAsync(Bytes);
+
             DemoQueueItemSnapshot Row(string file) =>
                 rig.Queue.Snapshot().Single(s => s.DisplayName == "Open demo: " + file);
+
             await WaitForAsync(() => Row("c.dem").Detail == "Waiting for a.dem to finish parsing (cancelled)",
                 "the second open to name the first");
             await Assert.That(Row("a.dem").Detail).IsEqualTo("Replaced, finishing its parse");

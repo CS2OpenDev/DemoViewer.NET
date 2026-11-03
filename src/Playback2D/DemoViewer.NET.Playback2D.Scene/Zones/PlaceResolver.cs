@@ -124,7 +124,9 @@ public sealed class PlaceResolver
     /// </summary>
     /// <param name="mapName">The map, e.g. <c>de_mirage</c>.</param>
     internal static VolumeTieRule TieRuleFor(string? mapName) =>
-        mapName is not null && _tieRules.TryGetValue(mapName, out VolumeTieRule rule) ? rule : VolumeTieRule.FirstInLump;
+        mapName is not null && _tieRules.TryGetValue(mapName, out VolumeTieRule rule)
+            ? rule
+            : VolumeTieRule.FirstInLump;
 
     /// <summary>
     ///     The place at a world point: a place volume at the point or 32 units above it, else the nearest

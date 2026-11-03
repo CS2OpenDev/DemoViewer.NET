@@ -24,7 +24,8 @@ public class StratTriggerClockTests
 
     private static StratDocument Triggered(params StratStep[] steps)
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "execute", "after contact", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "execute", "after contact", Created);
         document.TargetSite = "A";
         document.Clock.Kind = StratClock.TriggerKind;
         document.Trigger = new StratTrigger { Text = "contact at B apps", Kind = "contact" };
@@ -35,11 +36,16 @@ public class StratTriggerClockTests
     // A round-clock strat with a lurk rotate and a step after the plant.
     private static StratDocument OnTheRoundClock()
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "execute", "exec", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "execute", "exec", Created);
         document.TargetSite = "A";
         document.Trigger = new StratTrigger { Text = "on call at 1:15", Kind = "time", AtSeconds = 75 };
         StratStep lurk = Step(1, 110, "E", "lurk");
-        lurk.Lurk = new StepLurk { Areas = ["Palace"], Rotate = new LurkRotate { AtSeconds = 40, To = new PlaceRef { Place = "BombsiteB" } } };
+        lurk.Lurk = new StepLurk
+        {
+            Areas = ["Palace"],
+            Rotate = new LurkRotate { AtSeconds = 40, To = new PlaceRef { Place = "BombsiteB" } }
+        };
         StratStep move = Step(2, 57.8, "A", "move", to: "BombsiteA");
         move.HoldSeconds = 1.5;
         StratStep plant = Step(3, 45, "B", "plant", to: "BombsiteA");
@@ -58,9 +64,13 @@ public class StratTriggerClockTests
             await Assert.That(StratClock.Format(Trigger, 75.5)).IsEqualTo("+1:15.5");
             await Assert.That(StratClock.Format(Trigger, -2)).IsEqualTo("-0:02");
             await Assert.That(StratClock.Format(null, 75)).IsEqualTo("1:15").Because("no clock is the round clock");
-            await Assert.That(StratClock.Format(null, -5)).IsEqualTo("+0:05").Because("after the plant on the round clock");
+            await Assert.That(StratClock.Format(null, -5)).IsEqualTo("+0:05")
+                .Because("after the plant on the round clock");
 
-            foreach ((string text, double seconds) in new[] { ("+0:08", 8.0), ("0:08", 8), ("8", 8), ("+1:15.5", 75.5), ("-0:02", -2) })
+            foreach ((string text, double seconds) in new[]
+                     {
+                         ("+0:08", 8.0), ("0:08", 8), ("8", 8), ("+1:15.5", 75.5), ("-0:02", -2)
+                     })
             {
                 await Assert.That(StratClock.TryParse(Trigger, text, out double parsed)).IsTrue().Because(text);
                 await Assert.That(parsed).IsEqualTo(seconds).Because(text);
@@ -76,7 +86,8 @@ public class StratTriggerClockTests
     [Test]
     public async Task TriggerTimes_CountUpFromTickZero_AndTheProjectionShowsThem()
     {
-        StratDocument document = Triggered(Step(1, 0, "A", "move", to: "Mid"), Step(2, 10, "B", "hold"), Step(3, 20.5, "C", "wait"));
+        StratDocument document = Triggered(Step(1, 0, "A", "move", to: "Mid"), Step(2, 10, "B", "hold"),
+            Step(3, 20.5, "C", "wait"));
         StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document));
         using (Assert.Multiple())
         {
@@ -100,11 +111,15 @@ public class StratTriggerClockTests
         StratDocument rotate = Triggered(lurk);
         using (Assert.Multiple())
         {
-            await Assert.That(StratValidator.Validate(ordered).Where(i => i.Severity != StratIssueSeverity.Info)).IsEmpty();
-            await Assert.That(StratValidator.Validate(backwards).Single(i => i.Severity == StratIssueSeverity.Refusal).Message)
+            await Assert.That(StratValidator.Validate(ordered).Where(i => i.Severity != StratIssueSeverity.Info))
+                .IsEmpty();
+            await Assert.That(StratValidator.Validate(backwards).Single(i => i.Severity == StratIssueSeverity.Refusal)
+                    .Message)
                 .IsEqualTo("+0:05 comes before +0:10; the clock counts up from the trigger");
-            await Assert.That(StratValidator.Validate(early).Single(i => i.Field == "/steps/0/atSeconds").Severity).IsEqualTo(StratIssueSeverity.Warning);
-            await Assert.That(StratValidator.Validate(rotate).Any(i => i.Field == "/steps/0/lurk/rotate/atSeconds")).IsTrue()
+            await Assert.That(StratValidator.Validate(early).Single(i => i.Field == "/steps/0/atSeconds").Severity)
+                .IsEqualTo(StratIssueSeverity.Warning);
+            await Assert.That(StratValidator.Validate(rotate).Any(i => i.Field == "/steps/0/lurk/rotate/atSeconds"))
+                .IsTrue()
                 .Because("a rotate at +0:05 comes before its step at +0:10");
         }
     }
@@ -117,8 +132,12 @@ public class StratTriggerClockTests
         StratEditorViewModel editor = new(session);
         editor.Project();
         string before = StratHistory.ToNode(session.Document!).ToJsonString();
-        StratSceneProjection was = StratSceneProjection.Build(session.Document!, StratPath.MainLine(session.Document!), null,
-            (place, _) => place switch { "Palace" => (400, 0), "BombsiteA" => (1000, 0), "BombsiteB" => (0, 900), _ => null });
+        StratSceneProjection was = StratSceneProjection.Build(session.Document!, StratPath.MainLine(session.Document!),
+            null,
+            (place, _) => place switch
+            {
+                "Palace" => (400, 0), "BombsiteA" => (1000, 0), "BombsiteB" => (0, 900), _ => null
+            });
         int depth = session.UndoDepth;
 
         editor.ClockChoice = StratEditorViewModel.TriggerClockChoice;
@@ -126,12 +145,16 @@ public class StratTriggerClockTests
 
         StratDocument after = session.Document!;
         StratSceneProjection now = StratSceneProjection.Build(after, StratPath.MainLine(after), null,
-            (place, _) => place switch { "Palace" => (400, 0), "BombsiteA" => (1000, 0), "BombsiteB" => (0, 900), _ => null });
+            (place, _) => place switch
+            {
+                "Palace" => (400, 0), "BombsiteA" => (1000, 0), "BombsiteB" => (0, 900), _ => null
+            });
         using (Assert.Multiple())
         {
             await Assert.That(session.UndoDepth).IsEqualTo(depth + 1).Because("one entry");
             await Assert.That(after.Clock.Kind).IsEqualTo(StratClock.TriggerKind);
-            await Assert.That(after.Steps.Select(s => s.AtSeconds)).IsEquivalentTo([5.0, 57.2, 70, 127.5], CollectionOrdering.Matching);
+            await Assert.That(after.Steps.Select(s => s.AtSeconds))
+                .IsEquivalentTo([5.0, 57.2, 70, 127.5], CollectionOrdering.Matching);
             await Assert.That(after.Steps[0].Lurk!.Rotate!.AtSeconds).IsEqualTo(75);
             await Assert.That(after.Steps[1].HoldSeconds).IsEqualTo(1.5).Because("a hold is a duration");
             await Assert.That(after.Trigger!.AtSeconds).IsEqualTo(75).Because("the trigger's time is a round time");
@@ -142,14 +165,18 @@ public class StratTriggerClockTests
                 for (int tick = 0; tick <= was.ContentEndTick; tick += 11)
                 {
                     TokenKeyframe a = track.TrySample(tick, out TokenKeyframe x) ? x : default;
-                    TokenKeyframe b = now.Tracks.Single(t => t.Slot == track.Slot).TrySample(tick, out TokenKeyframe y) ? y : default;
+                    TokenKeyframe b = now.Tracks.Single(t => t.Slot == track.Slot).TrySample(tick, out TokenKeyframe y)
+                        ? y
+                        : default;
                     await Assert.That((b.X, b.Y)).IsEqualTo((a.X, a.Y)).Because($"{track.Slot} at {tick}");
                 }
             }
 
-            await Assert.That(StratValidator.Validate(after).Where(i => i.Severity == StratIssueSeverity.Refusal)).IsEmpty();
+            await Assert.That(StratValidator.Validate(after).Where(i => i.Severity == StratIssueSeverity.Refusal))
+                .IsEmpty();
             await Assert.That(editor.Steps[1].TimeText).IsEqualTo("+0:57.2");
-            await Assert.That(editor.Steps[3].TimeText).IsEqualTo("+2:07.5").Because("after the plant runs on past the round length");
+            await Assert.That(editor.Steps[3].TimeText).IsEqualTo("+2:07.5")
+                .Because("after the plant runs on past the round length");
         }
 
         session.Undo();
@@ -160,7 +187,8 @@ public class StratTriggerClockTests
         // And back: the round clock has its countdown and its after-plant time again.
         editor.Project();
         editor.ClockChoice = StratEditorViewModel.RoundClockChoice;
-        await Assert.That(session.Document!.Steps.Select(s => s.AtSeconds)).IsEquivalentTo([110.0, 57.8, 45, -12.5], CollectionOrdering.Matching);
+        await Assert.That(session.Document!.Steps.Select(s => s.AtSeconds))
+            .IsEquivalentTo([110.0, 57.8, 45, -12.5], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -168,7 +196,8 @@ public class StratTriggerClockTests
     {
         StratDocument document = OnTheRoundClock();
         List<PatchOp> ops = StratClock.SwitchOps(document, StratClock.TriggerKind);
-        await Assert.That(StratDiffPhrasing.Summary(StratHistory.ToNode(document), ops)).IsEqualTo("clock: round clock → from the trigger");
+        await Assert.That(StratDiffPhrasing.Summary(StratHistory.ToNode(document), ops))
+            .IsEqualTo("clock: round clock → from the trigger");
         await Assert.That(StratClock.SwitchOps(document, StratClock.RoundKind)).IsEmpty();
     }
 
@@ -191,10 +220,13 @@ public class StratTriggerClockTests
         await Assert.That(session.Document!.Steps[1].AtSeconds).IsEqualTo(12);
 
         editor.AddStepCommand.Execute(null);
-        await Assert.That(session.Document!.Steps[^1].AtSeconds).IsEqualTo(12 + StratEditorViewModel.NewStepOffsetSeconds)
+        await Assert.That(session.Document!.Steps[^1].AtSeconds)
+            .IsEqualTo(12 + StratEditorViewModel.NewStepOffsetSeconds)
             .Because("a new step is later on a clock that counts up");
-        StratSceneProjection projection = StratSceneProjection.Build(session.Document!, StratPath.MainLine(session.Document!));
-        await Assert.That(StepAuthoringPatches.DuplicateStep(session.Document!, 1, Guid.NewGuid()).Value!["atSeconds"]!.GetValue<double>())
+        StratSceneProjection projection =
+            StratSceneProjection.Build(session.Document!, StratPath.MainLine(session.Document!));
+        await Assert.That(StepAuthoringPatches.DuplicateStep(session.Document!, 1, Guid.NewGuid()).Value!["atSeconds"]!
+                .GetValue<double>())
             .IsGreaterThan(12).And.IsLessThanOrEqualTo(17);
         await Assert.That(projection.ClockClamped).IsFalse();
     }
@@ -203,7 +235,8 @@ public class StratTriggerClockTests
     public async Task ATemplate_OnATriggerStrat_IsLaidOutInSecondsAfterTheStart()
     {
         List<StratStep> steps = StratTemplates.BuildSteps(StratTemplates.Find("rush-a")!, Trigger);
-        await Assert.That(steps.Select(s => s.AtSeconds)).IsEquivalentTo([5.0, 7, 9, 20, 25], CollectionOrdering.Matching);
+        await Assert.That(steps.Select(s => s.AtSeconds))
+            .IsEquivalentTo([5.0, 7, 9, 20, 25], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -214,7 +247,11 @@ public class StratTriggerClockTests
         document.Start = new StratStart
         {
             Kind = StratStart.CustomKind,
-            Positions = [new StartPosition { Slot = "A", Place = "Palace" }, new StartPosition { Slot = "B", X = 1234.4, Y = -560.6 }]
+            Positions =
+            [
+                new StartPosition { Slot = "A", Place = "Palace" },
+                new StartPosition { Slot = "B", X = 1234.4, Y = -560.6 }
+            ]
         };
         string sheet = StratTextExporter.CallSheet(document);
         RoleSheet a = RoleSheet.Derive(document, "A");
@@ -241,7 +278,9 @@ public class StratTriggerClockTests
         StratDocument document = Triggered(Step(1, 0, "A", "move", to: "BombsiteA"));
         JsonNode tree = StratHistory.ToNode(document);
         PatchOp moved = PatchOp.ReplaceOp("/steps/0/atSeconds", JsonValue.Create(0), JsonValue.Create(8));
-        PatchOp added = PatchOp.AddOp("/steps/1", System.Text.Json.JsonSerializer.SerializeToNode(Step(2, 12, "B", "hold"), StratJsonContext.Default.StratStep));
+        PatchOp added = PatchOp.AddOp("/steps/1",
+            System.Text.Json.JsonSerializer.SerializeToNode(Step(2, 12, "B", "hold"),
+                StratJsonContext.Default.StratStep));
         await Assert.That(StratDiffPhrasing.Summary(tree, [moved])).IsEqualTo("A's move moved from +0:00 to +0:08");
         await Assert.That(StratDiffPhrasing.Summary(tree, [added])).EndsWith("at +0:12");
     }

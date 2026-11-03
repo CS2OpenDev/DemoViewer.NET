@@ -327,12 +327,7 @@ public static class MapAssetPipeline
             return null;
         }
 
-        return new LoadedMapAsset
-        {
-            Bundle = bundle,
-            BakedDir = dir,
-            ZoneOverlayDirectory = zoneOverlayDirectory
-        };
+        return new LoadedMapAsset { Bundle = bundle, BakedDir = dir, ZoneOverlayDirectory = zoneOverlayDirectory };
     }
 
     /// <summary>Radar decodes since the process started. For tests: the count "one decode per map" means.</summary>
@@ -398,9 +393,7 @@ public static class MapAssetPipeline
             [
                 new MapRadarImage
                 {
-                    Name = images[0],
-                    Image = asset.RadarImages.GetValueOrDefault(images[0]),
-                    Bounds = bounds
+                    Name = images[0], Image = asset.RadarImages.GetValueOrDefault(images[0]), Bounds = bounds
                 }
             ];
         }

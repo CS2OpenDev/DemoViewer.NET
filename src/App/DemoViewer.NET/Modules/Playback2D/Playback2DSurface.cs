@@ -223,7 +223,8 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
     }
 
     /// <inheritdoc />
-    public IPanelHandle AddPanel(int order, Func<object> viewModel, Func<Control>? view = null, string? featureId = null,
+    public IPanelHandle AddPanel(int order, Func<object> viewModel, Func<Control>? view = null,
+        string? featureId = null,
         ModeToggle? mode = null)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
@@ -250,7 +251,8 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
     }
 
     /// <inheritdoc />
-    public IDisposable AddLayer(string layerId, Func<ISceneLayer> layer, string? displayName = null, bool enabled = true)
+    public IDisposable AddLayer(string layerId, Func<ISceneLayer> layer, string? displayName = null,
+        bool enabled = true)
     {
         ArgumentException.ThrowIfNullOrEmpty(layerId);
         ArgumentNullException.ThrowIfNull(layer);
@@ -579,7 +581,8 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
     private bool _isShown;
     private object? _presented;
 
-    internal Playback2DPanel(Playback2DSurface owner, int order, Func<object> factory, Func<Control>? view, string? featureId,
+    internal Playback2DPanel(Playback2DSurface owner, int order, Func<object> factory, Func<Control>? view,
+        string? featureId,
         ModeToggle? mode)
     {
         _owner = owner;

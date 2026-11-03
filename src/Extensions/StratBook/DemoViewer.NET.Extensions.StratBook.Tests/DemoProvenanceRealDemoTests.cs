@@ -29,8 +29,10 @@ public class DemoProvenanceRealDemoTests
 
     private static DemoCacheRecord Tier2Record(string path, ParsedDemo parsed)
     {
-        (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coachSlots) = DemoLibraryService.ExtractFinalState(parsed);
-        (List<CachedPlayerInfo> players, List<CachedRound> rounds) = DemoLibraryService.ProjectTier2(parsed, coachSlots);
+        (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coachSlots) =
+            DemoLibraryService.ExtractFinalState(parsed);
+        (List<CachedPlayerInfo> players, List<CachedRound> rounds) =
+            DemoLibraryService.ProjectTier2(parsed, coachSlots);
         FileInfo info = new(path);
         DemoCacheRecord record = new()
         {
@@ -60,7 +62,8 @@ public class DemoProvenanceRealDemoTests
         DemoCacheRecord record = Tier2Record(path, parsed);
         DemoSourceKind kind = parsed.Profile.SourceKind;
         bool tagged = !string.IsNullOrWhiteSpace(record.CtClan) && !string.IsNullOrWhiteSpace(record.TClan);
-        Console.WriteLine($"{Path.GetFileName(path)}: source kind {kind}, server '{parsed.ServerName}', tags {(tagged ? "both" : "not both")}");
+        Console.WriteLine(
+            $"{Path.GetFileName(path)}: source kind {kind}, server '{parsed.ServerName}', tags {(tagged ? "both" : "not both")}");
 
         DemoCacheStore cache = new(null);
         FakeExtensionIdentity identity = new();
@@ -73,7 +76,8 @@ public class DemoProvenanceRealDemoTests
         DemoCacheIndexEntry entry = cache.TryGetIndex(path)!;
         using (Assert.Multiple())
         {
-            await Assert.That(entry.SourceKind).IsEqualTo(kind.ToString()).Because("the index row mirrors the record's verdict");
+            await Assert.That(entry.SourceKind).IsEqualTo(kind.ToString())
+                .Because("the index row mirrors the record's verdict");
             await Assert.That(DemoProvenanceSource.SourceKindOf(entry.AsRow())).IsEqualTo(kind);
         }
 

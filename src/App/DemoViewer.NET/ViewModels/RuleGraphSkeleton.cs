@@ -32,9 +32,7 @@ public static class RuleGraphSkeleton
         {
             nodeVms.Add(new GraphNodeViewModel(n.Name, n.IsRoot, n.Subtitle)
             {
-                DisplayValue = n.DisplayValue,
-                IsPerPlayer = n.IsPerPlayer,
-                TrackedIndex = -1
+                DisplayValue = n.DisplayValue, IsPerPlayer = n.IsPerPlayer, TrackedIndex = -1
             });
         }
 
@@ -64,9 +62,7 @@ public static class RuleGraphSkeleton
         {
             GraphNodeViewModel vm = new(node.Name, node is RootNode, node.Subtitle)
             {
-                IsActive = node.IsActive,
-                DisplayValue = node.GetDisplayValue(),
-                TrackedIndex = -1
+                IsActive = node.IsActive, DisplayValue = node.GetDisplayValue(), TrackedIndex = -1
             };
             byNode[node] = vm;
             nodeVms.Add(vm);

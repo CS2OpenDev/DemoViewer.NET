@@ -26,13 +26,15 @@ public class StratDiffPhrasingTests
     private static StratDocument WithMolotov()
     {
         StratDocument document = Minimal(HistoryId);
-        document.Steps[1].Utility = new UtilityRef { Kind = "molotov", Landing = new UtilityLanding { Place = "Jungle" } };
+        document.Steps[1].Utility =
+            new UtilityRef { Kind = "molotov", Landing = new UtilityLanding { Place = "Jungle" } };
         return document;
     }
 
     private static List<HistoryEntry> SampleLog()
     {
-        string? repo = DemoTestHelper.FindRepoRoot() ?? throw new SkipTestException("repo root not found from the test output directory");
+        string? repo = DemoTestHelper.FindRepoRoot()
+                       ?? throw new SkipTestException("repo root not found from the test output directory");
         string path = Path.Combine(repo, "tests", "fixtures", "strats", "schema-v1.sample.history.jsonl");
         return
         [
@@ -58,33 +60,45 @@ public class StratDiffPhrasingTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(rows.Select(r => r.Revision)).IsEquivalentTo([5, 4, 3, 2, 1], CollectionOrdering.Matching);
+            await Assert.That(rows.Select(r => r.Revision))
+                .IsEquivalentTo([5, 4, 3, 2, 1], CollectionOrdering.Matching);
             await Assert.That(rows[^1].Revision).IsEqualTo(1).Because("newest first");
             await Assert.That(changes[1]).IsEqualTo("created");
             await Assert.That(changes[2]).IsEqualTo("molotov moved from 1:22 to 1:16");
-            await Assert.That(changes[3]).IsEqualTo("step added: A peeks Connector at 1:05; renamed to A exec, con peek");
+            await Assert.That(changes[3])
+                .IsEqualTo("step added: A peeks Connector at 1:05; renamed to A exec, con peek");
             await Assert.That(changes[4]).IsEqualTo("branch added; status Theory → Active");
-            await Assert.That(changes[5]).IsEqualTo("B's throw: note removed; economy full → force; target site cleared");
+            await Assert.That(changes[5])
+                .IsEqualTo("B's throw: note removed; economy full → force; target site cleared");
             await Assert.That(rows.Single(r => r.Revision == 2).Summary).IsEqualTo("molotov moved from 1:22 to 1:16")
                 .Because("a stored summary is shown as written");
-            await Assert.That(rows.All(r => r.Before is null && r.After is null)).IsTrue().Because("no record was given");
+            await Assert.That(rows.All(r => r.Before is null && r.After is null)).IsTrue()
+                .Because("no record was given");
         }
     }
 
     [Test]
     public async Task Places_PrintThroughTheOwnersPrimaryAlias_ElseSplitIntoWords()
     {
-        CalloutTable table = new() { Map = "de_mirage", Aliases = [new CalloutAlias { Alias = "con", Place = "Connector", Primary = true }] };
+        CalloutTable table = new()
+        {
+            Map = "de_mirage", Aliases = [new CalloutAlias { Alias = "con", Place = "Connector", Primary = true }]
+        };
         CalloutResolver callouts = new(CanonicalPlaces.Embedded("de_mirage"), table);
         StratStep peek = Step(3, 65, "A", "peek", "TRamp", "Connector");
-        PatchOp add = PatchOp.AddOp("/steps/2", JsonSerializer.SerializeToNode(peek, StratJsonContext.Default.StratStep));
-        PatchOp moveTo = PatchOp.ReplaceOp("/steps/0/to/place", JsonValue.Create("BombsiteA"), JsonValue.Create("Connector"));
+        PatchOp add = PatchOp.AddOp("/steps/2",
+            JsonSerializer.SerializeToNode(peek, StratJsonContext.Default.StratStep));
+        PatchOp moveTo = PatchOp.ReplaceOp("/steps/0/to/place", JsonValue.Create("BombsiteA"),
+            JsonValue.Create("Connector"));
 
         using (Assert.Multiple())
         {
-            await Assert.That(StratDiffPhrasing.Summary(Node(Minimal()), [add], callouts)).IsEqualTo("step added: A peeks con at 1:05");
-            await Assert.That(StratDiffPhrasing.Summary(Node(Minimal()), [moveTo], callouts)).IsEqualTo("B's throw: to Bombsite A → con");
-            await Assert.That(StratDiffPhrasing.Summary(Node(Minimal()), [moveTo])).IsEqualTo("B's throw: to Bombsite A → Connector");
+            await Assert.That(StratDiffPhrasing.Summary(Node(Minimal()), [add], callouts))
+                .IsEqualTo("step added: A peeks con at 1:05");
+            await Assert.That(StratDiffPhrasing.Summary(Node(Minimal()), [moveTo], callouts))
+                .IsEqualTo("B's throw: to Bombsite A → con");
+            await Assert.That(StratDiffPhrasing.Summary(Node(Minimal()), [moveTo]))
+                .IsEqualTo("B's throw: to Bombsite A → Connector");
         }
     }
 
@@ -119,7 +133,8 @@ public class StratDiffPhrasingTests
     [Test]
     public async Task ARemovedStepIsNamedFromItsFromValue_WhenTheBeforeStateIsUnknown()
     {
-        JsonNode removed = JsonSerializer.SerializeToNode(Step(4, 40, "all", "rotate", null, "BombsiteB"), StratJsonContext.Default.StratStep)!;
+        JsonNode removed = JsonSerializer.SerializeToNode(Step(4, 40, "all", "rotate", null, "BombsiteB"),
+            StratJsonContext.Default.StratStep)!;
         string summary = StratDiffPhrasing.Summary(null, [PatchOp.RemoveOp("/steps/3", removed)]);
         await Assert.That(summary).IsEqualTo("step removed: all rotate to Bombsite B at 0:40");
     }
@@ -129,7 +144,8 @@ public class StratDiffPhrasingTests
     {
         StratDocument before = WithMolotov();
         PatchOp drag = PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(82), JsonValue.Create(76));
-        PatchOp remove = PatchOp.RemoveOp("/steps/0", JsonSerializer.SerializeToNode(before.Steps[0], StratJsonContext.Default.StratStep));
+        PatchOp remove = PatchOp.RemoveOp("/steps/0",
+            JsonSerializer.SerializeToNode(before.Steps[0], StratJsonContext.Default.StratStep));
         StratDocument after = StratHistory.Apply(before, [drag, remove]);
 
         await Assert.That(StratDiffPhrasing.SummaryAfter(after, [drag, remove]))
@@ -163,8 +179,7 @@ public class StratDiffPhrasingTests
         store.Save(document, [], "created");
         using StratSession session = new(store, null, () => false, () => Created)
         {
-            AutoSaveDelay = TimeSpan.FromHours(1),
-            IdleCommitDelay = TimeSpan.FromHours(1)
+            AutoSaveDelay = TimeSpan.FromHours(1), IdleCommitDelay = TimeSpan.FromHours(1)
         };
         session.Open(document.Id);
         session.Apply(PatchOp.ReplaceOp("/economy", null, JsonValue.Create("full")));
@@ -181,7 +196,10 @@ public class StratDiffPhrasingTests
                 new string('a', 64), 1, revision, null, outcome, []);
 
         StratRecord record = StratEvidence.Record(HistoryId, 5,
-            [Tagged(1, RunOutcome.Won), Tagged(1, RunOutcome.Lost), Tagged(2, RunOutcome.Won), Tagged(4, RunOutcome.Won), Tagged(0, RunOutcome.Lost)]);
+        [
+            Tagged(1, RunOutcome.Won), Tagged(1, RunOutcome.Lost), Tagged(2, RunOutcome.Won), Tagged(4, RunOutcome.Won),
+            Tagged(0, RunOutcome.Lost)
+        ]);
         StratHistoryRow two = StratHistoryPane.Rows(SampleLog(), record: record).Single(r => r.Revision == 2);
 
         using (Assert.Multiple())

@@ -231,7 +231,8 @@ public sealed class HeavyJobGate : IDisposable
     /// </summary>
     /// <param name="duringExport">True for an item the running export reads its demos through.</param>
     /// <param name="cancellationToken">Stops the wait.</param>
-    public async Task<IDisposable> AcquireBackgroundAsync(bool duringExport, CancellationToken cancellationToken = default)
+    public async Task<IDisposable> AcquireBackgroundAsync(bool duringExport,
+        CancellationToken cancellationToken = default)
     {
         while (true)
         {

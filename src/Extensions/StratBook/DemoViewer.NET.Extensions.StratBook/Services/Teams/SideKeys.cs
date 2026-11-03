@@ -100,7 +100,11 @@ public static class SideKeys
             return null;
         }
 
-        return Keyed([.. players.Select(p => (DemoKeys.SteamIdText(p.SteamId64), p.Name)).OrderBy(p => p.Item1, StringComparer.Ordinal)],
+        return Keyed(
+            [
+                .. players.Select(p => (DemoKeys.SteamIdText(p.SteamId64), p.Name))
+                    .OrderBy(p => p.Item1, StringComparer.Ordinal)
+            ],
             side == 3 ? demo.CtClan : demo.TClan);
     }
 
@@ -144,7 +148,9 @@ public static class SideKeys
     public static DemoSideInput? From(LibraryDemoDetail detail)
     {
         ArgumentNullException.ThrowIfNull(detail);
-        return detail.Demo.State < LibraryDemoState.Parsed ? null : Input(detail.Demo, Side(detail, 2), Side(detail, 3));
+        return detail.Demo.State < LibraryDemoState.Parsed
+            ? null
+            : Input(detail.Demo, Side(detail, 2), Side(detail, 3));
     }
 
     private static DemoSideInput Input(LibraryDemo demo, SideInput t, SideInput ct) => new()

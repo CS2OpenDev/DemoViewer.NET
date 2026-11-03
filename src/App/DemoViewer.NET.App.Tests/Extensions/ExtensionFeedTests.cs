@@ -28,48 +28,54 @@ public class ExtensionFeedTests
         using (Assert.Multiple())
         {
             await Assert.That(feed.Id).IsEqualTo(FakeFeeds.Id);
-            await Assert.That(feed.Entries.Select(e => e.Version.ToString())).IsEquivalentTo(["1.2.0", "1.1.0-rc1", "1.0.1"], CollectionOrdering.Matching);
+            await Assert.That(feed.Entries.Select(e => e.Version.ToString()))
+                .IsEquivalentTo(["1.2.0", "1.1.0-rc1", "1.0.1"], CollectionOrdering.Matching);
             await Assert.That(feed.Latest!.Version).IsEqualTo(SemVersion.Parse("1.2.0"));
             ExtensionFeedEntry first = feed.Entries.Single(e => e.Version.ToString() == "1.0.1");
             await Assert.That(first.Manifest.Id).IsEqualTo(FakeFeeds.Id);
             await Assert.That(first.Manifest.Version).IsEqualTo(first.Version);
             await Assert.That(first.Manifest.Assembly).IsEqualTo("Fake.dll");
-            await Assert.That(first.Url.ToString()).IsEqualTo($"https://example.invalid/releases/{FakeFeeds.Id}-v1.0.1/Fake-1.0.1.zip");
-            await Assert.That(first.Sha256).IsEqualTo("9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a");
+            await Assert.That(first.Url.ToString())
+                .IsEqualTo($"https://example.invalid/releases/{FakeFeeds.Id}-v1.0.1/Fake-1.0.1.zip");
+            await Assert.That(first.Sha256)
+                .IsEqualTo("9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a");
             await Assert.That(first.Size).IsEqualTo(4);
             await Assert.That(first.PublishedAt).IsEqualTo(new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero));
-            await Assert.That(feed.Entries.Single(e => e.Version.ToString() == "1.2.0").Manifest.MinAppVersion).IsEqualTo(SemVersion.Parse("0.9.0"));
+            await Assert.That(feed.Entries.Single(e => e.Version.ToString() == "1.2.0").Manifest.MinAppVersion)
+                .IsEqualTo(SemVersion.Parse("0.9.0"));
         }
     }
 
     [Test]
     public async Task Parse_EmptyFeed_UnknownMembers_CommentsAndTrailingCommas_UpperCaseSha()
     {
-        ExtensionFeed empty = ExtensionFeed.Parse($$"""{ "id": "{{FakeFeeds.Id}}", "entries": [], "generatedBy": "ci" }""");
+        ExtensionFeed empty =
+            ExtensionFeed.Parse($$"""{ "id": "{{FakeFeeds.Id}}", "entries": [], "generatedBy": "ci" }""");
         ExtensionFeed lenient = ExtensionFeed.Parse($$"""
-            {
-              // the workflow may add members this app does not know
-              "id": "{{FakeFeeds.Id}}",
-              "channel": "stable",
-              "entries": [
-                {
-                  "version": "1.0.0",
-                  "manifest": {{FakeFeeds.Manifest(FakeFeeds.Id, new FakeFeeds.Entry("1.0.0"))}},
-                  "url": "https://example.invalid/a.zip",
-                  "sha256": "{{new string('A', 64)}}",
-                  "size": 10,
-                  "notes": "n/a",
-                },
-              ],
-            }
-            """);
+                                                      {
+                                                        // the workflow may add members this app does not know
+                                                        "id": "{{FakeFeeds.Id}}",
+                                                        "channel": "stable",
+                                                        "entries": [
+                                                          {
+                                                            "version": "1.0.0",
+                                                            "manifest": {{FakeFeeds.Manifest(FakeFeeds.Id, new FakeFeeds.Entry("1.0.0"))}},
+                                                            "url": "https://example.invalid/a.zip",
+                                                            "sha256": "{{new string('A', 64)}}",
+                                                            "size": 10,
+                                                            "notes": "n/a",
+                                                          },
+                                                        ],
+                                                      }
+                                                      """);
 
         using (Assert.Multiple())
         {
             await Assert.That(empty.Entries).IsEmpty();
             await Assert.That(empty.Latest).IsNull();
             await Assert.That(lenient.Entries.Count).IsEqualTo(1);
-            await Assert.That(lenient.Entries[0].Sha256).IsEqualTo(new string('a', 64)).Because("the hash is normalised to lower case");
+            await Assert.That(lenient.Entries[0].Sha256).IsEqualTo(new string('a', 64))
+                .Because("the hash is normalised to lower case");
             await Assert.That(lenient.Entries[0].PublishedAt).IsNull();
         }
     }
@@ -100,11 +106,14 @@ public class ExtensionFeedTests
 
         (string Json, string Reason)[] cases =
         [
-            (Entry("1.0.0", manifest, "https://example.invalid/a.zip", sha, "10", ", \"publishedAt\": \"yesterday\""), "'publishedAt'"),
+            (Entry("1.0.0", manifest, "https://example.invalid/a.zip", sha, "10", ", \"publishedAt\": \"yesterday\""),
+                "'publishedAt'"),
             (Entry("one", manifest, "https://example.invalid/a.zip", sha, "10"), "not a semantic version"),
             (Entry("1.0.1", manifest, "https://example.invalid/a.zip", sha, "10"), "the manifest says version 1.0.0"),
-            (Entry("1.0.0", FakeFeeds.Manifest("net.demoviewer.pack.other", new FakeFeeds.Entry("1.0.0")), "https://example.invalid/a.zip", sha, "10"), "not 'net.demoviewer.pack.fake'"),
-            (Entry("1.0.0", "{ \"id\": \"net.demoviewer.pack.fake\" }", "https://example.invalid/a.zip", sha, "10"), "'name'"),
+            (Entry("1.0.0", FakeFeeds.Manifest("net.demoviewer.pack.other", new FakeFeeds.Entry("1.0.0")), "https://example.invalid/a.zip", sha, "10"),
+                "not 'net.demoviewer.pack.fake'"),
+            (Entry("1.0.0", "{ \"id\": \"net.demoviewer.pack.fake\" }", "https://example.invalid/a.zip", sha, "10"),
+                "'name'"),
             (Entry("1.0.0", "\"text\"", "https://example.invalid/a.zip", sha, "10"), "'manifest' is required"),
             (Entry("1.0.0", manifest, "http://example.invalid/a.zip", sha, "10"), "absolute https URL"),
             (Entry("1.0.0", manifest, "/a.zip", sha, "10"), "absolute https URL"),

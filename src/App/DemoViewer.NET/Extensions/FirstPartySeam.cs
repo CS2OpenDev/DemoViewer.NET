@@ -18,7 +18,12 @@ namespace DemoViewer.NET.Extensions;
 /// <param name="Rank">Scheduling rank among kinds; lower runs first.</param>
 /// <param name="IsLight">True when the job needs no heavy slot and may run beside a parse.</param>
 /// <param name="ExtensionKind">For <see cref="QueueJobKind.Extension" />, the extension's kind id; null for a core kind.</param>
-public sealed record JobKindDescriptor(QueueJobKind Kind, string Label, int Rank, bool IsLight, string? ExtensionKind = null);
+public sealed record JobKindDescriptor(
+    QueueJobKind Kind,
+    string Label,
+    int Rank,
+    bool IsLight,
+    string? ExtensionKind = null);
 
 /// <summary>A pass a pack adds to every demo's visit, ordered after the pass ids it reads from.</summary>
 /// <param name="Id">

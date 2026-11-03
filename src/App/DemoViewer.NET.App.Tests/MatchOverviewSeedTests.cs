@@ -29,48 +29,24 @@ public class MatchOverviewSeedTests
             ModifiedTicks = 20,
             Map = "de_dust2",
             Server = "FACEIT",
-            Parse = new TierStamp
-            {
-                Schema = DemoCacheRecord.ParseSchema,
-                ComputedAtTicks = 1
-            },
+            Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 },
             DurationSeconds = 2298,
             TickRate = 64,
             Players =
             [
-                new CachedPlayerInfo
-                {
-                    Slot = 1,
-                    Name = "s1mple",
-                    SteamId64 = "765",
-                    Team = 3
-                },
-                new CachedPlayerInfo
-                {
-                    Slot = 2,
-                    Name = "ZywOo",
-                    SteamId64 = "766",
-                    Team = 2
-                }
+                new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = "765", Team = 3 },
+                new CachedPlayerInfo { Slot = 2, Name = "ZywOo", SteamId64 = "766", Team = 2 }
             ],
             Rounds =
             [
-                new CachedRound
-                {
-                    Number = 1,
-                    StartTickFrameClock = 5000
-                }
+                new CachedRound { Number = 1, StartTickFrameClock = 5000 }
             ],
             CtScore = 13,
             TScore = 9,
             CtClan = "NAVI",
             TClan = "FaZe",
             Analysis = withHighlights || withScoreboard
-                ? new TierStamp
-                {
-                    Schema = DemoCacheRecord.AnalysisSchema,
-                    ComputedAtTicks = 1
-                }
+                ? new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 }
                 : new TierStamp(),
             AnalysisState = withHighlights || withScoreboard
                 ? DemoAnalysisState.Indexed

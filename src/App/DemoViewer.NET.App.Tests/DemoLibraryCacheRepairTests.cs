@@ -90,12 +90,11 @@ public class DemoLibraryCacheRepairTests
         }
 
         string dataPath = Path.Combine(dir, "library.json");
-        File.WriteAllText(dataPath, JsonSerializer.Serialize(new DemoLibraryData
-        {
-            SchemaVersion = DemoLibraryCacheEntry.CurrentSchema,
-            Folders = [dir],
-            Cache = rows
-        }));
+        File.WriteAllText(dataPath,
+            JsonSerializer.Serialize(new DemoLibraryData
+            {
+                SchemaVersion = DemoLibraryCacheEntry.CurrentSchema, Folders = [dir], Cache = rows
+            }));
         return dataPath;
     }
 
@@ -300,12 +299,11 @@ public class DemoLibraryCacheRepairTests
         {
             File.WriteAllBytes(Path.Combine(dir, "warmup.dem"), [1, 2, 3]);
             string dataPath = Path.Combine(dir, "library.json");
-            File.WriteAllText(dataPath, JsonSerializer.Serialize(new DemoLibraryData
-            {
-                SchemaVersion = DemoLibraryCacheEntry.CurrentSchema,
-                Folders = [dir],
-                Cache = []
-            }));
+            File.WriteAllText(dataPath,
+                JsonSerializer.Serialize(new DemoLibraryData
+                {
+                    SchemaVersion = DemoLibraryCacheEntry.CurrentSchema, Folders = [dir], Cache = []
+                }));
 
             int first = await LaunchAsync(dataPath, _ => ScorelessDemo());
             int second = await LaunchAsync(dataPath);
@@ -461,12 +459,11 @@ public class DemoLibraryCacheRepairTests
         {
             File.WriteAllBytes(Path.Combine(dir, "rounds.dem"), [1, 2, 3]);
             string dataPath = Path.Combine(dir, "library.json");
-            File.WriteAllText(dataPath, JsonSerializer.Serialize(new DemoLibraryData
-            {
-                SchemaVersion = DemoLibraryCacheEntry.CurrentSchema,
-                Folders = [dir],
-                Cache = []
-            }));
+            File.WriteAllText(dataPath,
+                JsonSerializer.Serialize(new DemoLibraryData
+                {
+                    SchemaVersion = DemoLibraryCacheEntry.CurrentSchema, Folders = [dir], Cache = []
+                }));
 
             await LaunchAsync(dataPath, _ => ScorelessDemo(24));
 

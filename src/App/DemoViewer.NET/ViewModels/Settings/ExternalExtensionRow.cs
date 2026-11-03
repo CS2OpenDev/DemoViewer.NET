@@ -22,7 +22,8 @@ public sealed record ExternalExtensionRow(string Name, string Version, string St
     public ExtensionFaultNotice? Fault { get; init; }
 
     /// <summary>The loaded third-party extensions first, then the copies that did not load.</summary>
-    public static IReadOnlyList<ExternalExtensionRow> Build(IReadOnlyList<PackStatus> statuses, IReadOnlyList<LoadOutcome> rejected)
+    public static IReadOnlyList<ExternalExtensionRow> Build(IReadOnlyList<PackStatus> statuses,
+        IReadOnlyList<LoadOutcome> rejected)
     {
         ArgumentNullException.ThrowIfNull(statuses);
         ArgumentNullException.ThrowIfNull(rejected);
@@ -34,15 +35,20 @@ public sealed record ExternalExtensionRow(string Name, string Version, string St
                 continue;
             }
 
-            rows.Add(new ExternalExtensionRow(status.Manifest?.Name ?? status.Pack.Id, status.Manifest?.Version.ToString() ?? "",
-                external.Verified ? "Loaded. Verified." : "Loaded. Unverified: it runs with the same access to your files as the app.",
+            rows.Add(new ExternalExtensionRow(status.Manifest?.Name ?? status.Pack.Id,
+                status.Manifest?.Version.ToString() ?? "",
+                external.Verified
+                    ? "Loaded. Verified."
+                    : "Loaded. Unverified: it runs with the same access to your files as the app.",
                 true, !external.Verified) { FeatureId = status.Pack.FeatureId });
         }
 
         foreach (LoadOutcome outcome in rejected)
         {
-            string name = outcome.Manifest?.Name ?? Path.GetFileName(Path.TrimEndingDirectorySeparator(outcome.Directory));
-            rows.Add(new ExternalExtensionRow(name, outcome.Manifest?.Version.ToString() ?? "", "Not loaded: " + outcome.Detail,
+            string name = outcome.Manifest?.Name
+                          ?? Path.GetFileName(Path.TrimEndingDirectorySeparator(outcome.Directory));
+            rows.Add(new ExternalExtensionRow(name, outcome.Manifest?.Version.ToString() ?? "",
+                "Not loaded: " + outcome.Detail,
                 false, outcome.Failure == LoadFailure.Unverified));
         }
 

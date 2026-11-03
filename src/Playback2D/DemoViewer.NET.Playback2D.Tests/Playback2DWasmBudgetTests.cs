@@ -65,8 +65,7 @@ public class Playback2DWasmBudgetTests
         ScenePipelineBenchmark benchmark = new(stage.Compositor, provider, new StackedLayout(),
             ScenePalette.Dark)
         {
-            Id = "wasm-" + SyntheticScenes.FullSceneBudgetName,
-            AuthoritativeFloors = SyntheticScenes.BudgetFloors
+            Id = "wasm-" + SyntheticScenes.FullSceneBudgetName, AuthoritativeFloors = SyntheticScenes.BudgetFloors
         };
 
         BenchmarkReport report = benchmark.Run(new FixtureFrameSource(fixture),
@@ -165,10 +164,7 @@ public class Playback2DWasmBudgetTests
         long before = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < 256; i++)
         {
-            SceneTime frameTime = time with
-            {
-                DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6
-            };
+            SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6 };
             stage.Renderer.Advance(fixture.Frame, in frameTime);
             stage.Renderer.Render();
         }

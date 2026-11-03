@@ -175,7 +175,8 @@ public class StratBookPackTests
         {
             await WithConfigDir(async _ =>
             {
-                ServiceCollection services = App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Default);
+                ServiceCollection services =
+                    App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Default);
                 // Compared as sorted text: registration order changed (the pack registers last), the set must not.
                 string registered = string.Join("\n", services
                     .Select(d => d.ServiceType + " | " + d.Lifetime)
@@ -237,7 +238,8 @@ public class StratBookPackTests
 
             await Assert.That(context?.GetService<IStratCapture>()).IsNotNull();
 
-            provider.GetRequiredService<SettingsService>().Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
+            provider.GetRequiredService<SettingsService>()
+                .Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
 
             await Assert.That(context?.GetService<IStratCapture>()).IsNull();
         });
@@ -256,38 +258,52 @@ public class StratBookPackTests
         await WithProvider(settings, async provider =>
         {
             PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single();
-            Modules.Highlights.MergedRulesBuild build = provider.GetRequiredService<Modules.Highlights.MergedRulesBuild>();
+            Modules.Highlights.MergedRulesBuild build =
+                provider.GetRequiredService<Modules.Highlights.MergedRulesBuild>();
             string[] read = [.. build.ReadRules().Rulesets.Select(r => r.Id)];
             string roundIndex = DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexTable.RulesetId;
             (string, string?)[] expected =
             [
                 (roundIndex, "roundindex"),
-                .. DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeTables.RulesetIds.Select(id => (id, (string?)"grenades"))
+                .. DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeTables.RulesetIds.Select(id =>
+                    (id, (string?)"grenades"))
             ];
             HashSet<string> packIds = [.. expected.Select(e => e.Item1)];
 
             using (Assert.Multiple())
             {
                 await Assert.That(pack.Pack.Id).IsEqualTo("net.demoviewer.pack.stratbook");
-                await Assert.That(pack.Rulesets.Select(r => (r.RulesetId, r.ReadBy))).IsEquivalentTo(expected, CollectionOrdering.Matching);
+                await Assert.That(pack.Rulesets.Select(r => (r.RulesetId, r.ReadBy)))
+                    .IsEquivalentTo(expected, CollectionOrdering.Matching);
                 await Assert.That(pack.Rulesets.Where(r => r.ReadsUserCommands).Select(r => r.RulesetId))
-                    .IsEquivalentTo([DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeTables.RulesetId("grenade_projectiles")], CollectionOrdering.Matching)
+                    .IsEquivalentTo(
+                    [
+                        DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeTables.RulesetId(
+                            "grenade_projectiles")
+                    ], CollectionOrdering.Matching)
                     .Because("only the projectile ruleset reads the thrower's commands");
-                await Assert.That(build.StampedRulesets.Where(r => r.Owner != Modules.Highlights.StampedRuleset.CoreOwner)
-                    .Select(r => (r.RulesetId, r.Owner, r.ReadBy))).IsEquivalentTo(expected.Select(e => (e.Item1, pack.Pack.Id, e.Item2)), CollectionOrdering.Matching);
+                await Assert.That(build.StampedRulesets
+                    .Where(r => r.Owner != Modules.Highlights.StampedRuleset.CoreOwner)
+                    .Select(r => (r.RulesetId, r.Owner, r.ReadBy))).IsEquivalentTo(
+                    expected.Select(e => (e.Item1, pack.Pack.Id, e.Item2)), CollectionOrdering.Matching);
                 await Assert.That(build.StampedRulesets.Select(r => r.RulesetId)).Contains("round_facts");
                 await Assert.That(read).Contains("round_facts");
                 await Assert.That(read).Contains(roundIndex);
                 await Assert.That(string.Join(",", build.Docs.Select(d => d.Id)))
                     .IsEqualTo(string.Join(",", read.Where(id => packOn || !packIds.Contains(id))))
-                    .Because("the merged set is the whole read, in read order, less the pack's rulesets while it is off");
+                    .Because(
+                        "the merged set is the whole read, in read order, less the pack's rulesets while it is off");
                 await Assert.That(build.CoreDocs.Select(d => d.Id)).DoesNotContain("round_facts");
                 await Assert.That(build.CoreDocs.Select(d => d.Id)).DoesNotContain(roundIndex);
                 await Assert.That(build.EnabledDoc("round_facts")).IsNotNull();
-                await Assert.That(new DemoViewer.NET.Services.Facts.StampedFacts(build).Facets().Select(f => f.RulesetId).Intersect(packIds)).IsEmpty()
+                await Assert.That(new DemoViewer.NET.Services.Facts.StampedFacts(build).Facets()
+                        .Select(f => f.RulesetId).Intersect(packIds)).IsEmpty()
                     .Because("the pack's tables are its passes' inputs, not library facts");
-                await Assert.That(pack.Passes.Single(p => p.Id == "roundindex").After).IsEquivalentTo([DemoViewer.NET.Extensions.Sdk.HostIds.RoundFactsPass], CollectionOrdering.Matching);
-                await Assert.That(pack.Passes.Select(p => p.Id)).DoesNotContain(DemoViewer.NET.Extensions.Sdk.HostIds.RoundFactsPass)
+                await Assert.That(pack.Passes.Single(p => p.Id == "roundindex").After)
+                    .IsEquivalentTo([DemoViewer.NET.Extensions.Sdk.HostIds.RoundFactsPass],
+                        CollectionOrdering.Matching);
+                await Assert.That(pack.Passes.Select(p => p.Id))
+                    .DoesNotContain(DemoViewer.NET.Extensions.Sdk.HostIds.RoundFactsPass)
                     .Because("Delete extension data strips the pack's own pass stamps, never the core Round Facts one");
             }
         });
@@ -307,17 +323,22 @@ public class StratBookPackTests
             foreach ((string id, string parent) in _movedIds)
             {
                 FeatureDescriptor? descriptor = FeatureCatalog.ById(id);
-                await Assert.That(descriptor).IsNotNull().Because($"{id} is a persisted override key and must survive the move");
+                await Assert.That(descriptor).IsNotNull()
+                    .Because($"{id} is a persisted override key and must survive the move");
                 await Assert.That(descriptor!.ParentId).IsEqualTo(parent).Because($"{id} cascades from {parent}");
                 await Assert.That(descriptor.Scope)
-                    .IsEqualTo(id.StartsWith("tab.", StringComparison.Ordinal) ? FeatureScope.Tab : FeatureScope.SubFeature);
+                    .IsEqualTo(id.StartsWith("tab.", StringComparison.Ordinal)
+                        ? FeatureScope.Tab
+                        : FeatureScope.SubFeature);
             }
 
             string[] packFeatureIds = [.. new StratBookPack().Features.Select(f => f.Id)];
             await Assert.That(packFeatureIds)
-                .IsEquivalentTo([StratBookPack.PackFeatureId, .. _movedIds.Select(m => m.Id)], CollectionOrdering.Matching);
+                .IsEquivalentTo([StratBookPack.PackFeatureId, .. _movedIds.Select(m => m.Id)],
+                    CollectionOrdering.Matching);
             await Assert.That(FeatureCatalog.Children(StratBookPack.PackFeatureId).Select(d => d.Id))
-                .IsEquivalentTo(_movedIds.Where(m => m.Parent == StratBookPack.PackFeatureId).Select(m => m.Id), CollectionOrdering.Matching);
+                .IsEquivalentTo(_movedIds.Where(m => m.Parent == StratBookPack.PackFeatureId).Select(m => m.Id),
+                    CollectionOrdering.Matching);
         });
     }
 
@@ -350,7 +371,8 @@ public class StratBookPackTests
                 }
             }
 
-            string[] packTabIds = [.. new StratBookPack().Features.Where(f => f.Kind == ExtensionFeatureKind.Tab).Select(f => f.Id)];
+            string[] packTabIds =
+                [.. new StratBookPack().Features.Where(f => f.Kind == ExtensionFeatureKind.Tab).Select(f => f.Id)];
             await Assert.That(declaredIds).IsEquivalentTo(packTabIds, CollectionOrdering.Matching)
                 .Because("every tab id the pack registers must be declared by exactly one module, and vice versa");
         });
@@ -423,7 +445,8 @@ public class StratBookPackTests
                     .Because("core, not pack-owned, even though its parent is the same tab.playback2d");
 
                 svc.Write(s => s.Features.Overrides.Remove(StratBookPack.PackFeatureId));
-                await Assert.That(gate.IsEnabled("tab.stratbook")).IsTrue().Because("the pack back on lets the tabs through");
+                await Assert.That(gate.IsEnabled("tab.stratbook")).IsTrue()
+                    .Because("the pack back on lets the tabs through");
                 await Assert.That(gate.IsEnabled("stratbook.export")).IsTrue();
                 await Assert.That(gate.IsEnabled("playback2d.tagger")).IsTrue()
                     .Because("the owning-pack rule only forces off; it never forces on past the tab's own state");
@@ -462,7 +485,8 @@ public class StratBookPackTests
             // playback2d.tagger and playback2d.suggestedtags are the two that prove the rule earns its keep:
             // their ParentId is the core tab.playback2d, not the pack.
             await Assert.That(built.Single(d => d.Id == "playback2d.tagger").ParentId).IsEqualTo("tab.playback2d");
-            await Assert.That(built.Single(d => d.Id == "playback2d.tagger").OwnerPackId).IsEqualTo(StratBookPack.PackFeatureId);
+            await Assert.That(built.Single(d => d.Id == "playback2d.tagger").OwnerPackId)
+                .IsEqualTo(StratBookPack.PackFeatureId);
         });
     }
 
@@ -488,7 +512,8 @@ public class StratBookPackTests
                 await Assert.That(vm.LibraryTab.HasTeamsView).IsFalse();
                 await Assert.That(vm.LibraryTab.Sections.Sections).IsEmpty();
                 await Assert.That(vm.LibraryTab.Filters).IsEmpty()
-                    .Because("the real cascade through pack.stratbook hides it the same way FakeGate does in StratBookShellTests");
+                    .Because(
+                        "the real cascade through pack.stratbook hides it the same way FakeGate does in StratBookShellTests");
                 await Assert.That(vm.LibraryTab.HasBadge).IsFalse();
             }
         });
@@ -510,11 +535,13 @@ public class StratBookPackTests
 
     private static readonly string[] _railOrder =
     [
-        "stratbook.browser", "situations.search", "tagger.matrix", "utilitybook.browser", "review.queue", "dossier.browser",
+        "stratbook.browser", "situations.search", "tagger.matrix", "utilitybook.browser", "review.queue",
+        "dossier.browser",
         "suggested.inbox"
     ];
 
-    private static readonly string[] _railHeaders = ["Strats", "Situations", "Tags", "Utility", "Review", "Dossier", "Suggested"];
+    private static readonly string[] _railHeaders =
+        ["Strats", "Situations", "Tags", "Utility", "Review", "Dossier", "Suggested"];
 
     // The hub is a declaration the host draws, and the rail must read exactly as it did when the pack drew it.
     // The rail's entries are the modules' own descriptors, so the badge a module moves is the badge the rail shows.
@@ -542,10 +569,13 @@ public class StratBookPackTests
                 await Assert.That(hubTab.FeatureId).IsEqualTo(StratBookPack.PackFeatureId);
                 await Assert.That(hubTab.ViewModelFactory!()).IsSameReferenceAs(vm.StratBookHub())
                     .Because("the strip tab's VM is the host's one hub VM, not a second hub");
-                await Assert.That(rail.Select(s => s.TabId)).IsEquivalentTo(_railOrder, TUnit.Assertions.Enums.CollectionOrdering.Matching);
-                await Assert.That(rail.Select(s => s.Header)).IsEquivalentTo(_railHeaders, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                await Assert.That(rail.Select(s => s.TabId))
+                    .IsEquivalentTo(_railOrder, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                await Assert.That(rail.Select(s => s.Header))
+                    .IsEquivalentTo(_railHeaders, TUnit.Assertions.Enums.CollectionOrdering.Matching);
                 await Assert.That(rail.All(s => s.HostId == HostIds.StratBookHub)).IsTrue()
-                    .Because("every rail entry is a pack module's own descriptor, so the badge a module moves is the badge the rail shows");
+                    .Because(
+                        "every rail entry is a pack module's own descriptor, so the badge a module moves is the badge the rail shows");
             }
         });
     }
@@ -559,7 +589,8 @@ public class StratBookPackTests
             {
                 await Assert.That(gate.IsEnabled("pack.does.not.exist")).IsFalse()
                     .Because("a pack id gates background work, so a typo must not enable it");
-                await Assert.That(gate.IsEnabled("does.not.exist")).IsTrue().Because("every other unknown id fails open");
+                await Assert.That(gate.IsEnabled("does.not.exist")).IsTrue()
+                    .Because("every other unknown id fails open");
             });
         });
     }
@@ -590,7 +621,8 @@ public class StratBookPackTests
         {
             StratBookPack pack = new();
             await Assert.That(pack.Id).IsEqualTo("net.demoviewer.pack.stratbook");
-            await Assert.That(pack.Id).IsNotEqualTo(new DemoViewer.NET.Extensions.StratBook.Modules.StratBook.StratBookModule(() => null!).Id)
+            await Assert.That(pack.Id)
+                .IsNotEqualTo(new DemoViewer.NET.Extensions.StratBook.Modules.StratBook.StratBookModule(() => null!).Id)
                 .Because("the pack and its Strats module are different persisted keys");
         });
     }
@@ -604,9 +636,11 @@ public class StratBookPackTests
             FakePack two = new("pack.two", [Pack("pack.two"), Pack("pack.two")]);
             FakePack wrongScope = new("pack.scope", [Tab("pack.scope", null)]);
 
-            await Assert.That(Message(() => FeatureCatalog.Build([none]))).Contains("exactly one Pack-scope descriptor");
+            await Assert.That(Message(() => FeatureCatalog.Build([none])))
+                .Contains("exactly one Pack-scope descriptor");
             await Assert.That(Message(() => FeatureCatalog.Build([two]))).Contains("exactly one Pack-scope descriptor");
-            await Assert.That(Message(() => FeatureCatalog.Build([wrongScope]))).Contains("exactly one Pack-scope descriptor");
+            await Assert.That(Message(() => FeatureCatalog.Build([wrongScope])))
+                .Contains("exactly one Pack-scope descriptor");
         });
     }
 
@@ -616,9 +650,12 @@ public class StratBookPackTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            await Assert.That(FeatureCatalog.Build(FeaturePacks.Default).Count(d => d.Scope == FeatureScope.Pack)).IsEqualTo(1);
-            await Assert.That(FeatureCatalog.Build(FeaturePacks.Default).Where(d => d.OwnerPackId is not null).All(d => !d.Required)).IsTrue();
-            await Assert.That(FeatureCatalog.GroupLeader(FeatureCatalog.GroupParserDeepDive)!.Id).IsEqualTo("parser.hex");
+            await Assert.That(FeatureCatalog.Build(FeaturePacks.Default).Count(d => d.Scope == FeatureScope.Pack))
+                .IsEqualTo(1);
+            await Assert.That(FeatureCatalog.Build(FeaturePacks.Default).Where(d => d.OwnerPackId is not null)
+                .All(d => !d.Required)).IsTrue();
+            await Assert.That(FeatureCatalog.GroupLeader(FeatureCatalog.GroupParserDeepDive)!.Id)
+                .IsEqualTo("parser.hex");
         });
     }
 
@@ -629,10 +666,13 @@ public class StratBookPackTests
         {
             FakePack tabUnderTab = new("pack.tt", [Pack("pack.tt"), Tab("tab.tt", "tab.library")]);
             FakePack subUnderPack = new("pack.sp",
-                [Pack("pack.sp"), Tab("tab.sp", "pack.sp") with { Id = "sub.sp", Kind = ExtensionFeatureKind.SubFeature }]);
+            [
+                Pack("pack.sp"), Tab("tab.sp", "pack.sp") with { Id = "sub.sp", Kind = ExtensionFeatureKind.SubFeature }
+            ]);
             FakePack unknownParent = new("pack.up", [Pack("pack.up"), Tab("tab.up", "pack.missing")]);
 
-            await Assert.That(Message(() => FeatureCatalog.Build([tabUnderTab]))).Contains("may not have 'tab.library'");
+            await Assert.That(Message(() => FeatureCatalog.Build([tabUnderTab])))
+                .Contains("may not have 'tab.library'");
             await Assert.That(Message(() => FeatureCatalog.Build([subUnderPack]))).Contains("may not have 'pack.sp'");
             await Assert.That(Message(() => FeatureCatalog.Build([unknownParent]))).Contains("unknown parent");
         });

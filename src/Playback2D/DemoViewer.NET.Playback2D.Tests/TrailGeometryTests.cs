@@ -125,10 +125,7 @@ public class TrailGeometryTests
     {
         MapLevel level = space.Levels[levelIndex];
         return new SceneRenderContext(Scene2DFrame.Empty, default, default, SKRect.Create(100, 100),
-            levelIndex, level.ZMin, level.ZMax, RenderPurpose.Interactive, ScenePalette.Dark, 1f)
-        {
-            Levels = space
-        };
+            levelIndex, level.ZMin, level.ZMax, RenderPurpose.Interactive, ScenePalette.Dark, 1f) { Levels = space };
     }
 
     private static async Task AssertRuns(IReadOnlyList<(int Start, int End)> actual,

@@ -145,7 +145,8 @@ public class RuleWorkbenchModuleTests
             await Assert.That(shipped).IsNotNull().Because("shipped rulesets appear in the dropdown");
 
             vm.SelectedFile = shipped;
-            await Assert.That(vm.IsReadOnlyFile).IsTrue().Because("shipped rulesets are read-only without DeveloperMode");
+            await Assert.That(vm.IsReadOnlyFile).IsTrue()
+                .Because("shipped rulesets are read-only without DeveloperMode");
             await Assert.That(vm.CanSave).IsFalse();
 
             // Save-in-place is a no-op on a read-only file. It must NOT create a user copy.
@@ -171,7 +172,8 @@ public class RuleWorkbenchModuleTests
             vm.NewFileCommand.Execute(null);
 
             // A bogus view name: the checker must reject it, and it must land on THIS file (inline).
-            vm.DocumentText = "ruleset: broken_probe\nfor: each_player\nstats:\n  x:\n    count: not_a_real_view\n    per: match\n";
+            vm.DocumentText =
+                "ruleset: broken_probe\nfor: each_player\nstats:\n  x:\n    count: not_a_real_view\n    per: match\n";
 
             await Assert.That(vm.IsClean).IsFalse();
             await Assert.That(vm.OpenFileDiagnostics.Count).IsGreaterThan(0)
@@ -202,7 +204,8 @@ public class RuleWorkbenchModuleTests
     public async Task Completion_Vocabulary_IncludesCatalogTermsAndBufferStats()
     {
         CatalogRoot catalog = CatalogResource.Load();
-        const string Buffer = "ruleset: t\nfor: each_player\nstats:\n  my_kills:\n    count: kill\n  my_deaths:\n    count: death\n";
+        const string Buffer =
+            "ruleset: t\nfor: each_player\nstats:\n  my_kills:\n    count: kill\n  my_deaths:\n    count: death\n";
 
         IReadOnlyList<WorkbenchCompletion> candidates = WorkbenchCompletionSource.Build(catalog, Buffer);
         HashSet<string> texts = candidates.Select(c => c.Text).ToHashSet(StringComparer.Ordinal);
@@ -535,16 +538,8 @@ public class RuleWorkbenchModuleTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 const int Width = 900, Height = 560;
-                RuleWorkbenchView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = Width,
-                    Height = Height,
-                    Content = view
-                };
+                RuleWorkbenchView view = new() { DataContext = vm };
+                Window window = new() { Width = Width, Height = Height, Content = view };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -552,7 +547,8 @@ public class RuleWorkbenchModuleTests
 
                 WriteableBitmap? bmp = window.CaptureRenderedFrame();
                 await Assert.That(bmp).IsNotNull();
-                bmp!.Save(Path.Combine(HeadlessSession.ArtifactDir, "ruleworkbench-editor.png"), new PngBitmapEncoderOptions());
+                bmp!.Save(Path.Combine(HeadlessSession.ArtifactDir, "ruleworkbench-editor.png"),
+                    new PngBitmapEncoderOptions());
 
                 int toolbar = CountDifferentFromCorner(bmp, 12, 520, 12, 44);
                 Console.WriteLine($"[ruleworkbench] toolbar non-background pixels: {toolbar}");
@@ -658,7 +654,8 @@ public class RuleWorkbenchModuleTests
             int extra = deathCount - killsByTick.GetValueOrDefault(tick);
             surplus += extra;
             await Assert.That(extra).IsLessThanOrEqualTo(uncreditedByTick.GetValueOrDefault(tick))
-                .Because($"a death applied-fire at tick {tick} with no kill applied-fire must be one CS2 credited to nobody");
+                .Because(
+                    $"a death applied-fire at tick {tick} with no kill applied-fire must be one CS2 credited to nobody");
         }
 
         Console.WriteLine($"[trace-m6] kills={kills.FireCount} deaths={deaths.FireCount} uncredited={surplus}");
@@ -756,16 +753,8 @@ public class RuleWorkbenchModuleTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 const int Width = 1100, Height = 620;
-                RuleWorkbenchView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = Width,
-                    Height = Height,
-                    Content = view
-                };
+                RuleWorkbenchView view = new() { DataContext = vm };
+                Window window = new() { Width = Width, Height = Height, Content = view };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -773,7 +762,8 @@ public class RuleWorkbenchModuleTests
 
                 WriteableBitmap? bmp = window.CaptureRenderedFrame();
                 await Assert.That(bmp).IsNotNull();
-                bmp!.Save(Path.Combine(HeadlessSession.ArtifactDir, "ruleworkbench-m6-trace.png"), new PngBitmapEncoderOptions());
+                bmp!.Save(Path.Combine(HeadlessSession.ArtifactDir, "ruleworkbench-m6-trace.png"),
+                    new PngBitmapEncoderOptions());
 
                 // The trace panel occupies the bottom-right third; its combobox + fire rows must paint.
                 int right = bmp.PixelSize.Width;

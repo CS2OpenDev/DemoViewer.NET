@@ -67,7 +67,7 @@ public sealed partial class DemoQueueRowViewModel : ViewModelBase, IDisposable
     ///     a light item would hold back the user's light items that run beside the running one.
     /// </summary>
     public bool CanPromote => IsQueued && _item.Kind is not (QueueJobKind.DemoOpen or QueueJobKind.HeapCompaction)
-                              && _item.Hold != DemoQueueHold.OnOpen && !_item.Light;
+                                       && _item.Hold != DemoQueueHold.OnOpen && !_item.Light;
 
     /// <summary>The menu entry, saying when a promoted item will still wait.</summary>
     public string PromoteLabel => _item.Hold switch
@@ -129,7 +129,8 @@ public sealed partial class DemoQueueRowViewModel : ViewModelBase, IDisposable
     };
 
     /// <summary>True for UserRequested/Foreground: routine Background work and an open, whose kind chip says it, show none.</summary>
-    public bool HasElevatedPriority => _item.Priority != DemoJobPriority.Background && _item.Kind != QueueJobKind.DemoOpen;
+    public bool HasElevatedPriority =>
+        _item.Priority != DemoJobPriority.Background && _item.Kind != QueueJobKind.DemoOpen;
 
     /// <summary>The lifecycle word: the accessible carrier of state (the dot is the redundant colour cue).</summary>
     public string StateLabel => _item.State switch

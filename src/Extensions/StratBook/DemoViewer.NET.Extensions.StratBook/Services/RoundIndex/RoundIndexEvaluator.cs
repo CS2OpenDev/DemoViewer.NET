@@ -155,7 +155,8 @@ public sealed class RoundIndexEvaluator : IExtensionPass
 
     /// <inheritdoc />
     public DemoInterest Interest(string demoPath) =>
-        Wants(demoPath) ? DemoInterest.Yes : WantsAfterUpstream(demoPath) ? DemoInterest.AfterUpstream : DemoInterest.No;
+        Wants(demoPath) ? DemoInterest.Yes :
+        WantsAfterUpstream(demoPath) ? DemoInterest.AfterUpstream : DemoInterest.No;
 
     /// <inheritdoc />
     public PassRead Read => PassRead.Forward;
@@ -204,7 +205,8 @@ public sealed class RoundIndexEvaluator : IExtensionPass
         return
         [
             .. _library.Demos
-                .Where(e => NeedsIndex(e) && (background || forced.Contains(e.FilePath) || _wantedDownstream(e.FilePath)))
+                .Where(e => NeedsIndex(e)
+                            && (background || forced.Contains(e.FilePath) || _wantedDownstream(e.FilePath)))
                 .OrderByDescending(e => e.Modified.Ticks)
                 .Select(e => e.FilePath)
         ];
@@ -279,7 +281,8 @@ public sealed class RoundIndexEvaluator : IExtensionPass
 
     private bool NeedsIndex(LibraryDemo? entry) =>
         entry is { State: >= LibraryDemoState.Parsed } && HasRoundFacts(entry)
-        && _store.Needs(entry.FilePath, _sources.FingerprintFor(entry.MapName));
+                                                       && _store.Needs(entry.FilePath,
+                                                           _sources.FingerprintFor(entry.MapName));
 
     private static bool HasRoundFacts(LibraryDemo entry) =>
         entry.Fact(RoundFactsRows.FacetId) is { IsWritten: true };
@@ -325,20 +328,14 @@ public sealed class RoundIndexEvaluator : IExtensionPass
             string stableKey = DemoKeys.StableKey(path);
             document.Demo = new RoundIndexDemo
             {
-                Sha256 = record.Sha256,
-                StableKey = stableKey,
-                FileName = fileName,
-                SizeBytes = record.FileSizeBytes
+                Sha256 = record.Sha256, StableKey = stableKey, FileName = fileName, SizeBytes = record.FileSizeBytes
             };
-            built.Positions.Demo = new RoundPositionsDemo
-            {
-                Sha256 = record.Sha256,
-                StableKey = stableKey
-            };
+            built.Positions.Demo = new RoundPositionsDemo { Sha256 = record.Sha256, StableKey = stableKey };
 
             // The store writes the positions first, the index second and the stamp last: a crash between any
             // two leaves "not indexed", never an index whose cards have nothing to draw.
-            long computedAt = _store.Write(path, document, built.Positions, fingerprint)?.WrittenAtTicks ?? DateTime.UtcNow.Ticks;
+            long computedAt = _store.Write(path, document, built.Positions, fingerprint)?.WrittenAtTicks
+                              ?? DateTime.UtcNow.Ticks;
 
             RoundIndexedEvent indexed = new(path, document.Demo.StableKey, record.Sha256, document.Map, computedAt);
             Written?.Invoke(indexed);

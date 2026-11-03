@@ -35,7 +35,8 @@ public class Playback2DFeatureWiringTests
         string[] sources = Directory
             .EnumerateFiles(appRoot, "*.*", SearchOption.AllDirectories)
             .Concat(Directory.Exists(extensionsRoot)
-                ? Directory.EnumerateFiles(extensionsRoot, "*.*", SearchOption.AllDirectories).Where(IsExtensionProductionSource)
+                ? Directory.EnumerateFiles(extensionsRoot, "*.*", SearchOption.AllDirectories)
+                    .Where(IsExtensionProductionSource)
                 : [])
             .Where(p => p.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
                         || p.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase))

@@ -69,7 +69,8 @@ public sealed class TagMatrixTable
     /// <param name="column">A column key.</param>
     public int Count(string row, string column) => Refs(row, column).Count;
 
-    private static int Distinct(IEnumerable<TagInstanceRef> refs) => refs.Select(r => (r.Sha256, r.Id)).Distinct().Count();
+    private static int Distinct(IEnumerable<TagInstanceRef> refs) =>
+        refs.Select(r => (r.Sha256, r.Id)).Distinct().Count();
 }
 
 /// <summary>
@@ -191,7 +192,8 @@ public static class TagMatrix
 
             int to = from;
             // A match has tens of rounds; a four-digit bound is a typo, not a range to enumerate.
-            if (ends.Length == 2 && (!int.TryParse(ends[1], NumberStyles.None, CultureInfo.InvariantCulture, out to) || to < from || to > 999))
+            if (ends.Length == 2 && (!int.TryParse(ends[1], NumberStyles.None, CultureInfo.InvariantCulture, out to)
+                                     || to < from || to > 999))
             {
                 return false;
             }

@@ -36,8 +36,14 @@ public class PlayerRowCacheTests
             ModifiedTicks = 1,
             Sha256 = $"sha{i}",
             Map = Maps[i % Maps.Length],
-            Players = [new CachedPlayerInfo { Slot = 2, Name = "grim", SteamId64 = Id(player), Team = i % 2 == 0 ? 3 : 2 }],
-            MatchMeta = new DemoMatchMeta { MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo }
+            Players =
+ [
+                new CachedPlayerInfo { Slot = 2, Name = "grim", SteamId64 = Id(player), Team = i % 2 == 0 ? 3 : 2 }
+            ],
+            MatchMeta = new DemoMatchMeta
+            {
+                MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo
+            }
         };
         DemoCacheStore.StampHeader(record);
         DemoCacheStore.StampParse(record);
@@ -50,19 +56,31 @@ public class PlayerRowCacheTests
     }
 
     // One active row for the account: kills grow with the demo so pools differ by window.
-    private static FactTable Facet(int i, int kills) => new(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
-        ["player_slot", "steam_id", "team"], ["rounds", "TotalK", "TotalD", "EnemyDmg", "CTW", "CTL"], new Dictionary<string, string>(),
+    private static FactTable Facet(int i, int kills) => new(PlayerMatchFacet.Key, "fp", StampedFacts.Schema,
+        "player_match",
+        ["player_slot", "steam_id", "team"], ["rounds", "TotalK", "TotalD", "EnemyDmg", "CTW", "CTL"],
+        new Dictionary<string, string>(),
         [
             new FactRow(
-                new Dictionary<string, FactValue> { ["player_slot"] = FactValue.Of(2L), ["steam_id"] = FactValue.Of(Id(Grim)), ["team"] = FactValue.Of(3L) },
                 new Dictionary<string, FactValue>
                 {
-                    ["rounds"] = FactValue.Of(20L), ["TotalK"] = FactValue.Of((long)kills), ["TotalD"] = FactValue.Of(10L),
-                    ["EnemyDmg"] = FactValue.Of(1600L + i), ["CTW"] = FactValue.Of(i % 3 == 0 ? 13L : 7L), ["CTL"] = FactValue.Of(10L)
+                    ["player_slot"] = FactValue.Of(2L),
+                    ["steam_id"] = FactValue.Of(Id(Grim)),
+                    ["team"] = FactValue.Of(3L)
+                },
+                new Dictionary<string, FactValue>
+                {
+                    ["rounds"] = FactValue.Of(20L),
+                    ["TotalK"] = FactValue.Of((long)kills),
+                    ["TotalD"] = FactValue.Of(10L),
+                    ["EnemyDmg"] = FactValue.Of(1600L + i),
+                    ["CTW"] = FactValue.Of(i % 3 == 0 ? 13L : 7L),
+                    ["CTL"] = FactValue.Of(10L)
                 })
         ]);
 
-    private static (DemoCacheStore Store, PlayerRowCache Cache, ConcurrentQueue<string> Reads) Library(int demos, Func<int, bool>? stamped = null)
+    private static (DemoCacheStore Store, PlayerRowCache Cache, ConcurrentQueue<string> Reads) Library(int demos,
+        Func<int, bool>? stamped = null)
     {
         DemoCacheStore store = new(null);
         using (store.BeginBatch())
@@ -78,7 +96,9 @@ public class PlayerRowCacheTests
         {
             reads.Enqueue(path);
             int i = int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
-            return store.TryGetIndex(path)?.Stamp(Stamp) is { ComputedAtTicks: var at } ? Facet(i, i % 7 + (int)at - 1) : null;
+            return store.TryGetIndex(path)?.Stamp(Stamp) is { ComputedAtTicks: var at }
+                ? Facet(i, i % 7 + (int)at - 1)
+                : null;
         });
         return (store, cache, reads);
     }
@@ -86,7 +106,8 @@ public class PlayerRowCacheTests
     private static PlayerFilter[] Filters() =>
     [
         PlayerFilter.All, new() { Last = 10 }, new() { Last = 100 }, new() { Map = "de_nuke" }, new() { Side = 3 },
-        new() { FromTicks = 200 * TimeSpan.TicksPerDay, BeforeTicks = 600 * TimeSpan.TicksPerDay }, new() { Map = "de_mirage", Side = 2, Last = 30 }
+        new() { FromTicks = 200 * TimeSpan.TicksPerDay, BeforeTicks = 600 * TimeSpan.TicksPerDay },
+        new() { Map = "de_mirage", Side = 2, Last = 30 }
     ];
 
     private sealed class Recorder : IProgress<PlayerRowsProgress>
@@ -123,7 +144,8 @@ public class PlayerRowCacheTests
             await Assert.That(progress.Reports.Count).IsEqualTo(1001);
             await Assert.That(rows.Demos.Count).IsEqualTo(1000);
             await Assert.That(rows.Demos[0].Match.Row.Path).IsEqualTo("/lib/999.dem").Because("newest match first");
-            await Assert.That(reads.Count).IsEqualTo(cold).Because("a filter change and a current load read no sidecar");
+            await Assert.That(reads.Count).IsEqualTo(cold)
+                .Because("a filter change and a current load read no sidecar");
             await Assert.That(again).IsSameReferenceAs(rows);
             await Assert.That(reloaded).IsSameReferenceAs(rows);
             await Assert.That(pools[0].Matches).IsEqualTo(1000);
@@ -141,8 +163,10 @@ public class PlayerRowCacheTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(new DemoCacheIndexEntry { Path = "/lib/a.dem", Sha256 = "sha-a" }.ContentId()).IsEqualTo("sha-a");
-            await Assert.That(new DemoCacheIndexEntry { Path = "/lib/a.dem", Sha256 = "" }.ContentId()).IsEqualTo("/lib/a.dem");
+            await Assert.That(new DemoCacheIndexEntry { Path = "/lib/a.dem", Sha256 = "sha-a" }.ContentId())
+                .IsEqualTo("sha-a");
+            await Assert.That(new DemoCacheIndexEntry { Path = "/lib/a.dem", Sha256 = "" }.ContentId())
+                .IsEqualTo("/lib/a.dem");
             await Assert.That(new DemoCacheIndexEntry { Path = "/lib/a.dem" }.ContentId()).IsEqualTo("/lib/a.dem");
             await Assert.That(((DemoCacheIndexEntry?)null).ContentId()).IsEqualTo("");
         }
@@ -164,7 +188,8 @@ public class PlayerRowCacheTests
         {
             await Assert.That(stale).IsNull().Because("the index moved");
             await Assert.That(reads).IsEquivalentTo(["/lib/5.dem"], CollectionOrdering.Matching);
-            await Assert.That(after.Demos.Single(d => d.Match.Row.Path == "/lib/5.dem").Stats!["TotalK"]).IsEqualTo(kills + 1);
+            await Assert.That(after.Demos.Single(d => d.Match.Row.Path == "/lib/5.dem").Stats!["TotalK"])
+                .IsEqualTo(kills + 1);
             await Assert.That(after.Demos.Single(d => d.Match.Row.Path == "/lib/6.dem").Stats)
                 .IsSameReferenceAs(before.Demos.Single(d => d.Match.Row.Path == "/lib/6.dem").Stats);
         }
@@ -225,11 +250,15 @@ public class PlayerRowCacheTests
 
         using (Assert.Multiple())
         {
-            await Assert.That((unread.HasFacet, unread.Stats)).IsEqualTo((false, (IReadOnlyDictionary<string, double>?)null));
+            await Assert.That((unread.HasFacet, unread.Stats))
+                .IsEqualTo((false, (IReadOnlyDictionary<string, double>?)null));
             await Assert.That(rows.Aggregate().WithStats).IsEqualTo(4);
-            await Assert.That((inLibrary.HasFacet, inLibrary.Stats)).IsEqualTo((false, (IReadOnlyDictionary<string, double>?)null));
+            await Assert.That((inLibrary.HasFacet, inLibrary.Stats))
+                .IsEqualTo((false, (IReadOnlyDictionary<string, double>?)null));
             await Assert.That(library.Accounts[Grim].Count(d => d.Stats is not null)).IsEqualTo(4);
-            await Assert.That(reads.Order(StringComparer.Ordinal).ToArray()).IsEquivalentTo(["/lib/0.dem", "/lib/3.dem"], CollectionOrdering.Matching).Because("the failed demo is read again, the rest are held");
+            await Assert.That(reads.Order(StringComparer.Ordinal).ToArray())
+                .IsEquivalentTo(["/lib/0.dem", "/lib/3.dem"], CollectionOrdering.Matching)
+                .Because("the failed demo is read again, the rest are held");
             await Assert.That(after.Aggregate().WithStats).IsEqualTo(5);
         }
     }
@@ -276,7 +305,8 @@ public class PlayerRowCacheTests
         {
             await Assert.That(cold).IsEqualTo(20);
             await Assert.That(rewritten).IsEqualTo(20).Because("a facts write drops the read under the old stamp");
-            await Assert.That(afterLibrary).IsEqualTo(20).Because("the library fill holds the old stamp no longer once a fill sees the new one");
+            await Assert.That(afterLibrary).IsEqualTo(20)
+                .Because("the library fill holds the old stamp no longer once a fill sees the new one");
             await Assert.That(accounts.HeldReads).IsEqualTo(12).Because("only the four held accounts' demos stay");
         }
     }
@@ -287,7 +317,8 @@ public class PlayerRowCacheTests
         (_, PlayerRowCache cache, ConcurrentQueue<string> reads) = Library(50);
         using CancellationTokenSource cancel = new();
         Recorder progress = new();
-        await Assert.ThrowsAsync<OperationCanceledException>(() => cache.LoadAsync(Grim, new Stopper(cancel, 10), cancel.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            cache.LoadAsync(Grim, new Stopper(cancel, 10), cancel.Token));
         int first = reads.Count;
         await cache.LoadAsync(Grim, progress);
 
@@ -301,22 +332,32 @@ public class PlayerRowCacheTests
 
     // Two rounds for the account: a CT round with two kills and 200 damage that counts for KAST, then a T round
     // it died in with 30 damage.
-    internal static FactTable Rounds(ulong steamId64) => new(PlayerRoundFacet.Key, "fp", StampedFacts.Schema, "player_round",
-        ["round_number", "player_slot", "steam_id"], [.. PlayerRoundFacet.Counts.Prepend("side")], new Dictionary<string, string>(),
+    internal static FactTable Rounds(ulong steamId64) => new(PlayerRoundFacet.Key, "fp", StampedFacts.Schema,
+        "player_round",
+        ["round_number", "player_slot", "steam_id"], [.. PlayerRoundFacet.Counts.Prepend("side")],
+        new Dictionary<string, string>(),
         [
             RoundRow(steamId64, 1, PlayerRoundFacet.Ct, kills: 2, deaths: 0, damage: 200, kast: true),
             RoundRow(steamId64, 2, PlayerRoundFacet.T, kills: 0, deaths: 1, damage: 30, kast: false)
         ]);
 
-    private static FactRow RoundRow(ulong steamId64, long round, long side, long kills, long deaths, long damage, bool kast) => new(
+    private static FactRow RoundRow(ulong steamId64, long round, long side, long kills, long deaths, long damage,
+        bool kast) => new(
         new Dictionary<string, FactValue>
         {
-            ["round_number"] = FactValue.Of(round), ["player_slot"] = FactValue.Of(2L), ["steam_id"] = FactValue.Of(Id(steamId64))
+            ["round_number"] = FactValue.Of(round),
+            ["player_slot"] = FactValue.Of(2L),
+            ["steam_id"] = FactValue.Of(Id(steamId64))
         },
         new Dictionary<string, FactValue>
         {
-            ["side"] = FactValue.Of(side), ["kills"] = FactValue.Of(kills), ["deaths"] = FactValue.Of(deaths), ["assists"] = FactValue.Of(0L),
-            ["damage"] = FactValue.Of(damage), ["survived"] = FactValue.Of(deaths == 0 ? 1L : 0L), ["kast"] = FactValue.Of(kast)
+            ["side"] = FactValue.Of(side),
+            ["kills"] = FactValue.Of(kills),
+            ["deaths"] = FactValue.Of(deaths),
+            ["assists"] = FactValue.Of(0L),
+            ["damage"] = FactValue.Of(damage),
+            ["survived"] = FactValue.Of(deaths == 0 ? 1L : 0L),
+            ["kast"] = FactValue.Of(kast)
         });
 
     [Test]
@@ -345,19 +386,26 @@ public class PlayerRowCacheTests
         reads.Clear();
 
         DemoCacheRecord written = Demo(1);
-        written.PackStamps.Add(new PackStamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId), StampedFacts.Schema, "fp") { ComputedAtTicks = 2 });
+        written.PackStamps.Add(
+            new PackStamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId), StampedFacts.Schema, "fp")
+            {
+                ComputedAtTicks = 2
+            });
         store.Upsert(written);
         PlayerRows after = await cache.LoadAsync(Grim);
         PlayerAggregate pool = after.Aggregate();
 
         using (Assert.Multiple())
         {
-            await Assert.That(before.Demos.All(d => d.Sides is null)).IsTrue().Because("no demo has its rounds written");
+            await Assert.That(before.Demos.All(d => d.Sides is null)).IsTrue()
+                .Because("no demo has its rounds written");
             await Assert.That(before.Aggregate().WithSides).IsEqualTo(0);
             await Assert.That(before.Aggregate()["CT:ADR"]).IsNull();
             await Assert.That(reads).IsEquivalentTo(["/lib/1.dem"], CollectionOrdering.Matching);
-            await Assert.That(roundReads).IsEquivalentTo(["/lib/1.dem"], CollectionOrdering.Matching).Because("a demo's rounds are read only once written");
-            await Assert.That(after.Demos.Single(d => d.Match.Row.Path == "/lib/1.dem").Sides!["CT:kills"]).IsEqualTo(2);
+            await Assert.That(roundReads).IsEquivalentTo(["/lib/1.dem"], CollectionOrdering.Matching)
+                .Because("a demo's rounds are read only once written");
+            await Assert.That(after.Demos.Single(d => d.Match.Row.Path == "/lib/1.dem").Sides!["CT:kills"])
+                .IsEqualTo(2);
             await Assert.That((pool.WithStats, pool.WithSides)).IsEqualTo((4, 1));
             await Assert.That(pool["CT:ADR"]).IsEqualTo(200);
             await Assert.That(pool["CT:KAST%"]).IsEqualTo(100);
@@ -403,7 +451,8 @@ public class PlayerRowCacheTests
         }
 
         double median = runs.Order().ElementAt(2);
-        Console.WriteLine($"1k demos: median {median:F2} ms of [{string.Join(", ", runs.Select(r => r.ToString("F2", CultureInfo.InvariantCulture)))}]");
+        Console.WriteLine(
+            $"1k demos: median {median:F2} ms of [{string.Join(", ", runs.Select(r => r.ToString("F2", CultureInfo.InvariantCulture)))}]");
         using (Assert.Multiple())
         {
             await Assert.That(median).IsLessThan(50);

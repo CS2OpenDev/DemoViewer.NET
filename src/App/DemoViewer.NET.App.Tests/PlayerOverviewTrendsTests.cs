@@ -48,9 +48,14 @@ public class PlayerOverviewTrendsTests
                     },
                     new Dictionary<string, FactValue>
                     {
-                        ["rounds"] = FactValue.Of(20L), ["TotalK"] = FactValue.Of(kills), ["TotalD"] = FactValue.Of(10L),
-                        ["EnemyDmg"] = FactValue.Of(kills * 60), ["KAST%"] = FactValue.Of(70.0), ["HLTV"] = FactValue.Of(1 + (i / 10.0)),
-                        ["CTW"] = FactValue.Of(13L), ["CTL"] = FactValue.Of(7L)
+                        ["rounds"] = FactValue.Of(20L),
+                        ["TotalK"] = FactValue.Of(kills),
+                        ["TotalD"] = FactValue.Of(10L),
+                        ["EnemyDmg"] = FactValue.Of(kills * 60),
+                        ["KAST%"] = FactValue.Of(70.0),
+                        ["HLTV"] = FactValue.Of(1 + (i / 10.0)),
+                        ["CTW"] = FactValue.Of(13L),
+                        ["CTL"] = FactValue.Of(7L)
                     })
             ]);
     }
@@ -62,12 +67,15 @@ public class PlayerOverviewTrendsTests
             DemoCacheStore store = PlayerOverviewHistoryTests.Library(demos, stamped);
             PlayerDirectory directory = new(store, _ => true);
             Identity = new IdentityService(new SettingsService((string?)null));
-            Identity.SetAccounts([new IdentityAccount(Grim.ToString(CultureInfo.InvariantCulture), null, DateTime.UtcNow)]);
+            Identity.SetAccounts([
+                new IdentityAccount(Grim.ToString(CultureInfo.InvariantCulture), null, DateTime.UtcNow)
+            ]);
             PlayerRowCache cache = new(store, directory, path =>
                 store.TryGetIndex(path)?.Stamp(Stamp) is { State: DemoAnalysisState.Indexed }
                     ? Facet(int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture))
                     : null);
-            Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, cache, _ => { }, _ => { }, (_, _) => { }, _ => { }));
+            Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, cache, _ => { },
+                _ => { }, (_, _) => { }, _ => { }));
             Tab.OnActivated(null!);
         }
 
@@ -103,12 +111,15 @@ public class PlayerOverviewTrendsTests
         using (Assert.Multiple())
         {
             await Assert.That(trends.IsVisible).IsTrue();
-            await Assert.That(trends.Trends.Select(t => t.Key)).IsEquivalentTo(["HLTV", "ADR", "KD"], CollectionOrdering.Matching);
-            await Assert.That(Item(trends, "HLTV").Values).IsEquivalentTo(Enumerable.Range(0, 12).Select(i => 1 + (i / 10.0)), CollectionOrdering.Matching)
+            await Assert.That(trends.Trends.Select(t => t.Key))
+                .IsEquivalentTo(["HLTV", "ADR", "KD"], CollectionOrdering.Matching);
+            await Assert.That(Item(trends, "HLTV").Values)
+                .IsEquivalentTo(Enumerable.Range(0, 12).Select(i => 1 + (i / 10.0)), CollectionOrdering.Matching)
                 .Because("demo 0 is the oldest, so it is the leftmost point");
             await Assert.That(Item(trends, "KD").Values.Count).IsEqualTo(12);
             await Assert.That(Item(trends, "KD").PointTips.Count).IsEqualTo(12);
-            await Assert.That(Item(trends, "ADR").LatestText).IsEqualTo((21 * 60 / 20.0).ToString("0.0", CultureInfo.InvariantCulture));
+            await Assert.That(Item(trends, "ADR").LatestText)
+                .IsEqualTo((21 * 60 / 20.0).ToString("0.0", CultureInfo.InvariantCulture));
         }
     }
 
@@ -131,7 +142,8 @@ public class PlayerOverviewTrendsTests
             await Assert.That(kd.RecentText).IsEqualTo(recent.ToString("0.00", CultureInfo.InvariantCulture));
             await Assert.That(kd.PreviousText).IsEqualTo(previous.ToString("0.00", CultureInfo.InvariantCulture));
             await Assert.That(kd.ChangePercent).IsEqualTo(change).Within(1e-9);
-            await Assert.That(kd.ChangeText).IsEqualTo("+" + change.ToString("0.0", CultureInfo.InvariantCulture) + "%");
+            await Assert.That(kd.ChangeText)
+                .IsEqualTo("+" + change.ToString("0.0", CultureInfo.InvariantCulture) + "%");
             await Assert.That((kd.RisePercent, kd.FallPercent)).IsEqualTo((kd.ChangePercent, 0.0));
         }
     }
@@ -164,7 +176,8 @@ public class PlayerOverviewTrendsTests
         {
             await Assert.That(trends.IsVisible).IsTrue();
             await Assert.That(trends.HasForm).IsFalse();
-            await Assert.That(trends.Trends.Select(t => t.HasForm)).IsEquivalentTo([false, false, false], CollectionOrdering.Matching);
+            await Assert.That(trends.Trends.Select(t => t.HasForm))
+                .IsEquivalentTo([false, false, false], CollectionOrdering.Matching);
             await Assert.That(Item(trends, "HLTV").ChangeText).IsEqualTo("");
         }
     }
@@ -201,7 +214,10 @@ public class PlayerOverviewTrendsRenderTests
             using PlayerOverviewTrendsTests.Shell shell = new(24);
             await shell.Tab.Loading;
 
-            Window window = new() { Width = 1300, Height = 900, Content = new PlayerOverviewTabView { DataContext = shell.Tab } };
+            Window window = new()
+            {
+                Width = 1300, Height = 900, Content = new PlayerOverviewTabView { DataContext = shell.Tab }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -216,7 +232,8 @@ public class PlayerOverviewTrendsRenderTests
                 await Assert.That(lines.Length).IsEqualTo(3);
                 await Assert.That(lines.All(l => l.Bounds.Width > 0)).IsTrue();
                 await Assert.That(bars.Length).IsEqualTo(3);
-                await Assert.That(bars.All(b => b.Positive > 0 && b.Extent == TrendsSectionViewModel.FormExtent)).IsTrue();
+                await Assert.That(bars.All(b => b.Positive > 0 && b.Extent == TrendsSectionViewModel.FormExtent))
+                    .IsTrue();
             }
 
             window.Close();

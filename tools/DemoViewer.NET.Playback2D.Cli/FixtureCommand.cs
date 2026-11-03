@@ -96,9 +96,7 @@ internal static class FixtureCommand
         GoldenCorpusEntry entry = new(name, scenePath, size, source.MapName, mapVersion, layers,
             GoldenBudget.Default, false)
         {
-            SceneRelativePath = relative,
-            CorpusDirectory = corpusDir,
-            Notes = fixture.Notes
+            SceneRelativePath = relative, CorpusDirectory = corpusDir, Notes = fixture.Notes
         };
         GoldenCorpus.Upsert(corpusDir, entry);
 
@@ -118,11 +116,7 @@ internal static class FixtureCommand
                 ["tick"] = time.Tick,
                 ["frame_index"] = time.FrameIndex,
                 ["markers"] = frame.Markers.Count,
-                ["size"] = new JsonObject
-                {
-                    ["width"] = size.Width,
-                    ["height"] = size.Height
-                }
+                ["size"] = new JsonObject { ["width"] = size.Width, ["height"] = size.Height }
             });
         }
         else
@@ -149,11 +143,7 @@ internal static class FixtureCommand
                 ["name"] = entry.Name,
                 ["scene"] = entry.SceneRelativePath,
                 ["exists"] = File.Exists(entry.ScenePath),
-                ["size"] = new JsonObject
-                {
-                    ["width"] = entry.Size.Width,
-                    ["height"] = entry.Size.Height
-                },
+                ["size"] = new JsonObject { ["width"] = entry.Size.Width, ["height"] = entry.Size.Height },
                 ["map"] = entry.MapName,
                 ["map_version"] = entry.MapVersion,
                 ["pending"] = entry.Pending,
@@ -246,10 +236,7 @@ internal static class FixtureCommand
                 ["corpus"] = corpus.Directory,
                 ["counts"] = new JsonObject
                 {
-                    ["total"] = results.Count,
-                    ["ok"] = ok,
-                    ["skipped"] = skipped,
-                    ["failed"] = bad
+                    ["total"] = results.Count, ["ok"] = ok, ["skipped"] = skipped, ["failed"] = bad
                 },
                 ["results"] = results
             });
@@ -265,11 +252,7 @@ internal static class FixtureCommand
 
     private static JsonObject Row(string name, string status, string? reason)
     {
-        JsonObject o = new()
-        {
-            ["name"] = name,
-            ["status"] = status
-        };
+        JsonObject o = new() { ["name"] = name, ["status"] = status };
         if (reason is not null)
         {
             o["reason"] = reason;

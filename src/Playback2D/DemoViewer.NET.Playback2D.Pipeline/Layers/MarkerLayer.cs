@@ -41,32 +41,11 @@ public sealed class MarkerLayer : ISceneLayer
         _ownsText = text is null;
         _text = text ?? new TextBlobCache();
 
-        _fill = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        _cone = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        _heading = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2,
-            IsAntialias = true
-        };
-        _ring = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            IsAntialias = true
-        };
-        _label = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+        _fill = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
+        _cone = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
+        _heading = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2, IsAntialias = true };
+        _ring = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true };
+        _label = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
         _route = new SKPaint
         {
             Style = SKPaintStyle.Stroke,

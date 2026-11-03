@@ -19,7 +19,10 @@ namespace DemoViewer.NET.AppTests;
 public class StratTemplatesTests
 {
     private static readonly string[] ShippedMaps =
-        ["de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass", "de_train", "de_vertigo"];
+    [
+        "de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass",
+        "de_train", "de_vertigo"
+    ];
 
     private static readonly StratSpawns Fixed = new(
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(1000 + 100 * i, 0, 64))],
@@ -30,7 +33,8 @@ public class StratTemplatesTests
 
     private static StratDocument Seeded(StratTemplate template, string map, string side)
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, map, side, "default", template.Name, Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, map, side, "default", template.Name, Created);
         Fixed.PlaceStart(document);
         StratTemplates.Apply(document, template);
         return document;
@@ -100,15 +104,19 @@ public class StratTemplatesTests
                     if (step.Assignments is { } lines
                         && (step.To is not null || step.Actor != StratStepLines.ActorFor(lines)
                                                 || lines.Any(l => l.Watch is not null
-                                                                  || (l.To is not null && !StratStepFields.Uses(step.Verb, StratStepField.To)))))
+                                                                  || (l.To is not null
+                                                                      && !StratStepFields.Uses(step.Verb,
+                                                                          StratStepField.To)))))
                     {
-                        problems.Add(where + ": lines with a step-level to, a stale actor, a watch, or a place the verb does not use");
+                        problems.Add(where
+                                     + ": lines with a step-level to, a stale actor, a watch, or a place the verb does not use");
                     }
                 }
             }
 
             await Assert.That(problems).IsEmpty();
-            await Assert.That(StratTemplates.Templates.Select(t => t.Id).Distinct().Count()).IsEqualTo(StratTemplates.Templates.Count);
+            await Assert.That(StratTemplates.Templates.Select(t => t.Id).Distinct().Count())
+                .IsEqualTo(StratTemplates.Templates.Count);
         });
     }
 
@@ -124,11 +132,14 @@ public class StratTemplatesTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(splitSteps.Where(StratStepLines.HasLines).Select(s => s.Verb)).IsEquivalentTo(["hold", "move"], CollectionOrdering.Matching);
+                await Assert.That(splitSteps.Where(StratStepLines.HasLines).Select(s => s.Verb))
+                    .IsEquivalentTo(["hold", "move"], CollectionOrdering.Matching);
                 await Assert.That(splitSteps.Single(s => s.Verb == "move" && StratStepLines.HasLines(s)).Assignments!
-                    .Select(l => l.Slot + ">" + l.To?.Place)).IsEquivalentTo(["A>BombsiteB", "D>BombsiteB"], CollectionOrdering.Matching);
+                        .Select(l => l.Slot + ">" + l.To?.Place))
+                    .IsEquivalentTo(["A>BombsiteB", "D>BombsiteB"], CollectionOrdering.Matching);
                 await Assert.That(hold.Assignments!.Select(l => l.Slot + ">" + l.To?.Place))
-                    .IsEquivalentTo(["A>BombsiteA", "B>BombsiteA", "C>", "D>BombsiteB", "E>BombsiteB"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["A>BombsiteA", "B>BombsiteA", "C>", "D>BombsiteB", "E>BombsiteB"],
+                        CollectionOrdering.Matching);
                 await Assert.That(hold.Actor).IsEqualTo(StratVocabulary.ActorAll);
             }
         });
@@ -139,21 +150,26 @@ public class StratTemplatesTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument fresh = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", StratVocabulary.SideT, "default", "n", Created);
+            StratDocument fresh = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", StratVocabulary.SideT,
+                "default", "n", Created);
             Fixed.PlaceStart(fresh);
-            StratDocument legacy = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", StratVocabulary.SideT, "default", "l", Created);
+            StratDocument legacy = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", StratVocabulary.SideT,
+                "default", "l", Created);
             StratStep seed = Step(1, legacy.Clock.RoundSeconds, StratVocabulary.ActorAll, "hold");
-            seed.Positions = [.. StratVocabulary.Slots.Select((s, i) => new StepPosition { Slot = s, X = 1000 + 100 * i })];
+            seed.Positions =
+                [.. StratVocabulary.Slots.Select((s, i) => new StepPosition { Slot = s, X = 1000 + 100 * i })];
             legacy.Steps = [seed];
             using (Assert.Multiple())
             {
                 await Assert.That(fresh.Steps).IsEmpty();
                 await Assert.That(StratTemplates.HasNoSteps(fresh)).IsTrue();
-                await Assert.That(StratTemplates.HasNoSteps(legacy)).IsTrue().Because("an older file's seed reads as its start");
+                await Assert.That(StratTemplates.HasNoSteps(legacy)).IsTrue()
+                    .Because("an older file's seed reads as its start");
             }
 
             seed.Assignments = [new StepAssignment { Slot = "A" }, new StepAssignment { Slot = "B" }];
-            await Assert.That(StratTemplates.HasNoSteps(legacy)).IsFalse().Because("Apply template would write after lines the author set");
+            await Assert.That(StratTemplates.HasNoSteps(legacy)).IsFalse()
+                .Because("Apply template would write after lines the author set");
         });
     }
 
@@ -168,10 +184,14 @@ public class StratTemplatesTests
             using (Assert.Multiple())
             {
                 await Assert.That(execute.Steps.Last(s => s.Verb == "throw").AtSeconds)
-                    .IsGreaterThan(execute.Steps.First(s => s.Verb == "move").AtSeconds).Because("utility goes in before the entry");
-                await Assert.That(execute.Steps.Where(s => s.Verb is "throw" or "move").All(s => s.AtSeconds is >= 40 and <= 65)).IsTrue();
-                await Assert.That(setup.Steps[0].AtSeconds).IsEqualTo(StratClock.DefaultRoundSeconds).Because("a CT setup holds from round start");
-                await Assert.That(retake.Steps.All(s => s.AtSeconds < 0)).IsTrue().Because("a retake starts after the plant");
+                    .IsGreaterThan(execute.Steps.First(s => s.Verb == "move").AtSeconds)
+                    .Because("utility goes in before the entry");
+                await Assert.That(execute.Steps.Where(s => s.Verb is "throw" or "move")
+                    .All(s => s.AtSeconds is >= 40 and <= 65)).IsTrue();
+                await Assert.That(setup.Steps[0].AtSeconds).IsEqualTo(StratClock.DefaultRoundSeconds)
+                    .Because("a CT setup holds from round start");
+                await Assert.That(retake.Steps.All(s => s.AtSeconds < 0)).IsTrue()
+                    .Because("a retake starts after the plant");
                 await Assert.That(retake.Steps.Min(s => s.AtSeconds)).IsGreaterThan(-40).Because("the bomb is 40 s");
             }
         });
@@ -187,11 +207,12 @@ public class StratTemplatesTests
             {
                 StratStore store = new(PackStores.At(root));
                 StratTemplate template = StratTemplates.Find("retake-a")!;
-                StratDocument created = store.Create(Team, "de_inferno", StratVocabulary.SideCt, template.Type, template.Name, d =>
-                {
-                    Fixed.PlaceStart(d);
-                    StratTemplates.Apply(d, template);
-                });
+                StratDocument created = store.Create(Team, "de_inferno", StratVocabulary.SideCt, template.Type,
+                    template.Name, d =>
+                    {
+                        Fixed.PlaceStart(d);
+                        StratTemplates.Apply(d, template);
+                    });
 
                 StratStore reader = new(PackStores.At(root));
                 StratDocument loaded = reader.Load(created.Id).Document!;
@@ -201,7 +222,8 @@ public class StratTemplatesTests
                     await Assert.That(JsonSerializer.Serialize(loaded, StratJsonContext.Default.StratDocument))
                         .IsEqualTo(JsonSerializer.Serialize(created, StratJsonContext.Default.StratDocument));
                     await Assert.That(loaded.TargetSite).IsEqualTo("A");
-                    await Assert.That(loaded.Steps.Count).IsEqualTo(template.Steps.Count).Because("the spawns are the start, not a step");
+                    await Assert.That(loaded.Steps.Count).IsEqualTo(template.Steps.Count)
+                        .Because("the spawns are the start, not a step");
                     await Assert.That(loaded.Start!.Positions.Count).IsEqualTo(10);
                 }
             }
@@ -232,15 +254,18 @@ public class StratTemplatesTests
             using (Assert.Multiple())
             {
                 await Assert.That(document.Revision).IsEqualTo(1);
-                await Assert.That(document.Side).IsEqualTo(StratVocabulary.SideT).Because("an execute is a T strat, whatever the filter");
+                await Assert.That(document.Side).IsEqualTo(StratVocabulary.SideT)
+                    .Because("an execute is a T strat, whatever the filter");
                 await Assert.That(document.Type).IsEqualTo("execute");
                 await Assert.That(document.TargetSite).IsEqualTo("B");
                 await Assert.That(document.Name).IsEqualTo("Execute B");
                 await Assert.That(document.Start!.Kind).IsEqualTo(StratStart.SpawnKind);
                 await Assert.That(document.Start.Positions.Count).IsEqualTo(10).Because("the spawns are the start");
-                await Assert.That(document.Steps.Select(s => s.Verb)).IsEquivalentTo(template.Steps.Select(s => s.Verb), CollectionOrdering.Matching);
+                await Assert.That(document.Steps.Select(s => s.Verb)).IsEquivalentTo(template.Steps.Select(s => s.Verb),
+                    CollectionOrdering.Matching);
                 await Assert.That(document.Steps.All(s => s.Positions.Count == 0)).IsTrue();
-                await Assert.That(stored.Steps.Count).IsEqualTo(template.Steps.Count).Because("the template is in the created revision");
+                await Assert.That(stored.Steps.Count).IsEqualTo(template.Steps.Count)
+                    .Because("the template is in the created revision");
                 await Assert.That(stored.Start!.Positions.Count).IsEqualTo(10);
                 await Assert.That(document.Slots[0].Role).IsEqualTo("entry");
                 await Assert.That(vm.CanApplyTemplate).IsFalse();
@@ -295,7 +320,8 @@ public class StratTemplatesTests
             StratTemplate template = StratTemplates.Find("retake-b")!;
 
             await Assert.That(vm.ApplyTemplateCommand.CanExecute("retake-b")).IsTrue();
-            await Assert.That(vm.ApplyTemplateCommand.CanExecute("execute-a")).IsFalse().Because("an execute is not for a CT strat");
+            await Assert.That(vm.ApplyTemplateCommand.CanExecute("execute-a")).IsFalse()
+                .Because("an execute is not for a CT strat");
             vm.ApplyTemplateCommand.Execute("retake-b");
 
             StratDocument applied = vm.Session.Document!;
@@ -312,11 +338,13 @@ public class StratTemplatesTests
 
             int steps = applied.Steps.Count;
             vm.ApplyTemplateCommand.Execute("setup");
-            await Assert.That(vm.Session.Document!.Steps.Count).IsEqualTo(steps).Because("a strat with real steps is refused");
+            await Assert.That(vm.Session.Document!.Steps.Count).IsEqualTo(steps)
+                .Because("a strat with real steps is refused");
             await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
 
             vm.Session.Undo();
-            await Assert.That(JsonSerializer.Serialize(vm.Session.Document!, StratJsonContext.Default.StratDocument)).IsEqualTo(before)
+            await Assert.That(JsonSerializer.Serialize(vm.Session.Document!, StratJsonContext.Default.StratDocument))
+                .IsEqualTo(before)
                 .Because("one undo takes the whole template back");
             await Assert.That(vm.CanApplyTemplate).IsTrue();
         });
@@ -330,9 +358,11 @@ public class StratTemplatesTests
             const int freeze = 6400;
             List<CapturedPawn> pawns =
             [
-                .. Enumerable.Range(0, 10).Select(s => new CapturedPawn(s, s < 5 ? 2 : 3, (ulong)(100 + s), "p" + s, s * 1000, 0, 0, 90, "TSpawn"))
+                .. Enumerable.Range(0, 10).Select(s =>
+                    new CapturedPawn(s, s < 5 ? 2 : 3, (ulong)(100 + s), "p" + s, s * 1000, 0, 0, 90, "TSpawn"))
             ];
-            RoundCapture capture = new(7, freeze, freeze + 64 * 100, 64, [new CaptureMoment(freeze, CaptureTrigger.FreezeEnd, pawns)]);
+            RoundCapture capture = new(7, freeze, freeze + 64 * 100, 64,
+                [new CaptureMoment(freeze, CaptureTrigger.FreezeEnd, pawns)]);
             StratCaptureOptions options = new(2,
                 StratFromRound.Tokens(pawns, 2, StratFromRound.SlotMap(pawns.Where(p => p.Team == 2), null, null)),
                 StratClock.DefaultRoundSeconds, true, StratFromRound.QuantizedLevel);
@@ -350,7 +380,8 @@ public class StratTemplatesTests
             {
                 await Assert.That(captured.Steps.Count).IsEqualTo(1).Because("the precondition: one freeze-end step");
                 await Assert.That(captured.Steps[0].Positions.Count).IsGreaterThan(0);
-                await Assert.That(StratTemplates.HasNoSteps(bare)).IsTrue().Because("the step alone has the seed's shape");
+                await Assert.That(StratTemplates.HasNoSteps(bare)).IsTrue()
+                    .Because("the step alone has the seed's shape");
                 await Assert.That(StratTemplates.HasNoSteps(captured)).IsFalse();
                 await Assert.That(StratTemplates.HasNoSteps(mined)).IsFalse();
                 await Assert.That(StratTemplates.Ops(captured, StratTemplates.Find("default")!)).IsEmpty();
@@ -386,7 +417,8 @@ public class StratTemplatesTests
             Guid? other = null;
             if (openAnother)
             {
-                StratDocument ct = store.Create(vm.SelectedOwner!.Owner, "de_mirage", StratVocabulary.SideCt, "setup", "other");
+                StratDocument ct = store.Create(vm.SelectedOwner!.Owner, "de_mirage", StratVocabulary.SideCt, "setup",
+                    "other");
                 posted.Drain();
                 vm.SelectedStrat = vm.Strats.Single(r => r.Id == ct.Id);
                 posted.Drain();
@@ -413,7 +445,8 @@ public class StratTemplatesTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument ct = StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", StratVocabulary.SideCt, "setup", "s", Created);
+            StratDocument ct = StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", StratVocabulary.SideCt, "setup",
+                "s", Created);
             Fixed.PlaceStart(ct);
             StratDocument t = Seeded(StratTemplates.Find("default")!, "de_dust2", StratVocabulary.SideT);
             using (Assert.Multiple())

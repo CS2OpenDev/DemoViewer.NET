@@ -44,12 +44,7 @@ public sealed class DebuggerService
     /// <summary>Add.</summary>
     public Breakpoint Add(BreakpointKind kind, int intValue = 0, string? stringValue = null)
     {
-        Breakpoint bp = new()
-        {
-            Kind = kind,
-            IntValue = intValue,
-            StringValue = stringValue
-        };
+        Breakpoint bp = new() { Kind = kind, IntValue = intValue, StringValue = stringValue };
         Breakpoints.Add(bp);
         return bp;
     }
@@ -107,7 +102,8 @@ public sealed class DebuggerService
     ///     PacketProcessed handler: <paramref name="currentFrameIndex" /> is the frame
     ///     the tracker is currently iterating over (passed so the UI can later jump there).
     /// </summary>
-    public Breakpoint? CheckParserState(int packetCount, bool hasNewDecodeError, int newDeltaUnknownDelta, int currentFrameIndex)
+    public Breakpoint? CheckParserState(int packetCount, bool hasNewDecodeError, int newDeltaUnknownDelta,
+        int currentFrameIndex)
     {
         if (Suppress)
         {
@@ -191,7 +187,8 @@ public sealed class DebuggerService
         {
             // GameEventMessage IS-A NetMessage (enrichment pass 3 replaces the raw slot).
             // Its DecodedEvent.Name carries the event name like "player_death".
-            if (msg is GameEventMessage gem && string.Equals(gem.DecodedEvent.Name, eventName, StringComparison.Ordinal))
+            if (msg is GameEventMessage gem
+                && string.Equals(gem.DecodedEvent.Name, eventName, StringComparison.Ordinal))
             {
                 return true;
             }

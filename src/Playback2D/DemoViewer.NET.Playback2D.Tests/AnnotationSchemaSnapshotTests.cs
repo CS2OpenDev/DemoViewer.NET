@@ -128,10 +128,7 @@ public class AnnotationSchemaSnapshotTests
         string text = File.ReadAllText(sidecar.SidecarPath);
         using JsonDocument source = JsonDocument.Parse(text);
         using MemoryStream buffer = new();
-        using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions
-               {
-                   Indented = true
-               }))
+        using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions { Indented = true }))
         {
             writer.WriteStartObject();
             foreach (JsonProperty property in source.RootElement.EnumerateObject())

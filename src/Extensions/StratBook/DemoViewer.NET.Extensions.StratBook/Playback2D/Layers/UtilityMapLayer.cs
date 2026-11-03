@@ -57,7 +57,10 @@ public sealed class UtilityMapLayer : ISceneLayer
         _icons = icons;
         _fill = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
         _stroke = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2f, IsAntialias = true };
-        _line = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2f, StrokeCap = SKStrokeCap.Round, IsAntialias = true };
+        _line = new SKPaint
+        {
+            Style = SKPaintStyle.Stroke, StrokeWidth = 2f, StrokeCap = SKStrokeCap.Round, IsAntialias = true
+        };
         _font = new SKFont { Size = 11f, Embolden = true };
     }
 
@@ -168,7 +171,8 @@ public sealed class UtilityMapLayer : ISceneLayer
             if (ctx.BelongsHere(position.Z))
             {
                 DrawThrow(canvas, position, in ctx);
-                if (i == LastStacked(_document.Throws, i, in ctx) && Stacked(_document.Throws, i, in ctx) is > 1 and var count)
+                if (i == LastStacked(_document.Throws, i, in ctx)
+                    && Stacked(_document.Throws, i, in ctx) is > 1 and var count)
                 {
                     DrawBadge(canvas, position.X, position.Y, ThrowRadius, count, 255, in ctx);
                 }
@@ -236,7 +240,9 @@ public sealed class UtilityMapLayer : ISceneLayer
 
             for (int j = discs.Count - 1; j > i; j--)
             {
-                if (!hidden[j] && discs[j].Radius >= discs[i].Radius && Square(discs[i].X - discs[j].X) + Square(discs[i].Y - discs[j].Y) <= Square(discs[j].Radius))
+                if (!hidden[j] && discs[j].Radius >= discs[i].Radius
+                               && Square(discs[i].X - discs[j].X) + Square(discs[i].Y - discs[j].Y)
+                               <= Square(discs[j].Radius))
                 {
                     hidden[i] = true;
                     counts[j] += counts[i];
@@ -304,7 +310,8 @@ public sealed class UtilityMapLayer : ISceneLayer
         _ => (0, 0, 0)
     };
 
-    private void DrawBadge(SKCanvas canvas, float worldX, float worldY, float radius, int count, byte alpha, in SceneRenderContext ctx)
+    private void DrawBadge(SKCanvas canvas, float worldX, float worldY, float radius, int count, byte alpha,
+        in SceneRenderContext ctx)
     {
         (double x, double y) = ctx.Transform.WorldToScreen(worldX, worldY);
         SKPoint at = new((float)x + radius * 0.8f, (float)y - radius * 0.8f);

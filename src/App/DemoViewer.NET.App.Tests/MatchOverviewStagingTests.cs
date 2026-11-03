@@ -40,26 +40,12 @@ public class MatchOverviewStagingTests
         Size = 10,
         ModifiedTicks = 20,
         Map = "de_dust2",
-        Parse = new TierStamp
-        {
-            Schema = DemoCacheRecord.ParseSchema,
-            ComputedAtTicks = 1
-        },
-        Analysis = new TierStamp
-        {
-            Schema = DemoCacheRecord.AnalysisSchema,
-            ComputedAtTicks = 1
-        },
+        Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 },
+        Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
         AnalysisState = DemoAnalysisState.Indexed,
         Players =
         [
-            new CachedPlayerInfo
-            {
-                Slot = 1,
-                Name = "s1mple",
-                SteamId64 = "765",
-                Team = 3
-            }
+            new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = "765", Team = 3 }
         ],
         Highlights =
         [
@@ -187,26 +173,12 @@ public class MatchOverviewStagingTests
         Size = 10,
         ModifiedTicks = 20,
         Map = "de_dust2",
-        Parse = new TierStamp
-        {
-            Schema = DemoCacheRecord.ParseSchema,
-            ComputedAtTicks = 1
-        },
-        Analysis = new TierStamp
-        {
-            Schema = DemoCacheRecord.AnalysisSchema,
-            ComputedAtTicks = 1
-        },
+        Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 },
+        Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
         AnalysisState = DemoAnalysisState.Indexed,
         Players =
         [
-            new CachedPlayerInfo
-            {
-                Slot = 1,
-                Name = "s1mple",
-                SteamId64 = "765",
-                Team = 3
-            }
+            new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = "765", Team = 3 }
         ],
         Highlights =
         [

@@ -195,7 +195,8 @@ public static class GrenadeThrowLog
                 return null;
             }
 
-            GrenadeDocument? document = JsonSerializer.Deserialize<GrenadeDocument>(r.ReadString(), GrenadeSidecar.JsonOptions);
+            GrenadeDocument? document =
+                JsonSerializer.Deserialize<GrenadeDocument>(r.ReadString(), GrenadeSidecar.JsonOptions);
             if (document is null)
             {
                 return null;
@@ -234,21 +235,25 @@ public static class GrenadeThrowLog
                     JumpThrow = has.HasFlag(Has.JumpThrow),
                     ReleaseOnGround = has.HasFlag(Has.OnGround) ? has.HasFlag(Has.OnGroundValue) : null,
                     ReleaseCrouched = has.HasFlag(Has.Crouched) ? has.HasFlag(Has.CrouchedValue) : null,
-                    ThrowerOnGroundAtSpawn = has.HasFlag(Has.GroundAtSpawn) ? has.HasFlag(Has.GroundAtSpawnValue) : null
+                    ThrowerOnGroundAtSpawn =
+                        has.HasFlag(Has.GroundAtSpawn) ? has.HasFlag(Has.GroundAtSpawnValue) : null
                 };
                 row.ThrowerSteamId64 = has.HasFlag(Has.SteamId) ? strings[r.Read7BitEncodedInt()] : null;
                 row.ThrowerName = has.HasFlag(Has.Name) ? strings[r.Read7BitEncodedInt()] : null;
-                row.ReleasePosition = has.HasFlag(Has.ReleasePosition) ? ReadPoint(r, has.HasFlag(Has.RawPoints)) : null;
+                row.ReleasePosition =
+                    has.HasFlag(Has.ReleasePosition) ? ReadPoint(r, has.HasFlag(Has.RawPoints)) : null;
                 row.ReleaseEyePitch = has.HasFlag(Has.Pitch) ? r.ReadSingle() : null;
                 row.ReleaseEyeYaw = has.HasFlag(Has.Yaw) ? r.ReadSingle() : null;
                 row.ThrowStrength = has.HasFlag(Has.Strength) ? r.ReadSingle() : null;
                 row.SpeedAtRelease = has.HasFlag(Has.Speed) ? r.ReadSingle() : null;
                 row.SpawnPosition = has.HasFlag(Has.SpawnPosition) ? ReadPoint(r, has.HasFlag(Has.RawPoints)) : null;
                 row.SpawnVelocity = has.HasFlag(Has.SpawnVelocity) ? ReadPoint(r, has.HasFlag(Has.RawPoints)) : null;
-                row.ThrowerPositionAtSpawn = has.HasFlag(Has.ThrowerAtSpawn) ? ReadPoint(r, has.HasFlag(Has.RawPoints)) : null;
+                row.ThrowerPositionAtSpawn =
+                    has.HasFlag(Has.ThrowerAtSpawn) ? ReadPoint(r, has.HasFlag(Has.RawPoints)) : null;
                 row.JumpPressTick = has.HasFlag(Has.JumpPress) ? r.ReadInt32() : null;
                 row.DetonationTick = has.HasFlag(Has.DetonationTick) ? r.ReadInt32() : null;
-                row.DetonationPosition = has.HasFlag(Has.DetonationPosition) ? ReadPoint(r, has.HasFlag(Has.RawPoints)) : null;
+                row.DetonationPosition =
+                    has.HasFlag(Has.DetonationPosition) ? ReadPoint(r, has.HasFlag(Has.RawPoints)) : null;
                 row.InfernoEntityIndex = has.HasFlag(Has.Inferno) ? r.ReadInt32() : null;
                 row.LandingPlace = has.HasFlag(Has.Place) ? strings[r.Read7BitEncodedInt()] : null;
                 rows.Add(row);

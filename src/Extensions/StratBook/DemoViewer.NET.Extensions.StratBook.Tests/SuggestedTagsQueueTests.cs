@@ -23,8 +23,12 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class SuggestedTagsQueueTests
 {
-    private static readonly TagProposal Execute = Proposal("exec|r1|T|BombsiteA|s=10", "execute", 1, 1320, 1800, 1500, 0.8);
-    private static readonly TagProposal Opener = Proposal("opener|r1|T|BombsiteA|s=5", "opener", 1, 1300, 1500, 1400, 0.6);
+    private static readonly TagProposal Execute = Proposal("exec|r1|T|BombsiteA|s=10", "execute", 1, 1320, 1800, 1500,
+        0.8);
+
+    private static readonly TagProposal Opener = Proposal("opener|r1|T|BombsiteA|s=5", "opener", 1, 1300, 1500, 1400,
+        0.6);
+
     private static readonly TagProposal Default = Proposal("default|r2|T", "default", 2, 8000, 9000, 8500, 0.4, null);
 
     // Frame = tick / 2; a tick past the last frame resolves to -1 like the host's.
@@ -44,7 +48,8 @@ public class SuggestedTagsQueueTests
         public bool HasEvent(string eventName) => false;
     }
 
-    private static (SuggestedTagsReviewHarness Harness, SuggestionQueueViewModel Queue, ProposalTrack Track, List<int> Seeks)
+    private static (SuggestedTagsReviewHarness Harness, SuggestionQueueViewModel Queue, ProposalTrack Track, List<int>
+        Seeks)
         Queue(params TagProposal[] proposals)
     {
         SuggestedTagsReviewHarness h = new();
@@ -79,7 +84,8 @@ public class SuggestedTagsQueueTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(service.Wants(DemoPath)).IsTrue().Because("the open demo is evaluated with the sweep off");
+                await Assert.That(service.Wants(DemoPath)).IsTrue()
+                    .Because("the open demo is evaluated with the sweep off");
                 await Assert.That(roundIndex.Wants(DemoPath)).IsTrue().Because("Suggested Tags reads the index for it");
             }
 
@@ -90,8 +96,10 @@ public class SuggestedTagsQueueTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(walks).IsEqualTo(0).Because("the index written on the visit is current, so the walk is not reached");
-                await Assert.That(h.Proposals.TryRead(DemoPath)?.OccupancySource).IsEqualTo(ProposalDocument.FromRoundIndex);
+                await Assert.That(walks).IsEqualTo(0)
+                    .Because("the index written on the visit is current, so the walk is not reached");
+                await Assert.That(h.Proposals.TryRead(DemoPath)?.OccupancySource)
+                    .IsEqualTo(ProposalDocument.FromRoundIndex);
                 await Assert.That(service.Wants(DemoPath)).IsFalse();
                 await Assert.That(roundIndex.Wants(DemoPath)).IsFalse();
             }
@@ -120,7 +128,8 @@ public class SuggestedTagsQueueTests
                 await Assert.That(bands[0].EndFrameIndex).IsEqualTo(900);
                 await Assert.That(bands[1].Label).IsEqualTo("default").Because("no site: the code alone");
                 await Assert.That(((ITimelineTrack)track).BuildMarkers(data)).IsEmpty();
-                await Assert.That(string.Join(' ', track.ProposalsInRun(data, 650))).IsEqualTo($"{Opener.Id} {Execute.Id}");
+                await Assert.That(string.Join(' ', track.ProposalsInRun(data, 650)))
+                    .IsEqualTo($"{Opener.Id} {Execute.Id}");
                 await Assert.That(track.ProposalsInRun(data, 660)).IsEmpty();
             }
 
@@ -153,7 +162,8 @@ public class SuggestedTagsQueueTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, List<int> seeks) = Queue(Execute, Opener, Default);
+            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, List<int> seeks) =
+                Queue(Execute, Opener, Default);
             using (h)
             {
                 foreach (string action in (string[])
@@ -163,7 +173,8 @@ public class SuggestedTagsQueueTests
                              StratBookActions.SuggestionEdit, StratBookActions.SuggestionAcceptAll
                          ])
                 {
-                    await Assert.That(queue.Execute(action)).IsFalse().Because($"{action} is inert without a selection");
+                    await Assert.That(queue.Execute(action)).IsFalse()
+                        .Because($"{action} is inert without a selection");
                 }
 
                 await Assert.That(queue.Rows.Count).IsEqualTo(3);
@@ -178,7 +189,8 @@ public class SuggestedTagsQueueTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, List<int> seeks) = Queue(Default, Execute, Opener);
+            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, List<int> seeks) =
+                Queue(Default, Execute, Opener);
             using (h)
             {
                 // The opener triggers at 1400, before the execute at 1500, and both are round 1.
@@ -199,12 +211,14 @@ public class SuggestedTagsQueueTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, List<int> seeks) = Queue(Execute, Opener, Default);
+            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, _, List<int> seeks) =
+                Queue(Execute, Opener, Default);
             using (h)
             {
                 queue.ReviewCommand.Execute(null);
                 await Assert.That(queue.Selected!.Proposal.Id).IsEqualTo(Opener.Id);
-                await Assert.That(queue.Execute(StratBookActions.SuggestionPrev)).IsFalse().Because("the ends do not wrap");
+                await Assert.That(queue.Execute(StratBookActions.SuggestionPrev)).IsFalse()
+                    .Because("the ends do not wrap");
                 await Assert.That(queue.Execute(StratBookActions.SuggestionNext)).IsTrue();
                 await Assert.That(queue.Execute(StratBookActions.SuggestionNext)).IsTrue();
                 await Assert.That(queue.Execute(StratBookActions.SuggestionNext)).IsFalse();
@@ -221,7 +235,8 @@ public class SuggestedTagsQueueTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, ProposalTrack track, _) = Queue(Execute, Opener, Default);
+            (SuggestedTagsReviewHarness h, SuggestionQueueViewModel queue, ProposalTrack track, _) =
+                Queue(Execute, Opener, Default);
             using (h)
             {
                 queue.ReviewCommand.Execute(null);
@@ -238,7 +253,8 @@ public class SuggestedTagsQueueTests
                     await Assert.That(accepted.Source).IsEqualTo(TagSources.Suggested);
                     await Assert.That(verdicts[Opener.Id].Verdict).IsEqualTo(SuggestionVerdicts.Accepted);
                     await Assert.That(verdicts[Execute.Id].Verdict).IsEqualTo(SuggestionVerdicts.Rejected);
-                    await Assert.That(queue.Rows.Select(r => r.Proposal.Id)).IsEquivalentTo([Default.Id], CollectionOrdering.Matching);
+                    await Assert.That(queue.Rows.Select(r => r.Proposal.Id))
+                        .IsEquivalentTo([Default.Id], CollectionOrdering.Matching);
                     await Assert.That(queue.Selected!.Proposal.Id).IsEqualTo(Default.Id);
                     await Assert.That(queue.HeaderText).IsEqualTo("Suggested: 1");
                     await Assert.That(track.BuildBands(new HalfTickData(20000)).Single().Label).IsEqualTo("default")
@@ -266,9 +282,11 @@ public class SuggestedTagsQueueTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(queue.IsEditing).IsTrue();
-                    await Assert.That(editor.FromText).IsEqualTo("5").Because("(1320 - 1000) / 64 seconds from the round start");
+                    await Assert.That(editor.FromText).IsEqualTo("5")
+                        .Because("(1320 - 1000) / 64 seconds from the round start");
                     await Assert.That(editor.SelectedCode).IsEqualTo(Execute.Code);
-                    await Assert.That(editor.Labels.Select(l => l.Text)).IsEquivalentTo(["site: BombsiteA"], CollectionOrdering.Matching);
+                    await Assert.That(editor.Labels.Select(l => l.Text))
+                        .IsEquivalentTo(["site: BombsiteA"], CollectionOrdering.Matching);
                 }
 
                 editor.FromText = "4";
@@ -285,7 +303,8 @@ public class SuggestedTagsQueueTests
                     await Assert.That(instance.FromTick).IsEqualTo(FreezeEnd + 4 * 64);
                     await Assert.That(instance.ToTick).IsEqualTo(FreezeEnd + 800);
                     await Assert.That(instance.Labels.Any(l => l.Group == "tempo" && l.Value == "slow")).IsTrue();
-                    await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts[Execute.Id].Verdict).IsEqualTo(SuggestionVerdicts.Edited);
+                    await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts[Execute.Id].Verdict)
+                        .IsEqualTo(SuggestionVerdicts.Edited);
                 }
             }
         });
@@ -312,7 +331,8 @@ public class SuggestedTagsQueueTests
                 {
                     await Assert.That(instance.Code).IsEqualTo("fake");
                     await Assert.That(instance.Positions.Single().Place).IsEqualTo("BombsiteA");
-                    await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts[Execute.Id].Verdict).IsEqualTo(SuggestionVerdicts.Recoded)
+                    await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts[Execute.Id].Verdict)
+                        .IsEqualTo(SuggestionVerdicts.Recoded)
                         .Because("the detector did not find what it said; tuning counts it as a miss");
                 }
             }
@@ -387,7 +407,8 @@ public class SuggestedTagsQueueTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(queue.IsConfirmingAcceptAll).IsFalse();
-                    await Assert.That(string.Join(' ', h.Tags.TryLoad(Sha)!.Instances.Select(i => i.Code).Order(StringComparer.Ordinal)))
+                    await Assert.That(string.Join(' ',
+                            h.Tags.TryLoad(Sha)!.Instances.Select(i => i.Code).Order(StringComparer.Ordinal)))
                         .IsEqualTo("execute opener");
                     await Assert.That(queue.PendingCount).IsEqualTo(1);
                     await Assert.That(queue.Rows).IsEmpty();
@@ -405,8 +426,10 @@ public class SuggestedTagsQueueTests
             using (h)
             {
                 queue.DetectorFilter = "opener";
-                await Assert.That(queue.Rows.Select(r => r.Proposal.Id)).IsEquivalentTo([Opener.Id], CollectionOrdering.Matching);
-                await Assert.That(queue.PendingCount).IsEqualTo(3).Because("the header counts the demo, not the filter");
+                await Assert.That(queue.Rows.Select(r => r.Proposal.Id))
+                    .IsEquivalentTo([Opener.Id], CollectionOrdering.Matching);
+                await Assert.That(queue.PendingCount).IsEqualTo(3)
+                    .Because("the header counts the demo, not the filter");
                 await Assert.That(queue.DetectorFilters[0]).IsEqualTo(SuggestionQueueViewModel.AllDetectors);
             }
         });
@@ -456,23 +479,32 @@ public class SuggestedTagsQueueTests
             using (Assert.Multiple())
             {
                 await Assert.That(keymap.TryResolve(Key.J, KeyModifiers.None, false, out string? j)).IsTrue();
-                await Assert.That(j).IsEqualTo(StratBookActions.NextSituationResult).Because("J stays the result walk otherwise");
-                await Assert.That(keymap.TryResolveInScope(new Playback2DBindingScope(StratBookActions.SuggestionScope), Key.J,
+                await Assert.That(j).IsEqualTo(StratBookActions.NextSituationResult)
+                    .Because("J stays the result walk otherwise");
+                await Assert.That(keymap.TryResolveInScope(new Playback2DBindingScope(StratBookActions.SuggestionScope),
+                    Key.J,
                     KeyModifiers.None, out string? sj)).IsTrue();
                 await Assert.That(sj).IsEqualTo(StratBookActions.SuggestionNext);
-                await Assert.That(keymap.TryResolveInScope(new Playback2DBindingScope(StratBookActions.SuggestionScope), Key.K,
+                await Assert.That(keymap.TryResolveInScope(new Playback2DBindingScope(StratBookActions.SuggestionScope),
+                    Key.K,
                     KeyModifiers.None, out string? sk)).IsTrue();
                 await Assert.That(sk).IsEqualTo(StratBookActions.SuggestionPrev);
 
-                await Assert.That(Resolve(keymap, Key.Y, KeyModifiers.None)).IsEqualTo(StratBookActions.SuggestionAccept);
-                await Assert.That(Resolve(keymap, Key.N, KeyModifiers.None)).IsEqualTo(StratBookActions.SuggestionReject);
-                await Assert.That(Resolve(keymap, Key.Enter, KeyModifiers.None)).IsEqualTo(StratBookActions.SuggestionEdit);
-                await Assert.That(Resolve(keymap, Key.Y, KeyModifiers.Control)).IsEqualTo(StratBookActions.SuggestionAcceptAll);
+                await Assert.That(Resolve(keymap, Key.Y, KeyModifiers.None))
+                    .IsEqualTo(StratBookActions.SuggestionAccept);
+                await Assert.That(Resolve(keymap, Key.N, KeyModifiers.None))
+                    .IsEqualTo(StratBookActions.SuggestionReject);
+                await Assert.That(Resolve(keymap, Key.Enter, KeyModifiers.None))
+                    .IsEqualTo(StratBookActions.SuggestionEdit);
+                await Assert.That(Resolve(keymap, Key.Y, KeyModifiers.Control))
+                    .IsEqualTo(StratBookActions.SuggestionAcceptAll);
                 // These six are Strat Book extension commands, checked against the merged table, not core alone.
-                await Assert.That(Playback2DKeymap.FindConflicts(CommandRegistry.Default.EffectiveBindings, Playback2DKeymap.ReservedGestures(true)))
+                await Assert.That(Playback2DKeymap.FindConflicts(CommandRegistry.Default.EffectiveBindings,
+                        Playback2DKeymap.ReservedGestures(true)))
                     .IsEmpty().Because("none of the six is a shell or browser gesture");
                 await Assert.That(keymap.GestureText(StratBookActions.SuggestionEdit)).IsEqualTo("Enter")
-                    .Because("SuggestionEdit is a Strat Book extension command now; the profile resolves it, the bare core table does not");
+                    .Because(
+                        "SuggestionEdit is a Strat Book extension command now; the profile resolves it, the bare core table does not");
             }
         });
     }
@@ -483,7 +515,8 @@ public class SuggestedTagsQueueTests
         await HeadlessSession.RunOnUi(async () =>
         {
             (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
-                AppTests.Extensions.StratBook.ReviewPanelsHarness.Tab(post: AppTests.Extensions.StratBook.ReviewPanelsHarness.SynchronousPost);
+                AppTests.Extensions.StratBook.ReviewPanelsHarness.Tab(post: AppTests.Extensions.StratBook
+                    .ReviewPanelsHarness.SynchronousPost);
             review.ReviewMode!.IsOn = true;
 
             using (Assert.Multiple())

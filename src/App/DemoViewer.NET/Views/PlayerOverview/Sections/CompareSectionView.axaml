@@ -67,14 +67,16 @@
             </TextBox>
             <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
                        Text="{Binding SearchMessage}" IsVisible="{Binding HasSearchMessage}" />
-            <ItemsControl x:Name="CompareCandidateList" ItemsSource="{Binding Candidates}" IsVisible="{Binding HasCandidates}">
+            <ItemsControl x:Name="CompareCandidateList" ItemsSource="{Binding Candidates}"
+                          IsVisible="{Binding HasCandidates}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="po:PlayerCandidateItem">
                         <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                                 Command="{Binding $parent[ItemsControl].((sections:CompareSectionViewModel)DataContext).PickCandidateCommand}"
                                 CommandParameter="{Binding}">
                             <DockPanel>
-                                <TextBlock DockPanel.Dock="Right" FontSize="11.5" Foreground="{DynamicResource TextMid}"
+                                <TextBlock DockPanel.Dock="Right" FontSize="11.5"
+                                           Foreground="{DynamicResource TextMid}"
                                            VerticalAlignment="Center" Text="{Binding Demos}" />
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
@@ -129,16 +131,23 @@
                             <ItemsControl ItemsSource="{Binding Stats}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="sections:CompareStatItem">
-                                        <Grid ColumnDefinitions="*,96,64,12,96,64,12" Margin="0 2" Background="Transparent"
+                                        <Grid ColumnDefinitions="*,96,64,12,96,64,12" Margin="0 2"
+                                              Background="Transparent"
                                               ToolTip.Tip="{Binding Tooltip}">
                                             <TextBlock Classes="statLabel" Text="{Binding Label}" />
-                                            <TextBlock Grid.Column="1" Classes="statDetail" Text="{Binding Subject.Detail}" />
-                                            <statsCtl:StatValue Grid.Column="2" Mode="Plain" Height="18" Text="{Binding Subject.Text}"
-                                                                Value="{Binding Subject.Value}" Scale="{Binding Subject.Scale}" />
+                                            <TextBlock Grid.Column="1" Classes="statDetail"
+                                                       Text="{Binding Subject.Detail}" />
+                                            <statsCtl:StatValue Grid.Column="2" Mode="Plain" Height="18"
+                                                                Text="{Binding Subject.Text}"
+                                                                Value="{Binding Subject.Value}"
+                                                                Scale="{Binding Subject.Scale}" />
                                             <Ellipse Grid.Column="3" Classes="lead" IsVisible="{Binding SubjectLeads}" />
-                                            <TextBlock Grid.Column="4" Classes="statDetail" Text="{Binding Other.Detail}" />
-                                            <statsCtl:StatValue Grid.Column="5" Mode="Plain" Height="18" Text="{Binding Other.Text}"
-                                                                Value="{Binding Other.Value}" Scale="{Binding Other.Scale}" />
+                                            <TextBlock Grid.Column="4" Classes="statDetail"
+                                                       Text="{Binding Other.Detail}" />
+                                            <statsCtl:StatValue Grid.Column="5" Mode="Plain" Height="18"
+                                                                Text="{Binding Other.Text}"
+                                                                Value="{Binding Other.Value}"
+                                                                Scale="{Binding Other.Scale}" />
                                             <Ellipse Grid.Column="6" Classes="lead" IsVisible="{Binding OtherLeads}" />
                                         </Grid>
                                     </DataTemplate>

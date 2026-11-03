@@ -144,9 +144,7 @@ internal sealed class SceneRenderPlan : IDisposable
 
         HeadlessSceneRenderer renderer = new(backend.Provider, compositor)
         {
-            Palette = ScenePalette.Dark,
-            Size = options.Size,
-            Purpose = RenderPurpose.Export
+            Palette = ScenePalette.Dark, Size = options.Size, Purpose = RenderPurpose.Export
         };
 
         // Bound exactly as SceneStage and Scene2DHost bind it: authoritative nav floors override the Z

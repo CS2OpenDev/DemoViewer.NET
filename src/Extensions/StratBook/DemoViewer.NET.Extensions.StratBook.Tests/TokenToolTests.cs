@@ -262,14 +262,17 @@ public class TokenToolTests
 
         public void BeginDrag(string slot, TokenGrip grip) => Calls.Add($"begin {slot} {grip}");
 
-        public void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None, double worldUnitsPerPixel = 0) =>
-            Calls.Add(FormattableString.Invariant($"move {slot} {world.X},{world.Y} @{levelMinZ}") + (modifiers == ToolModifiers.None ? "" : " " + modifiers));
+        public void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None,
+            double worldUnitsPerPixel = 0) =>
+            Calls.Add(FormattableString.Invariant($"move {slot} {world.X},{world.Y} @{levelMinZ}")
+                      + (modifiers == ToolModifiers.None ? "" : " " + modifiers));
 
         public void EndDrag(ToolModifiers modifiers = ToolModifiers.None) => Calls.Add($"end {Active} {modifiers}");
 
         public void CancelDrag() => Calls.Add($"cancel {Active}");
 
-        private string Active => Calls.FirstOrDefault(c => c.StartsWith("begin ", StringComparison.Ordinal))?.Split(' ')[1] ?? "?";
+        private string Active =>
+            Calls.FirstOrDefault(c => c.StartsWith("begin ", StringComparison.Ordinal))?.Split(' ')[1] ?? "?";
     }
 
     // A direct-execution IToolServices and the two pane builders this suite needs, local rather than
@@ -334,20 +337,11 @@ public class TokenToolTests
         /// <summary>A pane framing a world rectangle, with no level set behind it.</summary>
         public static LevelPane Pane(float width, float height, double zMin = 0, double zMax = 64)
         {
-            MapLevel level = new()
-            {
-                Id = MapSpace.IdForZMin(zMin),
-                Name = "floor 0",
-                ZMin = zMin,
-                ZMax = zMax
-            };
+            MapLevel level = new() { Id = MapSpace.IdForZMin(zMin), Name = "floor 0", ZMin = zMin, ZMax = zMax };
 
             return new LevelPane(level,
                 new SliceCamera(ViewportTransform.Fit(width, height, -1000, -1000, 1000, 1000)),
-                ManualRig.Instance)
-            {
-                ViewportRect = SKRect.Create(width, height)
-            };
+                ManualRig.Instance) { ViewportRect = SKRect.Create(width, height) };
         }
     }
 }

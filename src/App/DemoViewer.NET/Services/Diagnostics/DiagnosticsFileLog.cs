@@ -46,8 +46,7 @@ public sealed class DiagnosticsFileLog : IDisposable
         // Bounded + drop-oldest so a stalled writer bounds memory; single reader = the pump.
         _channel = Channel.CreateBounded<string>(new BoundedChannelOptions(16384)
         {
-            FullMode = BoundedChannelFullMode.DropOldest,
-            SingleReader = true
+            FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true
         });
         _pump = Task.Run(PumpAsync);
     }
@@ -171,10 +170,7 @@ public sealed class DiagnosticsFileLog : IDisposable
 
         _written = File.Exists(_activeFile) ? new FileInfo(_activeFile).Length : 0;
         // AutoFlush so a crash keeps the lines leading up to it, the whole point of the file mirror.
-        _writer = new StreamWriter(_activeFile, true)
-        {
-            AutoFlush = true
-        };
+        _writer = new StreamWriter(_activeFile, true) { AutoFlush = true };
     }
 
     // Runs only on the single pump thread, so no locking around the writer / file moves.

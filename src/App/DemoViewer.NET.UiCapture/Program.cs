@@ -60,7 +60,8 @@ if (args[0] is "export-themes")
 if (args[0] is "list")
 {
     Console.WriteLine("Variants:");
-    foreach (string name in Variants.All.Keys.Concat(Variants.ThemeCaptures.Keys).OrderBy(n => n, StringComparer.Ordinal))
+    foreach (string name in Variants.All.Keys.Concat(Variants.ThemeCaptures.Keys)
+                 .OrderBy(n => n, StringComparer.Ordinal))
     {
         Console.WriteLine($"  {name}");
     }
@@ -150,5 +151,6 @@ static void PrintUsage()
     Console.WriteLine("  <variant> [--out <path>] [--size WxH]     render one variant");
     Console.WriteLine("  ab <a> <b> [--out <path>] [--size WxH]    render two variants side-by-side");
     Console.WriteLine("  list                                      list available variants");
-    Console.WriteLine("  export-themes [--out <dir>]               write the built-in themes as JSON (default samples/Themes)");
+    Console.WriteLine(
+        "  export-themes [--out <dir>]               write the built-in themes as JSON (default samples/Themes)");
 }

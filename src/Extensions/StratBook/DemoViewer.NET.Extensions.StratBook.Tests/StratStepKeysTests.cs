@@ -49,7 +49,11 @@ public class StratStepKeysTests
             using StratBookTabViewModel vm = StratStepEditingTests.OpenNew();
             StratStep step = StratStepEditingTests.Step(90, "all", "move");
             step.To = null;
-            step.Assignments = [new StepAssignment { Slot = "B", To = new PlaceRef { Place = "BombsiteA" } }, new StepAssignment { Slot = "C" }];
+            step.Assignments =
+            [
+                new StepAssignment { Slot = "B", To = new PlaceRef { Place = "BombsiteA" } },
+                new StepAssignment { Slot = "C" }
+            ];
             StratStepEditingTests.Seed(vm, StratStepEditingTests.Step(100, "A", "move"), step);
             (Window window, StratBookTabView view) = Show(vm);
             int index = vm.Editor.Steps.Count - 1;
@@ -69,7 +73,8 @@ public class StratStepKeysTests
             Button add = row.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "+ player");
             add.Command!.Execute(add.CommandParameter);
             Dispatcher.UIThread.RunJobs();
-            await Assert.That(vm.Session.Document!.Steps[index].Assignments!.Select(l => l.Slot)).IsEquivalentTo(["B", "C", "A"], CollectionOrdering.Matching);
+            await Assert.That(vm.Session.Document!.Steps[index].Assignments!.Select(l => l.Slot))
+                .IsEquivalentTo(["B", "C", "A"], CollectionOrdering.Matching);
             window.Close();
         });
 
@@ -84,7 +89,8 @@ public class StratStepKeysTests
             int steps = vm.Session.Document!.Steps.Count;
             int depth = vm.Session.UndoDepth;
 
-            DemoViewer.NET.Extensions.StratBook.Controls.PlaceField watching = RowContainer(view, index).GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>()
+            DemoViewer.NET.Extensions.StratBook.Controls.PlaceField watching = RowContainer(view, index)
+                .GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>()
                 .Single(a => a.Name == "GroupWatchField");
             watching.GetVisualDescendants().OfType<TextBox>().First().Focus();
             Dispatcher.UIThread.RunJobs();
@@ -101,8 +107,10 @@ public class StratStepKeysTests
             StratStep step = vm.Session.Document!.Steps[index];
             using (Assert.Multiple())
             {
-                await Assert.That(vm.Session.Document!.Steps.Count).IsEqualTo(steps).Because("Enter went to the suggestion list");
-                await Assert.That(step.Assignments!.Single().Watch!.Places).IsEquivalentTo(["BombsiteA"], CollectionOrdering.Matching);
+                await Assert.That(vm.Session.Document!.Steps.Count).IsEqualTo(steps)
+                    .Because("Enter went to the suggestion list");
+                await Assert.That(step.Assignments!.Single().Watch!.Places)
+                    .IsEquivalentTo(["BombsiteA"], CollectionOrdering.Matching);
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
             }
 
@@ -114,10 +122,12 @@ public class StratStepKeysTests
         await HeadlessSession.RunOnUi(async () =>
         {
             using StratBookTabViewModel vm = StratStepEditingTests.OpenNew();
-            StratStepEditingTests.Seed(vm, StratStepEditingTests.Step(100, "A", "move"), StratStepEditingTests.Step(80, "B", "move"));
+            StratStepEditingTests.Seed(vm, StratStepEditingTests.Step(100, "A", "move"),
+                StratStepEditingTests.Step(80, "B", "move"));
             (Window window, StratBookTabView view) = Show(vm);
 
-            TextBox note = RowContainer(view, 0).GetVisualDescendants().OfType<TextBox>().Last(t => t.IsEffectivelyVisible);
+            TextBox note = RowContainer(view, 0).GetVisualDescendants().OfType<TextBox>()
+                .Last(t => t.IsEffectivelyVisible);
             note.Focus();
             note.Text = "typed, not yet committed";
             window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
@@ -127,7 +137,8 @@ public class StratStepKeysTests
             using (Assert.Multiple())
             {
                 await Assert.That(document.Steps.Count).IsEqualTo(3);
-                await Assert.That(document.Steps[0].Note).IsEqualTo("typed, not yet committed").Because("Enter commits the field first");
+                await Assert.That(document.Steps[0].Note).IsEqualTo("typed, not yet committed")
+                    .Because("Enter commits the field first");
                 await Assert.That(document.Steps[1].AtSeconds).IsEqualTo(95);
                 await Assert.That(document.Steps[2].Actor).IsEqualTo("B");
                 await Assert.That(FocusedRow(window)?.Id).IsEqualTo(document.Steps[1].Id);
@@ -142,14 +153,16 @@ public class StratStepKeysTests
         await HeadlessSession.RunOnUi(async () =>
         {
             using StratBookTabViewModel vm = StratStepEditingTests.OpenNew();
-            StratStepEditingTests.Seed(vm, StratStepEditingTests.Step(100, "A", "move"), StratStepEditingTests.Step(80, "B", "move"));
+            StratStepEditingTests.Seed(vm, StratStepEditingTests.Step(100, "A", "move"),
+                StratStepEditingTests.Step(80, "B", "move"));
             (Window window, StratBookTabView view) = Show(vm);
 
             Fields(RowContainer(view, 1))[0].Focus();
             window.KeyPressQwerty(PhysicalKey.D, RawInputModifiers.Control);
             Dispatcher.UIThread.RunJobs();
             StratDocument document = vm.Session.Document!;
-            await Assert.That(document.Steps.Select(s => s.Actor)).IsEquivalentTo(["A", "B", "B"], CollectionOrdering.Matching);
+            await Assert.That(document.Steps.Select(s => s.Actor))
+                .IsEquivalentTo(["A", "B", "B"], CollectionOrdering.Matching);
             await Assert.That(FocusedRow(window)?.Id).IsEqualTo(document.Steps[2].Id);
 
             // Inside a field, Delete edits the text.
@@ -174,7 +187,8 @@ public class StratStepKeysTests
             Dispatcher.UIThread.RunJobs();
             using (Assert.Multiple())
             {
-                await Assert.That(vm.Session.Document!.Steps.Select(s => s.Actor)).IsEquivalentTo(["B", "B"], CollectionOrdering.Matching);
+                await Assert.That(vm.Session.Document!.Steps.Select(s => s.Actor))
+                    .IsEquivalentTo(["B", "B"], CollectionOrdering.Matching);
                 await Assert.That(window.FocusManager?.GetFocusedElement()).IsSameReferenceAs(RowContainer(view, 0));
             }
 
@@ -186,7 +200,8 @@ public class StratStepKeysTests
         await HeadlessSession.RunOnUi(async () =>
         {
             using StratBookTabViewModel vm = StratStepEditingTests.OpenNew();
-            StratStepEditingTests.Seed(vm, StratStepEditingTests.Step(100, "A", "move"), StratStepEditingTests.Step(80, "B", "wait"));
+            StratStepEditingTests.Seed(vm, StratStepEditingTests.Step(100, "A", "move"),
+                StratStepEditingTests.Step(80, "B", "wait"));
             (Window window, StratBookTabView view) = Show(vm);
 
             List<Control> first = Fields(RowContainer(view, 0));
@@ -231,7 +246,10 @@ public class StratStepKeysTests
 
             TextBlock Marker() => RowContainer(view, 0).GetVisualDescendants().OfType<TextBlock>()
                 .Single(t => t.Classes.Contains("stratIssue") && t.Text == "⚠" && t.IsEffectivelyVisible
-                           && t.GetVisualParent() is StackPanel { Orientation: Avalonia.Layout.Orientation.Horizontal });
+                             && t.GetVisualParent() is StackPanel
+                             {
+                                 Orientation: Avalonia.Layout.Orientation.Horizontal
+                             });
 
             TextBlock marker = Marker();
             using (Assert.Multiple())
@@ -239,10 +257,12 @@ public class StratStepKeysTests
                 await Assert.That(marker.IsEffectivelyVisible).IsTrue();
                 await Assert.That(ToolTip.GetTip(marker) as string).Contains("destination");
                 await Assert.That(RowContainer(view, 0).GetVisualDescendants().OfType<TextBlock>()
-                    .Any(t => t.IsEffectivelyVisible && t.Text == "warning: a move has no destination place (to)")).IsTrue();
+                        .Any(t => t.IsEffectivelyVisible && t.Text == "warning: a move has no destination place (to)"))
+                    .IsTrue();
             }
 
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "strat-step-inline-check.png"),
+            window.CaptureRenderedFrame()?.Save(
+                Path.Combine(HeadlessSession.ArtifactDir, "strat-step-inline-check.png"),
                 new PngBitmapEncoderOptions());
 
             vm.Editor.Steps[0].ToText = "BombsiteA";

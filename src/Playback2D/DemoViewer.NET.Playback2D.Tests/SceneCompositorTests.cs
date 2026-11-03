@@ -53,10 +53,7 @@ public class SceneCompositorTests
     {
         using SceneCompositor compositor = new();
         RecordingLayer quiet = new("quiet");
-        RecordingLayer busy = new("busy")
-        {
-            AdvanceResult = true
-        };
+        RecordingLayer busy = new("busy") { AdvanceResult = true };
         compositor.Add(quiet);
         compositor.Add(busy);
 
@@ -76,10 +73,7 @@ public class SceneCompositorTests
     {
         using SceneCompositor compositor = new();
         RecordingLayer on = new("on");
-        RecordingLayer off = new("off")
-        {
-            IsEnabled = false
-        };
+        RecordingLayer off = new("off") { IsEnabled = false };
         compositor.Add(on);
         compositor.Add(off);
 
@@ -99,14 +93,8 @@ public class SceneCompositorTests
     public async Task Render_DrawsInSortOrder_SoTheLastLayerWins()
     {
         using SceneCompositor compositor = new();
-        compositor.Add(new RecordingLayer("under", LayerSlot.Underlay)
-        {
-            Fill = SKColors.Red
-        });
-        compositor.Add(new RecordingLayer("over", LayerSlot.Overlay)
-        {
-            Fill = SKColors.Lime
-        });
+        compositor.Add(new RecordingLayer("under", LayerSlot.Underlay) { Fill = SKColors.Red });
+        compositor.Add(new RecordingLayer("over", LayerSlot.Overlay) { Fill = SKColors.Lime });
 
         using SKSurface surface = SKSurface.Create(new SKImageInfo(16, 16, SKColorType.Rgba8888,
             SKAlphaType.Premul));
@@ -169,14 +157,8 @@ public class SceneCompositorTests
     {
         List<string> order = [];
         SceneCompositor compositor = new();
-        compositor.Add(new RecordingLayer("a")
-        {
-            OnDispose = () => order.Add("layer a")
-        });
-        compositor.Add(new RecordingLayer("b")
-        {
-            OnDispose = () => order.Add("layer b")
-        });
+        compositor.Add(new RecordingLayer("a") { OnDispose = () => order.Add("layer a") });
+        compositor.Add(new RecordingLayer("b") { OnDispose = () => order.Add("layer b") });
 
         int ownedDisposals = 0;
         compositor.AddOwned(new CallbackDisposable(() =>

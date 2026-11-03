@@ -116,7 +116,8 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
 
         int pistols = set.Blocks.Sum(b => b.PistolRounds.Count);
         int maps = set.Blocks.Select(b => b.Map).Distinct(StringComparer.Ordinal).Count();
-        return $"{OpeningTendenciesSectionViewModel.Plural(pistols, "pistol")} over {OpeningTendenciesSectionViewModel.Plural(maps, "map")}";
+        return
+            $"{OpeningTendenciesSectionViewModel.Plural(pistols, "pistol")} over {OpeningTendenciesSectionViewModel.Plural(maps, "map")}";
     }
 
     /// <summary>
@@ -138,9 +139,12 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
             return;
         }
 
-        int added = _review.Add(link.Bucket.Rounds.Select(r => OpeningTendenciesSectionViewModel.ReviewClipFor(link, r, _teamId)),
+        int added = _review.Add(
+            link.Bucket.Rounds.Select(r => OpeningTendenciesSectionViewModel.ReviewClipFor(link, r, _teamId)),
             $"Dossier · {_teamName} · {link.Title}", OpeningTendenciesSectionViewModel.Plural(link.Count, "round"));
-        ReviewLine = added == 0 ? "already in Review" : $"{OpeningTendenciesSectionViewModel.Plural(added, "round")} sent to Review";
+        ReviewLine = added == 0
+            ? "already in Review"
+            : $"{OpeningTendenciesSectionViewModel.Plural(added, "round")} sent to Review";
         _selectTab?.Invoke(ReviewQueueModule.TabId);
     }
 

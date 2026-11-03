@@ -91,7 +91,8 @@ public sealed partial class SummarySectionViewModel : PlayerOverviewSection
         Catalogued("HLTV", "Rating", window, all, "0.00"),
         Catalogued("KPR", "KPR", window, all, "0.00"),
         Catalogued("Duel%", "Opening duels", window, all, "0'%'"),
-        Tile("Clutch", "Clutches won", window["Clutch"], all?["Clutch"], "0", null, ColumnCatalogue.Resolve("Clutch").Tooltip),
+        Tile("Clutch", "Clutches won", window["Clutch"], all?["Clutch"], "0", null,
+            ColumnCatalogue.Resolve("Clutch").Tooltip),
         Tile("MultiKills", "Multi-kills", MultiKills(window), MultiKills(all), "0", null,
             "Rounds with two or more kills: 2K, 3K, 4K and aces"),
         Sight("TTD", "Time to damage", window, all, "0' ms'"),
@@ -99,16 +100,22 @@ public sealed partial class SummarySectionViewModel : PlayerOverviewSection
     ];
 
     // A line-of-sight tile: "no data" rather than a dash once the window has stats but none written with geometry.
-    private static SummaryTileItem Sight(string key, string label, PlayerAggregate window, PlayerAggregate? all, string format)
+    private static SummaryTileItem Sight(string key, string label, PlayerAggregate window, PlayerAggregate? all,
+        string format)
     {
         SummaryTileItem tile = Catalogued(key, label, window, all, format);
-        return tile.Value is null && window.WithStats > 0 ? tile with { Text = AimQualitySectionViewModel.NoData } : tile;
+        return tile.Value is null && window.WithStats > 0
+            ? tile with { Text = AimQualitySectionViewModel.NoData }
+            : tile;
     }
 
-    private static SummaryTileItem Catalogued(string key, string label, PlayerAggregate window, PlayerAggregate? all, string format) =>
-        Tile(key, label, window[key], all?[key], format, AbsoluteScale(key, window), ColumnCatalogue.Resolve(key).Tooltip);
+    private static SummaryTileItem Catalogued(string key, string label, PlayerAggregate window, PlayerAggregate? all,
+        string format) =>
+        Tile(key, label, window[key], all?[key], format, AbsoluteScale(key, window),
+            ColumnCatalogue.Resolve(key).Tooltip);
 
-    private static SummaryTileItem Tile(string key, string label, double? value, double? allTime, string format, StatScale? scale, string tooltip) =>
+    private static SummaryTileItem Tile(string key, string label, double? value, double? allTime, string format,
+        StatScale? scale, string tooltip) =>
         new(key, label, Format(value, format), value, value is null ? null : scale,
             allTime is { } a ? "all time " + Format(a, format) : "", tooltip);
 
@@ -149,7 +156,9 @@ public sealed partial class SummarySectionViewModel : PlayerOverviewSection
     }
 
     private static string Record(PlayerAggregate pool) =>
-        pool.WithStats == 0 ? "" : string.Create(CultureInfo.InvariantCulture, $"{pool.Wins}-{pool.Losses}-{pool.Ties}");
+        pool.WithStats == 0
+            ? ""
+            : string.Create(CultureInfo.InvariantCulture, $"{pool.Wins}-{pool.Losses}-{pool.Ties}");
 
     private static string NoteFor(PlayerOverviewContext context, PlayerAggregate window)
     {
@@ -184,4 +193,11 @@ public sealed partial class SummarySectionViewModel : PlayerOverviewSection
 /// <param name="Scale">The fixed band the value is judged against; null for a count or too thin a sample.</param>
 /// <param name="Caption">The all-time value when the window is narrowed, else empty (the match record on Matches).</param>
 /// <param name="Tooltip">What the tile measures.</param>
-public sealed record SummaryTileItem(string Key, string Label, string Text, double? Value, StatScale? Scale, string Caption, string Tooltip);
+public sealed record SummaryTileItem(
+    string Key,
+    string Label,
+    string Text,
+    double? Value,
+    StatScale? Scale,
+    string Caption,
+    string Tooltip);

@@ -54,7 +54,8 @@ public sealed class TagPaletteDefinition
 
     /// <summary>The panel tagging starts from and returns to, or null for a palette with no panels.</summary>
     public TagPalettePanel? Root =>
-        Panels.FirstOrDefault(p => string.Equals(p.Id, RootPanelId, StringComparison.Ordinal)) ?? Panels.FirstOrDefault();
+        Panels.FirstOrDefault(p => string.Equals(p.Id, RootPanelId, StringComparison.Ordinal))
+        ?? Panels.FirstOrDefault();
 
     /// <summary>The panel with this id, or null.</summary>
     /// <param name="id">A panel id, as a <c>then</c> names it.</param>

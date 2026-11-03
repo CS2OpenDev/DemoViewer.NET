@@ -41,7 +41,11 @@ internal sealed class ToleranceSliderHarness : IDisposable
                 new RoundIndexRun(10, 12, "BombsiteA:2|Outside:2", "Lobby:3|Ramp:1")
             ]),
             (2, 20000, 24000, [new RoundIndexRun(0, 3, "BombsiteA:3|Hell:2", "Ramp:5")]));
-        a.Transitions = [new PlaceTransition("BombsiteA", "Hell", 4), new PlaceTransition("Hell", "Ramp", 3), new PlaceTransition("Outside", "Ramp", 1)];
+        a.Transitions =
+        [
+            new PlaceTransition("BombsiteA", "Hell", 4), new PlaceTransition("Hell", "Ramp", 3),
+            new PlaceTransition("Outside", "Ramp", 1)
+        ];
         RoundIndexDocument b = Document("de_nuke", fingerprint,
             (1, 5000, 9000, [new RoundIndexRun(0, 2, "BombsiteA:4|Outside:1", "Lobby:3|Ramp:2")]));
         b.Transitions = [new PlaceTransition("Outside", "Ramp", 2)];

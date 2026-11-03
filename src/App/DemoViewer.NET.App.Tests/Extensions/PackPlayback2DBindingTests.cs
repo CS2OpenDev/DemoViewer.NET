@@ -48,7 +48,8 @@ public class PackPlayback2DBindingTests
         await Assert.That(unexpected).IsEmpty()
             .Because("the pack binds these app types outside the first-party seam:\n" + string.Join("\n", unexpected));
         await Assert.That(stale).IsEmpty()
-            .Because("these allowed app types are no longer bound, so drop them from the list:\n" + string.Join("\n", stale));
+            .Because("these allowed app types are no longer bound, so drop them from the list:\n"
+                     + string.Join("\n", stale));
     }
 
     [Test]
@@ -63,7 +64,8 @@ public class PackPlayback2DBindingTests
         await Assert.That(unexpected).IsEmpty()
             .Because("the pack binds these unpublished Playback2D types:\n" + string.Join("\n", unexpected));
         await Assert.That(stale).IsEmpty()
-            .Because("these allowed types are no longer bound, so drop them from the list:\n" + string.Join("\n", stale));
+            .Because(
+                "these allowed types are no longer bound, so drop them from the list:\n" + string.Join("\n", stale));
     }
 
     // "Assembly|Namespace.Type" for each type reference whose outermost scope is one of the assemblies;

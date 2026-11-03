@@ -52,7 +52,8 @@ internal static class Program
                 _ => Fail($"Unknown command '{args[0]}'.")
             };
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException
+                                       or ArgumentException)
         {
             Console.Error.WriteLine($"error: {ex.Message}");
             return 1;

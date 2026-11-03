@@ -113,7 +113,8 @@ public static class LineupClipPlanner
     /// <param name="technique">One of its techniques, or null for a lineup without techniques.</param>
     /// <param name="title">The card's cluster title.</param>
     /// <param name="directory">Where clips are written.</param>
-    public static LineupClipJob? Plan(GrenadeLineup lineup, LineupTechnique? technique, string title, string directory) =>
+    public static LineupClipJob? Plan(GrenadeLineup lineup, LineupTechnique? technique, string title,
+        string directory) =>
         Plan(lineup, technique, title, directory, null);
 
     /// <summary>
@@ -131,7 +132,8 @@ public static class LineupClipPlanner
         ArgumentNullException.ThrowIfNull(lineup);
         ArgumentNullException.ThrowIfNull(directory);
 
-        bool first = technique is null || (lineup.Techniques.Count > 0 && ReferenceEquals(lineup.Techniques[0], technique));
+        bool first = technique is null
+                     || (lineup.Techniques.Count > 0 && ReferenceEquals(lineup.Techniques[0], technique));
         if (lineup.Throws.Count < MinThrows || (!first && technique!.Throws.Count < MinThrows))
         {
             return null;
@@ -139,10 +141,11 @@ public static class LineupClipPlanner
 
         IndexedGrenade representative = technique?.Representative ?? lineup.Representative;
         IndexedGrenade shown = (sourceDemo is null
-            ? null
-            : (technique?.Throws ?? lineup.Throws).FirstOrDefault(t =>
-                string.Equals(t.Demo.Path, sourceDemo, StringComparison.OrdinalIgnoreCase) && GrenadeConsole.Format(t.Row) is not null))
-            ?? representative;
+                                   ? null
+                                   : (technique?.Throws ?? lineup.Throws).FirstOrDefault(t =>
+                                       string.Equals(t.Demo.Path, sourceDemo, StringComparison.OrdinalIgnoreCase)
+                                       && GrenadeConsole.Format(t.Row) is not null))
+                               ?? representative;
         GrenadeRow row = shown.Row;
         if (GrenadeConsole.Format(row) is not { } console)
         {
@@ -295,7 +298,8 @@ public static class LineupClipPlanner
     /// <param name="kind">What is thrown.</param>
     /// <param name="lineupId">The lineup's id.</param>
     /// <param name="techniqueKey">The technique, or null for a lineup without techniques.</param>
-    public static string? FinishedGif(string directory, string map, GrenadeKind kind, Guid lineupId, string? techniqueKey)
+    public static string? FinishedGif(string directory, string map, GrenadeKind kind, Guid lineupId,
+        string? techniqueKey)
     {
         ArgumentNullException.ThrowIfNull(directory);
         string gif = Path.Combine(directory, FileStem(map, kind, lineupId, techniqueKey) + GifExtension);

@@ -26,7 +26,8 @@ internal sealed class ExtensionStores : IExtensionStores
     /// <param name="configRoot">The config root, or null for a build with no filesystem.</param>
     /// <param name="cacheRoot">The cache root, or null for a build with no filesystem.</param>
     /// <param name="declared">The extension's stores, every refused one already dropped.</param>
-    public ExtensionStores(string extensionId, string? configRoot, string? cacheRoot, IReadOnlyList<StoreDescriptor> declared)
+    public ExtensionStores(string extensionId, string? configRoot, string? cacheRoot,
+        IReadOnlyList<StoreDescriptor> declared)
     {
         _extensionId = extensionId;
         _configRoot = configRoot;
@@ -46,7 +47,8 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         return File.Exists(full)
-            ? throw new InvalidOperationException($"Store '{storeId}' of '{_extensionId}' is a file; OpenFile opens it.")
+            ? throw new InvalidOperationException(
+                $"Store '{storeId}' of '{_extensionId}' is a file; OpenFile opens it.")
             : new ExtensionFolder(full);
     }
 
@@ -153,7 +155,8 @@ internal sealed class ExtensionStores : IExtensionStores
     }
 
     private void NotMoved(string entry, Exception e) =>
-        AppLog.ExtensionCacheEntryNotMoved(DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory), _extensionId, entry, e.Message);
+        AppLog.ExtensionCacheEntryNotMoved(DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory), _extensionId, entry,
+            e.Message);
 
     // The one path a store declares, under its root; null when the build has no roots.
     private string? Resolve(string storeId)
@@ -165,10 +168,13 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         StoreDescriptor store = Declared.FirstOrDefault(s => string.Equals(s.Id, storeId, StringComparison.Ordinal))
-                                ?? throw new ArgumentException($"'{_extensionId}' declares no store '{storeId}'.", nameof(storeId));
+                                ?? throw new ArgumentException($"'{_extensionId}' declares no store '{storeId}'.",
+                                    nameof(storeId));
         if (store.Paths.Count != 1 || store.Paths[0].Contains('*', StringComparison.Ordinal))
         {
-            throw new ArgumentException($"Store '{storeId}' declares {store.Paths.Count} paths or a pattern; only a store of one file or folder opens.", nameof(storeId));
+            throw new ArgumentException(
+                $"Store '{storeId}' declares {store.Paths.Count} paths or a pattern; only a store of one file or folder opens.",
+                nameof(storeId));
         }
 
         if ((store.Root == StoreRoot.Config ? _configRoot : _cacheRoot) is not { } root)
@@ -177,7 +183,8 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         return PackDataRemover.ResolveSafe(root, store.Paths[0])
-               ?? throw new InvalidOperationException($"Store '{storeId}' of '{_extensionId}' names a path outside its root.");
+               ?? throw new InvalidOperationException(
+                   $"Store '{storeId}' of '{_extensionId}' names a path outside its root.");
     }
 }
 
@@ -248,7 +255,8 @@ internal sealed class ExtensionFolder : IExtensionFolder
         return File.Exists(path) ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read) : null;
     }
 
-    public void WriteAtomic(string relativePath, ReadOnlySpan<byte> content) => AtomicFile.WriteAllBytes(ResolveFile(relativePath), content.ToArray());
+    public void WriteAtomic(string relativePath, ReadOnlySpan<byte> content) =>
+        AtomicFile.WriteAllBytes(ResolveFile(relativePath), content.ToArray());
 
     public void WriteAtomic(string relativePath, Action<Stream> write)
     {
@@ -305,7 +313,8 @@ internal sealed class ExtensionFolder : IExtensionFolder
     {
         ArgumentNullException.ThrowIfNull(relativePath);
         return PackDataRemover.ResolveSafe(_root, relativePath)
-               ?? throw new ArgumentException($"'{relativePath}' is not a file inside the store.", nameof(relativePath));
+               ?? throw new ArgumentException($"'{relativePath}' is not a file inside the store.",
+                   nameof(relativePath));
     }
 
     // A folder's path: the folder itself for an empty path, otherwise one inside it.
@@ -318,7 +327,8 @@ internal sealed class ExtensionFolder : IExtensionFolder
         }
 
         return PackDataRemover.ResolveSafe(_root, relativePath)
-               ?? throw new ArgumentException($"'{relativePath}' is not a folder inside the store.", nameof(relativePath));
+               ?? throw new ArgumentException($"'{relativePath}' is not a folder inside the store.",
+                   nameof(relativePath));
     }
 }
 
@@ -339,7 +349,8 @@ internal sealed class ExtensionFile : IExtensionFile
 
     public byte[]? Read() => File.Exists(Path) ? File.ReadAllBytes(Path) : null;
 
-    public Stream? OpenRead() => File.Exists(Path) ? new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read) : null;
+    public Stream? OpenRead() =>
+        File.Exists(Path) ? new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read) : null;
 
     public void WriteAtomic(ReadOnlySpan<byte> content) => AtomicFile.WriteAllBytes(Path, content.ToArray());
 

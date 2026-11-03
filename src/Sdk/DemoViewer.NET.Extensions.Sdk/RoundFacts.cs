@@ -846,7 +846,8 @@ public static class RoundFactsRules
                 return false;
             }
 
-            if (filter.ManCount is { } state && state != (ct == t ? ManCountState.Even : ct > t ? ManCountState.CtUp : ManCountState.TUp))
+            if (filter.ManCount is { } state
+                && state != (ct == t ? ManCountState.Even : ct > t ? ManCountState.CtUp : ManCountState.TUp))
             {
                 return false;
             }
@@ -887,13 +888,15 @@ public static class RoundFactsRules
             breakpoints.Add(round.FreezeEndTick + LateBandSeconds * tickRate);
         }
 
-        return breakpoints.Any(tick => tick >= round.FreezeEndTick && tick < end && MatchesAt(round, filter, tick, tickRate));
+        return breakpoints.Any(tick =>
+            tick >= round.FreezeEndTick && tick < end && MatchesAt(round, filter, tick, tickRate));
     }
 
     private static ClockBand BandOf(RoundFacts round, int tick, int tickRate)
     {
         int seconds = (tick - round.FreezeEndTick) / tickRate;
-        return seconds < EarlyBandSeconds ? ClockBand.Early : seconds < LateBandSeconds ? ClockBand.Middle : ClockBand.Late;
+        return seconds < EarlyBandSeconds ? ClockBand.Early :
+            seconds < LateBandSeconds ? ClockBand.Middle : ClockBand.Late;
     }
 
     private static bool ScoreMatches(RoundFacts round, ScoreSituation score)

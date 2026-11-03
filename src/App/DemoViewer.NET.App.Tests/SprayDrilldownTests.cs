@@ -101,10 +101,8 @@ public class SprayDrilldownTests
         // locator only knows the uncompressed name, so asking it directly resolves nothing.
         string? tris = CollisionSoup.Find(demo.MapName);
         VisibilityEngine? vision = tris is null ? null : CollisionSoup.Load(tris);
-        BuildResult build = DemoAnalysis.Build(demo, loaded.Rulesets, new AnalysisOptions
-        {
-            VisibilityEngine = vision
-        });
+        BuildResult build =
+            DemoAnalysis.Build(demo, loaded.Rulesets, new AnalysisOptions { VisibilityEngine = vision });
 
         AnalysisRun run = DemoAnalysis.Evaluate(demo, build, new AnalysisOptions());
         StatsTabViewModel vm = new(null, () => path);

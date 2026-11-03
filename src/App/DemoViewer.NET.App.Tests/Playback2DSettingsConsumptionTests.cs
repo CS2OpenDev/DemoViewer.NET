@@ -196,10 +196,7 @@ public class Playback2DSettingsConsumptionTests
             .ToArray();
 
         HashSet<string> accessors = properties
-            .SelectMany(p => new[]
-            {
-                "get_" + p.Name, "set_" + p.Name
-            })
+            .SelectMany(p => new[] { "get_" + p.Name, "set_" + p.Name })
             .ToHashSet(StringComparer.Ordinal);
 
         string owner = settings.FullName!;

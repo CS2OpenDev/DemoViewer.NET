@@ -88,16 +88,19 @@ public class ExtensionIsolationTests
         using (Assert.Multiple())
         {
             await Assert.That(App.RegisterOverride(pack,
-                [ServiceDescriptor.KeyedSingleton<IExtensionContext>("other.id", (_, _) => null!)], existing)).IsNotNull();
+                    [ServiceDescriptor.KeyedSingleton<IExtensionContext>("other.id", (_, _) => null!)], existing))
+                .IsNotNull();
             await Assert.That(App.RegisterOverride(pack,
-                [ServiceDescriptor.KeyedSingleton<IExtensionLifecycle>("other.id", (_, _) => null!)], existing)).IsNotNull();
+                    [ServiceDescriptor.KeyedSingleton<IExtensionLifecycle>("other.id", (_, _) => null!)], existing))
+                .IsNotNull();
             await Assert.That(App.RegisterOverride(pack,
-                [ServiceDescriptor.Singleton<IFormatProvider>(System.Globalization.CultureInfo.CurrentCulture)], existing)).IsNotNull();
+                [ServiceDescriptor.Singleton<IFormatProvider>(System.Globalization.CultureInfo.CurrentCulture)],
+                existing)).IsNotNull();
             await Assert.That(App.RegisterOverride(pack,
-                [
-                    ServiceDescriptor.KeyedSingleton<IExtensionLifecycle>(pack.Id, (_, _) => null!),
-                    ServiceDescriptor.Singleton<StubExtension>(pack)
-                ], existing)).IsNull().Because("its own lifecycle and its own types are its to register");
+            [
+                ServiceDescriptor.KeyedSingleton<IExtensionLifecycle>(pack.Id, (_, _) => null!),
+                ServiceDescriptor.Singleton<StubExtension>(pack)
+            ], existing)).IsNull().Because("its own lifecycle and its own types are its to register");
         }
     }
 
@@ -118,9 +121,11 @@ public class ExtensionIsolationTests
     [Arguments("net.demoviewer.pack.x", StoreRoot.Cache, "demos", false)]
     [Arguments("net.demoviewer.pack.x", StoreRoot.Cache, "demos/*.json.gz", false)]
     [Arguments("net.demoviewer.pack.x", StoreRoot.Cache, "demos/*", false)]
-    public async Task ADeclaredStore_MayNameOnlyItsOwnersFiles(string packId, StoreRoot root, string path, bool accepted)
+    public async Task ADeclaredStore_MayNameOnlyItsOwnersFiles(string packId, StoreRoot root, string path,
+        bool accepted)
     {
-        string? refusal = PackContributions.StoreRefusal(packId, new StoreDescriptor("s", "S", root, [path], IsUserWork: false));
+        string? refusal =
+            PackContributions.StoreRefusal(packId, new StoreDescriptor("s", "S", root, [path], IsUserWork: false));
         await Assert.That(refusal is null).IsEqualTo(accepted);
     }
 
@@ -133,28 +138,31 @@ public class ExtensionIsolationTests
 
         StoreDescriptor? settings = removal.Stores.FirstOrDefault(s => s.Id == "extension-settings");
 
-        await Assert.That(settings?.Paths).IsEquivalentTo([ExtensionSettingsStore.DirectoryName + "/" + pack.Id + ".json"], CollectionOrdering.Matching);
+        await Assert.That(settings?.Paths)
+            .IsEquivalentTo([ExtensionSettingsStore.DirectoryName + "/" + pack.Id + ".json"],
+                CollectionOrdering.Matching);
     }
 
     [Test]
     public async Task AThirdPartyBuildAgainstTheAppsAssembly_IsRefused()
     {
         ExtensionManifest manifest = ExtensionManifest.Parse("""
-            {
-              "id": "dev.example.app-reference",
-              "name": "App reference",
-              "version": "1.0.0",
-              "assembly": "AppReference.dll",
-              "entryType": "AppReference.Pack",
-              "requiresHost": "^1.0",
-              "requiresCs2DemoKit": "0.14.0"
-            }
-            """);
+                                                             {
+                                                               "id": "dev.example.app-reference",
+                                                               "name": "App reference",
+                                                               "version": "1.0.0",
+                                                               "assembly": "AppReference.dll",
+                                                               "entryType": "AppReference.Pack",
+                                                               "requiresHost": "^1.0",
+                                                               "requiresCs2DemoKit": "0.14.0"
+                                                             }
+                                                             """);
         ExtensionCandidate candidate = new(Path.GetTempPath(), manifest);
 
         using (Assert.Multiple())
         {
-            await Assert.That(ExternalExtensions.CheckAppReference(candidate, typeof(ExtensionIsolationTests).Assembly)?.Failure)
+            await Assert.That(ExternalExtensions.CheckAppReference(candidate, typeof(ExtensionIsolationTests).Assembly)
+                    ?.Failure)
                 .IsEqualTo(LoadFailure.ReferencesApp);
             await Assert.That(ExternalExtensions.CheckAppReference(candidate, typeof(IExtension).Assembly)).IsNull()
                 .Because("the SDK is the contract an extension builds against");
@@ -210,14 +218,17 @@ public class ExtensionIsolationTests
         ExtensionGuard guard = ExtensionGuard.Standalone(pack);
         PackContributions contributions = new(pack, () => null!, guard: guard);
 
-        contributions.DemoAction(new DemoAction("dev.example.owner.core", "Core", "", _ => true, _ => { }, "playback2d"));
-        contributions.DemoAction(new DemoAction("dev.example.owner.own", "Own", "", _ => true, _ => { }, OwnsOneFeature.Sub));
+        contributions.DemoAction(
+            new DemoAction("dev.example.owner.core", "Core", "", _ => true, _ => { }, "playback2d"));
+        contributions.DemoAction(new DemoAction("dev.example.owner.own", "Own", "", _ => true, _ => { },
+            OwnsOneFeature.Sub));
         contributions.DemoAction(new DemoAction("dev.example.owner.none", "None", "", _ => true, _ => { }));
 
         using (Assert.Multiple())
         {
             await Assert.That(contributions.DemoActions.Select(a => a.FeatureId))
-                .IsEquivalentTo([pack.FeatureId, OwnsOneFeature.Sub, pack.FeatureId], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                .IsEquivalentTo([pack.FeatureId, OwnsOneFeature.Sub, pack.FeatureId],
+                    TUnit.Assertions.Enums.CollectionOrdering.Matching);
             await Assert.That(guard.Faults.StateOf(pack.FeatureId).Count).IsEqualTo(1)
                 .Because("only the contribution naming another owner's feature is reported");
         }
@@ -236,7 +247,8 @@ public class ExtensionIsolationTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(contributions.DemoActions.Select(a => a.Action.Id)).IsEquivalentTo(["dev.example.owner.greet"], CollectionOrdering.Matching);
+            await Assert.That(contributions.DemoActions.Select(a => a.Action.Id))
+                .IsEquivalentTo(["dev.example.owner.greet"], CollectionOrdering.Matching);
             await Assert.That(contributions.HubTabs).IsEmpty();
             await Assert.That(guard.Faults.StateOf(pack.FeatureId).Count).IsEqualTo(2);
         }

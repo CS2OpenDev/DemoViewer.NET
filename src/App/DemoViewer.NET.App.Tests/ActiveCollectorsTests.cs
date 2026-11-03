@@ -26,7 +26,8 @@ public class ActiveCollectorsTests
         await Assert.That(Ids(active.For(Demo))).IsEquivalentTo(["c.a", "c.b"], CollectionOrdering.Matching);
 
         background.Dispose();
-        await Assert.That(Ids(active.For(Demo))).IsEquivalentTo(["c.b"], CollectionOrdering.Matching).Because("the open's passes are still running");
+        await Assert.That(Ids(active.For(Demo))).IsEquivalentTo(["c.b"], CollectionOrdering.Matching)
+            .Because("the open's passes are still running");
 
         open.Dispose();
         await Assert.That(active.For(Demo).IsEmpty).IsTrue();
@@ -42,7 +43,8 @@ public class ActiveCollectorsTests
 
         first.Dispose();
         first.Dispose();
-        await Assert.That(Ids(active.For(Demo))).IsEquivalentTo(["c.a"], CollectionOrdering.Matching).Because("a second end of one visit retracts nothing more");
+        await Assert.That(Ids(active.For(Demo))).IsEquivalentTo(["c.a"], CollectionOrdering.Matching)
+            .Because("a second end of one visit retracts nothing more");
 
         second.Dispose();
         await Assert.That(active.For(Demo).IsEmpty).IsTrue();

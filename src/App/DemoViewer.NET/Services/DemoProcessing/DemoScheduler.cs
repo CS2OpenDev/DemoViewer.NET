@@ -29,6 +29,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     private const string PlanKey = "scheduler.plan";
 
     private readonly object _lock = new();
+
     // Keyed by demo key, holding the path to plan and its level.
     private readonly Dictionary<string, (string Path, PassLevel Level)> _dirty = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<(string Pass, string Demo)> _outstanding = new(PassDemoKeyComparer.Instance);
@@ -73,7 +74,8 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     /// <param name="queue">The shared processing queue.</param>
     /// <param name="allDemos">Every demo the library knows.</param>
     /// <param name="demoKey">What identifies the demo at a path; null keys by path.</param>
-    public DemoScheduler(IReadOnlyList<IDemoEvaluator> evaluators, IDemoProcessingQueue queue, Func<IEnumerable<string>> allDemos,
+    public DemoScheduler(IReadOnlyList<IDemoEvaluator> evaluators, IDemoProcessingQueue queue,
+        Func<IEnumerable<string>> allDemos,
         Func<string, string>? demoKey = null)
         : this(Snapshot(evaluators), queue, allDemos, null, demoKey)
     {
@@ -281,7 +283,9 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     // A path's demo key changes when its file is first hashed, so the outstanding and fault sets hold a pass
     // under the path and the key both, and a lookup by either finds it.
     private string[] KeysOf(string path) =>
-        DemoKey(path) is var key && !string.Equals(key, path, StringComparison.OrdinalIgnoreCase) ? [key, path] : [path];
+        DemoKey(path) is var key && !string.Equals(key, path, StringComparison.OrdinalIgnoreCase)
+            ? [key, path]
+            : [path];
 
     // A key resolver that throws must not stop a mark or a plan; the path stands in.
     private string DemoKey(string path)
@@ -508,7 +512,8 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
             candidates = [.. passes.Where(p => !keys.Any(k => _faulted.Contains((p.Id, k))))];
         }
 
-        List<IDemoPass> planned = VisitPlanner.Plan(candidates, demo, level, (pass, ex) => ReportFault(pass.Id, path, ex),
+        List<IDemoPass> planned = VisitPlanner.Plan(candidates, demo, level,
+            (pass, ex) => ReportFault(pass.Id, path, ex),
             out HashSet<string> riders);
 
         long orderHint = 0;
@@ -526,7 +531,8 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
             }
         }
 
-        HashSet<string> rulesPasses = [.. planned.Where(p => !riders.Contains(p.Id) && NeedsRules(p, demo)).Select(p => p.Id)];
+        HashSet<string> rulesPasses =
+            [.. planned.Where(p => !riders.Contains(p.Id) && NeedsRules(p, demo)).Select(p => p.Id)];
         List<IDemoPass> submitting = [];
         lock (_lock)
         {
@@ -594,7 +600,9 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     private void PassEnded(string[] keys, string path, IDemoPass pass, PassOutcome outcome, Exception? error)
     {
         PassFinished?.Invoke(path, pass.Id, outcome);
-        string[] faultKeys = outcome == PassOutcome.Failed ? [.. keys.Concat(KeysOf(path)).Distinct(StringComparer.OrdinalIgnoreCase)] : [];
+        string[] faultKeys = outcome == PassOutcome.Failed
+            ? [.. keys.Concat(KeysOf(path)).Distinct(StringComparer.OrdinalIgnoreCase)]
+            : [];
         lock (_lock)
         {
             foreach (string key in keys)
@@ -666,5 +674,4 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
             // Nothing to fall back to.
         }
     }
-
 }

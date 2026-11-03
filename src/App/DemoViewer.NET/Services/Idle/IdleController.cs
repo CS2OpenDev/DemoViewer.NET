@@ -96,10 +96,7 @@ public sealed class IdleController : IDisposable
 
         _started = true;
         _lastActivityUtc = DateTime.UtcNow;
-        _timer = new DispatcherTimer
-        {
-            Interval = PollInterval
-        };
+        _timer = new DispatcherTimer { Interval = PollInterval };
         _timer.Tick += OnTick;
         _timer.Start();
     }

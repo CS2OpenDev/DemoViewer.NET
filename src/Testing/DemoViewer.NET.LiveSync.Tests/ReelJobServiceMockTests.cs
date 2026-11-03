@@ -48,10 +48,7 @@ public class ReelJobServiceMockTests
         try
         {
             CsvgWebHost probe = await CsvgWebHost.StartAsync(
-                new LiveSyncSettings
-                {
-                    MockMode = true
-                }, null, cancellationToken);
+                new LiveSyncSettings { MockMode = true }, null, cancellationToken);
             await probe.DisposeAsync();
         }
         catch (LiveSyncPortInUseException ex)

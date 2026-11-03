@@ -72,7 +72,8 @@ public sealed class DossierDocument
 public static class DossierExporter
 {
     /// <summary>The short form's line when nothing is starred.</summary>
-    public const string NothingStarredLine = "nothing starred yet: star findings in the long form to build the one-pager";
+    public const string NothingStarredLine =
+        "nothing starred yet: star findings in the long form to build the one-pager";
 
     /// <summary>The document's title for a form: "Falcons one-pager" or "Falcons dossier".</summary>
     /// <param name="doc">The document.</param>
@@ -150,9 +151,11 @@ public static class DossierExporter
 
         if (doc.Summary.Length > 0)
         {
-            foreach (string paragraph in doc.Summary.ReplaceLineEndings("\n").Split("\n\n", StringSplitOptions.RemoveEmptyEntries))
+            foreach (string paragraph in doc.Summary.ReplaceLineEndings("\n")
+                         .Split("\n\n", StringSplitOptions.RemoveEmptyEntries))
             {
-                html.Append("<p class=\"summary\">").Append(Escape(paragraph).Replace("\n", "<br>", StringComparison.Ordinal)).Append("</p>\n");
+                html.Append("<p class=\"summary\">")
+                    .Append(Escape(paragraph).Replace("\n", "<br>", StringComparison.Ordinal)).Append("</p>\n");
             }
         }
 
@@ -167,11 +170,13 @@ public static class DossierExporter
             html.Append("<section>\n<h2>").Append(Escape(section.Key)).Append("</h2>\n<ul>\n");
             foreach (DossierFinding finding in section)
             {
-                html.Append("<li").Append(form == DossierForm.LongForm && finding.IsStarred ? " class=\"starred\"" : "").Append('>')
+                html.Append("<li").Append(form == DossierForm.LongForm && finding.IsStarred ? " class=\"starred\"" : "")
+                    .Append('>')
                     .Append(Escape(finding.Text));
                 if (finding.ImagePng is { Length: > 0 } png)
                 {
-                    html.Append("<br><img alt=\"").Append(Escape(finding.Text)).Append("\" src=\"data:image/png;base64,")
+                    html.Append("<br><img alt=\"").Append(Escape(finding.Text))
+                        .Append("\" src=\"data:image/png;base64,")
                         .Append(Convert.ToBase64String(png)).Append("\">");
                 }
 

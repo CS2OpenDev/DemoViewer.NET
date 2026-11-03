@@ -86,7 +86,8 @@ public class DemoSchedulerTests
 
         scheduler.DemoChanged("/x/two.dem");
         await WaitFor(() => a.Count == 2, "both demos, the removed item's included");
-        await Assert.That(a.Evaluated.Order()).IsEquivalentTo(["/x/one.dem", "/x/two.dem"], CollectionOrdering.Matching);
+        await Assert.That(a.Evaluated.Order())
+            .IsEquivalentTo(["/x/one.dem", "/x/two.dem"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -121,10 +122,12 @@ public class DemoSchedulerTests
         scheduler.DemoChanged("/x/demo.dem");
 
         await Assert.That(queue.Visits).IsEmpty().Because("nothing is planned until the queue runs the planning item");
-        await Assert.That(queue.Jobs.Select(j => j.Kind)).IsEquivalentTo([QueueJobKind.Scheduling], CollectionOrdering.Matching);
+        await Assert.That(queue.Jobs.Select(j => j.Kind))
+            .IsEquivalentTo([QueueJobKind.Scheduling], CollectionOrdering.Matching);
 
         await queue.RunDeferredAsync();
-        await Assert.That(queue.Visits.Select(v => v.Path)).IsEquivalentTo(["/x/demo.dem"], CollectionOrdering.Matching);
+        await Assert.That(queue.Visits.Select(v => v.Path))
+            .IsEquivalentTo(["/x/demo.dem"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -141,7 +144,8 @@ public class DemoSchedulerTests
         using (Assert.Multiple())
         {
             await Assert.That(queue.Visits.Single(v => v.Path == "/x/backlog.dem").Level).IsEqualTo(PassLevel.Backlog);
-            await Assert.That(queue.Visits.Single(v => v.Path == "/x/forced.dem").Level).IsEqualTo(PassLevel.UserRequested);
+            await Assert.That(queue.Visits.Single(v => v.Path == "/x/forced.dem").Level)
+                .IsEqualTo(PassLevel.UserRequested);
             await Assert.That(queue.Visits.Single(v => v.Path == "/x/open.dem").Level).IsEqualTo(PassLevel.OpenDemo);
             await Assert.That(queue.Jobs.Where(j => j.Kind == QueueJobKind.Scheduling).Select(j => j.Priority))
                 .Contains(DemoJobPriority.UserRequested).Because("a user's request plans ahead of background planning");
@@ -205,7 +209,8 @@ public class DemoSchedulerTests
         scheduler.RecheckAll();
         await Task.Delay(120);
 
-        await Assert.That(reported.ToArray()).IsEquivalentTo([("thrower", (string?)"/x/demo.dem")], CollectionOrdering.Matching);
+        await Assert.That(reported.ToArray())
+            .IsEquivalentTo([("thrower", (string?)"/x/demo.dem")], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -361,10 +366,7 @@ public class DemoSchedulerTests
             parsed.Add(path);
             release.Wait(3000);
             return Synthetic();
-        })
-        {
-            MaxQueueSize = 1
-        };
+        }) { MaxQueueSize = 1 };
         HashSet<string> done = new(StringComparer.Ordinal);
         Fake a = new("a", p =>
         {
@@ -390,7 +392,8 @@ public class DemoSchedulerTests
 
         release.Set();
         await WaitFor(() => a.Count == 2, "the refused demo planned once the tier had room");
-        await Assert.That(parsed.Order()).IsEquivalentTo(["/x/first.dem", "/x/second.dem"], CollectionOrdering.Matching);
+        await Assert.That(parsed.Order())
+            .IsEquivalentTo(["/x/first.dem", "/x/second.dem"], CollectionOrdering.Matching);
     }
 
     // A full background tier refuses visits. The planner must stop and wait for the capacity event, not re-plan
@@ -403,10 +406,7 @@ public class DemoSchedulerTests
         {
             release.Wait(5000);
             return Synthetic();
-        })
-        {
-            MaxQueueSize = 1
-        };
+        }) { MaxQueueSize = 1 };
         int asks = 0;
         HashSet<string> done = new(StringComparer.Ordinal);
         Fake a = new("a", p =>
@@ -426,7 +426,8 @@ public class DemoSchedulerTests
         using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
 
         scheduler.DemoChanged("/x/first.dem");
-        await WaitFor(() => queue.RunningCount == 1 && queue.ActiveCount(QueueJobKind.Scheduling) == 0, "the first demo running");
+        await WaitFor(() => queue.RunningCount == 1 && queue.ActiveCount(QueueJobKind.Scheduling) == 0,
+            "the first demo running");
         scheduler.DemoChanged("/x/second.dem");
         scheduler.DemoChanged("/x/third.dem");
         await WaitFor(() => queue.ActiveCount(QueueJobKind.Scheduling) == 0, "the planner to give up on a full tier");
@@ -435,7 +436,8 @@ public class DemoSchedulerTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(Volatile.Read(ref asks) - before).IsEqualTo(0).Because("nothing re-plans while the tier stays full");
+            await Assert.That(Volatile.Read(ref asks) - before).IsEqualTo(0)
+                .Because("nothing re-plans while the tier stays full");
             await Assert.That(queue.ActiveCount(QueueJobKind.Scheduling)).IsEqualTo(0);
             await Assert.That(scheduler.Check.IsChecking).IsFalse();
             await Assert.That(scheduler.Check.Waiting).IsGreaterThan(0).Because("the flyout says demos wait for room");
@@ -443,7 +445,8 @@ public class DemoSchedulerTests
 
         release.Set();
         await WaitFor(() => a.Count == 3, "every demo planned as visits end");
-        await WaitFor(() => scheduler.Check is { IsChecking: false, Waiting: 0, LastChecked: not null }, "a clean check stamped");
+        await WaitFor(() => scheduler.Check is { IsChecking: false, Waiting: 0, LastChecked: not null },
+            "a clean check stamped");
     }
 
     // A user's request bypasses the background cap, so it must not wait behind a backlog demo the tier refused.
@@ -457,10 +460,7 @@ public class DemoSchedulerTests
             parsed.Add(path);
             release.Wait(5000);
             return Synthetic();
-        })
-        {
-            MaxQueueSize = 1
-        };
+        }) { MaxQueueSize = 1 };
         Fake a = new("a");
         using DemoScheduler scheduler = new([a], queue, () => Array.Empty<string>());
 
@@ -469,7 +469,8 @@ public class DemoSchedulerTests
         scheduler.DemoChanged("/x/backlog.dem");
         scheduler.Request("/x/asked.dem");
 
-        await WaitFor(() => queue.Snapshot().Any(s => s.Path == "/x/asked.dem"), "the user's demo queued behind the running one");
+        await WaitFor(() => queue.Snapshot().Any(s => s.Path == "/x/asked.dem"),
+            "the user's demo queued behind the running one");
         await Assert.That(queue.Snapshot().Any(s => s.Path == "/x/backlog.dem")).IsFalse()
             .Because("the backlog demo waits for room; the request did not");
         release.Set();
@@ -519,7 +520,8 @@ public class DemoSchedulerTests
         using (Assert.Multiple())
         {
             await Assert.That(parses).IsEqualTo(1).Because("the waiting pass rides the upstream parse");
-            await Assert.That(order).IsEquivalentTo(["library", "facts"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(order)
+                .IsEquivalentTo(["library", "facts"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
             await Assert.That(scheduler.HasOutstanding("facts")).IsFalse();
         }
     }
@@ -577,7 +579,8 @@ public class DemoSchedulerTests
         await queue.RunDeferredAsync();
 
         await Assert.That(queue.Visits.Select(v => v.Path).Order())
-            .IsEquivalentTo(["/x/1.dem", "/x/2.dem", "/x/3.dem", "/x/4.dem"], TUnit.Assertions.Enums.CollectionOrdering.Matching)
+            .IsEquivalentTo(["/x/1.dem", "/x/2.dem", "/x/3.dem", "/x/4.dem"],
+                TUnit.Assertions.Enums.CollectionOrdering.Matching)
             .Because("the demo left unplanned is planned on the next event, and no submitted demo is planned twice");
     }
 
@@ -595,7 +598,8 @@ public class DemoSchedulerTests
         scheduler.DemoChanged("/smb/demo.dem");
         await queue.RunDeferredAsync();
 
-        await Assert.That(queue.Visits.Select(v => v.Path)).IsEquivalentTo(["/smb/demo.dem"], CollectionOrdering.Matching);
+        await Assert.That(queue.Visits.Select(v => v.Path))
+            .IsEquivalentTo(["/smb/demo.dem"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -603,7 +607,8 @@ public class DemoSchedulerTests
     {
         RecordingQueue queue = new();
         Fake a = new("a");
-        using DemoScheduler scheduler = new([a], queue, () => ["/nfs/demo.dem", "/smb/demo.dem", "/nfs/other.dem"], SameBytes);
+        using DemoScheduler scheduler = new([a], queue, () => ["/nfs/demo.dem", "/smb/demo.dem", "/nfs/other.dem"],
+            SameBytes);
 
         scheduler.DemoChanged("/nfs/demo.dem");
         scheduler.Request("/smb/demo.dem");
@@ -704,7 +709,8 @@ public class DemoSchedulerTests
         scheduler.DemoChanged("/x/demo.dem");
         scheduler.Request("/X/Demo.DEM");
 
-        await Assert.That(queue.Visits.Select(v => v.Path)).IsEquivalentTo(["/x/demo.dem"], CollectionOrdering.Matching);
+        await Assert.That(queue.Visits.Select(v => v.Path))
+            .IsEquivalentTo(["/x/demo.dem"], CollectionOrdering.Matching);
     }
 
     // A queue that records what the scheduler submits and runs its planning item inline, or holds it when
@@ -729,15 +735,18 @@ public class DemoSchedulerTests
         using (Assert.Multiple())
         {
             await Assert.That(queue.Visits).Count().IsEqualTo(1)
-                .Because("the rider whose rules pass is out, and the rider on a demo nothing else wants, pay for no read");
-            await Assert.That(queue.Visits[0].Passes.Select(p => p.Id)).IsEquivalentTo(["grenades"], CollectionOrdering.Matching);
+                .Because(
+                    "the rider whose rules pass is out, and the rider on a demo nothing else wants, pay for no read");
+            await Assert.That(queue.Visits[0].Passes.Select(p => p.Id))
+                .IsEquivalentTo(["grenades"], CollectionOrdering.Matching);
         }
 
         // A rider never upgrades a read that needs no rules.
         RecordingQueue noRules = new();
         using DemoScheduler finalStateOnly = new([highlights, new FinalStateFake("library")], noRules, () => _oneDemo);
         finalStateOnly.DemoChanged("/x/demo.dem");
-        await Assert.That(noRules.Visits.Single().Passes.Select(p => p.Id)).IsEquivalentTo(["library"], CollectionOrdering.Matching);
+        await Assert.That(noRules.Visits.Single().Passes.Select(p => p.Id))
+            .IsEquivalentTo(["library"], CollectionOrdering.Matching);
 
         RecordingQueue second = new();
         using DemoScheduler fresh = new([highlights, grenades], second, () => _oneDemo);
@@ -764,7 +773,8 @@ public class DemoSchedulerTests
         }
     }
 
-    private sealed class RulesFake(string id, Func<string, bool> wants, Func<string, bool>? ifRulesRun = null) : IDemoEvaluator
+    private sealed class RulesFake(string id, Func<string, bool> wants, Func<string, bool>? ifRulesRun = null)
+        : IDemoEvaluator
     {
         public string Id => id;
 
@@ -923,7 +933,11 @@ public class DemoSchedulerTests
         }
     }
 
-    private sealed class UpstreamFake(string id, Func<string, bool> wants, Func<string, bool> afterUpstream, Action<string> onEvaluate)
+    private sealed class UpstreamFake(
+        string id,
+        Func<string, bool> wants,
+        Func<string, bool> afterUpstream,
+        Action<string> onEvaluate)
         : IDemoEvaluator
     {
         public string Id => id;

@@ -50,16 +50,19 @@
             <TextBlock Text="{Binding FocusLine}" FontSize="12" TextWrapping="Wrap"
                        Foreground="{DynamicResource TextValue}"
                        IsVisible="{Binding FocusLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-            <TextBlock Text="{Binding HiddenLine}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMid}"
+            <TextBlock Text="{Binding HiddenLine}" FontSize="11" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextMid}"
                        IsVisible="{Binding HiddenLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-            <TextBlock Text="{Binding FooterLine}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
+            <TextBlock Text="{Binding FooterLine}" FontSize="11" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextMid}" />
         </StackPanel>
 
         <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
             <Panel>
                 <utility:UtilityMapHost x:Name="Map" />
 
-                <TextBlock Text="no map art for this map on this host" FontSize="12" Foreground="{DynamicResource TextMid}"
+                <TextBlock Text="no map art for this map on this host" FontSize="12"
+                           Foreground="{DynamicResource TextMid}"
                            HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding HasNoMapArt}" />
                 <TextBlock Text="no lineups match these filters" FontSize="12" Foreground="{DynamicResource TextMid}"
                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0 0 0 12"
@@ -67,70 +70,83 @@
 
                 <!-- The details card of the selected throw position. -->
                 <Panel IsVisible="{Binding HasDetail}">
-                <!-- The card opens on the side away from the selected position (CardOnLeft), so it never covers it. -->
-                <Border x:Name="Card" DataContext="{Binding Detail}" x:DataType="vm:LineupDetail"
-                        HorizontalAlignment="Right" VerticalAlignment="Stretch" Width="360" Margin="10"
-                        Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderSubtle}"
-                        BorderThickness="1" CornerRadius="6" Padding="12 10">
-                    <DockPanel>
-                        <StackPanel DockPanel.Dock="Top" Spacing="6">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
-                                           TextWrapping="Wrap" Foreground="{DynamicResource TextValue}" />
-                                <Button Grid.Column="1" Content="✕" Classes="icon-btn" ToolTip.Tip="Close (Escape)"
-                                        Command="{Binding $parent[UserControl].((vm:UtilityBookTabViewModel)DataContext).BackCommand}" />
-                            </Grid>
-                            <TextBlock Text="{Binding StyleLine}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
-                            <TextBlock Text="{Binding UsedLine}" FontSize="12" Foreground="{DynamicResource TextValue}" />
-                            <TextBlock Text="{Binding TechniquesLine}" IsVisible="{Binding HasTechniques}" FontSize="11"
-                                       TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
-                            <!-- The position's clip: read only while the card is open, released when it closes. -->
-                            <ui:GifView Source="{Binding ClipPath}" IsVisible="{Binding HasClip}" MaxHeight="220"
-                                              HorizontalAlignment="Center" />
-                            <TextBlock Text="{Binding ClipLine}" IsVisible="{Binding HasClipLine}" FontSize="11"
-                                       TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                <TextBox Grid.Column="0" Text="{Binding ConsoleText}" IsReadOnly="True" FontSize="11"
-                                         Classes="mono" Padding="6 4" TextWrapping="Wrap" />
-                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <Button Content="Copy" Classes="primary" Command="{Binding CopyConsoleCommand}"
-                                            IsEnabled="{Binding HasConsole}"
-                                            ToolTip.Tip="Copy the setpos and setang line to paste into the console" />
-                                    <TextBlock Text="{Binding CopyStatus}" FontSize="10" HorizontalAlignment="Center"
-                                               Foreground="{DynamicResource TextMid}" />
-                                </StackPanel>
-                            </Grid>
-                            <TextBlock Text="Every throw from here" Classes="col-label"
-                                       Foreground="{DynamicResource TextCardHeader}" FontSize="11" Margin="0 4 0 0" />
-                        </StackPanel>
-                        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl ItemsSource="{Binding Instances}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:LineupInstanceRow">
-                                        <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="0 4">
-                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                                <StackPanel Grid.Column="0" Spacing="1">
-                                                    <TextBlock Text="{Binding DemoName}" FontSize="11" TextTrimming="CharacterEllipsis"
-                                                               Foreground="{DynamicResource TextValue}" />
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                                        <TextBlock Text="{Binding PlayerText}" FontSize="10" FontWeight="SemiBold"
+                    <!-- The card opens on the side away from the selected position (CardOnLeft), so it never covers it. -->
+                    <Border x:Name="Card" DataContext="{Binding Detail}" x:DataType="vm:LineupDetail"
+                            HorizontalAlignment="Right" VerticalAlignment="Stretch" Width="360" Margin="10"
+                            Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderSubtle}"
+                            BorderThickness="1" CornerRadius="6" Padding="12 10">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="13"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap" Foreground="{DynamicResource TextValue}" />
+                                    <Button Grid.Column="1" Content="✕" Classes="icon-btn" ToolTip.Tip="Close (Escape)"
+                                            Command="{Binding $parent[UserControl].((vm:UtilityBookTabViewModel)DataContext).BackCommand}" />
+                                </Grid>
+                                <TextBlock Text="{Binding StyleLine}" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextMid}" />
+                                <TextBlock Text="{Binding UsedLine}" FontSize="12"
+                                           Foreground="{DynamicResource TextValue}" />
+                                <TextBlock Text="{Binding TechniquesLine}" IsVisible="{Binding HasTechniques}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
+                                <!-- The position's clip: read only while the card is open, released when it closes. -->
+                                <ui:GifView Source="{Binding ClipPath}" IsVisible="{Binding HasClip}" MaxHeight="220"
+                                            HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ClipLine}" IsVisible="{Binding HasClipLine}" FontSize="11"
+                                           TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBox Grid.Column="0" Text="{Binding ConsoleText}" IsReadOnly="True"
+                                             FontSize="11"
+                                             Classes="mono" Padding="6 4" TextWrapping="Wrap" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <Button Content="Copy" Classes="primary" Command="{Binding CopyConsoleCommand}"
+                                                IsEnabled="{Binding HasConsole}"
+                                                ToolTip.Tip="Copy the setpos and setang line to paste into the console" />
+                                        <TextBlock Text="{Binding CopyStatus}" FontSize="10"
+                                                   HorizontalAlignment="Center"
+                                                   Foreground="{DynamicResource TextMid}" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="Every throw from here" Classes="col-label"
+                                           Foreground="{DynamicResource TextCardHeader}" FontSize="11" Margin="0 4 0 0" />
+                            </StackPanel>
+                            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding Instances}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:LineupInstanceRow">
+                                            <Border BorderBrush="{DynamicResource BorderSubtle}"
+                                                    BorderThickness="0 0 0 1" Padding="0 4">
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                    <StackPanel Grid.Column="0" Spacing="1">
+                                                        <TextBlock Text="{Binding DemoName}" FontSize="11"
+                                                                   TextTrimming="CharacterEllipsis"
                                                                    Foreground="{DynamicResource TextValue}" />
-                                                        <TextBlock Text="{Binding Date}" FontSize="10" Foreground="{DynamicResource TextMid}" />
-                                                        <TextBlock Text="{Binding RoundText}" FontSize="10" Foreground="{DynamicResource TextMid}" />
-                                                        <TextBlock Text="{Binding SideText}" FontSize="10" Foreground="{DynamicResource TextMid}" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                            <TextBlock Text="{Binding PlayerText}" FontSize="10"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource TextValue}" />
+                                                            <TextBlock Text="{Binding Date}" FontSize="10"
+                                                                       Foreground="{DynamicResource TextMid}" />
+                                                            <TextBlock Text="{Binding RoundText}" FontSize="10"
+                                                                       Foreground="{DynamicResource TextMid}" />
+                                                            <TextBlock Text="{Binding SideText}" FontSize="10"
+                                                                       Foreground="{DynamicResource TextMid}" />
+                                                        </StackPanel>
                                                     </StackPanel>
-                                                </StackPanel>
-                                                <Button Grid.Column="1" Content="Open" Classes="ghost" FontSize="11" Padding="8 3"
-                                                        VerticalAlignment="Center" Command="{Binding WatchCommand}"
-                                                        ToolTip.Tip="Open this demo in 2D Playback two seconds before the throw" />
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                    </DockPanel>
-                </Border>
+                                                    <Button Grid.Column="1" Content="Open" Classes="ghost"
+                                                            FontSize="11" Padding="8 3"
+                                                            VerticalAlignment="Center" Command="{Binding WatchCommand}"
+                                                            ToolTip.Tip="Open this demo in 2D Playback two seconds before the throw" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Border>
                 </Panel>
             </Panel>
         </Border>

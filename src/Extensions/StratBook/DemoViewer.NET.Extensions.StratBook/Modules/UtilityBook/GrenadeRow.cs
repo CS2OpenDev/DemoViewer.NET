@@ -164,8 +164,9 @@ public sealed class GrenadeRow
         set
         {
             // Held as a number; text that would not print back identically is kept verbatim.
-            if (value is not null && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
-                                  && string.Equals(id.ToString(CultureInfo.InvariantCulture), value, StringComparison.Ordinal))
+            if (value is not null
+                && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+                && string.Equals(id.ToString(CultureInfo.InvariantCulture), value, StringComparison.Ordinal))
             {
                 _throwerSteamId = id;
                 _throwerSteamIdText = null;

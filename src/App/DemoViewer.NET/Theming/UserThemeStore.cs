@@ -124,7 +124,9 @@ public sealed class UserThemeStore(ThemeRegistry registry)
 
     /// <summary>A copy of any theme with a palette (built-in or user) under a new name.</summary>
     public Theme Customize(string sourceId, string name) =>
-        Create(Registry.PaletteFor(sourceId) ?? throw new ArgumentException($"\"{sourceId}\" has no palette to copy.", nameof(sourceId)), name);
+        Create(
+            Registry.PaletteFor(sourceId)
+            ?? throw new ArgumentException($"\"{sourceId}\" has no palette to copy.", nameof(sourceId)), name);
 
     /// <summary>
     ///     Overwrites the user theme <paramref name="id" /> with <paramref name="palette" />, keeping its id and file.
@@ -139,7 +141,8 @@ public sealed class UserThemeStore(ThemeRegistry registry)
             throw new ArgumentException(problem, nameof(name));
         }
 
-        AtomicFile.WriteAllText(theme.FilePath!, ThemeExport.ToJson(palette, theme.Id, displayName, includeInherited: false));
+        AtomicFile.WriteAllText(theme.FilePath!,
+            ThemeExport.ToJson(palette, theme.Id, displayName, includeInherited: false));
         Registry.Reload();
         return Registry.Find(id)!;
     }
@@ -147,7 +150,8 @@ public sealed class UserThemeStore(ThemeRegistry registry)
     /// <summary>Renames the user theme <paramref name="id" />. Its id stays, so settings that select it keep working.</summary>
     public Theme Rename(string id, string newName)
     {
-        ThemePalette palette = Registry.PaletteFor(id) ?? throw new ArgumentException($"\"{id}\" is not a theme.", nameof(id));
+        ThemePalette palette = Registry.PaletteFor(id)
+                               ?? throw new ArgumentException($"\"{id}\" is not a theme.", nameof(id));
         return Save(id, palette, newName);
     }
 
@@ -190,7 +194,8 @@ public sealed class UserThemeStore(ThemeRegistry registry)
                 continue;
             }
 
-            if (ThemeJson.Parse(json, file).Definition is { } def && string.Equals(def.Id, id, StringComparison.OrdinalIgnoreCase))
+            if (ThemeJson.Parse(json, file).Definition is { } def
+                && string.Equals(def.Id, id, StringComparison.OrdinalIgnoreCase))
             {
                 files.Add(file);
             }
@@ -204,12 +209,14 @@ public sealed class UserThemeStore(ThemeRegistry registry)
         Theme theme = Registry.Find(id) ?? throw new ArgumentException($"\"{id}\" is not a theme.", nameof(id));
         if (theme.IsBuiltIn || theme.FilePath is null)
         {
-            throw new InvalidOperationException($"{theme.DisplayName} is built in and cannot be changed. Customize a copy instead.");
+            throw new InvalidOperationException(
+                $"{theme.DisplayName} is built in and cannot be changed. Customize a copy instead.");
         }
 
         return theme;
     }
 
     private static string Directory() =>
-        AppPaths.EnsureThemesDirectory() ?? throw new InvalidOperationException("There is no themes folder on this platform.");
+        AppPaths.EnsureThemesDirectory()
+        ?? throw new InvalidOperationException("There is no themes folder on this platform.");
 }

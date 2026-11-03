@@ -73,7 +73,8 @@ internal sealed class VelopackUpdateService : IUpdateService
         {
             _pending = null;
             UpdateInfo? best = await Task.Run(() => stable.CheckForUpdatesAsync(), ct).ConfigureAwait(false);
-            (UpdateManager Manager, UpdateInfo Info, bool IsBeta)? pending = best is null ? null : (stable, best, false);
+            (UpdateManager Manager, UpdateInfo Info, bool IsBeta)?
+                pending = best is null ? null : (stable, best, false);
 
             if (_subscribedToBeta() && BetaManager() is { } beta)
             {
@@ -122,7 +123,9 @@ internal sealed class VelopackUpdateService : IUpdateService
 
         try
         {
-            await Task.Run(() => pending.Manager.DownloadUpdatesAsync(pending.Info, progress is null ? null : progress.Report, ct), ct)
+            await Task.Run(
+                    () => pending.Manager.DownloadUpdatesAsync(pending.Info, progress is null ? null : progress.Report,
+                        ct), ct)
                 .ConfigureAwait(false);
 
             // Replaces the process. Nothing after this line runs on the success path, which is why
@@ -156,7 +159,8 @@ internal sealed class VelopackUpdateService : IUpdateService
     /// </summary>
     private UpdateManager? BetaManager() => _beta ??= TryCreate(OsChannel + BetaChannelSuffix, true);
 
-    private static bool IsBetaVersion(string? version) => version?.Contains(BetaChannelSuffix, StringComparison.OrdinalIgnoreCase) == true;
+    private static bool IsBetaVersion(string? version) =>
+        version?.Contains(BetaChannelSuffix, StringComparison.OrdinalIgnoreCase) == true;
 
     private static string OsChannel => VelopackRuntimeInfo.GetOsShortName(VelopackRuntimeInfo.SystemOs);
 

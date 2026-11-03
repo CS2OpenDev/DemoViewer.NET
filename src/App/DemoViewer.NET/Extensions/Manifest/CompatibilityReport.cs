@@ -12,11 +12,13 @@ public static class CompatibilityReport
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(host);
         PackCompatibility result = PackCompatibility.Check(manifest, host);
-        string verdict = result.IsCompatible ? "Compatible." : $"Incompatible: {result.Describe(manifest, manifest.Id)}.";
+        string verdict = result.IsCompatible
+            ? "Compatible."
+            : $"Incompatible: {result.Describe(manifest, manifest.Id)}.";
 
         return $"{manifest.Name} {manifest.Version} ({manifest.Id}): requiresHost {manifest.RequiresHost}, "
-            + $"requiresCs2DemoKit {manifest.RequiresCs2DemoKit}, minAppVersion {Floor(manifest.MinAppVersion)}; "
-            + $"host contract {host.ContractVersion}, CS2DemoKit {host.Cs2DemoKitVersion}, app {App(host.AppVersion)}. {verdict}";
+               + $"requiresCs2DemoKit {manifest.RequiresCs2DemoKit}, minAppVersion {Floor(manifest.MinAppVersion)}; "
+               + $"host contract {host.ContractVersion}, CS2DemoKit {host.Cs2DemoKitVersion}, app {App(host.AppVersion)}. {verdict}";
     }
 
     private static string Floor(SemVersion? minAppVersion) => minAppVersion?.ToString() ?? "any";

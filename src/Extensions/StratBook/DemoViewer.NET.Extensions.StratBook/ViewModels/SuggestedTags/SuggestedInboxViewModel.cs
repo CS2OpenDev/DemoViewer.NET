@@ -24,7 +24,11 @@ public sealed class SuggestedInboxRow(SuggestedInboxItem item)
 
     /// <summary>"de_mirage · spirit-vs-furia-m1.dem · r13 · T".</summary>
     public string WhereText => string.Join(" · ",
-        new[] { Item.Map ?? "no map", Item.FileName, string.Create(CultureInfo.InvariantCulture, $"r{Proposal.Round}"), ProposalIds.SideName(Proposal.Side) });
+        new[]
+        {
+            Item.Map ?? "no map", Item.FileName, string.Create(CultureInfo.InvariantCulture, $"r{Proposal.Round}"),
+            ProposalIds.SideName(Proposal.Side)
+        });
 
     public string DetectorText => Proposal.Detector;
 
@@ -34,7 +38,9 @@ public sealed class SuggestedInboxRow(SuggestedInboxItem item)
     public string MetaText => $"{ConfidenceText} · {DetectorText}" + (StateText.Length > 0 ? $" · {StateText}" : "");
 
     /// <summary>Why it fired, the first two evidence lines.</summary>
-    public string ReasonText => Proposal.Evidence.Count == 0 ? "" : string.Join("; ", Proposal.Evidence.Take(2).Select(e => e.Text));
+    public string ReasonText => Proposal.Evidence.Count == 0
+        ? ""
+        : string.Join("; ", Proposal.Evidence.Take(2).Select(e => e.Text));
 
     public GeneratedState State => Item.Entry.State;
 
@@ -143,13 +149,16 @@ public sealed partial class SuggestedInboxViewModel : ObservableObject, IWorkspa
     partial void OnShowSettledChanged(bool value) => Refresh();
 
     [RelayCommand]
-    private Task Accept(SuggestedInboxRow? row) => Verdict(row, i => _inbox!.AcceptAsync(i), "The tag could not be written.");
+    private Task Accept(SuggestedInboxRow? row) =>
+        Verdict(row, i => _inbox!.AcceptAsync(i), "The tag could not be written.");
 
     [RelayCommand]
-    private Task Dismiss(SuggestedInboxRow? row) => Verdict(row, i => _inbox!.DismissAsync(i), "The dismissal could not be written.");
+    private Task Dismiss(SuggestedInboxRow? row) =>
+        Verdict(row, i => _inbox!.DismissAsync(i), "The dismissal could not be written.");
 
     [RelayCommand]
-    private Task Restore(SuggestedInboxRow? row) => Verdict(row, i => _inbox!.RestoreAsync(i), "The restore could not be written.");
+    private Task Restore(SuggestedInboxRow? row) =>
+        Verdict(row, i => _inbox!.RestoreAsync(i), "The restore could not be written.");
 
     [RelayCommand]
     private async Task Open(SuggestedInboxRow? row)
@@ -216,13 +225,16 @@ public sealed partial class SuggestedInboxViewModel : ObservableObject, IWorkspa
         StatusLine = _inbox.IsLoaded
             ? string.Create(CultureInfo.InvariantCulture,
                 $"{pending} new {(pending == 1 ? "suggestion" : "suggestions")} across {demos} {(demos == 1 ? "demo" : "demos")}.")
-            : _inbox.IsLoading ? "Reading suggestions across the library…" : "Not read yet.";
+            : _inbox.IsLoading
+                ? "Reading suggestions across the library…"
+                : "Not read yet.";
     }
 
     private bool Matches(SuggestedInboxItem item)
     {
         TagProposal p = item.Entry.Proposal;
-        return (MapFilter == AllMaps || string.Equals(item.Map ?? "no map", MapFilter, StringComparison.OrdinalIgnoreCase))
+        return (MapFilter == AllMaps
+                || string.Equals(item.Map ?? "no map", MapFilter, StringComparison.OrdinalIgnoreCase))
                && (SideFilter == BothSides || ProposalIds.SideName(p.Side) == SideFilter)
                && (DetectorFilter == AllDetectors || p.Detector == DetectorFilter)
                && p.Confidence >= MinConfidence;
@@ -231,7 +243,8 @@ public sealed partial class SuggestedInboxViewModel : ObservableObject, IWorkspa
     // Keeps the "all" entry first and the rest sorted; leaves the collection alone when nothing changed.
     private static void Sync(BulkObservableCollection<string> target, string all, IEnumerable<string> values)
     {
-        List<string> next = [all, .. values.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)];
+        List<string> next =
+            [all, .. values.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)];
         if (!target.SequenceEqual(next, StringComparer.Ordinal))
         {
             target.ReplaceAll(next);

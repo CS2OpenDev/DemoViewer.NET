@@ -19,7 +19,7 @@ namespace DemoViewer.NET.Services.Review;
 ///     (plan F8: the tray was already cross-demo, and this is its generalisation rather than a second
 ///     subsystem beside it).
 ///     <para>
-    ///         <b>Threading.</b> UI thread only, like the Reels tray it replaced: every caller is a view
+///         <b>Threading.</b> UI thread only, like the Reels tray it replaced: every caller is a view
 ///         model reacting to a click, and <see cref="Changed" /> fires synchronously after each mutation
 ///         (or once at the end of a <see cref="Defer" /> scope) so a client re-reads a list that is
 ///         already final.
@@ -268,10 +268,12 @@ public sealed class ReviewQueue
     /// <param name="sectionTitle">The section's title card.</param>
     /// <param name="supersedes">(queued, incoming): true when the incoming clip replaces the queued one.</param>
     /// <returns>How many clips were added or replaced.</returns>
-    public int Merge(IEnumerable<ReviewEntry> clips, string sectionTitle, Func<ReviewEntry, ReviewEntry, bool> supersedes)
+    public int Merge(IEnumerable<ReviewEntry> clips, string sectionTitle,
+        Func<ReviewEntry, ReviewEntry, bool> supersedes)
     {
         ArgumentNullException.ThrowIfNull(supersedes);
-        return Merge(clips, sectionTitle, () => clip => List.FindIndex(e => e.Kind == ReviewEntryKind.Clip && supersedes(e, clip)));
+        return Merge(clips, sectionTitle,
+            () => clip => List.FindIndex(e => e.Kind == ReviewEntryKind.Clip && supersedes(e, clip)));
     }
 
     /// <summary>
@@ -283,7 +285,8 @@ public sealed class ReviewQueue
     /// <param name="sectionTitle">The section's title card.</param>
     /// <param name="supersedeKey">A clip's key, or null for a clip nothing supersedes.</param>
     /// <returns>How many clips were added or replaced.</returns>
-    public int MergeByKey<TKey>(IEnumerable<ReviewEntry> clips, string sectionTitle, Func<ReviewEntry, TKey?> supersedeKey)
+    public int MergeByKey<TKey>(IEnumerable<ReviewEntry> clips, string sectionTitle,
+        Func<ReviewEntry, TKey?> supersedeKey)
         where TKey : struct
     {
         ArgumentNullException.ThrowIfNull(supersedeKey);
@@ -323,7 +326,10 @@ public sealed class ReviewQueue
             int old = supersededAt(clip);
             if (old >= 0)
             {
-                List[old] = clip with { Id = List[old].Id, Question = List[old].Question, Reviewed = List[old].Reviewed };
+                List[old] = clip with
+                {
+                    Id = List[old].Id, Question = List[old].Question, Reviewed = List[old].Reviewed
+                };
             }
             else
             {
@@ -577,12 +583,14 @@ public sealed class ReviewQueue
 
         public bool Equals(ReviewEntry? x, ReviewEntry? y) =>
             x is { Kind: ReviewEntryKind.Clip } && y is { Kind: ReviewEntryKind.Clip }
-                          && x.FromTick == y.FromTick && x.ToTick == y.ToTick
-                          && string.Equals(x.DemoPath, y.DemoPath, StringComparison.OrdinalIgnoreCase)
-                          && Equals(x.Highlight, y.Highlight);
+                                                && x.FromTick == y.FromTick && x.ToTick == y.ToTick
+                                                && string.Equals(x.DemoPath, y.DemoPath,
+                                                    StringComparison.OrdinalIgnoreCase)
+                                                && Equals(x.Highlight, y.Highlight);
 
         public int GetHashCode(ReviewEntry obj) =>
-            HashCode.Combine(obj.Kind, StringComparer.OrdinalIgnoreCase.GetHashCode(obj.DemoPath), obj.FromTick, obj.ToTick, obj.Highlight);
+            HashCode.Combine(obj.Kind, StringComparer.OrdinalIgnoreCase.GetHashCode(obj.DemoPath), obj.FromTick,
+                obj.ToTick, obj.Highlight);
     }
 
     private sealed class DeferScope(ReviewQueue queue) : IDisposable
@@ -666,15 +674,18 @@ public sealed class ReviewQueue
 
         try
         {
-            ReviewQueueFile? file = JsonSerializer.Deserialize<ReviewQueueFile>(File.ReadAllText(_path), ReviewQueueFile.JsonOptions);
+            ReviewQueueFile? file =
+                JsonSerializer.Deserialize<ReviewQueueFile>(File.ReadAllText(_path), ReviewQueueFile.JsonOptions);
             if (file is null || file.SchemaVersion > ReviewQueueFile.CurrentSchema)
             {
-                Refuse($"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
+                Refuse(
+                    $"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
                 return;
             }
 
             _fileExtra = file.Extra;
-            IReadOnlyList<ReviewEntry> entries = ReviewQueueMigration.MigrateFile(_path, file, out ReviewQueueMigrationResult? migrated);
+            IReadOnlyList<ReviewEntry> entries =
+                ReviewQueueMigration.MigrateFile(_path, file, out ReviewQueueMigrationResult? migrated);
             Migration = migrated;
 
             // An entry with no id cannot be named by any mutation; give it one rather than drop it.

@@ -105,11 +105,13 @@ public sealed class GraphBreakpointStoreTests
     {
         using ConfigDir dir = new();
         GraphBreakpointStore store = new();
-        store.Save("demo-e", [new GraphBreakpoint
-        {
-            TargetKind = GraphBreakpointTarget.Node,
-            NodeKey = GraphNodeKey.ForGameScope("NewerNode").ToString()
-        }]);
+        store.Save("demo-e",
+        [
+            new GraphBreakpoint
+            {
+                TargetKind = GraphBreakpointTarget.Node, NodeKey = GraphNodeKey.ForGameScope("NewerNode").ToString()
+            }
+        ]);
         WriteLegacy(dir, "demo-e",
             """
             {"TargetKind":"Node","NodeName":"OlderNode","EdgeSource":null,"EdgeDest":null,
@@ -166,8 +168,7 @@ public sealed class GraphBreakpointStoreTests
     {
         Dictionary<string, List<PersistedGraphBreakpoint>> existing = new(StringComparer.Ordinal)
         {
-            ["keep"] = [Record("a")],
-            ["replace"] = [Record("b")]
+            ["keep"] = [Record("a")], ["replace"] = [Record("b")]
         };
 
         Dictionary<string, List<PersistedGraphBreakpoint>> merged =

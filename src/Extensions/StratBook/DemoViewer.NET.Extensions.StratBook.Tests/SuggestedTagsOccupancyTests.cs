@@ -87,9 +87,11 @@ public class SuggestedTagsOccupancyTests
             await Assert.That(first.IsAlive(6, 2)).IsFalse();
             await Assert.That(first.PlaceOf(6, 2)).IsNull();
             await Assert.That(second.SideOf(6)).IsEqualTo(3).Because("slot 6's second-round sample reads CT");
-            await Assert.That(second.CountsAt(3, 0)["TSpawn"]).IsEqualTo(5).Because("the old T slots stand where they stood, now on CT");
+            await Assert.That(second.CountsAt(3, 0)["TSpawn"]).IsEqualTo(5)
+                .Because("the old T slots stand where they stood, now on CT");
             await Assert.That(second.AliveCount(2, 0)).IsEqualTo(5).Because("slot 6's death was last round's");
-            await Assert.That(build.Disagreements).IsEmpty().Because("the row's kill and seats agree with every sample");
+            await Assert.That(build.Disagreements).IsEmpty()
+                .Because("the row's kill and seats agree with every sample");
         }
     }
 
@@ -260,7 +262,8 @@ public class SuggestedTagsOccupancyTests
         ];
 
         RoundOccupancy walked = RoundOccupancyBuilder.FromWalk(Demo(), facts, samples: samples).Rounds.Single();
-        RoundIndexDocument index = RoundIndexBuilder.Build(Demo(), facts, RoundIndexOptions.Default, PawnPlaceSource.Instance, samples);
+        RoundIndexDocument index = RoundIndexBuilder.Build(Demo(), facts, RoundIndexOptions.Default,
+            PawnPlaceSource.Instance, samples);
         RoundOccupancy indexed = RoundOccupancyBuilder.FromIndex(index, facts).Single();
 
         using (Assert.Multiple())
@@ -272,8 +275,11 @@ public class SuggestedTagsOccupancyTests
             {
                 foreach (int side in (int[])[2, 3])
                 {
-                    await Assert.That(indexed.AliveCount(side, s)).IsEqualTo(walked.AliveCount(side, s)).Because($"side {side} second {s}");
-                    await Assert.That(indexed.CountsAt(side, s)).IsEquivalentTo(walked.CountsAt(side, s), CollectionOrdering.Matching).Because($"side {side} second {s}");
+                    await Assert.That(indexed.AliveCount(side, s)).IsEqualTo(walked.AliveCount(side, s))
+                        .Because($"side {side} second {s}");
+                    await Assert.That(indexed.CountsAt(side, s))
+                        .IsEquivalentTo(walked.CountsAt(side, s), CollectionOrdering.Matching)
+                        .Because($"side {side} second {s}");
                 }
             }
         }
@@ -301,10 +307,44 @@ public class SuggestedTagsOccupancyTests
         ParsedDemo demo = SyntheticParsedDemo.Create(allGameEvents:
         [
             Fire("inferno_startburn", 300, new InfernoStartburnEvent { EntityId = 1, X = 1, Y = 2, Z = 3 }),
-            Fire("smokegrenade_detonate", 100, new SmokeGrenadeDetonateEvent { EntityId = 2, UserId = 6, UserIdPawn = 0, X = 4, Y = 5, Z = 6 }),
-            Fire("flashbang_detonate", 200, new FlashbangDetonateEvent { EntityId = 3, UserId = 7, UserIdPawn = 0, X = 7, Y = 8, Z = 9 }),
-            Fire("hegrenade_detonate", 250, new HegrenadeDetonateEvent { EntityId = 4, UserId = 8, UserIdPawn = 0, X = 0, Y = 0, Z = 0 }),
-            Fire("decoy_started", 400, new DecoyStartedEvent { EntityId = 5, UserId = 123456, X = 0, Y = 0, Z = 0 })
+            Fire("smokegrenade_detonate", 100,
+                new SmokeGrenadeDetonateEvent
+                {
+                    EntityId = 2,
+                    UserId = 6,
+                    UserIdPawn = 0,
+                    X = 4,
+                    Y = 5,
+                    Z = 6
+                }),
+            Fire("flashbang_detonate", 200,
+                new FlashbangDetonateEvent
+                {
+                    EntityId = 3,
+                    UserId = 7,
+                    UserIdPawn = 0,
+                    X = 7,
+                    Y = 8,
+                    Z = 9
+                }),
+            Fire("hegrenade_detonate", 250,
+                new HegrenadeDetonateEvent
+                {
+                    EntityId = 4,
+                    UserId = 8,
+                    UserIdPawn = 0,
+                    X = 0,
+                    Y = 0,
+                    Z = 0
+                }),
+            Fire("decoy_started", 400, new DecoyStartedEvent
+            {
+                EntityId = 5,
+                UserId = 123456,
+                X = 0,
+                Y = 0,
+                Z = 0
+            })
         ]);
 
         List<PlacedEvent> events = DetonationEvents.From(demo);
@@ -314,16 +354,21 @@ public class SuggestedTagsOccupancyTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(smoke.ThrowerSteamId).IsEqualTo(76561198000000006UL).Because("the thrower is the player; the slot stays for the side join");
+            await Assert.That(smoke.ThrowerSteamId).IsEqualTo(76561198000000006UL)
+                .Because("the thrower is the player; the slot stays for the side join");
             await Assert.That(smoke.ThrowerName).IsEqualTo("window guy");
             await Assert.That(DetectorMath.Evidence(smoke).Text).Contains("by window guy");
             await Assert.That(events[0].ThrowerSteamId).IsEqualTo(0UL);
             await Assert.That(events.Select(e => e.Kind)).IsEquivalentTo(
-                [DetonationEvents.Smoke, DetonationEvents.Flash, DetonationEvents.He, DetonationEvents.Inferno, DetonationEvents.Decoy], CollectionOrdering.Matching);
+            [
+                DetonationEvents.Smoke, DetonationEvents.Flash, DetonationEvents.He, DetonationEvents.Inferno,
+                DetonationEvents.Decoy
+            ], CollectionOrdering.Matching);
             await Assert.That(events[0].ThrowerSlot).IsEqualTo(6);
             await Assert.That(events[0].Position).IsEqualTo(new Vector3(4, 5, 6));
             await Assert.That(events[3].ThrowerSlot).IsEqualTo(-1).Because("inferno_startburn has no thrower");
-            await Assert.That(events[4].ThrowerSlot).IsEqualTo(-1).Because("decoy_started names a pawn handle, not a slot");
+            await Assert.That(events[4].ThrowerSlot).IsEqualTo(-1)
+                .Because("decoy_started names a pawn handle, not a slot");
             await Assert.That(events.All(e => e.Side == 0 && e.Place is null)).IsTrue();
         }
     }
@@ -336,7 +381,14 @@ public class SuggestedTagsOccupancyTests
         ParsedDemo demo = SyntheticParsedDemo.Create(allGameEvents:
         [
             Fire("inferno_startburn", 300, new InfernoStartburnEvent { EntityId = 1, X = 1, Y = 2, Z = 3 }),
-            Fire("decoy_started", 400, new DecoyStartedEvent { EntityId = 5, UserId = 123456, X = 0, Y = 0, Z = 0 })
+            Fire("decoy_started", 400, new DecoyStartedEvent
+            {
+                EntityId = 5,
+                UserId = 123456,
+                X = 0,
+                Y = 0,
+                Z = 0
+            })
         ]);
         List<RemovedProjectile> projectiles =
         [
@@ -368,7 +420,8 @@ public class SuggestedTagsOccupancyTests
 
         IReadOnlyList<TagProposal> proposals = SuggestedTagsTestData.Detect(round, flashes);
 
-        await Assert.That(proposals.Single().Side).IsEqualTo(2).Because("slot 6 is on T this round whatever the event carried");
+        await Assert.That(proposals.Single().Side).IsEqualTo(2)
+            .Because("slot 6 is on T this round whatever the event carried");
     }
 
     [Test]
@@ -386,10 +439,13 @@ public class SuggestedTagsOccupancyTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(new DetonationPlaceResolver(zones, places, cloud).Resolve(new Vector3(-200, 0, 0))).IsEqualTo("ZonePlace");
-            await Assert.That(new DetonationPlaceResolver(zones, places, cloud).Resolve(new Vector3(0, 0, 0))).IsEqualTo("IndexPlace")
+            await Assert.That(new DetonationPlaceResolver(zones, places, cloud).Resolve(new Vector3(-200, 0, 0)))
+                .IsEqualTo("ZonePlace");
+            await Assert.That(new DetonationPlaceResolver(zones, places, cloud).Resolve(new Vector3(0, 0, 0)))
+                .IsEqualTo("IndexPlace")
                 .Because("no zone there, and the index centroid on the band is 50 units away");
-            await Assert.That(new DetonationPlaceResolver(null, null, cloud).Resolve(new Vector3(10, 0, 0))).IsEqualTo("CloudPlace");
+            await Assert.That(new DetonationPlaceResolver(null, null, cloud).Resolve(new Vector3(10, 0, 0)))
+                .IsEqualTo("CloudPlace");
             await Assert.That(new DetonationPlaceResolver(null, places, cloud).Resolve(new Vector3(0, 0, 900))).IsNull()
                 .Because("the upper floor's centroid is off the band and the cloud's points are 900 units down");
             await Assert.That(new DetonationPlaceResolver(null, null, cloud).Resolve(new Vector3(500, 0, 0))).IsNull()

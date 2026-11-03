@@ -50,7 +50,8 @@ public static class PlayerRoundFacet
         Dictionary<ulong, Dictionary<(int Side, long Round), Dictionary<string, double>>> rounds = [];
         foreach (FactRow row in rows)
         {
-            if (!ulong.TryParse(row.Dimensions.GetValueOrDefault("steam_id")?.AsText(), NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+            if (!ulong.TryParse(row.Dimensions.GetValueOrDefault("steam_id")?.AsText(), NumberStyles.None,
+                    CultureInfo.InvariantCulture, out ulong id)
                 || id == 0
                 || row.Values.GetValueOrDefault("side")?.AsInteger() is not { } side
                 || side is not (Ct or T)
@@ -72,7 +73,9 @@ public static class PlayerRoundFacet
             foreach (string count in Counts)
             {
                 double value = Number(row.Values.GetValueOrDefault(count));
-                line[count] = count is "kast" or "survived" ? Math.Max(line.GetValueOrDefault(count), value > 0 ? 1 : 0) : line.GetValueOrDefault(count) + value;
+                line[count] = count is "kast" or "survived"
+                    ? Math.Max(line.GetValueOrDefault(count), value > 0 ? 1 : 0)
+                    : line.GetValueOrDefault(count) + value;
             }
         }
 

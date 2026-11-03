@@ -95,8 +95,10 @@ public class ResultCardTests
         {
             await Assert.That(fourAcross).IsEquivalentTo([4, 4, 2], CollectionOrdering.Matching);
             await Assert.That(threeAcross).IsEquivalentTo([3, 3, 3, 1], CollectionOrdering.Matching);
-            await Assert.That(oneAcross).IsEqualTo(10).Because("a width narrower than one card still shows one per row");
-            await Assert.That(h.Vm.CardRows.SelectMany(r => r.Items)).IsEquivalentTo(h.Vm.Cards, CollectionOrdering.Matching);
+            await Assert.That(oneAcross).IsEqualTo(10)
+                .Because("a width narrower than one card still shows one per row");
+            await Assert.That(h.Vm.CardRows.SelectMany(r => r.Items))
+                .IsEquivalentTo(h.Vm.Cards, CollectionOrdering.Matching);
         }
 
         h.Vm.Clear();
@@ -127,9 +129,11 @@ public class ResultCardTests
             await Assert.That(label).IsEqualTo("Show 200 more (250 not shown)");
             await Assert.That(second).IsEqualTo(400);
             await Assert.That(allShown).IsTrue();
-            await Assert.That(h.Vm.SendToReviewLabel).IsEqualTo("Send 450 to Review").Because("the whole set, not the page");
+            await Assert.That(h.Vm.SendToReviewLabel).IsEqualTo("Send 450 to Review")
+                .Because("the whole set, not the page");
             await Assert.That(h.Vm.SelectedIndex).IsEqualTo(201);
-            await Assert.That(h.Vm.ShownCount).IsEqualTo(400).Because("walking past the last shown card shows the next page");
+            await Assert.That(h.Vm.ShownCount).IsEqualTo(400)
+                .Because("walking past the last shown card shows the next page");
         }
     }
 
@@ -148,7 +152,13 @@ public class ResultCardTests
             {
                 Width = 1280,
                 Height = 900,
-                Content = new Avalonia.Controls.ScrollViewer { Content = new DemoViewer.NET.Extensions.StratBook.Views.Situations.ResultCardsView { DataContext = h.Vm } }
+                Content = new Avalonia.Controls.ScrollViewer
+                {
+                    Content = new DemoViewer.NET.Extensions.StratBook.Views.Situations.ResultCardsView
+                    {
+                        DataContext = h.Vm
+                    }
+                }
             };
             window.Show();
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -164,8 +174,10 @@ public class ResultCardTests
             window.Close();
             using (Assert.Multiple())
             {
-                await Assert.That(h.Vm.CardColumns).IsGreaterThan(1).Because("the view hands the VM its width in cards");
-                await Assert.That(realized).IsLessThan(100).Because("a WrapPanel realized every one of the 1,000 cards");
+                await Assert.That(h.Vm.CardColumns).IsGreaterThan(1)
+                    .Because("the view hands the VM its width in cards");
+                await Assert.That(realized).IsLessThan(100)
+                    .Because("a WrapPanel realized every one of the 1,000 cards");
                 await Assert.That(more).IsTrue().Because("the first 200 of 1,000 are shown, then Show more");
             }
         });
@@ -179,7 +191,8 @@ public class ResultCardTests
             await Assert.That(ResultCardViewModel.SeekTickFor(4008, 64)).IsEqualTo(3368);
             await Assert.That(ResultCardViewModel.SeekTickFor(4008, 128)).IsEqualTo(2728);
             await Assert.That(ResultCardViewModel.SeekTickFor(100, 64)).IsEqualTo(0);
-            await Assert.That(ResultCardViewModel.SeekTickFor(4008, 0)).IsEqualTo(3368).Because("an unknown rate is 64");
+            await Assert.That(ResultCardViewModel.SeekTickFor(4008, 0)).IsEqualTo(3368)
+                .Because("an unknown rate is 64");
         }
 
         // The record's tick rate reaches the card through the worker. The fill is held until the
@@ -221,7 +234,8 @@ public class ResultCardTests
             await Assert.That(h.Vm.WalkLine).IsEqualTo("3 of 3");
             await Assert.That(h.Vm.Cards[2].IsSelected).IsTrue();
             await Assert.That(h.Vm.Cards[1].IsSelected).IsFalse();
-            await Assert.That(h.Seam.Seeks).IsEquivalentTo([(DemoA, 3368), (DemoA, 9000), (DemoB, 500)], CollectionOrdering.Matching);
+            await Assert.That(h.Seam.Seeks)
+                .IsEquivalentTo([(DemoA, 3368), (DemoA, 9000), (DemoB, 500)], CollectionOrdering.Matching);
         }
 
         // A click on any card is the same funnel, and makes it the walk's current one.
@@ -245,11 +259,13 @@ public class ResultCardTests
         SituationThumbnailKey key = new("3f9c", 3, 11066, "ri1;cadence=1;token=1;rf=1;src=pawn;pos=1");
         using (Assert.Multiple())
         {
-            await Assert.That(key).IsEqualTo(new SituationThumbnailKey("3f9c", 3, 11066, "ri1;cadence=1;token=1;rf=1;src=pawn;pos=1"));
+            await Assert.That(key)
+                .IsEqualTo(new SituationThumbnailKey("3f9c", 3, 11066, "ri1;cadence=1;token=1;rf=1;src=pawn;pos=1"));
             await Assert.That(key).IsNotEqualTo(key with { Tick = 11130 });
             await Assert.That(key).IsNotEqualTo(key with { Round = 4 });
             await Assert.That(key).IsNotEqualTo(key with { StableKey = "aaaa" });
-            await Assert.That(key).IsNotEqualTo(key with { Fingerprint = "ri1;cadence=1;token=1;rf=1;src=zones;zv=1;pos=1" })
+            await Assert.That(key)
+                .IsNotEqualTo(key with { Fingerprint = "ri1;cadence=1;token=1;rf=1;src=zones;zv=1;pos=1" })
                 .Because("a rebuilt index must never show through a picture of the old rows");
         }
 
@@ -287,7 +303,8 @@ public class ResultCardTests
             await Assert.That(card.ThumbnailNote).IsEqualTo(ResultCardsViewModel.NoPositionsNote);
             await Assert.That(card.HasThumbnailNote).IsTrue();
             await Assert.That(h.Seam.Seeks).IsEmpty().Because("nothing was clicked: no demo opens for a picture");
-            await Assert.That(h.MapLoads).IsEmpty().Because("with no tuples there is nothing to draw, so not even the bundle is asked for");
+            await Assert.That(h.MapLoads).IsEmpty()
+                .Because("with no tuples there is nothing to draw, so not even the bundle is asked for");
             await Assert.That(h.Vm.Cache.Count).IsEqualTo(0);
         }
     }
@@ -299,12 +316,9 @@ public class ResultCardTests
         using Harness h = new();
         h.Cache.Upsert(ParsedRecord(DemoA, sha: "abc"));
         RoundIndexBuild build = RoundIndexBuilder.BuildWithPositions(Demo(), Facts(Round(1, 1000, 1400)),
-            RoundIndexOptions.Default, PawnPlaceSource.Instance, [.. Everyone(1000, "BombsiteA", "Ramp"), .. Placed(1064)]);
-        build.Positions.Demo = new RoundPositionsDemo
-        {
-            StableKey = DemoCacheStore.StableKey(DemoA),
-            Sha256 = "abc"
-        };
+            RoundIndexOptions.Default, PawnPlaceSource.Instance,
+            [.. Everyone(1000, "BombsiteA", "Ramp"), .. Placed(1064)]);
+        build.Positions.Demo = new RoundPositionsDemo { StableKey = DemoCacheStore.StableKey(DemoA), Sha256 = "abc" };
         h.Sidecars.WritePositions(DemoA, build.Positions);
 
         h.Vm.Load([Hit(DemoA, 1, 1000, 1064, "abc"), Hit(DemoA, 1, 1000, 1200, "abc")]);
@@ -314,10 +328,12 @@ public class ResultCardTests
         {
             await Assert.That(h.Vm.Cards[0].ThumbnailPng).IsNotNull();
             await Assert.That(h.Vm.Cards[0].ThumbnailPng!.Length).IsGreaterThan(100);
-            await Assert.That(h.Vm.Cards[0].ThumbnailNote).IsEqualTo("").Because("a picture, so no note even without a bitmap decoder");
+            await Assert.That(h.Vm.Cards[0].ThumbnailNote).IsEqualTo("")
+                .Because("a picture, so no note even without a bitmap decoder");
             await Assert.That(h.Vm.Cards[1].ThumbnailPng).IsNull().Because("step 3 was not sampled");
             await Assert.That(h.Vm.Cards[1].ThumbnailNote).IsEqualTo(ResultCardsViewModel.NoSampleNote);
-            await Assert.That(h.MapLoads).IsEquivalentTo(["de_nuke"], CollectionOrdering.Matching).Because("one bundle load per map per batch");
+            await Assert.That(h.MapLoads).IsEquivalentTo(["de_nuke"], CollectionOrdering.Matching)
+                .Because("one bundle load per map per batch");
             await Assert.That(h.Vm.Cache.Count).IsEqualTo(1);
             await Assert.That(h.Vm.Cache.TryGet(new SituationThumbnailKey(DemoCacheStore.StableKey(DemoA), 1, 1064,
                 h.Sources.FingerprintFor("de_nuke")))).IsNotNull();
@@ -396,9 +412,13 @@ public class ResultCardTests
             (2, 3000, 4000, [new RoundIndexRun(0, 2, "Outside:5", "Lobby:5")]));
         Indexed(h.Cache, h.Sidecars, DemoA, document);
         h.Index.Load();
-        RoundIndexEvaluator evaluator = new(h.Cache.Library(), h.Cache.RoundFacts(), h.Sidecars, h.Sources, () => true, walk: _ => []);
-        using SituationsTabViewModel tab = new(h.Index, evaluator, h.Cache.Library(), h.Sources, () => RoundIndexTokenSource.Pawn,
-            false, new QueryCanvasViewModel(h.Index, new QueryPlaceResolver(h.Index, h.Sources.Zones), h.Cache.Library(), _ => null), h.Vm);
+        RoundIndexEvaluator evaluator = new(h.Cache.Library(), h.Cache.RoundFacts(), h.Sidecars, h.Sources, () => true,
+            walk: _ => []);
+        using SituationsTabViewModel tab = new(h.Index, evaluator, h.Cache.Library(), h.Sources,
+            () => RoundIndexTokenSource.Pawn,
+            false,
+            new QueryCanvasViewModel(h.Index, new QueryPlaceResolver(h.Index, h.Sources.Zones), h.Cache.Library(),
+                _ => null), h.Vm);
 
         tab.Canvas.Map = "de_nuke";
         tab.Canvas.SearchCommand.Execute(null);
@@ -407,13 +427,16 @@ public class ResultCardTests
         using (Assert.Multiple())
         {
             await Assert.That(tab.Canvas.ResultCount).IsEqualTo(2);
-            await Assert.That(tab.Results.Count).IsEqualTo(2).Because("the count is the card list's length by construction");
-            await Assert.That(tab.Results.Cards.Select(c => c.Hit.RoundNumber)).IsEquivalentTo([1, 2], CollectionOrdering.Matching);
+            await Assert.That(tab.Results.Count).IsEqualTo(2)
+                .Because("the count is the card list's length by construction");
+            await Assert.That(tab.Results.Cards.Select(c => c.Hit.RoundNumber))
+                .IsEquivalentTo([1, 2], CollectionOrdering.Matching);
         }
 
         tab.Results.Cache.Put(new SituationThumbnailKey("k", 1, 1, "f"), [1]);
         tab.RebuildIndexCommand.Execute(null);
-        await Assert.That(tab.Results.Cache.Count).IsEqualTo(0).Because("every picture was of rows about to be replaced");
+        await Assert.That(tab.Results.Cache.Count).IsEqualTo(0)
+            .Because("every picture was of rows about to be replaced");
 
         // The map moves: the canvas nulls its count and the cards, which described the old query, go.
         tab.Canvas.Map = "de_dust2";

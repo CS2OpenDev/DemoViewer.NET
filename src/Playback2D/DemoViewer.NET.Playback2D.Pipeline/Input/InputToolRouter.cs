@@ -116,7 +116,8 @@ public sealed class InputToolRouter
     ///         <see cref="ToolKind.PanZoom" /> still drags, and Esc still has to reach it.
     ///     </para>
     /// </summary>
-    public bool IsDrawingToolActive => !string.Equals(ActiveToolId, ToolIds.Of(ToolKind.PanZoom), StringComparison.Ordinal);
+    public bool IsDrawingToolActive =>
+        !string.Equals(ActiveToolId, ToolIds.Of(ToolKind.PanZoom), StringComparison.Ordinal);
 
     // No ActiveToolChanged event: the selection round-trips through AnnotationsPanelViewModel's own
     // ObservableProperty, which is what the toolbar binds and what the View's ToolSelected wire drives
@@ -163,7 +164,7 @@ public sealed class InputToolRouter
     {
         ArgumentNullException.ThrowIfNull(tool);
         if (ReferenceEquals(tool, _panZoom) || !_tools.TryGetValue(tool.Id, out IPointerTool? current)
-            || !ReferenceEquals(current, tool))
+                                            || !ReferenceEquals(current, tool))
         {
             return;
         }

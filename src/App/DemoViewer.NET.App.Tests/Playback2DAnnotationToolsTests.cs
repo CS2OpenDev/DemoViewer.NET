@@ -500,10 +500,7 @@ public class Playback2DAnnotationToolsTests
             // one layer down.
             await Assert.That(panel.CanAutoSave).IsFalse();
 
-            AnnotationToolbar toolbar = new()
-            {
-                DataContext = panel
-            };
+            AnnotationToolbar toolbar = new() { DataContext = panel };
             CheckBox box = toolbar.FindControl<CheckBox>("AutoSaveToggle")
                            ?? throw new InvalidOperationException(
                                "AutoSaveToggle is not in the toolbar — the key is unreachable again.");

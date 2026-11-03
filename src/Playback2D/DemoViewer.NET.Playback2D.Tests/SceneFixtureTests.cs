@@ -144,11 +144,7 @@ public class SceneFixtureTests
         string path = Path.Combine(dir, "sample.scene.json");
         try
         {
-            SceneFixture original = new()
-            {
-                Frame = SampleFrame(),
-                Size = new SKSizeI(320, 180)
-            };
+            SceneFixture original = new() { Frame = SampleFrame(), Size = new SKSizeI(320, 180) };
             original.Save(path);
 
             SceneFixture restored = SceneFixture.Load(path);
@@ -194,23 +190,14 @@ public class SceneFixtureTests
                 Kind = GrenadeKind.Molotov,
                 LastTick = 1230,
                 Alpha = 0.5,
-                Points =
-                {
-                    new GrenadeTrailPoint(1f, 2f, 3f),
-                    new GrenadeTrailPoint(4f, 5f, 6f)
-                }
+                Points = { new GrenadeTrailPoint(1f, 2f, 3f), new GrenadeTrailPoint(4f, 5f, 6f) }
             }
         ],
         Routes =
         [
             new TokenRouteLine
             {
-                Team = 2,
-                Points =
-                {
-                    new GrenadeTrailPoint(10f, 20f, 30f),
-                    new GrenadeTrailPoint(40f, 50f, 30f)
-                }
+                Team = 2, Points = { new GrenadeTrailPoint(10f, 20f, 30f), new GrenadeTrailPoint(40f, 50f, 30f) }
             }
         ],
         Bomb = new BombMarker(7f, 8f, 9f, 0.42, true, 0.6),
@@ -267,10 +254,7 @@ public class SceneFixtureTests
     public async Task Write_UsesLfLineEndings_OnEveryPlatform()
     {
         using MemoryStream stream = new();
-        SceneFixtureSerializer.Write(new SceneFixture
-        {
-            Frame = SampleFrame()
-        }, stream);
+        SceneFixtureSerializer.Write(new SceneFixture { Frame = SampleFrame() }, stream);
 
         string json = Encoding.UTF8.GetString(stream.ToArray());
 

@@ -79,11 +79,7 @@ public class HighlightScanServiceTests
         ModifiedTicks = modified,
         TickRate = tickRate,
         ConfigFingerprint = fingerprint,
-        Analysis = new TierStamp
-        {
-            Schema = DemoCacheRecord.AnalysisSchema,
-            ComputedAtTicks = 1
-        },
+        Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
         AnalysisState = DemoAnalysisState.Indexed
     };
 
@@ -249,7 +245,8 @@ public class HighlightScanServiceTests
     {
         DemoCacheStore store = new(null);
         bool optIn = false;
-        using HighlightScanService scanner = NewScanner(store, new FakeHarvester(), () => ["/nfs/stale.dem"], () => optIn,
+        using HighlightScanService scanner = NewScanner(store, new FakeHarvester(), () => ["/nfs/stale.dem"],
+            () => optIn,
             (_, _) => null);
         using HighlightBacklogViewModel status = new(scanner, store);
         await Assert.That(status.Notice).Contains("turn on the background scan");
@@ -260,7 +257,8 @@ public class HighlightScanServiceTests
 
         optIn = false;
         scanner.OptInChanged();
-        await Assert.That(status.Notice).Contains("turn on the background scan").Because("turning it off must not keep promising a refresh");
+        await Assert.That(status.Notice).Contains("turn on the background scan")
+            .Because("turning it off must not keep promising a refresh");
     }
 
     [Test]
@@ -275,7 +273,8 @@ public class HighlightScanServiceTests
             store.Upsert(failed);
         }
 
-        using HighlightScanService scanner = NewScanner(store, new FakeHarvester(), () => [], () => false, (_, _) => null);
+        using HighlightScanService scanner =
+            NewScanner(store, new FakeHarvester(), () => [], () => false, (_, _) => null);
         using HighlightBacklogViewModel status = new(scanner, store);
 
         await Assert.That(status.FailedCount).IsEqualTo(1);
@@ -297,16 +296,21 @@ public class HighlightScanServiceTests
 
             foreach (MergedRulesBuild rules in new[]
                      {
-                         new MergedRulesBuild(() => YamlConfigLoader.LoadWithOverlay(shipped, null), () => [StampedRuleset.Core("round_facts")]),
-                         new MergedRulesBuild(() => YamlConfigLoader.LoadWithOverlay(shipped, user.FullName), () => [StampedRuleset.Core("round_facts")])
+                         new MergedRulesBuild(() => YamlConfigLoader.LoadWithOverlay(shipped, null),
+                             () => [StampedRuleset.Core("round_facts")]),
+                         new MergedRulesBuild(() => YamlConfigLoader.LoadWithOverlay(shipped, user.FullName),
+                             () => [StampedRuleset.Core("round_facts")])
                      })
             {
                 DemoCacheStore store = new(null);
-                store.Upsert(IndexedRow("/demos/scanned.dem", 0, fingerprint: MergedRulesBuildTests.ShippedFingerprint64));
+                store.Upsert(IndexedRow("/demos/scanned.dem", 0,
+                    fingerprint: MergedRulesBuildTests.ShippedFingerprint64));
                 store.Upsert(IndexedRow("/demos/stale.dem", 0, fingerprint: "OLD"));
-                using HighlightScanService scanner = new(store, new RulesHighlightHarvester(rules), () => [], () => false);
+                using HighlightScanService scanner = new(store, new RulesHighlightHarvester(rules), () => [],
+                    () => false);
 
-                await Assert.That(scanner.PendingPaths()).IsEquivalentTo(["/demos/stale.dem"], CollectionOrdering.Matching);
+                await Assert.That(scanner.PendingPaths())
+                    .IsEquivalentTo(["/demos/stale.dem"], CollectionOrdering.Matching);
             }
         }
         finally
@@ -345,26 +349,15 @@ public class HighlightScanServiceTests
                 return Harvest();
             });
 
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/old.dem",
-            ModifiedTicks = 1
-        });
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/newest.dem",
-            ModifiedTicks = 9
-        });
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/mid.dem",
-            ModifiedTicks = 5
-        });
+        store.Upsert(new DemoCacheRecord { Path = "/d/old.dem", ModifiedTicks = 1 });
+        store.Upsert(new DemoCacheRecord { Path = "/d/newest.dem", ModifiedTicks = 9 });
+        store.Upsert(new DemoCacheRecord { Path = "/d/mid.dem", ModifiedTicks = 5 });
 
         scanner.EnsureBackfillRunning();
         await WaitForAsync(() => scanner.QueueLength == 0 && !scanner.IsScanning, "queue drained");
 
-        await Assert.That(processed).IsEquivalentTo(["/d/newest.dem", "/d/mid.dem", "/d/old.dem"], CollectionOrdering.Matching)
+        await Assert.That(processed)
+            .IsEquivalentTo(["/d/newest.dem", "/d/mid.dem", "/d/old.dem"], CollectionOrdering.Matching)
             .Because("newest-first drain order");
         await Assert.That(maxConcurrent).IsEqualTo(1).Because("never two demos in flight");
         await Assert.That(store.Index.All(r => r.AnalysisState == DemoAnalysisState.Indexed)).IsTrue();
@@ -385,11 +378,7 @@ public class HighlightScanServiceTests
                 return Harvest();
             });
 
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/a.dem",
-            ModifiedTicks = 1
-        });
+        store.Upsert(new DemoCacheRecord { Path = "/d/a.dem", ModifiedTicks = 1 });
 
         scanner.EnsureBackfillRunning();
         await Task.Delay(100);
@@ -442,13 +431,15 @@ public class HighlightScanServiceTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(scanner.Wants("/d/a.dem")).IsFalse().Because("the opt-in alone decides a read of its own");
+            await Assert.That(scanner.Wants("/d/a.dem")).IsFalse()
+                .Because("the opt-in alone decides a read of its own");
             await Assert.That(scanner.WantsIfRulesRun("/d/a.dem")).IsTrue();
             await Assert.That(scanner.WantsIfRulesRun("/d/fresh.dem")).IsFalse();
         }
 
         scanner.Evaluate("/d/a.dem", SyntheticDemo());
-        await Assert.That(harvester.RunBareAnalysisCalls).IsEqualTo(1).Because("a rider's turn writes the run's highlights");
+        await Assert.That(harvester.RunBareAnalysisCalls).IsEqualTo(1)
+            .Because("a rider's turn writes the run's highlights");
     }
 
     [Test]
@@ -470,21 +461,9 @@ public class HighlightScanServiceTests
             });
 
         // A whole queue of Pending skeletons (a fresh library after RefreshStaleness)…
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/other1.dem",
-            ModifiedTicks = 9
-        });
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/other2.dem",
-            ModifiedTicks = 8
-        });
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/wanted.dem",
-            ModifiedTicks = 1
-        });
+        store.Upsert(new DemoCacheRecord { Path = "/d/other1.dem", ModifiedTicks = 9 });
+        store.Upsert(new DemoCacheRecord { Path = "/d/other2.dem", ModifiedTicks = 8 });
+        store.Upsert(new DemoCacheRecord { Path = "/d/wanted.dem", ModifiedTicks = 1 });
 
         // …a manual retry on ONE demo drains exactly that demo, even though it is the OLDEST,
         // and leaves the rest queued: no whole-library marathon from a single retry click.
@@ -508,16 +487,8 @@ public class HighlightScanServiceTests
             () => true,
             (path, _) => path.Contains("bad", StringComparison.Ordinal) ? null : Harvest());
 
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/bad.dem",
-            ModifiedTicks = 9
-        });
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/good.dem",
-            ModifiedTicks = 1
-        });
+        store.Upsert(new DemoCacheRecord { Path = "/d/bad.dem", ModifiedTicks = 9 });
+        store.Upsert(new DemoCacheRecord { Path = "/d/good.dem", ModifiedTicks = 1 });
 
         scanner.EnsureBackfillRunning();
         await WaitForAsync(() => scanner.QueueLength == 0 && !scanner.IsScanning, "drain");
@@ -544,11 +515,7 @@ public class HighlightScanServiceTests
 
         // An interactive job holds the machine. The scanner's queued work must not process.
         IDisposable interactive = await gate.AcquireInteractiveAsync();
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/a.dem",
-            ModifiedTicks = 1
-        });
+        store.Upsert(new DemoCacheRecord { Path = "/d/a.dem", ModifiedTicks = 1 });
         scanner.EnsureBackfillRunning();
         await Task.Delay(150);
         await Assert.That(processedCount).IsEqualTo(0).Because("background yields to interactive");

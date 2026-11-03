@@ -53,7 +53,8 @@ public static class SidecarFormatMigration
             return null;
         }
 
-        return queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "Sidecar format: compress cached files",
+        return queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration,
+            "Sidecar format: compress cached files",
             "demo-cache", DemoJobPriority.Background,
             async job =>
             {

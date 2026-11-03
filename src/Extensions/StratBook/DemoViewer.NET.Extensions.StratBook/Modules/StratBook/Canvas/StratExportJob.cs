@@ -111,7 +111,9 @@ public static class StratExportJob
 
         if (first > 0)
         {
-            ranges.Add(new SceneExportRange(Describe(projection.CountsUp ? "From the start" : "From the round's start", 0, end, projection), 0, end));
+            ranges.Add(new SceneExportRange(
+                Describe(projection.CountsUp ? "From the start" : "From the round's start", 0, end, projection), 0,
+                end));
         }
 
         return ranges;
@@ -137,8 +139,7 @@ public static class StratExportJob
             asset is null ? capture.FallbackBounds : asset.RadarBounds, null,
             projection.Utility, projection.RoundSeconds, startTick, endTick, fps, speed)
         {
-            Routes = projection.Routed,
-            CountsUp = projection.CountsUp
+            Routes = projection.Routed, CountsUp = projection.CountsUp
         };
     }
 
@@ -161,7 +162,8 @@ public static class StratExportJob
             MapName = capture.MapName,
             Ink = capture.Ink,
             Hud = new StratHudDataSource(capture.Projection.RoundSeconds, capture.Projection.CountsUp),
-            Source = run => new StratFrameSource(BuildSpec(capture, run.Map, run.Start, run.End, run.Fps, run.Speed))
+            Source = run =>
+                new StratFrameSource(BuildSpec(capture, run.Map, run.Start, run.End, run.Fps, run.Speed))
         };
     }
 

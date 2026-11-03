@@ -102,10 +102,7 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
             return;
         }
 
-        _parseChainWindow = new ParseChainWindow
-        {
-            DataContext = dataContext
-        };
+        _parseChainWindow = new ParseChainWindow { DataContext = dataContext };
         _parseChainWindow.Closed += (_, _) => _parseChainWindow = null;
 
         ShowOwned(_parseChainWindow);
@@ -126,10 +123,7 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
             return;
         }
 
-        _settingsWindow = new SettingsWindow
-        {
-            DataContext = viewModel
-        };
+        _settingsWindow = new SettingsWindow { DataContext = viewModel };
 
         void OnCloseRequested(object? sender, EventArgs e)
         {
@@ -162,10 +156,7 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
             return;
         }
 
-        _updateNoticeWindow = new UpdateNoticeWindow
-        {
-            DataContext = viewModel
-        };
+        _updateNoticeWindow = new UpdateNoticeWindow { DataContext = viewModel };
 
         void OnCloseRequested(object? sender, EventArgs e)
         {
@@ -197,10 +188,7 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
             return;
         }
 
-        _whatsNewWindow = new WhatsNewWindow
-        {
-            DataContext = viewModel
-        };
+        _whatsNewWindow = new WhatsNewWindow { DataContext = viewModel };
 
         void OnCloseRequested(object? sender, EventArgs e)
         {
@@ -248,10 +236,7 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
             return;
         }
 
-        _errorReportWindow = new ErrorReportWindow
-        {
-            DataContext = viewModel
-        };
+        _errorReportWindow = new ErrorReportWindow { DataContext = viewModel };
 
         viewModel.CloseRequested += OnErrorReportCloseRequested;
         _errorReportWindow.Closed += (_, _) =>
@@ -282,10 +267,7 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
         }
 
         ThemeEditorViewModel viewModel = create(themeId, missingOnly);
-        ThemeEditorWindow window = new()
-        {
-            DataContext = viewModel
-        };
+        ThemeEditorWindow window = new() { DataContext = viewModel };
         _themeEditorWindow = window;
 
         void OnCloseRequested(object? sender, EventArgs e)
@@ -312,10 +294,7 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
     {
         ArgumentNullException.ThrowIfNull(viewModel);
 
-        FirstRunWizardWindow window = new()
-        {
-            DataContext = viewModel
-        };
+        FirstRunWizardWindow window = new() { DataContext = viewModel };
 
         void OnCompleted(object? sender, EventArgs e)
         {

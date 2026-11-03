@@ -21,8 +21,15 @@ namespace DemoViewer.NET.AppTests.Extensions;
 public class SdkPlaybackSurfaceMapInfoTests
 {
     // Two floors: upper [-500, 100000) under key QuantizeZ(-500) = -512, lower [-2000, -500).
-    private static readonly MapLevel Upper = new() { Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000 };
-    private static readonly MapLevel Lower = new() { Id = MapSpace.IdForZMin(-2000), Name = "lower", ZMin = -2000, ZMax = -500 };
+    private static readonly MapLevel Upper = new()
+    {
+        Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000
+    };
+
+    private static readonly MapLevel Lower = new()
+    {
+        Id = MapSpace.IdForZMin(-2000), Name = "lower", ZMin = -2000, ZMax = -500
+    };
 
     // Hut is a 100-unit square at the origin on the upper floor, Ramp sits to its right; "Hut" is listed twice
     // and an unnamed place is listed once, as an overlay can produce.
@@ -56,7 +63,8 @@ public class SdkPlaybackSurfaceMapInfoTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(surface.Places).IsEquivalentTo(["Hut", "Ramp"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(surface.Places)
+                .IsEquivalentTo(["Hut", "Ramp"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
             await Assert.That(none.Places).IsEmpty();
         }
 
@@ -75,9 +83,11 @@ public class SdkPlaybackSurfaceMapInfoTests
             await Assert.That(surface.PlaceAt("upper", 50, 50)).IsEqualTo("Hut");
             await Assert.That(surface.PlaceAt("upper", 150, 50)).IsEqualTo("Ramp");
             await Assert.That(surface.PlaceAt("lower", 50, 50)).IsNull().Because("the lower floor has no areas");
-            await Assert.That(surface.PlaceAt("upper", 5_000, 5_000)).IsNull().Because("nothing is in snapping distance");
+            await Assert.That(surface.PlaceAt("upper", 5_000, 5_000)).IsNull()
+                .Because("nothing is in snapping distance");
             await Assert.That(surface.PlaceAt("attic", 50, 50)).IsNull().Because("no floor has that name");
-            await Assert.That(surface.PlaceAt(null, 50, 50)).IsNull().Because("a point on a two-floor map needs a floor");
+            await Assert.That(surface.PlaceAt(null, 50, 50)).IsNull()
+                .Because("a point on a two-floor map needs a floor");
         }
 
         vm.Dispose();
@@ -118,10 +128,12 @@ public class SdkPlaybackSurfaceMapInfoTests
             return false;
         });
 
-        (MapLevel Level, double X, double Y)[] points = [(Upper, 50, 50), (Upper, 150, 50), (Lower, 50, 50), (Upper, 900, 900)];
+        (MapLevel Level, double X, double Y)[] points =
+            [(Upper, 50, 50), (Upper, 150, 50), (Lower, 50, 50), (Upper, 900, 900)];
         foreach ((MapLevel level, double x, double y) in points)
         {
-            inner.TryHandlePointerPress(new ScenePointer(level, x, y, SKPoint.Empty, ToolModifiers.None, Scene2DFrame.Empty,
+            inner.TryHandlePointerPress(new ScenePointer(level, x, y, SKPoint.Empty, ToolModifiers.None,
+                Scene2DFrame.Empty,
                 () => zones));
         }
 

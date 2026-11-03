@@ -34,15 +34,18 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 15, Level = LogLevel.Information,
         Message = "Extension {name} {version} loaded ({source}) from '{location}'")]
-    public static partial void ExtensionLoaded(ILogger logger, string name, string version, string source, string location);
+    public static partial void ExtensionLoaded(ILogger logger, string name, string version, string source,
+        string location);
 
     [LoggerMessage(EventId = 16, Level = LogLevel.Warning,
         Message = "Extension {name} {version} not loaded ({source}): {problem}")]
-    public static partial void ExtensionIncompatible(ILogger logger, string name, string version, string source, string problem);
+    public static partial void ExtensionIncompatible(ILogger logger, string name, string version, string source,
+        string problem);
 
     [LoggerMessage(EventId = 17, Level = LogLevel.Warning,
         Message = "Staged extension at '{directory}' not loaded ({failure}): {detail}{logDetail}")]
-    public static partial void ExtensionCandidateRejected(ILogger logger, string directory, LoadFailure failure, string detail, string logDetail);
+    public static partial void ExtensionCandidateRejected(ILogger logger, string directory, LoadFailure failure,
+        string detail, string logDetail);
 
     [LoggerMessage(EventId = 18, Level = LogLevel.Warning,
         Message = "Extension {packId} update check failed ({status}): {detail}")]
@@ -51,7 +54,8 @@ internal static partial class AppLog
     // Information, not a warning: a feed that was never published is the normal state until the first
     // extension release. The URL is here because a wrong address looks the same from the app.
     [LoggerMessage(EventId = 41, Level = LogLevel.Information,
-        Message = "Extension {packId} has no update feed at '{url}' (404); nothing is published there yet, or the address is wrong")]
+        Message =
+            "Extension {packId} has no update feed at '{url}' (404); nothing is published there yet, or the address is wrong")]
     public static partial void ExtensionFeedNotPublished(ILogger logger, string packId, Uri url);
 
     [LoggerMessage(EventId = 19, Level = LogLevel.Information,
@@ -60,7 +64,8 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 20, Level = LogLevel.Warning,
         Message = "Extension {name} {version} update refused: {detail}{logDetail}")]
-    public static partial void ExtensionUpdateRefused(ILogger logger, string name, string version, string detail, string logDetail);
+    public static partial void ExtensionUpdateRefused(ILogger logger, string name, string version, string detail,
+        string logDetail);
 
     [LoggerMessage(EventId = 21, Level = LogLevel.Information,
         Message = "Removed staged extension directory '{directory}' ({reason})")]
@@ -73,7 +78,8 @@ internal static partial class AppLog
     /// </summary>
     [LoggerMessage(EventId = 22, Level = LogLevel.Warning,
         Message = "Extension {name} failed in {site} ({count} counted this session)")]
-    public static partial void ExtensionFaulted(ILogger logger, string name, string site, int count, Exception? exception);
+    public static partial void ExtensionFaulted(ILogger logger, string name, string site, int count,
+        Exception? exception);
 
     /// <summary>An extension crossed the fault threshold and was turned off until the app restarts.</summary>
     [LoggerMessage(EventId = 23, Level = LogLevel.Warning,
@@ -141,8 +147,10 @@ internal static partial class AppLog
 
     /// <summary>An extension's pass overran its time budget too often and sits out the rest of the session.</summary>
     [LoggerMessage(EventId = 26, Level = LogLevel.Warning,
-        Message = "Pass {passId} of {extension} overran its {budget} budget {count} times; it is off until the app restarts")]
-    public static partial void PassQuarantined(ILogger logger, string passId, string extension, TimeSpan budget, int count);
+        Message =
+            "Pass {passId} of {extension} overran its {budget} budget {count} times; it is off until the app restarts")]
+    public static partial void PassQuarantined(ILogger logger, string passId, string extension, TimeSpan budget,
+        int count);
 
     /// <summary>A pass was asked whether it wants a demo on the UI thread, which the host never does; it answered no.</summary>
     [LoggerMessage(EventId = 27, Level = LogLevel.Warning,
@@ -165,7 +173,8 @@ internal static partial class AppLog
     /// </summary>
     [LoggerMessage(EventId = 40, Level = LogLevel.Warning,
         Message = "Extension {extension}: {entry} could not be moved into its cache folder: {problem}")]
-    public static partial void ExtensionCacheEntryNotMoved(ILogger logger, string extension, string entry, string problem);
+    public static partial void ExtensionCacheEntryNotMoved(ILogger logger, string extension, string entry,
+        string problem);
 
     [LoggerMessage(EventId = 30, Level = LogLevel.Information,
         Message = "Library folder {folder}: {count} demo(s) listed in {elapsedMs} ms")]
@@ -178,7 +187,8 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 32, Level = LogLevel.Warning,
         Message = "Library folder {folder}: {directory} could not be listed: {reason}. Cached rows under it are kept")]
-    public static partial void LibraryDirectoryUnreached(ILogger logger, string folder, string directory, string reason);
+    public static partial void
+        LibraryDirectoryUnreached(ILogger logger, string folder, string directory, string reason);
 
     /// <summary>An empty listing over cached rows: an automount or mount point that is not up. Counted as not reached.</summary>
     [LoggerMessage(EventId = 34, Level = LogLevel.Warning,
@@ -191,21 +201,26 @@ internal static partial class AppLog
     public static partial void LibraryScanListed(ILogger logger, int count, int reached, int total, long elapsedMs);
 
     [LoggerMessage(EventId = 35, Level = LogLevel.Information,
-        Message = "Library scan finished: {count} demo(s) listed, {unmatched} left to fingerprint for copies, {pending} waiting on a full parse, in {elapsedMs} ms")]
-    public static partial void LibraryScanFinished(ILogger logger, int count, int unmatched, int pending, long elapsedMs);
+        Message =
+            "Library scan finished: {count} demo(s) listed, {unmatched} left to fingerprint for copies, {pending} waiting on a full parse, in {elapsedMs} ms")]
+    public static partial void LibraryScanFinished(ILogger logger, int count, int unmatched, int pending,
+        long elapsedMs);
 
     /// <summary>A folder's header reads ended early; its unread demos are read on the next scan.</summary>
     [LoggerMessage(EventId = 37, Level = LogLevel.Warning,
-        Message = "Library folder {folder}: {count} demo header(s) left unread: {reason}. They are read on the next scan")]
+        Message =
+            "Library folder {folder}: {count} demo header(s) left unread: {reason}. They are read on the next scan")]
     public static partial void LibraryHeadersLeftUnread(ILogger logger, string folder, int count, string reason);
 
     [LoggerMessage(EventId = 36, Level = LogLevel.Information,
-        Message = "Library copies resolved: {fingerprinted} file(s) fingerprinted, {copies} copy(ies) folded into another card, in {elapsedMs} ms")]
+        Message =
+            "Library copies resolved: {fingerprinted} file(s) fingerprinted, {copies} copy(ies) folded into another card, in {elapsedMs} ms")]
     public static partial void LibraryCopiesResolved(ILogger logger, int fingerprinted, int copies, long elapsedMs);
 
     /// <summary>A folder's fingerprint reads ended early; its unread demos wait for the next scan.</summary>
     [LoggerMessage(EventId = 38, Level = LogLevel.Warning,
-        Message = "Library folder {folder}: {count} demo(s) left without a fingerprint: {reason}. They are read on the next scan")]
+        Message =
+            "Library folder {folder}: {count} demo(s) left without a fingerprint: {reason}. They are read on the next scan")]
     public static partial void LibraryFingerprintsLeftUnread(ILogger logger, string folder, int count, string reason);
 
     /// <summary>

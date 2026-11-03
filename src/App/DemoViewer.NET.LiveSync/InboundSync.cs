@@ -54,10 +54,7 @@ internal sealed class InboundSync : IDisposable
         _serviceState = serviceState;
         _setApplyingRemote = setApplyingRemote;
 
-        _pump = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(33)
-        };
+        _pump = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _pump.Tick += (_, _) => PumpTick();
         _pump.Start();
     }

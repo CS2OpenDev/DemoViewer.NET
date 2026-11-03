@@ -56,7 +56,8 @@ public class TeamsModuleTests
     }
 
     // Two rosters that met twice, and a demo nobody recurs on.
-    private static async Task<(DemoCacheStore Cache, TeamIdentityService Teams)> Library(FakeExtensionIdentity? identity = null)
+    private static async Task<(DemoCacheStore Cache, TeamIdentityService Teams)> Library(
+        FakeExtensionIdentity? identity = null)
     {
         DemoCacheStore cache = new(null);
         TeamIdentityService teams = new(null, cache.Library(), run: _inline, identity: identity);
@@ -84,7 +85,8 @@ public class TeamsModuleTests
             await Assert.That(tab.TabId).IsEqualTo("teams.browser");
             await Assert.That(tab.Header).IsEqualTo("Teams");
             await Assert.That(tab.HostId).IsEqualTo(LibraryTabViewModel.HostId);
-            await Assert.That(tab.ViewModelFactory is not null).IsTrue().Because("lazy and retained, never DataContext");
+            await Assert.That(tab.ViewModelFactory is not null).IsTrue()
+                .Because("lazy and retained, never DataContext");
             await Assert.That(tab.DataContext).IsNull();
         }
     }
@@ -98,7 +100,8 @@ public class TeamsModuleTests
         {
             await Assert.That(feature).IsNotNull();
             await Assert.That(feature!.Scope).IsEqualTo(FeatureScope.Tab);
-            await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook").Because("the tab cascades off with the Strat Book extension");
+            await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook")
+                .Because("the tab cascades off with the Strat Book extension");
             await Assert.That(feature.GroupId).IsNull().Because("it must not disturb the leader-lock ordering");
             foreach (UserCategory category in Enum.GetValues<UserCategory>())
             {
@@ -122,7 +125,8 @@ public class TeamsModuleTests
             await Assert.That(vm.Teams.Count).IsEqualTo(2);
             await Assert.That(vm.HasTeams).IsTrue();
             await Assert.That(vm.Teams.All(t => t.DemoCount == 2)).IsTrue();
-            await Assert.That(vm.FooterLine).Contains("no recurring opponent").Because("nothing is us yet, so no demo has an opponent");
+            await Assert.That(vm.FooterLine).Contains("no recurring opponent")
+                .Because("nothing is us yet, so no demo has an opponent");
             await Assert.That(vm.MyAccountsLine).IsEqualTo("No accounts yet. Open Settings > Identity to add yours.");
             await Assert.That(vm.IsBrowser).IsFalse();
         }
@@ -146,7 +150,8 @@ public class TeamsModuleTests
         vm.SetAsUsCommand.Execute(null);
         using (Assert.Multiple())
         {
-            await Assert.That(vm.SelectedTeam!.Name).IsEqualTo("Our Five").Because("the selection survives the re-projection");
+            await Assert.That(vm.SelectedTeam!.Name).IsEqualTo("Our Five")
+                .Because("the selection survives the re-projection");
             await Assert.That(vm.SelectedTeam.IsUs).IsTrue();
             await Assert.That(teams.OurDemos().Count).IsEqualTo(2);
             await Assert.That(vm.FooterLine).DoesNotContain("no recurring opponent");
@@ -158,7 +163,8 @@ public class TeamsModuleTests
             await Assert.That(teams.MyAccounts).IsEquivalentTo(Ids(21, 99), CollectionOrdering.Matching);
             await Assert.That(teams.OurDemos().Count).IsEqualTo(3).Because("the me account resolves the third demo");
             await Assert.That(vm.MyAccountsLine)
-                .IsEqualTo($"Your accounts: {Ids(21)[0]}, {Ids(99)[0]} (active). Open Settings > Identity to change them.")
+                .IsEqualTo(
+                    $"Your accounts: {Ids(21)[0]}, {Ids(99)[0]} (active). Open Settings > Identity to change them.")
                 .Because("the card reads the host's accounts and edits nothing");
         }
 
@@ -186,7 +192,8 @@ public class TeamsModuleTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.IsBrowser).IsTrue();
-            await Assert.That(TeamsTabViewModel.BrowserNote).IsEqualTo("session only: this browser tab forgets teams when it reloads");
+            await Assert.That(TeamsTabViewModel.BrowserNote)
+                .IsEqualTo("session only: this browser tab forgets teams when it reloads");
             await Assert.That(teams.IsSessionOnly).IsTrue();
         }
     }
@@ -211,8 +218,10 @@ public class TeamsModuleTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.OffersPlayerOverview).IsTrue();
-            await Assert.That(opened).IsEquivalentTo([member.SteamId64!.Value], CollectionOrdering.Matching).Because("an id that is not a decimal SteamID64 opens nothing");
-            await Assert.That(browser.OffersPlayerOverview).IsFalse().Because("the browser host has no Player Overview");
+            await Assert.That(opened).IsEquivalentTo([member.SteamId64!.Value], CollectionOrdering.Matching)
+                .Because("an id that is not a decimal SteamID64 opens nothing");
+            await Assert.That(browser.OffersPlayerOverview).IsFalse()
+                .Because("the browser host has no Player Overview");
             await Assert.That(bare.OffersPlayerOverview).IsFalse();
         }
     }
@@ -221,8 +230,9 @@ public class TeamsModuleTests
     public async Task TheLibraryTeamFilter_ListsUsAndEveryTeam_AndKeepsTheirDemos()
     {
         (DemoCacheStore cache, TeamIdentityService teams) = await Library();
-        using DemoLibraryService library = new(a => a(), Path.Combine(Path.GetTempPath(), "dvlibteam_" + Guid.NewGuid().ToString("N") + ".json"));
-        foreach (string path in (string[]) ["/d/a.dem", "/d/b.dem", "/d/c.dem"])
+        using DemoLibraryService library = new(a => a(),
+            Path.Combine(Path.GetTempPath(), "dvlibteam_" + Guid.NewGuid().ToString("N") + ".json"));
+        foreach (string path in (string[])["/d/a.dem", "/d/b.dem", "/d/c.dem"])
         {
             library.Entries.Add(new DemoEntry
             {
@@ -254,7 +264,8 @@ public class TeamsModuleTests
         filter.Selected = filter.Items[2];
         using (Assert.Multiple())
         {
-            await Assert.That(vm.FilteredEntries.Select(e => e.FilePath)).IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
+            await Assert.That(vm.FilteredEntries.Select(e => e.FilePath))
+                .IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
             await Assert.That(vm.HasActiveFilters).IsTrue();
         }
 
@@ -262,7 +273,8 @@ public class TeamsModuleTests
         await Assert.That(vm.FilteredEntries).IsEmpty().Because("nothing is us yet");
 
         teams.SetUs(teamId);
-        await Assert.That(vm.FilteredEntries.Count).IsEqualTo(2).Because("the filter re-applies on the contribution's Changed");
+        await Assert.That(vm.FilteredEntries.Count).IsEqualTo(2)
+            .Because("the filter re-applies on the contribution's Changed");
 
         teams.Rename(teamId, "Renamed");
         await Assert.That(filter.Items.Select(i => i.Display)).Contains("Renamed");

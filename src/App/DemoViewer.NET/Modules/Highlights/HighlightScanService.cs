@@ -643,19 +643,20 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
             // disagree about which firings are moments.
             record.Highlights =
             [
-                .. HighlightSurfacing.Surface(events.Where(e => _harvester.IsHighlightRuleset(e.RulesetId)).ToList()).Select(e => new CachedHighlightEvent
-                {
-                    RulesetId = e.RulesetId,
-                    HighlightId = e.HighlightId,
-                    FrameIndex = e.FrameIndex,
-                    Tick = e.Tick,
-                    ClipStartTick = e.ClipStartTick,
-                    PlayerSlot = e.PlayerSlot,
-                    RoundNumber = e.RoundNumber,
-                    RenderedTitle = e.RenderedTitle,
-                    Score = e.Score,
-                    Kind = e.Kind
-                })
+                .. HighlightSurfacing.Surface(events.Where(e => _harvester.IsHighlightRuleset(e.RulesetId)).ToList())
+                    .Select(e => new CachedHighlightEvent
+                    {
+                        RulesetId = e.RulesetId,
+                        HighlightId = e.HighlightId,
+                        FrameIndex = e.FrameIndex,
+                        Tick = e.Tick,
+                        ClipStartTick = e.ClipStartTick,
+                        PlayerSlot = e.PlayerSlot,
+                        RoundNumber = e.RoundNumber,
+                        RenderedTitle = e.RenderedTitle,
+                        Score = e.Score,
+                        Kind = e.Kind
+                    })
             ];
 
             // Parse-tier facts this run happens to hold, filled where the record has none: a demo

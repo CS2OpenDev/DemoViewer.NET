@@ -38,7 +38,9 @@ public class RoundFactsIdentityTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(Convert.ToInt32(EngineRoundFactsRowSource.ParametersOf(afterDoc)["eco_max_per_player"], System.Globalization.CultureInfo.InvariantCulture)).IsEqualTo(1500);
+                await Assert
+                    .That(Convert.ToInt32(EngineRoundFactsRowSource.ParametersOf(afterDoc)["eco_max_per_player"],
+                        System.Globalization.CultureInfo.InvariantCulture)).IsEqualTo(1500);
                 await Assert.That(new RulesRoundFactsRulesetIdentity(after).Fingerprint(64))
                     .IsNotEqualTo(new RulesRoundFactsRulesetIdentity(before).Fingerprint(64));
                 await Assert.That(new RulesRoundFactsRulesetIdentity(before).Fingerprint(64)).IsNotNull();

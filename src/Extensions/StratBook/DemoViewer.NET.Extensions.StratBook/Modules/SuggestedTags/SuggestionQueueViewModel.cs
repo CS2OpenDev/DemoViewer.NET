@@ -208,6 +208,7 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
 
     /// <summary>Raised when the editor opens or closes.</summary>
     public event Action? EditorChanged;
+
     /// <summary>The detector filter's choices: <see cref="AllDetectors" /> then every detector id.</summary>
     public IReadOnlyList<string> DetectorFilters { get; } = [AllDetectors, .. ProposalDetection.All.Select(d => d.Id)];
 
@@ -307,7 +308,7 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
         [
             AllRounds,
             .. (_set?.Pending ?? []).Select(e => e.Proposal.Round).Distinct().Order()
-                .Select(r => string.Create(CultureInfo.InvariantCulture, $"round {r}"))
+            .Select(r => string.Create(CultureInfo.InvariantCulture, $"round {r}"))
         ];
         if (!RoundFilters.SequenceEqual(rounds, StringComparer.Ordinal))
         {
@@ -645,7 +646,8 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
         {
             TagProposal p = entry.Proposal;
             if (p.Confidence < MinConfidence
-                || (DetectorFilter != AllDetectors && !string.Equals(p.Detector, DetectorFilter, StringComparison.Ordinal))
+                || (DetectorFilter != AllDetectors
+                    && !string.Equals(p.Detector, DetectorFilter, StringComparison.Ordinal))
                 || (RoundOfFilter() is { } round && p.Round != round))
             {
                 continue;
@@ -696,7 +698,11 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
                 Code = p.Code,
                 FromTick = p.FromTick,
                 ToTick = p.ToTick,
-                Labels = [.. p.Labels.OrderBy(l => l.Key, StringComparer.Ordinal).Select(l => new TagLabel(l.Key, l.Value))]
+                Labels =
+                [
+                    .. p.Labels.OrderBy(l => l.Key, StringComparer.Ordinal)
+                        .Select(l => new TagLabel(l.Key, l.Value))
+                ]
             };
         Editor = new TagEditorViewModel($"Suggested: {row.Title} ({row.RoundText})", draft,
             Vocabulary?.Invoke() ?? TagVocabulary.Empty, _tickRate(), row.Entry.RoundStartTick,
@@ -728,7 +734,8 @@ public sealed partial class SuggestionQueueViewModel : ObservableObject, IDispos
 
         if (_set is { VerdictsUnreadable: true })
         {
-            return "The verdicts file for this demo cannot be read, so nothing is offered until it is fixed or removed.";
+            return
+                "The verdicts file for this demo cannot be read, so nothing is offered until it is fixed or removed.";
         }
 
         if (_set is null || _set.Entries.Count == 0)

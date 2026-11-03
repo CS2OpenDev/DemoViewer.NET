@@ -89,7 +89,8 @@ public class DeferredStoreLoadTests
                 await Assert.That(loadedAtStart).IsFalse();
                 await Assert.That(teamsAtStart).IsEqualTo(0).Because("until the read, the tabs show it is loading");
                 await Assert.That(second.IsLoaded).IsTrue();
-                await Assert.That(third.Teams.Select(t => t.Id)).IsEquivalentTo(ids, CollectionOrdering.Matching).Because("the early change read the file before writing it");
+                await Assert.That(third.Teams.Select(t => t.Id)).IsEquivalentTo(ids, CollectionOrdering.Matching)
+                    .Because("the early change read the file before writing it");
                 await Assert.That(third.Teams.Single(t => t.Id == ids[0]).Name).IsEqualTo("Renamed early");
             }
         }

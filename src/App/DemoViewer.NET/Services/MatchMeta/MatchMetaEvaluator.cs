@@ -42,7 +42,8 @@ public sealed class MatchMetaEvaluator : IDemoEvaluator, IRetainedVisitEvaluator
 
     /// <summary>A demo the library has parsed whose rank section is missing or was read by another version.</summary>
     public bool Wants(string path) =>
-        _store.TryGetIndex(path) is { ParseSchema: > 0 } entry && entry.NeedsPack(StampId, DemoMatchMeta.CurrentSchema, Version);
+        _store.TryGetIndex(path) is { ParseSchema: > 0 } entry
+        && entry.NeedsPack(StampId, DemoMatchMeta.CurrentSchema, Version);
 
     /// <summary>A demo the library has not parsed yet: the pass writes into the record that parse creates.</summary>
     public bool WantsAfterUpstream(string path) => _store.TryGetIndex(path) is not { ParseSchema: > 0 };
@@ -57,7 +58,8 @@ public sealed class MatchMetaEvaluator : IDemoEvaluator, IRetainedVisitEvaluator
     public void EvaluateForward(string path, ForwardDemoResult pass)
     {
         ArgumentNullException.ThrowIfNull(pass);
-        Write(path, () => Capture(pass.GameMode, pass.Demo.Profile.SourceKind, pass.Demo.ServerName, pass.ControllerRanks,
+        Write(path, () => Capture(pass.GameMode, pass.Demo.Profile.SourceKind, pass.Demo.ServerName,
+            pass.ControllerRanks,
             pass.RankUpdates, () => WinningTeam(pass.Run is { } run && LibraryTeamTables.Carries(run)
                 ? LibraryTeamTables.Read(run, pass.Demo.Players.Values, pass.Overtime)
                 : pass.FinalState)));
@@ -96,13 +98,16 @@ public sealed class MatchMetaEvaluator : IDemoEvaluator, IRetainedVisitEvaluator
     /// <param name="controllers">The controllers' rank fields at the end of the demo.</param>
     /// <param name="updates">The server's rank update rows.</param>
     /// <param name="winningTeam">See <see cref="RankRows" />.</param>
-    public static (string? GameMode, string MatchSource, List<MatchRankRow> Players) Capture(string? gameMode, DemoSourceKind kind,
-        string? serverName, IReadOnlyList<ControllerRank> controllers, IReadOnlyList<ServerRankUpdate> updates, Func<int?> winningTeam)
+    public static (string? GameMode, string MatchSource, List<MatchRankRow> Players) Capture(string? gameMode,
+        DemoSourceKind kind,
+        string? serverName, IReadOnlyList<ControllerRank> controllers, IReadOnlyList<ServerRankUpdate> updates,
+        Func<int?> winningTeam)
     {
         List<MatchRankRow> rows = RankRows(controllers, updates, winningTeam);
         string? mode = gameMode is { Length: > 0 }
             ? gameMode
-            : rows.GroupBy(r => r.RankType).OrderByDescending(g => g.Count()).ThenBy(g => g.Key).Select(g => ModeOf(g.Key)).FirstOrDefault();
+            : rows.GroupBy(r => r.RankType).OrderByDescending(g => g.Count()).ThenBy(g => g.Key)
+                .Select(g => ModeOf(g.Key)).FirstOrDefault();
         if (kind is DemoSourceKind.Unknown or DemoSourceKind.Custom
             && serverName is not null && serverName.Contains("faceit", StringComparison.OrdinalIgnoreCase))
         {
@@ -121,7 +126,8 @@ public sealed class MatchMetaEvaluator : IDemoEvaluator, IRetainedVisitEvaluator
     /// <param name="controllers">The controllers' rank fields at the end of the demo.</param>
     /// <param name="updates">The server's rank update rows.</param>
     /// <param name="winningTeam">The team that won (2 T, 3 CT), 0 for a tie, null when unknown. Asked only when a premier controller has no update.</param>
-    public static List<MatchRankRow> RankRows(IReadOnlyList<ControllerRank> controllers, IReadOnlyList<ServerRankUpdate> updates,
+    public static List<MatchRankRow> RankRows(IReadOnlyList<ControllerRank> controllers,
+        IReadOnlyList<ServerRankUpdate> updates,
         Func<int?> winningTeam)
     {
         ArgumentNullException.ThrowIfNull(controllers);
@@ -161,7 +167,8 @@ public sealed class MatchMetaEvaluator : IDemoEvaluator, IRetainedVisitEvaluator
             if (controller.RankType == PremierRankType && controller.Team is 2 or 3 && winner.Value is { } won)
             {
                 bool tie = won == 0, win = won == controller.Team;
-                row.RankNew = Ranked(tie ? controller.PredictedTie : win ? controller.PredictedWin : controller.PredictedLoss);
+                row.RankNew = Ranked(tie ? controller.PredictedTie :
+                    win ? controller.PredictedWin : controller.PredictedLoss);
                 row.RankChange = row.RankNew - row.RankOld;
                 row.Wins = controller.Wins + (win ? 1 : 0);
                 row.RankSource = RankSource.Predicted;

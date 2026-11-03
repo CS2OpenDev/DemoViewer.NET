@@ -42,7 +42,8 @@ public class FirstPartySceneExportTests
             RecordingJob job = new();
             Playback2DExportDialogViewModel dialog = FirstPartySceneExport.NewDialog(exports, Gif,
                 [new ExportRangeOption("all", 0, 99)], job, static (start, end, _, _) => end - start + 1, null,
-                static () => null, new ExportDialogScene("Export scene", "scene", FirstPartySceneExport.SizePresets, null));
+                static () => null,
+                new ExportDialogScene("Export scene", "scene", FirstPartySceneExport.SizePresets, null));
 
             using (Assert.Multiple())
             {

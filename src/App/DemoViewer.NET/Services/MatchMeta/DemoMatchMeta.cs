@@ -115,7 +115,8 @@ public sealed class DemoMatchMeta
 
     /// <summary>True when the time is a guess (the file's write time) rather than the match's own.</summary>
     [JsonIgnore]
-    public bool IsApproximate => MatchTimeSource is not (MatchTimeSource.UserOverride or MatchTimeSource.ValveMatchInfo or MatchTimeSource.ExternalMetadata);
+    public bool IsApproximate => MatchTimeSource is not (MatchTimeSource.UserOverride or MatchTimeSource.ValveMatchInfo
+        or MatchTimeSource.ExternalMetadata);
 }
 
 /// <summary>
@@ -163,7 +164,9 @@ public sealed class NewestMatchFirst : IComparer<DemoCacheIndexEntry>
         }
 
         long local = entry.ModifiedTicks;
-        return local <= 0 || local > DateTime.MaxValue.Ticks ? local : new DateTime(local, DateTimeKind.Local).ToUniversalTime().Ticks;
+        return local <= 0 || local > DateTime.MaxValue.Ticks
+            ? local
+            : new DateTime(local, DateTimeKind.Local).ToUniversalTime().Ticks;
     }
 
     private static ulong ReservationOf(DemoCacheIndexEntry entry) =>

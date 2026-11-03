@@ -62,7 +62,8 @@ public class SuggestedTagsTuningTests
         using (Assert.Multiple())
         {
             await Assert.That(recall).IsNull().Because("no ground truth for this code exists yet");
-            await Assert.That(precision).IsNull().Because("a fired proposal cannot be judged right or wrong against nothing");
+            await Assert.That(precision).IsNull()
+                .Because("a fired proposal cannot be judged right or wrong against nothing");
         }
     }
 
@@ -241,7 +242,10 @@ public class SuggestedTagsTuningTests
         TagProposal execute = Proposal("exec|r1|T|BombsiteA|s=10", "execute", 1, 100, 200, 150, 0.8);
         TagProposal fake = Proposal("fake|r1|T|BombsiteB>BombsiteA", "fake", 1, 100, 200, 150, 0.5, null) with
         {
-            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["fake"] = "BombsiteB", ["real"] = "BombsiteA" }
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["fake"] = "BombsiteB", ["real"] = "BombsiteA"
+            }
         };
         TagProposal opener = Proposal("opener|r1|T", "opener", 1, 100, 200, 150, 0.5, null);
 

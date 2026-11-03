@@ -150,10 +150,7 @@ public class ExportInitialFitTests
         compositor.Add(probe);
 
         using CpuSurfaceProvider surfaces = new();
-        using HeadlessSceneRenderer renderer = new(surfaces, compositor)
-        {
-            Size = new SKSizeI(320, 180)
-        };
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor) { Size = new SKSizeI(320, 180) };
         renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
 
         await Assert.That(renderer.AutoFitOnFirstMapBounds).IsFalse().Because("off is the default");
@@ -189,10 +186,7 @@ public class ExportInitialFitTests
         compositor.Add(probe);
 
         using CpuSurfaceProvider surfaces = new();
-        using HeadlessSceneRenderer renderer = new(surfaces, compositor)
-        {
-            Size = new SKSizeI(320, 180)
-        };
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor) { Size = new SKSizeI(320, 180) };
         renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
 
         Advance(renderer, real);
@@ -224,9 +218,7 @@ public class ExportInitialFitTests
         using CpuSurfaceProvider surfaces = new();
         using HeadlessSceneRenderer renderer = new(surfaces, compositor)
         {
-            Size = new SKSizeI(320, 180),
-            AutoFitOnFirstMapBounds = true,
-            Camera = pinned
+            Size = new SKSizeI(320, 180), AutoFitOnFirstMapBounds = true, Camera = pinned
         };
         renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
 
@@ -254,10 +246,7 @@ public class ExportInitialFitTests
 
         // The floors a real export always supplies from the map bundle, so the pane set is two stable
         // bands rather than a Z histogram warming up under the assertions.
-        SceneExportSession session = new(compositor)
-        {
-            AuthoritativeFloors = SyntheticScenes.BudgetFloors
-        };
+        SceneExportSession session = new(compositor) { AuthoritativeFloors = SyntheticScenes.BudgetFloors };
 
         await session.RunAsync(
             ExportFixtures.Request(fixtures.Length, size: new SKSizeI(320, 180)),
@@ -277,10 +266,7 @@ public class ExportInitialFitTests
             {
                 Time = like.Frame.Time,
                 Markers = [],
-                Map = new SceneMapInfo
-                {
-                    MapName = like.Frame.Map.MapName
-                }
+                Map = new SceneMapInfo { MapName = like.Frame.Map.MapName }
             }
         };
 

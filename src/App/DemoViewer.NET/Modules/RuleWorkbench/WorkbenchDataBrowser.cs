@@ -34,7 +34,12 @@ public sealed class WorkbenchPathNode
 /// <param name="Display">Dropdown label (shipped files and extension rulesets are tagged).</param>
 /// <param name="IsShipped">True for a shipped baseline ruleset.</param>
 /// <param name="Extension">The id of the extension that contributed it; null for a file.</param>
-public sealed record RulesetFileRef(string FullPath, string FileName, string Display, bool IsShipped, string? Extension = null)
+public sealed record RulesetFileRef(
+    string FullPath,
+    string FileName,
+    string Display,
+    bool IsShipped,
+    string? Extension = null)
 {
     /// <summary>True for a ruleset an extension contributed.</summary>
     public bool IsExtension => Extension is not null;
@@ -59,10 +64,7 @@ public static class WorkbenchPathTree
                 prefix = i == 0 ? segments[0] : $"{prefix}.{segments[i]}";
                 if (!byPrefix.TryGetValue(prefix, out WorkbenchPathNode? node))
                 {
-                    node = new WorkbenchPathNode
-                    {
-                        Segment = segments[i]
-                    };
+                    node = new WorkbenchPathNode { Segment = segments[i] };
                     byPrefix[prefix] = node;
                     if (parent is null)
                     {
@@ -108,7 +110,10 @@ public sealed record LivePlayerRow(string Name, int Team, string Position);
 /// <param name="Title">The table name (e.g. "Player Game Stats", "kast_game_totals", "kills_by_weapon").</param>
 /// <param name="Columns">Ordered value-column headers.</param>
 /// <param name="Rows">Per-entity rows, cells aligned to <paramref name="Columns" />.</param>
-public sealed record WorkbenchScoreboard(string Title, IReadOnlyList<string> Columns, IReadOnlyList<WorkbenchScoreRow> Rows);
+public sealed record WorkbenchScoreboard(
+    string Title,
+    IReadOnlyList<string> Columns,
+    IReadOnlyList<WorkbenchScoreRow> Rows);
 
 /// <summary>One row of a <see cref="WorkbenchScoreboard" />: an entity label + its column cells.</summary>
 public sealed record WorkbenchScoreRow(string Label, IReadOnlyList<string> Cells);

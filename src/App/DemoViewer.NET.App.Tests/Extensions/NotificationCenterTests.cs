@@ -19,7 +19,8 @@ namespace DemoViewer.NET.AppTests.Extensions;
 /// </summary>
 public class NotificationCenterTests
 {
-    private static Notification Note(string id, string title = "Title", NotificationSeverity severity = NotificationSeverity.Info) =>
+    private static Notification Note(string id, string title = "Title",
+        NotificationSeverity severity = NotificationSeverity.Info) =>
         new(id, severity, title, "Body");
 
     [Test]
@@ -182,7 +183,10 @@ public class NotificationCenterTests
         NotificationCenter center = new(posts.Post);
         FaultRig rig = new();
         IExtensionNotifications notes = center.For(rig.Guard);
-        notes.Post(Note("act") with { Action = new NotificationAction("Go", () => throw new InvalidOperationException("boom")) });
+        notes.Post(Note("act") with
+        {
+            Action = new NotificationAction("Go", () => throw new InvalidOperationException("boom"))
+        });
         posts.Drain();
         NotificationCardViewModel card = center.Cards.Single();
 
@@ -271,7 +275,8 @@ public class NotificationCenterTests
                 provider.GetExtensionContext<StubExtension>().Notifications.Post(Note("composed"));
                 Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-                await Assert.That(center.Cards.Select(c => c.Id)).IsEquivalentTo(["composed"], CollectionOrdering.Matching);
+                await Assert.That(center.Cards.Select(c => c.Id))
+                    .IsEquivalentTo(["composed"], CollectionOrdering.Matching);
             });
         }
         finally

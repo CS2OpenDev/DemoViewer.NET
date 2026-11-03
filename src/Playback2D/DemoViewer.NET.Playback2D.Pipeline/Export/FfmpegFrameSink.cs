@@ -296,17 +296,11 @@ public sealed class FfmpegFrameSink : IFrameSink
         // One stub frame so RawVideoPipeSource can read the format and size it stamps into the input
         // arguments; it is never serialized because no process is started.
         StubFrame stub = new(options.Width, options.Height);
-        return Build(options, new RawVideoPipeSource([stub])
-        {
-            FrameRate = options.Fps
-        }).Arguments;
+        return Build(options, new RawVideoPipeSource([stub]) { FrameRate = options.Fps }).Arguments;
     }
 
     private FFMpegArgumentProcessor BuildProcessor(CancellationToken ct) =>
-        Build(_options, new RawVideoPipeSource(_frames)
-            {
-                FrameRate = _options.Fps
-            })
+        Build(_options, new RawVideoPipeSource(_frames) { FrameRate = _options.Fps })
             .CancellableThrough(ct)
             .NotifyOnError(OnStderr);
 
@@ -362,10 +356,7 @@ public sealed class FfmpegFrameSink : IFrameSink
     private static FFOptions BuildOptions(FfmpegSinkOptions options) =>
         string.IsNullOrEmpty(options.BinaryFolder)
             ? new FFOptions()
-            : new FFOptions
-            {
-                BinaryFolder = options.BinaryFolder
-            };
+            : new FFOptions { BinaryFolder = options.BinaryFolder };
 
     private void TryDeleteOutput()
     {

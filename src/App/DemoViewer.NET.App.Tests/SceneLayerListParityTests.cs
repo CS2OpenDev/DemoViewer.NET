@@ -140,7 +140,8 @@ public class SceneLayerListParityTests
             "playback2d.overlay"
         ];
 
-        await Assert.That(SceneLayerCatalog.SceneStackIds.ToArray()).IsEquivalentTo(expected, CollectionOrdering.Matching);
+        await Assert.That(SceneLayerCatalog.SceneStackIds.ToArray())
+            .IsEquivalentTo(expected, CollectionOrdering.Matching);
 
         // KnownLayerIds is an alias, not a second table, so a rename only has one place to happen.
         // Asserted by reference so a future "helpful" copy of the list is caught, not just a divergence.

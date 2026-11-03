@@ -53,14 +53,20 @@ public class IdentityServiceTests
         DemoCacheStore store = new(null);
         for (int i = 0; i < total; i++)
         {
-            ulong other = 76561198100000000UL + (ulong) i;
+            ulong other = 76561198100000000UL + (ulong)i;
             List<CachedPlayerInfo> players =
             [
-                new() { Slot = 1, Name = "other" + i, SteamId64 = other.ToString(CultureInfo.InvariantCulture), Team = 2 }
+                new()
+                {
+                    Slot = 1, Name = "other" + i, SteamId64 = other.ToString(CultureInfo.InvariantCulture), Team = 2
+                }
             ];
             if (i < mineDemos)
             {
-                players.Add(new CachedPlayerInfo { Slot = 2, Name = "me", SteamId64 = mine.ToString(CultureInfo.InvariantCulture), Team = 3 });
+                players.Add(new CachedPlayerInfo
+                {
+                    Slot = 2, Name = "me", SteamId64 = mine.ToString(CultureInfo.InvariantCulture), Team = 3
+                });
             }
 
             DemoCacheRecord record = new()
@@ -70,7 +76,10 @@ public class IdentityServiceTests
                 ModifiedTicks = 1,
                 Map = "de_nuke",
                 Players = players,
-                MatchMeta = new DemoMatchMeta { MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo }
+                MatchMeta = new DemoMatchMeta
+                {
+                    MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo
+                }
             };
             DemoCacheStore.StampHeader(record);
             DemoCacheStore.StampParse(record);
@@ -89,8 +98,11 @@ public class IdentityServiceTests
             using IdentityService identity = new(new SettingsService(dir));
             await Assert.That(identity.ActiveSteamId64).IsNull();
 
-            identity.SetAccounts([Account(A), Account(B), Account(A), Account("0"), Account("not an id"), Account(" 76561198000000003")]);
-            await Assert.That(Ids(identity)).IsEquivalentTo([A, B], CollectionOrdering.Matching).Because("repeats and non-ids are dropped");
+            identity.SetAccounts([
+                Account(A), Account(B), Account(A), Account("0"), Account("not an id"), Account(" 76561198000000003")
+            ]);
+            await Assert.That(Ids(identity)).IsEquivalentTo([A, B], CollectionOrdering.Matching)
+                .Because("repeats and non-ids are dropped");
             await Assert.That(identity.ActiveSteamId64).IsEqualTo(A).Because("the first is active when none was");
 
             await Assert.That(identity.SetActive(B)).IsTrue();
@@ -101,7 +113,8 @@ public class IdentityServiceTests
             await Assert.That(identity.ActiveSteamId64).IsEqualTo(B).Because("a member stays active");
 
             identity.SetAccounts([Account(C), Account(A)]);
-            await Assert.That(identity.ActiveSteamId64).IsEqualTo(C).Because("removing the active one makes the first active");
+            await Assert.That(identity.ActiveSteamId64).IsEqualTo(C)
+                .Because("removing the active one makes the first active");
 
             identity.SetAccounts([]);
             using (Assert.Multiple())
@@ -124,13 +137,13 @@ public class IdentityServiceTests
         try
         {
             File.WriteAllText(Path.Combine(dir, "settings.json"), $$"""
-                {
-                  "Identity": {
-                    "Accounts": [ { "SteamId64": "{{A}}" }, { "SteamId64": "{{A}}" }, { "SteamId64": "junk" }, { "SteamId64": "{{B}}", "Label": "" } ],
-                    "ActiveSteamId64": "{{C}}"
-                  }
-                }
-                """);
+                                                                    {
+                                                                      "Identity": {
+                                                                        "Accounts": [ { "SteamId64": "{{A}}" }, { "SteamId64": "{{A}}" }, { "SteamId64": "junk" }, { "SteamId64": "{{B}}", "Label": "" } ],
+                                                                        "ActiveSteamId64": "{{C}}"
+                                                                      }
+                                                                    }
+                                                                    """);
             SettingsService settings = new(dir);
             using IdentityService identity = new(settings);
             using (Assert.Multiple())
@@ -145,7 +158,8 @@ public class IdentityServiceTests
             IdentitySettings written = new SettingsService(dir).Current.Identity;
             using (Assert.Multiple())
             {
-                await Assert.That(written.Accounts.Select(a => a.SteamId64)).IsEquivalentTo([A, B], CollectionOrdering.Matching);
+                await Assert.That(written.Accounts.Select(a => a.SteamId64))
+                    .IsEquivalentTo([A, B], CollectionOrdering.Matching);
                 await Assert.That(written.ActiveSteamId64).IsEqualTo(B);
             }
         }
@@ -163,13 +177,13 @@ public class IdentityServiceTests
         {
             string teams = Path.Combine(dir, "teams.json");
             string json = $$"""
-                {
-                  "schemaVersion": 1,
-                  // a comment, as a hand edit might leave
-                  "Me": { "SteamIDs": [ "{{B}}", 42, "junk", "{{A}}", "{{B}}" ] },
-                  "teams": [ { "id": "not a guid this build could bind" } ],
-                }
-                """;
+                            {
+                              "schemaVersion": 1,
+                              // a comment, as a hand edit might leave
+                              "Me": { "SteamIDs": [ "{{B}}", 42, "junk", "{{A}}", "{{B}}" ] },
+                              "teams": [ { "id": "not a guid this build could bind" } ],
+                            }
+                            """;
             File.WriteAllText(teams, json);
             SettingsService settings = new(dir);
 
@@ -184,7 +198,8 @@ public class IdentityServiceTests
             }
 
             File.WriteAllText(teams, $$"""{ "me": { "steamIds": [ "{{C}}" ] } }""");
-            await Assert.That(IdentityService.ImportTeamsJson(settings, teams)).IsEqualTo(0).Because("the import runs once");
+            await Assert.That(IdentityService.ImportTeamsJson(settings, teams)).IsEqualTo(0)
+                .Because("the import runs once");
             await Assert.That(Ids(new IdentityService(settings))).IsEquivalentTo([B, A], CollectionOrdering.Matching);
         }
         finally
@@ -236,8 +251,10 @@ public class IdentityServiceTests
             using (Assert.Multiple())
             {
                 await Assert.That(IdentityService.ImportTeamsJson(settings, teams)).IsEqualTo(0);
-                await Assert.That(IdentityService.ImportTeamsJson(settings, null)).IsEqualTo(0).Because("the browser has no file");
-                await Assert.That(File.Exists(Path.Combine(dir, "settings.json"))).IsFalse().Because("there was nothing to read yet");
+                await Assert.That(IdentityService.ImportTeamsJson(settings, null)).IsEqualTo(0)
+                    .Because("the browser has no file");
+                await Assert.That(File.Exists(Path.Combine(dir, "settings.json"))).IsFalse()
+                    .Because("there was nothing to read yet");
             }
 
             File.WriteAllText(teams, "{ \"me\": ");
@@ -263,7 +280,8 @@ public class IdentityServiceTests
             string teams = Path.Combine(dir, "teams.json");
             File.WriteAllText(teams, $$"""{ "me": { "steamIds": [ "{{B}}" ] } }""");
             SettingsService settings = new(dir);
-            settings.Write(s => s.Identity.Accounts = [new IdentityAccountSettings { SteamId64 = A, AddedUtc = Added }]);
+            settings.Write(s => s.Identity.Accounts =
+                [new IdentityAccountSettings { SteamId64 = A, AddedUtc = Added }]);
 
             await Assert.That(IdentityService.ImportTeamsJson(settings, teams)).IsEqualTo(0);
             using IdentityService identity = new(settings);
@@ -288,9 +306,12 @@ public class IdentityServiceTests
             SettingsService settings = new(dir);
             using (Assert.Multiple())
             {
-                await Assert.That(new IdentityService(settings, Library(19, 19)).Suggest()).IsNull().Because("under twenty demos");
-                await Assert.That(new IdentityService(settings, Library(20, 10)).Suggest()).IsNull().Because("exactly half is not more than half");
-                await Assert.That(new IdentityService(settings).Suggest()).IsNull().Because("no directory, no suggestion");
+                await Assert.That(new IdentityService(settings, Library(19, 19)).Suggest()).IsNull()
+                    .Because("under twenty demos");
+                await Assert.That(new IdentityService(settings, Library(20, 10)).Suggest()).IsNull()
+                    .Because("exactly half is not more than half");
+                await Assert.That(new IdentityService(settings).Suggest()).IsNull()
+                    .Because("no directory, no suggestion");
             }
 
             IdentitySuggestion? suggestion = new IdentityService(settings, Library(20, 11)).Suggest();
@@ -330,7 +351,8 @@ public class IdentityServiceTests
             some.AcceptSuggestion(some.Suggest()!);
             using (Assert.Multiple())
             {
-                await Assert.That(Ids(some)).IsEquivalentTo([A, "76561198000000009"], CollectionOrdering.Matching).Because("it adds");
+                await Assert.That(Ids(some)).IsEquivalentTo([A, "76561198000000009"], CollectionOrdering.Matching)
+                    .Because("it adds");
                 await Assert.That(some.ActiveSteamId64).IsEqualTo(A).Because("an existing active account stays");
             }
         }
@@ -361,7 +383,8 @@ public class IdentityServiceTests
             using IdentityService restarted = new(new SettingsService(dir), library);
             using (Assert.Multiple())
             {
-                await Assert.That(restarted.DismissedSuggestions).IsEquivalentTo(["76561198000000009"], CollectionOrdering.Matching);
+                await Assert.That(restarted.DismissedSuggestions)
+                    .IsEquivalentTo(["76561198000000009"], CollectionOrdering.Matching);
                 await Assert.That(restarted.Suggest()).IsNull();
             }
         }

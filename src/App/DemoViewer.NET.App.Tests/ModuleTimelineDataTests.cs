@@ -188,7 +188,8 @@ public class ModuleTimelineDataTests
         await Assert.That(data.HasEvent("ROUND_FREEZE_END")).IsTrue();
         await Assert.That(data.HasEvent("bomb_planted")).IsFalse();
         int[] expectedFrames = [0, 300];
-        await Assert.That(data.FramesForEvent("round_freeze_end")).IsEquivalentTo(expectedFrames, CollectionOrdering.Matching);
+        await Assert.That(data.FramesForEvent("round_freeze_end"))
+            .IsEquivalentTo(expectedFrames, CollectionOrdering.Matching);
         await Assert.That(data.TotalFrames).IsEqualTo(ctx.TotalFrames);
     }
 
@@ -210,9 +211,7 @@ public class ModuleTimelineDataTests
         Tick = tick,
         Fields = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
-            ["UserId"] = slot,
-            ["Team"] = team,
-            ["OldTeam"] = oldTeam
+            ["UserId"] = slot, ["Team"] = team, ["OldTeam"] = oldTeam
         }
     };
 
@@ -224,11 +223,6 @@ public class ModuleTimelineDataTests
             map[key] = value;
         }
 
-        return new GameEventView
-        {
-            Name = "player_death",
-            Tick = tick,
-            Fields = map
-        };
+        return new GameEventView { Name = "player_death", Tick = tick, Fields = map };
     }
 }

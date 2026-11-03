@@ -297,11 +297,7 @@ internal static class GoldenCommand
     private static JsonObject Result(GoldenCorpusEntry entry, string status, string? goldenPath,
         string? reason)
     {
-        JsonObject o = new()
-        {
-            ["name"] = entry.Name,
-            ["status"] = status
-        };
+        JsonObject o = new() { ["name"] = entry.Name, ["status"] = status };
 
         if (goldenPath is not null)
         {

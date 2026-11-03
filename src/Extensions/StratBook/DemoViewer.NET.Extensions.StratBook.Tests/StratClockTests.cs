@@ -27,7 +27,8 @@ public class StratClockTests
         int plant = 1761 + (int)Math.Round(26.2 * 64);
         double? atSeconds = StratClock.AtSecondsFor(plant, Round, 64, 115);
 
-        await Assert.That(atSeconds!.Value).IsEqualTo(88.8).Within(1.0 / 64).Because("the tick is whole; the error is under one tick");
+        await Assert.That(atSeconds!.Value).IsEqualTo(88.8).Within(1.0 / 64)
+            .Because("the tick is whole; the error is under one tick");
         await Assert.That(StratClock.Format(atSeconds.Value)).IsEqualTo("1:28.8");
     }
 
@@ -62,7 +63,9 @@ public class StratClockTests
     public async Task EveryWholeTick_RoundTrips(double atSeconds, int tickRate)
     {
         int tick = StratClock.TickFor(atSeconds, Round, tickRate, 115);
-        await Assert.That(StratClock.TickFor(StratClock.AtSecondsFor(tick, Round, tickRate, 115)!.Value, Round, tickRate, 115)).IsEqualTo(tick);
+        await Assert
+            .That(StratClock.TickFor(StratClock.AtSecondsFor(tick, Round, tickRate, 115)!.Value, Round, tickRate, 115))
+            .IsEqualTo(tick);
     }
 
     [Test]
@@ -83,8 +86,10 @@ public class StratClockTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(StratClock.RoundSecondsFor(105, new StratClockInfo { RoundSeconds = 115 })).IsEqualTo(105);
-            await Assert.That(StratClock.RoundSecondsFor(null, new StratClockInfo { RoundSeconds = 120 })).IsEqualTo(120);
+            await Assert.That(StratClock.RoundSecondsFor(105, new StratClockInfo { RoundSeconds = 115 }))
+                .IsEqualTo(105);
+            await Assert.That(StratClock.RoundSecondsFor(null, new StratClockInfo { RoundSeconds = 120 }))
+                .IsEqualTo(120);
             await Assert.That(StratClock.RoundSecondsFor(null, null)).IsEqualTo(115);
         }
     }
@@ -96,7 +101,8 @@ public class StratClockTests
         {
             await Assert.That(StratClock.TryParse("1:15", out double a) && a == 75).IsTrue();
             await Assert.That(StratClock.TryParse(" 1:15.5 ", out double b) && b == 75.5).IsTrue();
-            await Assert.That(StratClock.TryParse("+0:05", out double c) && c == -5).IsTrue().Because("after the timer stopped");
+            await Assert.That(StratClock.TryParse("+0:05", out double c) && c == -5).IsTrue()
+                .Because("after the timer stopped");
             await Assert.That(StratClock.TryParse("90", out double d) && d == 90).IsTrue();
             await Assert.That(StratClock.TryParse("1:60", out _)).IsFalse();
             await Assert.That(StratClock.TryParse("soon", out _)).IsFalse();

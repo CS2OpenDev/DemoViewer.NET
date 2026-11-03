@@ -52,13 +52,26 @@ public static partial class Variants
             DateTime now = DateTime.UtcNow;
             TagInstance execute = new()
             {
-                Id = Guid.NewGuid(), Code = "A execute", FromTick = 23_600, ToTick = 26_000, Round = 7,
-                Source = TagSources.Human, CreatedUtc = now, ModifiedUtc = now, Labels = [new TagLabel("site", "A")]
+                Id = Guid.NewGuid(),
+                Code = "A execute",
+                FromTick = 23_600,
+                ToTick = 26_000,
+                Round = 7,
+                Source = TagSources.Human,
+                CreatedUtc = now,
+                ModifiedUtc = now,
+                Labels = [new TagLabel("site", "A")]
             };
             TagInstance retake = new()
             {
-                Id = Guid.NewGuid(), Code = "Retake", FromTick = 31_000, ToTick = 32_400, Round = 8,
-                Source = TagSources.Suggested, CreatedUtc = now, ModifiedUtc = now
+                Id = Guid.NewGuid(),
+                Code = "Retake",
+                FromTick = 31_000,
+                ToTick = 32_400,
+                Round = 8,
+                Source = TagSources.Suggested,
+                CreatedUtc = now,
+                ModifiedUtc = now
             };
             session.Apply(new TagDelta.Add(execute));
             session.Apply(new TagDelta.Add(retake));

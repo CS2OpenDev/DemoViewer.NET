@@ -99,7 +99,8 @@ internal sealed class CollectorObserver : IFrameObserver
     {
         public object? Result { get; private set; }
 
-        public void Put<T>(T result) where T : class => Result = result ?? throw new ArgumentNullException(nameof(result));
+        public void Put<T>(T result) where T : class =>
+            Result = result ?? throw new ArgumentNullException(nameof(result));
     }
 
     // A collector reads through its own declaration, not the run's union: it reads the same alone on a run as
@@ -128,15 +129,19 @@ internal sealed class CollectorObserver : IFrameObserver
         public ObservedRead Provider(string providerName) =>
             _providers.Contains(providerName)
                 ? run.Provider(providerName)
-                : throw new ArgumentException($"provider '{providerName}' is not declared by collector {own.Id}", nameof(providerName));
+                : throw new ArgumentException($"provider '{providerName}' is not declared by collector {own.Id}",
+                    nameof(providerName));
 
         public object? Read(string providerName, int playerSlot) => run.Read(Provider(providerName).Name, playerSlot);
 
-        public bool TryReadInt(ObservedRead provider, int playerSlot, out int value) => run.TryReadInt(Mine(provider), playerSlot, out value);
+        public bool TryReadInt(ObservedRead provider, int playerSlot, out int value) =>
+            run.TryReadInt(Mine(provider), playerSlot, out value);
 
-        public bool TryReadFloat(ObservedRead provider, int playerSlot, out float value) => run.TryReadFloat(Mine(provider), playerSlot, out value);
+        public bool TryReadFloat(ObservedRead provider, int playerSlot, out float value) =>
+            run.TryReadFloat(Mine(provider), playerSlot, out value);
 
-        public bool TryReadString(ObservedRead provider, int playerSlot, out string? value) => run.TryReadString(Mine(provider), playerSlot, out value);
+        public bool TryReadString(ObservedRead provider, int playerSlot, out string? value) =>
+            run.TryReadString(Mine(provider), playerSlot, out value);
 
         public int Team(int playerSlot) => run.Team(playerSlot);
 
@@ -148,7 +153,8 @@ internal sealed class CollectorObserver : IFrameObserver
         private ObservedRead Mine(ObservedRead provider) =>
             _providers.Contains(provider.Name)
                 ? provider
-                : throw new ArgumentException($"provider '{provider.Name}' is not declared by collector {own.Id}", nameof(provider));
+                : throw new ArgumentException($"provider '{provider.Name}' is not declared by collector {own.Id}",
+                    nameof(provider));
 
         private OwnView Fresh()
         {
@@ -162,7 +168,9 @@ internal sealed class CollectorObserver : IFrameObserver
         }
 
         private IReadOnlyList<ObservedProjectile> Own(IReadOnlyList<ObservedProjectile> all) =>
-            all.Count == 0 || all.All(p => _classes.Contains(p.ClassName)) ? all : [.. all.Where(p => _classes.Contains(p.ClassName))];
+            all.Count == 0 || all.All(p => _classes.Contains(p.ClassName))
+                ? all
+                : [.. all.Where(p => _classes.Contains(p.ClassName))];
     }
 
     // One per run. Provider handles resolve against the engine view on first use, and again when the engine
@@ -189,7 +197,8 @@ internal sealed class CollectorObserver : IFrameObserver
 
         public IReadOnlyList<ObservedProjectile> Removed => _removed ??= Copy(View.Removed);
 
-        private FrameView View => _frame ?? throw new InvalidOperationException("the view is readable only inside OnFrame");
+        private FrameView View =>
+            _frame ?? throw new InvalidOperationException("the view is readable only inside OnFrame");
 
         public void Bind(FrameView frame)
         {
@@ -205,15 +214,20 @@ internal sealed class CollectorObserver : IFrameObserver
         public ObservedRead Provider(string providerName) =>
             _indexOf.TryGetValue(providerName, out int index)
                 ? new ObservedRead(_declared[index], index)
-                : throw new ArgumentException($"provider '{providerName}' is not declared by any collector on this run", nameof(providerName));
+                : throw new ArgumentException($"provider '{providerName}' is not declared by any collector on this run",
+                    nameof(providerName));
 
-        public object? Read(string providerName, int playerSlot) => View.Read(Handle(Provider(providerName)), playerSlot);
+        public object? Read(string providerName, int playerSlot) =>
+            View.Read(Handle(Provider(providerName)), playerSlot);
 
-        public bool TryReadInt(ObservedRead provider, int playerSlot, out int value) => View.TryReadInt(Handle(provider), playerSlot, out value);
+        public bool TryReadInt(ObservedRead provider, int playerSlot, out int value) =>
+            View.TryReadInt(Handle(provider), playerSlot, out value);
 
-        public bool TryReadFloat(ObservedRead provider, int playerSlot, out float value) => View.TryReadFloat(Handle(provider), playerSlot, out value);
+        public bool TryReadFloat(ObservedRead provider, int playerSlot, out float value) =>
+            View.TryReadFloat(Handle(provider), playerSlot, out value);
 
-        public bool TryReadString(ObservedRead provider, int playerSlot, out string? value) => View.TryReadString(Handle(provider), playerSlot, out value);
+        public bool TryReadString(ObservedRead provider, int playerSlot, out string? value) =>
+            View.TryReadString(Handle(provider), playerSlot, out value);
 
         public int Team(int playerSlot) => View.Team(playerSlot);
 
@@ -226,7 +240,8 @@ internal sealed class CollectorObserver : IFrameObserver
 
         private ObservedProvider Handle(ObservedRead provider)
         {
-            if ((uint)provider.Index >= (uint)_declared.Length || !string.Equals(_declared[provider.Index], provider.Name, StringComparison.OrdinalIgnoreCase))
+            if ((uint)provider.Index >= (uint)_declared.Length || !string.Equals(_declared[provider.Index],
+                    provider.Name, StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException($"'{provider.Name}' was not resolved by this view", nameof(provider));
             }
@@ -256,11 +271,10 @@ internal sealed class CollectorObserver : IFrameObserver
             for (int i = 0; i < rows.Length; i++)
             {
                 ProjectileRow r = rows[i];
-                copy[i] = new ObservedProjectile(r.EntityIndex, r.Serial, r.ClassName, r.ThrowerSlot, r.Team, r.Position,
-                    r.InitialPosition, r.InitialVelocity, r.Bounces, r.SmokeEffectTickBegin, r.SmokeDetonationPosition, r.IsIncendiary)
-                {
-                    ExplodeEffectTickBegin = r.ExplodeEffectTickBegin
-                };
+                copy[i] = new ObservedProjectile(r.EntityIndex, r.Serial, r.ClassName, r.ThrowerSlot, r.Team,
+                    r.Position,
+                    r.InitialPosition, r.InitialVelocity, r.Bounces, r.SmokeEffectTickBegin, r.SmokeDetonationPosition,
+                    r.IsIncendiary) { ExplodeEffectTickBegin = r.ExplodeEffectTickBegin };
             }
 
             return copy;
@@ -298,7 +312,8 @@ internal sealed class CollectorResults
         {
             null => null,
             T typed => typed,
-            _ => throw new InvalidCastException($"collector {collectorId} put a {entry.Result.GetType().Name}, not a {typeof(T).Name}")
+            _ => throw new InvalidCastException(
+                $"collector {collectorId} put a {entry.Result.GetType().Name}, not a {typeof(T).Name}")
         };
     }
 }

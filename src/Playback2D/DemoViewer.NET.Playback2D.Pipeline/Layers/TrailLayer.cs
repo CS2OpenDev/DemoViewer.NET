@@ -28,17 +28,8 @@ public sealed class TrailLayer : ISceneLayer
     /// <summary>Creates the layer.</summary>
     public TrailLayer()
     {
-        _stroke = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2,
-            IsAntialias = true
-        };
-        _head = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+        _stroke = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2, IsAntialias = true };
+        _head = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
     }
 
     /// <inheritdoc />

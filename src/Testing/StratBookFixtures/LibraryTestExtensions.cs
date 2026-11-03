@@ -33,7 +33,8 @@ internal static class LibraryTestExtensions
     private static readonly DemoCacheStore Memory = new(null);
 
     /// <summary>A fixture's record as the library hands it to a record pass.</summary>
-    public static LibraryDemoDetail AsDetail(this DemoCacheRecord record) => HostLibrary.For(Memory, null).DetailOf(record);
+    public static LibraryDemoDetail AsDetail(this DemoCacheRecord record) =>
+        HostLibrary.For(Memory, null).DetailOf(record);
 
     /// <summary>A fixture's index row as the library hands it out.</summary>
     public static LibraryDemo AsRow(this DemoCacheIndexEntry entry) => HostLibrary.For(Memory, null).Project(entry);

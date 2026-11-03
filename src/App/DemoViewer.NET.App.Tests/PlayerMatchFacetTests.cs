@@ -32,7 +32,8 @@ public class PlayerMatchFacetTests
 
     private static readonly string[] Dimensions = ["match_id", "map", "player_slot", "player_name", "steam_id", "team"];
 
-    internal static string SamplePath(string repo) => Path.Combine(repo, "tests", "fixtures", "player-match", "player_match.sample.facts.json");
+    internal static string SamplePath(string repo) =>
+        Path.Combine(repo, "tests", "fixtures", "player-match", "player_match.sample.facts.json");
 
     /// <summary>A sidecar's bytes as the indented JSON the sample is committed as. Numbers keep their written text.</summary>
     internal static string Indent(byte[] sidecar)
@@ -91,7 +92,8 @@ public class PlayerMatchFacetTests
         string path = SamplePath(repo);
         if (!File.Exists(path))
         {
-            throw new SkipTestException($"missing the player_match sample; regenerate with {SampleUpdateVar}=1 through PlayerMatchParityRealDemoTests");
+            throw new SkipTestException(
+                $"missing the player_match sample; regenerate with {SampleUpdateVar}=1 through PlayerMatchParityRealDemoTests");
         }
 
         string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
@@ -99,7 +101,8 @@ public class PlayerMatchFacetTests
         MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, null));
         IReadOnlyList<string> declared =
         [
-            .. rules.EnabledDoc(PlayerMatchFacet.RulesetId)!.Show!.Tables.Single(t => t.Name == PlayerMatchFacet.Table).Columns
+            .. rules.EnabledDoc(PlayerMatchFacet.RulesetId)!.Show!.Tables.Single(t => t.Name == PlayerMatchFacet.Table)
+                .Columns
                 .Select(c => c.Label ?? c.Stat)
         ];
 
@@ -110,7 +113,8 @@ public class PlayerMatchFacetTests
             await Assert.That(table.Schema).IsEqualTo(StampedFacts.Schema);
             await Assert.That(table.Grain).IsEqualTo("player_match");
             await Assert.That(string.Join(",", table.Values)).IsEqualTo(string.Join(",", declared))
-                .Because("the shipped ruleset declares the committed columns, in order; a change is a new facet version");
+                .Because(
+                    "the shipped ruleset declares the committed columns, in order; a change is a new facet version");
             await Assert.That(string.Join(",", table.Dimensions)).IsEqualTo(string.Join(",", Dimensions));
             await Assert.That(table.Rows.Count).IsEqualTo(2);
             await Assert.That(table.Rows.All(r => declared.All(r.Values.ContainsKey))).IsTrue();
@@ -146,11 +150,14 @@ public class PlayerMatchFacetTests
         using (Assert.Multiple())
         {
             await Assert.That(players.Select(p => p.SteamId64))
-                .IsEquivalentTo(["76561190000000003", "76561190000000007", "76561190000000008", "76561190000000012"], CollectionOrdering.Matching);
+                .IsEquivalentTo(["76561190000000003", "76561190000000007", "76561190000000008", "76561190000000012"],
+                    CollectionOrdering.Matching);
             await Assert.That(players[0].Slots).IsEquivalentTo([3, 4], CollectionOrdering.Matching);
-            await Assert.That(players[0].Names).IsEquivalentTo(["grim"], CollectionOrdering.Matching).Because("the forward run names slot 3 after its earlier occupant");
+            await Assert.That(players[0].Names).IsEquivalentTo(["grim"], CollectionOrdering.Matching)
+                .Because("the forward run names slot 3 after its earlier occupant");
             await Assert.That(players[1].Names).IsEmpty().Because("a placeholder is never a name");
-            await Assert.That(players[2].Names).IsEquivalentTo(["renamed"], CollectionOrdering.Matching).Because("with no roster name the run's name stands");
+            await Assert.That(players[2].Names).IsEquivalentTo(["renamed"], CollectionOrdering.Matching)
+                .Because("with no roster name the run's name stands");
             await Assert.That(players[3].Names).IsEquivalentTo(["jeorge"], CollectionOrdering.Matching);
         }
     }
@@ -168,10 +175,13 @@ public class PlayerMatchFacetTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(plain).DoesNotContain("FacetPlayers").Because("the field is additive: a record without it writes the old bytes");
+            await Assert.That(plain).DoesNotContain("FacetPlayers")
+                .Because("the field is additive: a record without it writes the old bytes");
             await Assert.That(plainRow).DoesNotContain("FacetPlayers");
             await Assert.That(row.FacetPlayers).IsSameReferenceAs(record.FacetPlayers);
-            await Assert.That(JsonSerializer.Deserialize<DemoCacheIndexEntry>(JsonSerializer.Serialize(row))!.FacetPlayers!.Single().Slots).IsEquivalentTo([3, 4], CollectionOrdering.Matching);
+            await Assert
+                .That(JsonSerializer.Deserialize<DemoCacheIndexEntry>(JsonSerializer.Serialize(row))!.FacetPlayers!
+                    .Single().Slots).IsEquivalentTo([3, 4], CollectionOrdering.Matching);
             await Assert.That(copy.FacetPlayers).IsSameReferenceAs(record.FacetPlayers);
         }
     }
@@ -183,7 +193,12 @@ public class PlayerMatchFacetTests
         StampedFacts stamped = new(rules);
         DemoCacheStore cache = new(null);
         const string path = "/demos/a.dem";
-        cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+        cache.Upsert(new DemoCacheRecord
+        {
+            Path = path,
+            Size = 1,
+            Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+        });
         FactsEvaluator evaluator = new(cache, stamped);
         AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
         bool wanted = evaluator.Wants(path);
@@ -194,7 +209,8 @@ public class PlayerMatchFacetTests
         {
             await Assert.That(wanted).IsTrue().Because("a parsed demo with no facet is the backlog");
             await Assert.That(facts.Status(path, PlayerMatchFacet.Key)).IsEqualTo(FactStatus.Current);
-            await Assert.That(cache.TryGetIndex(path)!.FacetPlayers).IsNotNull().Because("the stamp and the accounts land in one update");
+            await Assert.That(cache.TryGetIndex(path)!.FacetPlayers).IsNotNull()
+                .Because("the stamp and the accounts land in one update");
             await Assert.That(evaluator.Wants(path)).IsFalse();
             await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64)
                 .Because("the facet is stamped on its own, so the highlights stamp never moves");
@@ -208,7 +224,12 @@ public class PlayerMatchFacetTests
         StampedFacts stamped = new(rules);
         DemoCacheStore cache = new(null);
         const string path = "/demos/a.dem";
-        cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+        cache.Upsert(new DemoCacheRecord
+        {
+            Path = path,
+            Size = 1,
+            Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+        });
         FactsEvaluator evaluator = new(cache, stamped);
         string stampId = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
         evaluator.Evaluate(path, MergedRulesBuildTests.TwoFrameDemo());
@@ -253,7 +274,9 @@ public class PlayerMatchFacetTests
             string roundFacts = stamped.Fingerprint(RoundFactsFingerprint.RulesetId, 64)!;
 
             string yaml = await File.ReadAllTextAsync(Path.Combine(Shipped, "player_stats.rules.yaml"));
-            WriteUserRuleset(user, "player_stats.rules.yaml", yaml.Replace("TotalEnemyDmg / round.number", "TotalEnemyDmg / round.number / 1", StringComparison.Ordinal));
+            WriteUserRuleset(user, "player_stats.rules.yaml",
+                yaml.Replace("TotalEnemyDmg / round.number", "TotalEnemyDmg / round.number / 1",
+                    StringComparison.Ordinal));
             rules.Invalidate();
 
             using (Assert.Multiple())
@@ -283,7 +306,12 @@ public class PlayerMatchFacetTests
 
             DemoCacheStore cache = new(null);
             const string path = "/demos/a.dem";
-            cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+            cache.Upsert(new DemoCacheRecord
+            {
+                Path = path,
+                Size = 1,
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+            });
             FactsEvaluator evaluator = new(cache, stamped);
             AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
             string? disabled = stamped.Fingerprint(PlayerMatchFacet.RulesetId, 64);
@@ -306,9 +334,11 @@ public class PlayerMatchFacetTests
                 await Assert.That(stamp?.Fingerprint).IsEqualTo(disabled);
                 await Assert.That(failed).IsEqualTo(FactStatus.Failed);
                 await Assert.That(cache.TryGetIndex(path)!.FacetPlayers).IsNull();
-                await Assert.That(wantedAfter).IsFalse().Because("a failed write under the same fingerprint is settled");
+                await Assert.That(wantedAfter).IsFalse()
+                    .Because("a failed write under the same fingerprint is settled");
                 await Assert.That(stamped.Fingerprint(PlayerMatchFacet.RulesetId, 64)).IsEqualTo(enabled);
-                await Assert.That(evaluator.Wants(path)).IsTrue().Because("kast is back, so the facet is written again");
+                await Assert.That(evaluator.Wants(path)).IsTrue()
+                    .Because("kast is back, so the facet is written again");
             }
         }
         finally

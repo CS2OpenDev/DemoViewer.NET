@@ -40,12 +40,18 @@ public class SuggestedTagsRealDemoTests
         ("de_ancient", "match730_003765251335658668110_1533655444_405.dem", 24)
     ];
 
-    private sealed record Walked(ParsedDemo Parsed, RoundFactsRows Rows, List<PositionSample> Samples, OccupancyBuild Build,
-        SiteRegionTable Table, List<PlacedEvent> Events);
+    private sealed record Walked(
+        ParsedDemo Parsed,
+        RoundFactsRows Rows,
+        List<PositionSample> Samples,
+        OccupancyBuild Build,
+        SiteRegionTable Table,
+        List<PlacedEvent> Events);
 
     // The replays folder DEMO_PATH names, or the folder of the file it names.
     private static string ReplaysFolder() =>
-        DemoTestHelper.ResolveReplaysFolder(Environment.GetEnvironmentVariable(DemoTestHelper.DemoPathEnvVar), out string? problem)
+        DemoTestHelper.ResolveReplaysFolder(Environment.GetEnvironmentVariable(DemoTestHelper.DemoPathEnvVar),
+            out string? problem)
         ?? throw new SkipTestException(problem ?? $"{DemoTestHelper.DemoPathEnvVar} names no replays folder");
 
     private static Walked Walk(string demo)
@@ -61,7 +67,8 @@ public class SuggestedTagsRealDemoTests
         RoundFactsRows rows = SuggestedTagsRealDemoRows.Synthesize(parsed, samples);
         OccupancyBuild build = RoundOccupancyBuilder.FromWalk(parsed, rows, samples: samples);
         SiteRegionTable table = SiteRegionLearner.Learn(parsed.MapName, [build.Rounds]);
-        List<PlacedEvent> events = new DetonationPlaceResolver(null, null, build.Cloud).Place(DetonationEvents.From(parsed));
+        List<PlacedEvent> events =
+            new DetonationPlaceResolver(null, null, build.Cloud).Place(DetonationEvents.From(parsed));
         return new Walked(parsed, rows, samples, build, table, events);
     }
 
@@ -79,12 +86,14 @@ public class SuggestedTagsRealDemoTests
         DemoCacheStore store = new(null);
         RoundFactsEvaluator facts = new(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
         facts.Evaluate(path, parsed);
-        RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts ?? throw new InvalidOperationException("the evaluator wrote no rows");
+        RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts
+                              ?? throw new InvalidOperationException("the evaluator wrote no rows");
 
         List<PositionSample> samples = [.. PositionSampler.Walk(parsed, RoundOccupancyBuilder.FrameStride)];
         OccupancyBuild build = RoundOccupancyBuilder.FromWalk(parsed, rows, samples: samples);
         SiteRegionTable table = SiteRegionLearner.Learn(parsed.MapName, [build.Rounds]);
-        List<PlacedEvent> events = new DetonationPlaceResolver(null, null, build.Cloud).Place(DetonationEvents.From(parsed));
+        List<PlacedEvent> events =
+            new DetonationPlaceResolver(null, null, build.Cloud).Place(DetonationEvents.From(parsed));
         return new Walked(parsed, rows, samples, build, table, events);
     }
 
@@ -119,7 +128,8 @@ public class SuggestedTagsRealDemoTests
         using (Assert.Multiple())
         {
             await Assert.That(walked.Parsed.MapName).IsEqualTo(map);
-            await Assert.That(golden.Serialize()).IsEqualTo(File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal))
+            await Assert.That(golden.Serialize())
+                .IsEqualTo(File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("the fold, the placed events and the learned table of the pinned round are pinned");
         }
     }
@@ -130,7 +140,8 @@ public class SuggestedTagsRealDemoTests
         Walked walked = Walk(Pinned[1].Demo);
         RoundIndexDocument index = RoundIndexBuilder.Build(walked.Parsed, walked.Rows, RoundIndexOptions.Default,
             PawnPlaceSource.Instance);
-        IReadOnlyList<RoundOccupancy> fromIndex = RoundOccupancyBuilder.FromIndex(index, walked.Rows, walked.Parsed.TickRate);
+        IReadOnlyList<RoundOccupancy> fromIndex =
+            RoundOccupancyBuilder.FromIndex(index, walked.Rows, walked.Parsed.TickRate);
 
         int cells = 0;
         int agree = 0;
@@ -193,13 +204,17 @@ public class SuggestedTagsRealDemoTests
             int noPlantRounds = scored - planted.Count;
             int noPlantFires = executes.Count(p => !planted.Contains(p.Round));
             Console.WriteLine($"{map}: {scored} rounds, {planted.Count} planted, regions {regions.Source}: " +
-                              string.Join("; ", SiteRegions.Sites.Select(s => DetectorMath.RegionText(s, regions.RegionOf(s)))));
+                              string.Join("; ",
+                                  SiteRegions.Sites.Select(s => DetectorMath.RegionText(s, regions.RegionOf(s)))));
             Console.WriteLine($"  executes {executes.Count} (no-plant {noPlantFires} of {noPlantRounds}), " +
-                              string.Join(", ", ProposalDetection.All.Skip(1).Select(d => $"{d.Id} {proposals.Count(p => p.Detector == d.Id)}")) +
+                              string.Join(", ",
+                                  ProposalDetection.All.Skip(1).Select(d =>
+                                      $"{d.Id} {proposals.Count(p => p.Detector == d.Id)}")) +
                               $"; {watch.ElapsedMilliseconds} ms parse, walk and detect");
             foreach (TagProposal p in proposals)
             {
-                Console.WriteLine($"    r{p.Round} {p.Id} c={p.Confidence} {string.Join(',', p.Labels.Select(l => $"{l.Key}={l.Value}"))}");
+                Console.WriteLine(
+                    $"    r{p.Round} {p.Id} c={p.Confidence} {string.Join(',', p.Labels.Select(l => $"{l.Key}={l.Value}"))}");
             }
 
             await Assert.That(noPlantFires).IsLessThanOrEqualTo(Math.Max(1, noPlantRounds / 2)).Because(map);
@@ -249,16 +264,19 @@ public class SuggestedTagsRealDemoTests
         SuggestedTagsGolden fromSynthesised = SuggestedTagsGolden.Load(synthesised);
         using (Assert.Multiple())
         {
-            await Assert.That(golden.Serialize()).IsEqualTo(File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal))
+            await Assert.That(golden.Serialize())
+                .IsEqualTo(File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("the fold, the placed events and the learned table over the engine's rows are pinned");
             await Assert.That(golden.Round.StartTick).IsEqualTo(fromSynthesised.Round.StartTick);
             await Assert.That(golden.Round.EndTick).IsLessThan(fromSynthesised.Round.EndTick)
                 .Because("the engine closes the round when it is decided, not when it is officially over");
-            await Assert.That(golden.Round.Sides).IsEquivalentTo(fromSynthesised.Round.Sides, CollectionOrdering.Matching)
+            await Assert.That(golden.Round.Sides)
+                .IsEquivalentTo(fromSynthesised.Round.Sides, CollectionOrdering.Matching)
                 .Because("the sides are the same facts under either row source");
             await Assert.That(golden.Round.Bomb).IsEqualTo(fromSynthesised.Round.Bomb)
                 .Because("the plant is the same fact under either row source");
-            await Assert.That(golden.Proposals.Select(p => p.Id)).IsEquivalentTo(fromSynthesised.Proposals.Select(p => p.Id), CollectionOrdering.Matching)
+            await Assert.That(golden.Proposals.Select(p => p.Id))
+                .IsEquivalentTo(fromSynthesised.Proposals.Select(p => p.Id), CollectionOrdering.Matching)
                 .Because("the same proposals fire under either row source");
         }
     }
@@ -278,15 +296,20 @@ public class SuggestedTagsRealDemoTests
         Walked walked = WalkFromEngineRows(demo);
         RoundIndexDocument index = RoundIndexBuilder.Build(walked.Parsed, walked.Rows, RoundIndexOptions.Default,
             PawnPlaceSource.Instance);
-        IReadOnlyList<RoundOccupancy> fromIndex = RoundOccupancyBuilder.FromIndex(index, walked.Rows, walked.Parsed.TickRate);
+        IReadOnlyList<RoundOccupancy> fromIndex =
+            RoundOccupancyBuilder.FromIndex(index, walked.Rows, walked.Parsed.TickRate);
 
         SiteRegions regions = SiteRegions.Compose(map, null, walked.Table, DetectorProfile.Default);
-        IReadOnlyList<TagProposal> fromWalk = ProposalDetection.Detect(map, walked.Parsed.TickRate, regions, walked.Events,
+        IReadOnlyList<TagProposal> fromWalk = ProposalDetection.Detect(map, walked.Parsed.TickRate, regions,
+            walked.Events,
             walked.Build.Rounds, DetectorProfile.Default);
-        IReadOnlyList<TagProposal> fromIndexed = ProposalDetection.Detect(map, walked.Parsed.TickRate, regions, walked.Events,
+        IReadOnlyList<TagProposal> fromIndexed = ProposalDetection.Detect(map, walked.Parsed.TickRate, regions,
+            walked.Events,
             fromIndex, DetectorProfile.Default);
 
-        HashSet<string> occupancyDetectors = [ExecuteDetector.DetectorId, DefaultDetector.DetectorId, FakeDetector.DetectorId];
+        HashSet<string> occupancyDetectors =
+            [ExecuteDetector.DetectorId, DefaultDetector.DetectorId, FakeDetector.DetectorId];
+
         IEnumerable<string> Keys(IEnumerable<TagProposal> proposals) => proposals
             .Where(p => occupancyDetectors.Contains(p.Detector))
             .Select(p => $"{p.Round}:{p.Detector}:{string.Join(',', p.Labels.Select(l => $"{l.Key}={l.Value}"))}")

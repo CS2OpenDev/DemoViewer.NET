@@ -18,7 +18,8 @@ public class StoredFileTests
         string root = Path.Combine(Path.GetTempPath(), $"dv-stored-file-{Guid.NewGuid():N}");
         try
         {
-            ExtensionStores stores = new("dev.example.stored", Path.Combine(root, "config"), Path.Combine(root, "cache"), []);
+            ExtensionStores stores = new("dev.example.stored", Path.Combine(root, "config"),
+                Path.Combine(root, "cache"), []);
             IExtensionFolder folder = stores.Own(StoreRoot.Config)!;
             int legacyReads = 0;
             byte[] legacy = Encoding.UTF8.GetBytes("{\"Dismissed\":[\"k\"]}");
@@ -35,7 +36,8 @@ public class StoredFileTests
             using (Assert.Multiple())
             {
                 await Assert.That(first).IsEquivalentTo(legacy, CollectionOrdering.Matching);
-                await Assert.That(copied).IsEquivalentTo(legacy, CollectionOrdering.Matching).Because("the copy lands in the extension's own folder");
+                await Assert.That(copied).IsEquivalentTo(legacy, CollectionOrdering.Matching)
+                    .Because("the copy lands in the extension's own folder");
                 await Assert.That(Encoding.UTF8.GetString(afterWrite!)).IsEqualTo("{}")
                     .Because("once copied, the extension's file is the store, not the old one");
                 await Assert.That(legacyReads).IsEqualTo(1);
@@ -67,7 +69,8 @@ public class StoredFileTests
                 await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, "teams.json"))).IsEqualTo("{}");
                 await Assert.That(Encoding.UTF8.GetString(file.Read()!)).IsEqualTo("{}");
                 await Assert.That(file.Name).IsEqualTo("teams.json");
-                await Assert.That(StoredFile.In(null)).IsNull().Because("no store (the browser) is a session-only file");
+                await Assert.That(StoredFile.In(null)).IsNull()
+                    .Because("no store (the browser) is a session-only file");
             }
         }
         finally
@@ -85,7 +88,8 @@ public class StoredFileTests
         string root = Path.Combine(Path.GetTempPath(), $"dv-stored-file-{Guid.NewGuid():N}");
         try
         {
-            ExtensionStores stores = new("dev.example.stored", Path.Combine(root, "config"), Path.Combine(root, "cache"), []);
+            ExtensionStores stores = new("dev.example.stored", Path.Combine(root, "config"),
+                Path.Combine(root, "cache"), []);
             StoredFile file = StoredFile.In(stores.Own(StoreRoot.Cache), StratMiningFiles.DetectedPath, () => null)!;
             using (Assert.Multiple())
             {

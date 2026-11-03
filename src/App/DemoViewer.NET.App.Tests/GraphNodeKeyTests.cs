@@ -197,10 +197,7 @@ public sealed class GraphNodeKeyTests
     [Test]
     public async Task NodeViewModel_ExposesTheKeyAsIGraphNodeKey()
     {
-        GraphNodeViewModel vm = new("Alive")
-        {
-            NodeKey = GraphNodeKey.ForPlayer(0, 3, "Alive")
-        };
+        GraphNodeViewModel vm = new("Alive") { NodeKey = GraphNodeKey.ForPlayer(0, 3, "Alive") };
 
         await Assert.That(((IGraphNode)vm).Key).IsEqualTo(GraphNodeKey.ForPlayer(0, 3, "Alive").ToString());
         await Assert.That(vm.Name).IsEqualTo("Alive")

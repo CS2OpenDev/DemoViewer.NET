@@ -56,10 +56,11 @@ public sealed class GrenadeStore
     public void Write(string demoPath, GrenadeDocument rows)
     {
         ArgumentNullException.ThrowIfNull(rows);
-        Data.Write(demoPath, new DemoDataWrite(Facet, Schema, GrenadeWalker.Version, GrenadeThrowLog.Encode(rows))
-        {
-            Count = rows.Grenades.Count
-        });
+        Data.Write(demoPath,
+            new DemoDataWrite(Facet, Schema, GrenadeWalker.Version, GrenadeThrowLog.Encode(rows))
+            {
+                Count = rows.Grenades.Count
+            });
     }
 
     /// <summary>

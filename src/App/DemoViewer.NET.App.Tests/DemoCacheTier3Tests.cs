@@ -48,37 +48,17 @@ public class DemoCacheTier3Tests
         Size = 4242,
         ModifiedTicks = localTicks,
         Map = "de_dust2",
-        Parse = new TierStamp
-        {
-            Schema = DemoCacheRecord.ParseSchema,
-            ComputedAtTicks = 1
-        },
+        Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 },
         DurationSeconds = 2298,
         TickRate = 64,
         Players =
         [
-            new CachedPlayerInfo
-            {
-                Slot = 1,
-                Name = "s1mple",
-                SteamId64 = "765",
-                Team = 3
-            },
-            new CachedPlayerInfo
-            {
-                Slot = 2,
-                Name = "ZywOo",
-                SteamId64 = "766",
-                Team = 2
-            }
+            new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = "765", Team = 3 },
+            new CachedPlayerInfo { Slot = 2, Name = "ZywOo", SteamId64 = "766", Team = 2 }
         ],
         Rounds =
         [
-            new CachedRound
-            {
-                Number = 1,
-                StartTickFrameClock = 5000
-            }
+            new CachedRound { Number = 1, StartTickFrameClock = 5000 }
         ],
         CtScore = 13,
         TScore = 9
@@ -234,11 +214,7 @@ public class DemoCacheTier3Tests
             cache.Upsert(new DemoCacheRecord
             {
                 Path = demo,
-                Analysis = new TierStamp
-                {
-                    Schema = DemoCacheRecord.AnalysisSchema,
-                    ComputedAtTicks = 1
-                },
+                Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
                 AnalysisState = DemoAnalysisState.Indexed,
                 ConfigFingerprint = "fp-A@64"
             });
@@ -290,10 +266,7 @@ public class DemoCacheTier3Tests
                     [
                         new CachedHighlightEvent
                         {
-                            RulesetId = "clutch",
-                            HighlightId = "ace",
-                            Tick = 54_000,
-                            PlayerSlot = 1
+                            RulesetId = "clutch", HighlightId = "ace", Tick = 54_000, PlayerSlot = 1
                         }
                     ];
                     DemoCacheStore.StampAnalysis(r);
@@ -304,12 +277,7 @@ public class DemoCacheTier3Tests
                 {
                     r.Scoreboard =
                     [
-                        new CachedStatRow
-                        {
-                            Slot = 1,
-                            Team = 3,
-                            Kills = 24
-                        }
+                        new CachedStatRow { Slot = 1, Team = 3, Kills = 24 }
                     ];
                     DemoCacheStore.StampAnalysis(r);
                     scoreboardInside.Set();
@@ -337,10 +305,7 @@ public class DemoCacheTier3Tests
     private sealed class NoopHarvester : IHighlightHarvester
     {
         public (string Fingerprint, IReadOnlyDictionary<string, string> Hashes) ComputeFingerprint(int tickRate)
-            => ("fp-A@64", new Dictionary<string, string>
-            {
-                ["clutch.ace"] = "h1"
-            });
+            => ("fp-A@64", new Dictionary<string, string> { ["clutch.ace"] = "h1" });
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) =>
             throw new NotSupportedException("these tests supply rows via processorOverride");

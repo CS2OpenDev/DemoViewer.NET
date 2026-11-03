@@ -25,10 +25,7 @@ public class FloorSplitterTests
     {
         FloorSplitter s = new();
         // A spread of Z values all within one floor (a Dust2-like single-storey map).
-        foreach (double z in new[]
-                 {
-                     -120.0, -64.0, 0.0, 48.0, 96.0, 130.0
-                 })
+        foreach (double z in new[] { -120.0, -64.0, 0.0, 48.0, 96.0, 130.0 })
         {
             s.Observe(z);
         }
@@ -46,18 +43,12 @@ public class FloorSplitterTests
 
         // Lower floor cluster around z≈0, upper floor cluster around z≈800 (Nuke-style two storeys with a
         // clear > 180u empty Z gap between them).
-        foreach (double z in new[]
-                 {
-                     -50.0, 0.0, 40.0, 80.0
-                 })
+        foreach (double z in new[] { -50.0, 0.0, 40.0, 80.0 })
         {
             s.Observe(z);
         }
 
-        foreach (double z in new[]
-                 {
-                     760.0, 800.0, 840.0, 880.0
-                 })
+        foreach (double z in new[] { 760.0, 800.0, 840.0, 880.0 })
         {
             s.Observe(z);
         }
@@ -101,18 +92,12 @@ public class FloorSplitterTests
     public async Task GapZ_SnapsToNearestSlice()
     {
         FloorSplitter s = new();
-        foreach (double z in new[]
-                 {
-                     0.0, 40.0
-                 })
+        foreach (double z in new[] { 0.0, 40.0 })
         {
             s.Observe(z);
         }
 
-        foreach (double z in new[]
-                 {
-                     800.0, 840.0
-                 })
+        foreach (double z in new[] { 800.0, 840.0 })
         {
             s.Observe(z);
         }
@@ -159,10 +144,7 @@ public class FloorSplitterTests
     public async Task ThreeFloors_YieldThreeSlicesOrderedLowToHigh()
     {
         FloorSplitter s = new();
-        foreach (double z in new[]
-                 {
-                     0.0, 50.0, -300.0, -340.0, 600.0, 650.0
-                 })
+        foreach (double z in new[] { 0.0, 50.0, -300.0, -340.0, 600.0, 650.0 })
         {
             s.Observe(z);
         }
@@ -183,10 +165,7 @@ public class FloorSplitterTests
         // boundaries (-456,-416,-352) cut THROUGH a continuous single-floor player-Z span and every adoption
         // variant fragments / flickers (Playback2DFloorThresholdProbeTests). So the histogram owns the split.
         FloorSplitter s = new();
-        foreach (double z in new[]
-                 {
-                     -416.0, -416.0, -400.0, -352.0, -300.0, -200.0, -150.0, -111.0
-                 })
+        foreach (double z in new[] { -416.0, -416.0, -400.0, -352.0, -300.0, -200.0, -150.0, -111.0 })
         {
             s.Observe(z);
         }
@@ -194,10 +173,7 @@ public class FloorSplitterTests
         await Assert.That(s.Slices.Count).IsEqualTo(1); // histogram: one continuous floor
 
         // Supplying the demo's real section heights does NOT change the split (stored, not adopted).
-        double[] heights =
-        {
-            -456.0, -416.0, -352.0
-        };
+        double[] heights = { -456.0, -416.0, -352.0 };
         s.SetSectionHeights(heights);
         await Assert.That(s.HasSectionHeights).IsTrue(); // stored / surfaced...
         await Assert.That(s.Slices.Count).IsEqualTo(1); // ...but the histogram still owns the split.
@@ -207,19 +183,13 @@ public class FloorSplitterTests
     public async Task SectionHeights_SingleUsableBoundary_FallsBackToHistogram()
     {
         FloorSplitter s = new();
-        foreach (double z in new[]
-                 {
-                     0.0, 40.0
-                 })
+        foreach (double z in new[] { 0.0, 40.0 })
         {
             s.Observe(z);
         }
 
         // A map publishing only one real value (rest sentinel) is single-floor → no usable split; histogram runs.
-        double[] heights =
-        {
-            64.0, 3.4e38, 3.4e38
-        };
+        double[] heights = { 64.0, 3.4e38, 3.4e38 };
         s.SetSectionHeights(heights);
         await Assert.That(s.HasSectionHeights).IsFalse();
         await Assert.That(s.Slices.Count).IsEqualTo(1); // from the histogram
@@ -241,10 +211,7 @@ public class FloorSplitterTests
     public async Task SectionHeights_ClearedByReset()
     {
         FloorSplitter s = new();
-        double[] heights =
-        {
-            0.0, 256.0, 512.0
-        };
+        double[] heights = { 0.0, 256.0, 512.0 };
         s.SetSectionHeights(heights);
         await Assert.That(s.HasSectionHeights).IsTrue();
 

@@ -13,7 +13,8 @@ public class GeneratedStateTests
 {
     [Test]
     public async Task ThereIsNoReviewedState_OutsideReviewClips() =>
-        await Assert.That(Enum.GetNames<GeneratedState>()).IsEquivalentTo(["New", "Dismissed", "Accepted"], CollectionOrdering.Matching);
+        await Assert.That(Enum.GetNames<GeneratedState>())
+            .IsEquivalentTo(["New", "Dismissed", "Accepted"], CollectionOrdering.Matching);
 
     [Test]
     public async Task OnlyNewShows_UntilSettledIsOn()
@@ -21,8 +22,10 @@ public class GeneratedStateTests
         GeneratedState[] states = Enum.GetValues<GeneratedState>();
         using (Assert.Multiple())
         {
-            await Assert.That(states.Where(s => GeneratedInbox.Shows(s, false))).IsEquivalentTo([GeneratedState.New], CollectionOrdering.Matching);
-            await Assert.That(states.Where(s => GeneratedInbox.Shows(s, true))).IsEquivalentTo(states, CollectionOrdering.Matching);
+            await Assert.That(states.Where(s => GeneratedInbox.Shows(s, false)))
+                .IsEquivalentTo([GeneratedState.New], CollectionOrdering.Matching);
+            await Assert.That(states.Where(s => GeneratedInbox.Shows(s, true)))
+                .IsEquivalentTo(states, CollectionOrdering.Matching);
             await Assert.That(GeneratedInbox.SettledLabel(3)).IsEqualTo("Show settled (3)");
         }
     }
@@ -30,8 +33,10 @@ public class GeneratedStateTests
     [Test]
     public async Task Counts_SplitNewFromSettled()
     {
-        GeneratedCounts counts = GeneratedCounts.Of([GeneratedState.New, GeneratedState.New,
-            GeneratedState.Dismissed, GeneratedState.Accepted, GeneratedState.Accepted]);
+        GeneratedCounts counts = GeneratedCounts.Of([
+            GeneratedState.New, GeneratedState.New,
+            GeneratedState.Dismissed, GeneratedState.Accepted, GeneratedState.Accepted
+        ]);
 
         using (Assert.Multiple())
         {
@@ -53,14 +58,21 @@ public class GeneratedStateTests
             Members = [new MinedMember("/d/m1.dem", null, 1, null, true, BuyType.Full, 0, 0, 64, 0)],
             Medoid = new RoundSignature
             {
-                DemoPath = "/d/m1.dem", Round = 1, Map = "de_nuke", Side = 2, Kind = PatternKind.Setup, Anchors = []
+                DemoPath = "/d/m1.dem",
+                Round = 1,
+                Map = "de_nuke",
+                Side = 2,
+                Kind = PatternKind.Setup,
+                Anchors = []
             }
         };
         using (Assert.Multiple())
         {
             await Assert.That(new DetectedPattern(pattern, false, null).State).IsEqualTo(GeneratedState.New);
-            await Assert.That(new DetectedPattern(pattern, false, Guid.NewGuid()).State).IsEqualTo(GeneratedState.Accepted);
-            await Assert.That(new DetectedPattern(pattern, true, Guid.NewGuid()).State).IsEqualTo(GeneratedState.Dismissed);
+            await Assert.That(new DetectedPattern(pattern, false, Guid.NewGuid()).State)
+                .IsEqualTo(GeneratedState.Accepted);
+            await Assert.That(new DetectedPattern(pattern, true, Guid.NewGuid()).State)
+                .IsEqualTo(GeneratedState.Dismissed);
         }
     }
 }

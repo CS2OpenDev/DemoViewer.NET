@@ -158,9 +158,7 @@ public class Playback2DTimelineRealDemoTests
         context.SetGameEvents(demo.AllGameEvents);
         context.SetRoster(demo.Players.Values.Select(p => new PlayerRosterEntry
         {
-            Slot = p.Slot,
-            Name = p.Name,
-            SteamId = p.SteamId64
+            Slot = p.Slot, Name = p.Name, SteamId = p.SteamId64
         }));
 
         return (demo, controller, context);

@@ -101,6 +101,7 @@ public sealed class StratSession : IDisposable
                 {
                     _issues = [.. _issues, .. more];
                 }
+
                 _issuesVersion = Version;
             }
 
@@ -210,7 +211,9 @@ public sealed class StratSession : IDisposable
         if (result.Document is not { } loaded)
         {
             Issues = result.Issues;
-            StatusText = result.IsUnreadable ? "the strat file could not be read: it will not be overwritten" : Describe();
+            StatusText = result.IsUnreadable
+                ? "the strat file could not be read: it will not be overwritten"
+                : Describe();
             Changed?.Invoke();
             return result;
         }
@@ -495,7 +498,8 @@ public sealed class StratSession : IDisposable
     {
         if (op.Path.Length == 0 || op.Path is "/id" or "/revision" or "/modifiedUtc")
         {
-            throw new InvalidOperationException($"'{op.Path}' is not an edit: the whole strat, its id and its revision stamps are the store's");
+            throw new InvalidOperationException(
+                $"'{op.Path}' is not an edit: the whole strat, its id and its revision stamps are the store's");
         }
 
         int slash = op.Path.LastIndexOf('/');
@@ -507,7 +511,8 @@ public sealed class StratSession : IDisposable
         {
             case PatchOp.Add when parent is JsonArray array && token == "-":
                 // The log names the concrete index: the inverse of an append has to say which element it removes.
-                return PatchOp.AddOp(parentPath + "/" + array.Count.ToString(CultureInfo.InvariantCulture), op.Value?.DeepClone());
+                return PatchOp.AddOp(parentPath + "/" + array.Count.ToString(CultureInfo.InvariantCulture),
+                    op.Value?.DeepClone());
             case PatchOp.Add when parent is JsonObject obj && obj.ContainsKey(Unescape(token)):
                 // An add over a member is a replace; as an add its inverse would remove the member outright.
                 return PatchOp.ReplaceOp(op.Path, obj[Unescape(token)]?.DeepClone(), op.Value?.DeepClone());
@@ -516,7 +521,8 @@ public sealed class StratSession : IDisposable
             case PatchOp.Remove:
                 return PatchOp.RemoveOp(op.Path, StratHistory.ValueAt(root, op.Path)?.DeepClone());
             case PatchOp.Replace:
-                return PatchOp.ReplaceOp(op.Path, StratHistory.ValueAt(root, op.Path)?.DeepClone(), op.Value?.DeepClone());
+                return PatchOp.ReplaceOp(op.Path, StratHistory.ValueAt(root, op.Path)?.DeepClone(),
+                    op.Value?.DeepClone());
             default:
                 throw new InvalidOperationException($"unsupported op '{op.Op}'");
         }
@@ -687,7 +693,8 @@ public sealed class StratSession : IDisposable
         }
 
         string revision = (RecoveryNote is null ? "" : RecoveryNote + " · ") + "revision "
-                          + document.Revision.ToString(CultureInfo.InvariantCulture);
+                                                                             + document.Revision.ToString(CultureInfo
+                                                                                 .InvariantCulture);
         if (!HasPending)
         {
             return revision + " · saved";

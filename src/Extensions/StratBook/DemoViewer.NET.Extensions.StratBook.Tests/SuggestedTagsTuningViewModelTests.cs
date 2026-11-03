@@ -35,7 +35,8 @@ public class SuggestedTagsTuningViewModelTests
     public async Task OnTheBrowserHost_TheSectionHidesItself_EvenWithAHarness()
     {
         using SuggestedTagsReviewHarness h = new();
-        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions, new InlineJobs { ParseDemo = _ => Parse() });
+        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions,
+            new InlineJobs { ParseDemo = _ => Parse() });
         ProfileStore profiles = new(null);
 
         SuggestedTagsTuningViewModel vm = new(tuning, profiles, isBrowser: true);
@@ -50,7 +51,8 @@ public class SuggestedTagsTuningViewModelTests
         h.Build();
         await Assert.That(h.Service.Accept(DemoPath, h.Service.Load(DemoPath).Entries
             .Single(e => e.Proposal.Detector == "execute").Proposal.Id)).IsTrue();
-        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions, new InlineJobs { ParseDemo = _ => Parse() });
+        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions,
+            new InlineJobs { ParseDemo = _ => Parse() });
         ProfileStore profiles = new(null);
 
         SuggestedTagsTuningViewModel vm = new(tuning, profiles);
@@ -60,7 +62,8 @@ public class SuggestedTagsTuningViewModelTests
         {
             await Assert.That(vm.CanManageTuning).IsTrue();
             await Assert.That(vm.ParameterRows.Count).IsEqualTo(expectedParameters);
-            await Assert.That(vm.DetectorRows.Select(r => r.Detector)).IsEquivalentTo(ProposalDetection.All.Select(d => d.Id), CollectionOrdering.Matching);
+            await Assert.That(vm.DetectorRows.Select(r => r.Detector))
+                .IsEquivalentTo(ProposalDetection.All.Select(d => d.Id), CollectionOrdering.Matching);
             await Assert.That(vm.DetectorRows.Single(r => r.Detector == "execute").Made).IsEqualTo(1)
                 .Because("the demo now has a verdict, so its entries count toward the history table");
             await Assert.That(vm.IsDirty).IsFalse();
@@ -72,7 +75,8 @@ public class SuggestedTagsTuningViewModelTests
     {
         using SuggestedTagsReviewHarness h = new();
         h.Build();
-        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions, new InlineJobs { ParseDemo = _ => Parse() });
+        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions,
+            new InlineJobs { ParseDemo = _ => Parse() });
         ProfileStore profiles = new(null);
         SuggestedTagsTuningViewModel vm = new(tuning, profiles);
 
@@ -95,7 +99,8 @@ public class SuggestedTagsTuningViewModelTests
     {
         using SuggestedTagsReviewHarness h = new();
         h.Build();
-        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions, new InlineJobs { ParseDemo = _ => Parse() });
+        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions,
+            new InlineJobs { ParseDemo = _ => Parse() });
         ProfileStore profiles = new(null);
         SuggestedTagsTuningViewModel vm = new(tuning, profiles);
 
@@ -127,13 +132,19 @@ public class SuggestedTagsTuningViewModelTests
             new ClockIdentity(ClockIdentity.DvFrameClock, 64, 2, 1, 20000),
             new TagInstance
             {
-                Id = Guid.NewGuid(), Code = execute.Code, Round = execute.Round,
-                FromTick = execute.FromTick, ToTick = execute.ToTick,
-                Source = TagSources.Human, CreatedUtc = Now, ModifiedUtc = Now,
+                Id = Guid.NewGuid(),
+                Code = execute.Code,
+                Round = execute.Round,
+                FromTick = execute.FromTick,
+                ToTick = execute.ToTick,
+                Source = TagSources.Human,
+                CreatedUtc = Now,
+                ModifiedUtc = Now,
                 Labels = [new TagLabel("site", execute.Labels["site"])] // a site-bearing code only matches on its site
             });
 
-        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions, new InlineJobs { ParseDemo = _ => Parse() });
+        SuggestedTagsTuningService tuning = new(h.Cache.Library(), h.Service, h.Tags, h.Regions,
+            new InlineJobs { ParseDemo = _ => Parse() });
         ProfileStore profiles = new(null);
         SuggestedTagsTuningViewModel vm = new(tuning, profiles);
 

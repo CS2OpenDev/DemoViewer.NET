@@ -35,7 +35,11 @@ public class OpenVisitSidecarsRealDemoTests
     private static MergedRulesBuild Stale(string fixture)
     {
         MergedRulesBuild build = new(() => AnalysisFactsTests.WithFixture(fixture),
-            () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)]);
+            () =>
+            [
+                StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)
+            ]);
         build.OutputsFor = _ => build.StampedOutputs();
         return build;
     }
@@ -43,7 +47,9 @@ public class OpenVisitSidecarsRealDemoTests
     private static string Tables(AnalysisRun run, IEnumerable<string> names)
     {
         HashSet<string> wanted = new(names, StringComparer.Ordinal);
-        return JsonSerializer.Serialize(run.ProjectConfiguredOutputs().Where(t => wanted.Contains(t.Name)).OrderBy(t => t.Name, StringComparer.Ordinal), Fields);
+        return JsonSerializer.Serialize(
+            run.ProjectConfiguredOutputs().Where(t => wanted.Contains(t.Name))
+                .OrderBy(t => t.Name, StringComparer.Ordinal), Fields);
     }
 
     [Test]
@@ -55,56 +61,70 @@ public class OpenVisitSidecarsRealDemoTests
     public async Task TheOpenVisit_WritesWhatTheBackgroundVisitsWrite(int which)
     {
         string path = BenchmarkDemo(which);
-        string fixture = AnalysisFactsTests.WriteFixture((AnalysisFactsTests.FactsRuleset, AnalysisFactsTests.FactsYaml));
+        string fixture =
+            AnalysisFactsTests.WriteFixture((AnalysisFactsTests.FactsRuleset, AnalysisFactsTests.FactsYaml));
         try
         {
             string[] stamped = [RoundFactsFingerprint.RulesetId, AnalysisFactsTests.FactsTable];
             ParsedDemo parsed = BackgroundPlanRealDemoTests.ParseMapped(path, DemoProcessingQueue.WithoutUserCommands);
-            string bake = CollisionSoup.Find(parsed.MapName) ?? throw new InvalidOperationException($"no collision bake for {parsed.MapName}");
+            string bake = CollisionSoup.Find(parsed.MapName)
+                          ?? throw new InvalidOperationException($"no collision bake for {parsed.MapName}");
             AnalysisOptions withBake = new() { VisibilityEngine = CollisionSoup.Load(bake) };
             string matchId = Path.GetFileName(path);
 
             // The open: the shell's plan, build and snapshot run, seeded, then read by the visit's consumers.
             MergedRulesBuild open = Stale(fixture);
             OpenRunPlan plan = open.PlanOpen(AnalysisFactsTests.WithFixture(fixture).Rulesets, path);
-            AnalysisRun shellRun = DemoAnalysis.Evaluate(parsed, plan.Cuts(DemoAnalysis.Build(parsed, plan.Docs, withBake)), withBake);
+            AnalysisRun shellRun = DemoAnalysis.Evaluate(parsed,
+                plan.Cuts(DemoAnalysis.Build(parsed, plan.Docs, withBake)), withBake);
             bool seeded = open.Seed(parsed, path, plan, shellRun);
             AnalysisRun visitRun = open.BareRun(parsed, path);
-            string openRows = JsonSerializer.Serialize(new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(open)).Rows(parsed, path), Fields);
+            string openRows = JsonSerializer.Serialize(
+                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(open)).Rows(parsed, path), Fields);
 
             // A background retained visit: its own bare run on the same parse.
             MergedRulesBuild retained = Stale(fixture);
             AnalysisRun bareRun = retained.BareRun(parsed, path);
-            string retainedRows = JsonSerializer.Serialize(new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(retained)).Rows(parsed, path), Fields);
+            string retainedRows = JsonSerializer.Serialize(
+                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(retained)).Rows(parsed, path), Fields);
 
             // A forward visit.
             MergedRulesBuild forwardRules = Stale(fixture);
             ForwardDemoResult forward;
             using (DemoReader reader = DemoReader.OpenFile(path, ForwardDemoPass.ReaderOptions(CancellationToken.None)))
             {
-                forward = ForwardDemoPass.Run(reader, ForwardNeeds.Rules, forwardRules.Docs, outputs: forwardRules.OutputsFor!(path));
+                forward = ForwardDemoPass.Run(reader, ForwardNeeds.Rules, forwardRules.Docs,
+                    outputs: forwardRules.OutputsFor!(path));
             }
 
-            string forwardRows = JsonSerializer.Serialize(new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(forwardRules)).Rows(forward), Fields);
+            string forwardRows = JsonSerializer.Serialize(
+                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(forwardRules)).Rows(forward), Fields);
 
             // The core rulesets alone, with the bake.
-            AnalysisRun coreRun = DemoAnalysis.Evaluate(parsed, DemoAnalysis.Build(parsed, open.CoreDocs, withBake), withBake);
+            AnalysisRun coreRun =
+                DemoAnalysis.Evaluate(parsed, DemoAnalysis.Build(parsed, open.CoreDocs, withBake), withBake);
 
             using (Assert.Multiple())
             {
                 await Assert.That(seeded).IsTrue();
                 await Assert.That(visitRun).IsSameReferenceAs(shellRun).Because("the visit reads the open's run");
                 await Assert.That(retainedRows.Length).IsGreaterThan(1000).Because("the comparison needs rows");
-                await Assert.That(Tables(visitRun, [AnalysisFactsTests.FactsTable]).Length).IsGreaterThan(200).Because("and facts");
+                await Assert.That(Tables(visitRun, [AnalysisFactsTests.FactsTable]).Length).IsGreaterThan(200)
+                    .Because("and facts");
                 await Assert.That(openRows).IsEqualTo(retainedRows).Because("round facts rows, open vs retained");
                 await Assert.That(forwardRows).IsEqualTo(retainedRows).Because("round facts rows, forward vs retained");
-                await Assert.That(Tables(visitRun, stamped)).IsEqualTo(Tables(bareRun, stamped)).Because("stamped tables, open vs retained");
-                await Assert.That(Tables(forward.Run!, stamped)).IsEqualTo(Tables(bareRun, stamped)).Because("stamped tables, forward vs retained");
-                await Assert.That(JsonSerializer.Serialize(plan.Shown(shellRun).ProjectConfiguredOutputs(parsed, matchId), Fields))
+                await Assert.That(Tables(visitRun, stamped)).IsEqualTo(Tables(bareRun, stamped))
+                    .Because("stamped tables, open vs retained");
+                await Assert.That(Tables(forward.Run!, stamped)).IsEqualTo(Tables(bareRun, stamped))
+                    .Because("stamped tables, forward vs retained");
+                await Assert
+                    .That(JsonSerializer.Serialize(plan.Shown(shellRun).ProjectConfiguredOutputs(parsed, matchId),
+                        Fields))
                     .IsEqualTo(JsonSerializer.Serialize(coreRun.ProjectConfiguredOutputs(parsed, matchId), Fields))
                     .Because("the Stats tab's configured tables");
                 await Assert.That(JsonSerializer.Serialize(plan.Shown(shellRun).Highlights, Fields))
-                    .IsEqualTo(JsonSerializer.Serialize(coreRun.Highlights, Fields)).Because("the open's highlight harvest");
+                    .IsEqualTo(JsonSerializer.Serialize(coreRun.Highlights, Fields))
+                    .Because("the open's highlight harvest");
             }
         }
         finally

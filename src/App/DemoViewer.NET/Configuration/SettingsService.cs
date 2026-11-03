@@ -45,11 +45,7 @@ public sealed class SettingsService
     // Reused per CA1869: constructing JsonSerializerOptions per call is expensive.
     private static readonly JsonSerializerOptions _serializerOptions = new()
     {
-        WriteIndented = true,
-        Converters =
-        {
-            new JsonStringEnumConverter()
-        }
+        WriteIndented = true, Converters = { new JsonStringEnumConverter() }
     };
 
     // In-memory provider backing the WASM / no-filesystem path; null on desktop. A resettable variant
@@ -286,9 +282,9 @@ public sealed class SettingsService
         try
         {
             return file.TryGetPropertyValue(RecentsVersionKey, out JsonNode? node) && node is JsonValue value
-                                                                                && value.TryGetValue(out int version)
-                ? version
-                : 0;
+                && value.TryGetValue(out int version)
+                    ? version
+                    : 0;
         }
         catch
         {
@@ -454,7 +450,8 @@ public sealed class SettingsService
             new KeyValuePair<string, string?>("UserCategory", settings.UserCategory.ToString()),
             new KeyValuePair<string, string?>("FirstRunCompleted", settings.FirstRunCompleted ? "true" : "false"),
             new KeyValuePair<string, string?>("LastSeenVersion", settings.LastSeenVersion),
-            new KeyValuePair<string, string?>("Features:DeveloperMode", settings.Features.DeveloperMode ? "true" : "false"),
+            new KeyValuePair<string, string?>("Features:DeveloperMode",
+                settings.Features.DeveloperMode ? "true" : "false"),
             new KeyValuePair<string, string?>("ProcessingQueue:BackgroundProcessingEnabled",
                 settings.ProcessingQueue.BackgroundProcessingEnabled ? "true" : "false"),
             new KeyValuePair<string, string?>("ProcessingQueue:MaxQueueSize",
@@ -573,7 +570,8 @@ public sealed class SettingsService
 
         for (int i = 0; i < identity.DismissedSuggestions.Length; i++)
         {
-            data.Add(new KeyValuePair<string, string?>($"Identity:DismissedSuggestions:{i}", identity.DismissedSuggestions[i]));
+            data.Add(new KeyValuePair<string, string?>($"Identity:DismissedSuggestions:{i}",
+                identity.DismissedSuggestions[i]));
         }
 
         _mem!.ReplaceAll(data);

@@ -55,7 +55,8 @@ public static class ExternalExtensions
     /// <param name="shipped">The extensions this app ships, already resolved: their ids are not third-party, and nothing may collide with them.</param>
     /// <param name="host">What this app provides.</param>
     /// <param name="trust">The publisher keys and the user's setting.</param>
-    public static ExternalResolution Resolve(string? configRoot, IReadOnlyList<IExtension> shipped, ExtensionHostInfo host,
+    public static ExternalResolution Resolve(string? configRoot, IReadOnlyList<IExtension> shipped,
+        ExtensionHostInfo host,
         ExternalTrust trust)
     {
         ArgumentNullException.ThrowIfNull(shipped);
@@ -183,9 +184,12 @@ public static class ExternalExtensions
     // bind to the live composition root, catalog and registries. Only the SDK packages are a contract.
     internal static LoadOutcome? CheckAppReference(ExtensionCandidate candidate, Assembly assembly)
     {
-        string[] app = [.. new[] { typeof(App).Assembly, Assembly.GetEntryAssembly() }
-            .Where(a => a is not null)
-            .Select(a => a!.GetName().Name!)];
+        string[] app =
+        [
+            .. new[] { typeof(App).Assembly, Assembly.GetEntryAssembly() }
+                .Where(a => a is not null)
+                .Select(a => a!.GetName().Name!)
+        ];
         string? referenced = assembly.GetReferencedAssemblies()
             .Select(r => r.Name)
             .FirstOrDefault(n => n is not null && app.Contains(n, StringComparer.OrdinalIgnoreCase));
@@ -201,7 +205,8 @@ public static class ExternalExtensions
         AssemblyName sdk = typeof(IExtension).Assembly.GetName();
         AssemblyName? built = assembly.GetReferencedAssemblies()
             .FirstOrDefault(r => string.Equals(r.Name, sdk.Name, StringComparison.Ordinal));
-        if (built?.Version is not { } builtVersion || sdk.Version is not { } running || builtVersion.Major == running.Major)
+        if (built?.Version is not { } builtVersion || sdk.Version is not { } running
+                                                   || builtVersion.Major == running.Major)
         {
             return null;
         }
@@ -212,7 +217,8 @@ public static class ExternalExtensions
 
     // Composes the catalogs the app builds at startup with the candidate added, so a collision refuses the
     // candidate here instead of failing the app's own composition.
-    private static LoadOutcome? Conflicts(ExtensionCandidate candidate, IReadOnlyList<IExtension> accepted, IExtension pack)
+    private static LoadOutcome? Conflicts(ExtensionCandidate candidate, IReadOnlyList<IExtension> accepted,
+        IExtension pack)
     {
         if (accepted.Any(a => string.Equals(a.FeatureId, pack.FeatureId, StringComparison.Ordinal)))
         {
@@ -229,7 +235,8 @@ public static class ExternalExtensions
         }
         catch (InvalidOperationException ex)
         {
-            return Outcome(candidate, LoadFailure.Conflicts, "it collides with an extension already loaded", ex.Message);
+            return Outcome(candidate, LoadFailure.Conflicts, "it collides with an extension already loaded",
+                ex.Message);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -238,7 +245,8 @@ public static class ExternalExtensions
         }
     }
 
-    private static LoadOutcome Outcome(ExtensionCandidate candidate, LoadFailure failure, string detail, string? logDetail = null) =>
+    private static LoadOutcome Outcome(ExtensionCandidate candidate, LoadFailure failure, string detail,
+        string? logDetail = null) =>
         new(candidate.Directory, candidate.Manifest, failure, detail, logDetail, External: true);
 
     // <extensions>/<id>/<version>: the id folder of a discovery outcome.

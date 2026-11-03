@@ -62,7 +62,8 @@ public static partial class PlayerMatchFacet
         List<FacetPlayer> players = [];
         foreach ((string steamId, List<(int Slot, string? Name)> slots) in bySteamId)
         {
-            List<CachedPlayerInfo> entries = [.. roster.Where(p => string.Equals(p.SteamId64, steamId, StringComparison.Ordinal))];
+            List<CachedPlayerInfo> entries =
+                [.. roster.Where(p => string.Equals(p.SteamId64, steamId, StringComparison.Ordinal))];
             if (entries.Count > 0 && entries.All(p => p.IsCoach || p.IsBot))
             {
                 continue;
@@ -72,7 +73,9 @@ public static partial class PlayerMatchFacet
             List<string> names = [];
             foreach ((int slot, _) in slots)
             {
-                if (roster.FirstOrDefault(p => p.Slot == slot && string.Equals(p.SteamId64, steamId, StringComparison.Ordinal)) is { Name.Length: > 0 } known
+                if (roster.FirstOrDefault(p =>
+                            p.Slot == slot && string.Equals(p.SteamId64, steamId, StringComparison.Ordinal)) is
+                        { Name.Length: > 0 } known
                     && !names.Contains(known.Name, StringComparer.Ordinal))
                 {
                     names.Add(known.Name);
@@ -81,7 +84,8 @@ public static partial class PlayerMatchFacet
 
             if (names.Count == 0)
             {
-                names.AddRange(slots.Select(s => s.Name).OfType<string>().Where(n => n.Length > 0 && !Placeholder().IsMatch(n)).Distinct(StringComparer.Ordinal));
+                names.AddRange(slots.Select(s => s.Name).OfType<string>()
+                    .Where(n => n.Length > 0 && !Placeholder().IsMatch(n)).Distinct(StringComparer.Ordinal));
             }
 
             players.Add(new FacetPlayer { SteamId64 = steamId, Names = names, Slots = [.. slots.Select(s => s.Slot)] });

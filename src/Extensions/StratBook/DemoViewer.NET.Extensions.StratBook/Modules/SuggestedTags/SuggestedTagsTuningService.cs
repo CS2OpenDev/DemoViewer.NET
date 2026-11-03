@@ -134,8 +134,9 @@ public sealed class SuggestedTagsTuningService
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(demoPaths);
-        Dictionary<string, IReadOnlyList<TagProposal>?> fired = await ReadUncachedAsync(candidate, demoPaths, cancellationToken)
-            .ConfigureAwait(false);
+        Dictionary<string, IReadOnlyList<TagProposal>?> fired =
+            await ReadUncachedAsync(candidate, demoPaths, cancellationToken)
+                .ConfigureAwait(false);
         TuningReport? report = null;
         ExceptionDispatchInfo? failure = null;
         await _jobs.RunAsync("Suggested Tags: preview tuning", job =>
@@ -156,7 +157,8 @@ public sealed class SuggestedTagsTuningService
         }, new JobOptions(BuiltInJobKinds.Compute, JobPriority.UserRequested, PreviewJobKey)).ConfigureAwait(false);
         failure?.Throw();
         cancellationToken.ThrowIfCancellationRequested();
-        return report ?? throw new OperationCanceledException("The preview was removed from the queue before it finished.");
+        return report
+               ?? throw new OperationCanceledException("The preview was removed from the queue before it finished.");
     }
 
     // Every demo the cache does not hold is read as a job on its own visit, all queued at once so the queue can
@@ -185,7 +187,8 @@ public sealed class SuggestedTagsTuningService
 
             reads.Add(_jobs.Enqueue(JobRequest.OnDemo("Suggested Tags: preview " + Path.GetFileName(path), path, job =>
             {
-                IReadOnlyList<TagProposal>? proposals = Build(path, job.Parsed) is { } built ? Detect(built, candidate) : null;
+                IReadOnlyList<TagProposal>? proposals =
+                    Build(path, job.Parsed) is { } built ? Detect(built, candidate) : null;
                 lock (fired)
                 {
                     fired[path] = proposals;
@@ -295,7 +298,8 @@ public sealed class SuggestedTagsTuningService
         }
 
         string map = string.IsNullOrEmpty(parsed.MapName) ? record.MapName ?? "" : parsed.MapName;
-        SuggestedTagsService.DetectionInputs inputs = _suggestedTags.BuildDetectionInputs(path, map, parsed, facts, record);
+        SuggestedTagsService.DetectionInputs inputs =
+            _suggestedTags.BuildDetectionInputs(path, map, parsed, facts, record);
         SiteRegionTable? table;
         try
         {
@@ -396,7 +400,8 @@ public sealed class SuggestedTagsTuningService
             }
         }
 
-        return (byCode.ToDictionary(kv => kv.Key, IReadOnlyList<HandTagWindow> (kv) => kv.Value, StringComparer.Ordinal),
+        return (
+            byCode.ToDictionary(kv => kv.Key, IReadOnlyList<HandTagWindow> (kv) => kv.Value, StringComparer.Ordinal),
             demosWithHandTags);
     }
 

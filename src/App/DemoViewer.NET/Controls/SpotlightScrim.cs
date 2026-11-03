@@ -198,10 +198,7 @@ public sealed class SpotlightScrim : Control, ICustomHitTest
         StreamGeometry holeGeo = RoundedRect(hole, radius);
 
         // Dim everything EXCEPT the hole: an even-odd group of the full rect + the hole punches it through.
-        GeometryGroup group = new()
-        {
-            FillRule = FillRule.EvenOdd
-        };
+        GeometryGroup group = new() { FillRule = FillRule.EvenOdd };
         group.Children.Add(new RectangleGeometry(full));
         group.Children.Add(holeGeo);
         context.DrawGeometry(scrim, null, group);

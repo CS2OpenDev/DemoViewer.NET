@@ -48,7 +48,8 @@ public sealed class AnnotationSwatch
     {
         swatch = null;
         if (hex is not { Length: 9 } || hex[0] != '#'
-                                     || !uint.TryParse(hex.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture,
+                                     || !uint.TryParse(hex.AsSpan(1), NumberStyles.HexNumber,
+                                         CultureInfo.InvariantCulture,
                                          out uint argb))
         {
             return false;

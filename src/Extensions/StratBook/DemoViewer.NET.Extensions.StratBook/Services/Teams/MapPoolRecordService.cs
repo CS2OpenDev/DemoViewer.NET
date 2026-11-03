@@ -9,7 +9,13 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 public static class MapPoolRecordService
 {
     /// <summary>One counted demo, before it is grouped into map rows or a decider group.</summary>
-    private readonly record struct DemoResult(string Map, bool? Won, int CtRounds, int TRounds, Guid? Opponent, long OrderTicks);
+    private readonly record struct DemoResult(
+        string Map,
+        bool? Won,
+        int CtRounds,
+        int TRounds,
+        Guid? Opponent,
+        long OrderTicks);
 
     /// <param name="teams">The service <see cref="TeamIdentityService.SidesOf" /> reads.</param>
     /// <param name="library">The library a demo's map, score and side-round totals come from.</param>
@@ -63,10 +69,7 @@ public static class MapPoolRecordService
 
         return new MapPoolRecord
         {
-            TeamId = teamId,
-            Maps = mapRows,
-            Deciders = BuildDeciders(results),
-            TotalDemos = results.Count
+            TeamId = teamId, Maps = mapRows, Deciders = BuildDeciders(results), TotalDemos = results.Count
         };
     }
 

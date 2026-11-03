@@ -35,16 +35,20 @@ public class TagQueryTests
     {
         TagDocument a = Document(ShaA,
             Tagged(Instance("A execute", 1000, 1600, ("outcome", "won"), ("site", "A")), round: 1),
-            Tagged(Instance("A execute", 5000, 5600, ("outcome", "lost"), ("site", "A"), ("site", "B"), ("site", "A")), round: 3),
+            Tagged(Instance("A execute", 5000, 5600, ("outcome", "lost"), ("site", "A"), ("site", "B"), ("site", "A")),
+                round: 3),
             Tagged(Instance("Default", 9000, 9900, ("outcome", "won")), round: 5));
 
         TagDocument b = Document(ShaB,
             Tagged(Instance("B execute", 2000, 2600, ("outcome", "lost"), ("site", "B")), round: 2),
-            Tagged(Instance("B execute", 7000, 7600, ("outcome", "won"), ("site", "B")), round: 10, source: TagSources.Suggested,
+            Tagged(Instance("B execute", 7000, 7600, ("outcome", "won"), ("site", "B")), round: 10,
+                source: TagSources.Suggested,
                 created: Created.AddDays(2)),
-            Tagged(Instance("B execute", 8000, 8600, ("outcome", "won"), ("site", "B")), round: 11, source: TagSources.Import));
+            Tagged(Instance("B execute", 8000, 8600, ("outcome", "won"), ("site", "B")), round: 11,
+                source: TagSources.Import));
 
-        TagInstance factSite = Tagged(Instance("A execute", 3000, 3600, ("outcome", "won")), round: 2, created: Created.AddDays(1));
+        TagInstance factSite = Tagged(Instance("A execute", 3000, 3600, ("outcome", "won")), round: 2,
+            created: Created.AddDays(1));
         factSite.Facts = [new TagLabel("plantSite", "A"), new TagLabel("winner", "T")];
         TagDocument c = Document(ShaC,
             factSite,
@@ -53,7 +57,8 @@ public class TagQueryTests
         return [a, b, c];
     }
 
-    private static TagInstance Tagged(TagInstance instance, int? round, string source = TagSources.Human, DateTime? created = null)
+    private static TagInstance Tagged(TagInstance instance, int? round, string source = TagSources.Human,
+        DateTime? created = null)
     {
         instance.Round = round;
         instance.Source = source;
@@ -173,10 +178,13 @@ public class TagQueryTests
         using (Assert.Multiple())
         {
             await Assert.That(found.Select(r => r.FromTick)).IsEquivalentTo(WonOnASite, CollectionOrdering.Matching);
-            await Assert.That(TagQuery.Find(Fixture(), TagSlice.Everything with
-            {
-                Where = [new LabelPredicate(LabelNamespace.Human, "outcome", Set())]
-            }).Count).IsEqualTo(0).Because("an empty one-of matches nothing");
+            await Assert
+                .That(TagQuery.Find(Fixture(),
+                        TagSlice.Everything with
+                            {
+                                Where = [new LabelPredicate(LabelNamespace.Human, "outcome", Set())]
+                            })
+                    .Count).IsEqualTo(0).Because("an empty one-of matches nothing");
         }
     }
 
@@ -187,10 +195,10 @@ public class TagQueryTests
         IReadOnlyList<TagInstanceRef> found = TagQuery.Find(Fixture(), TagSlice.Everything with { Where = [plantedA] });
 
         await Assert.That(found.Single().Sha256).IsEqualTo(ShaC);
-        await Assert.That(TagQuery.Find(Fixture(), TagSlice.Everything with
-        {
-            Where = [new LabelPredicate(LabelNamespace.Fact, "site", Set("A"))]
-        }).Count).IsEqualTo(0).Because("site is a human label, and a Fact predicate does not read labels");
+        await Assert
+            .That(TagQuery.Find(Fixture(),
+                TagSlice.Everything with { Where = [new LabelPredicate(LabelNamespace.Fact, "site", Set("A"))] }).Count)
+            .IsEqualTo(0).Because("site is a human label, and a Fact predicate does not read labels");
     }
 
     [Test]
@@ -200,8 +208,10 @@ public class TagQueryTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Demos = Set(ShaB, ShaC) }).Count).IsEqualTo(4);
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Codes = Set("Default") }).Count).IsEqualTo(2);
+            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Demos = Set(ShaB, ShaC) }).Count)
+                .IsEqualTo(4);
+            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Codes = Set("Default") }).Count)
+                .IsEqualTo(2);
             await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Rounds = new HashSet<int> { 2 } })
                 .Select(r => r.Sha256)).IsEquivalentTo(new[] { ShaB, ShaC }, CollectionOrdering.Matching);
         }
@@ -215,11 +225,14 @@ public class TagQueryTests
         using (Assert.Multiple())
         {
             await Assert.That(TagQuery.Find(docs, TagSlice.Everything).Any(r => r.Round == 11)).IsFalse();
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Import }).Single().Round)
+            await Assert
+                .That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Import }).Single().Round)
                 .IsEqualTo(11);
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Suggested }).Single().Round)
+            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Suggested }).Single()
+                    .Round)
                 .IsEqualTo(10);
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Human }).Count).IsEqualTo(6);
+            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Human }).Count)
+                .IsEqualTo(6);
         }
     }
 
@@ -228,13 +241,15 @@ public class TagQueryTests
     {
         List<TagDocument> docs = Fixture();
 
-        IReadOnlyList<TagInstanceRef> sinceStart = TagQuery.Find(docs, TagSlice.Everything with { CreatedAfterUtc = Created });
+        IReadOnlyList<TagInstanceRef> sinceStart =
+            TagQuery.Find(docs, TagSlice.Everything with { CreatedAfterUtc = Created });
         IReadOnlyList<TagInstanceRef> sinceDayOne =
             TagQuery.Find(docs, TagSlice.Everything with { CreatedAfterUtc = Created.AddDays(1) });
 
         using (Assert.Multiple())
         {
-            await Assert.That(sinceStart.Select(r => r.FromTick)).IsEquivalentTo(CreatedLater, CollectionOrdering.Matching);
+            await Assert.That(sinceStart.Select(r => r.FromTick))
+                .IsEquivalentTo(CreatedLater, CollectionOrdering.Matching);
             await Assert.That(sinceDayOne.Single().FromTick).IsEqualTo(7000)
                 .Because("an instance created at the cursor is already seen");
         }
@@ -268,7 +283,8 @@ public class TagQueryTests
         {
             await Assert.That(TagQuery.At(doc, 99).Count).IsEqualTo(0);
             await Assert.That(TagQuery.At(doc, 100).Single().Code).IsEqualTo("A");
-            await Assert.That(TagQuery.At(doc, 200).Select(r => r.Code)).IsEquivalentTo(AtTwoHundred, CollectionOrdering.Matching);
+            await Assert.That(TagQuery.At(doc, 200).Select(r => r.Code))
+                .IsEquivalentTo(AtTwoHundred, CollectionOrdering.Matching);
             await Assert.That(TagQuery.At(doc, 300).Single().Code).IsEqualTo("B");
             await Assert.That(TagQuery.At(doc, 400).Single().Code).IsEqualTo("C");
             await Assert.That(TagQuery.At(doc, 401).Count).IsEqualTo(0);

@@ -145,10 +145,7 @@ public class GoldenCorpusTests
         int entriesBefore = GoldenCorpus.Load(copy.Path).Entries.Count;
 
         GoldenCorpusEntry existing = GoldenCorpus.Load(copy.Path).Find("duel-mirage-b")!;
-        GoldenCorpus.Upsert(copy.Path, existing with
-        {
-            Pending = true
-        });
+        GoldenCorpus.Upsert(copy.Path, existing with { Pending = true });
 
         GoldenCorpus after = GoldenCorpus.Load(copy.Path);
         await Assert.That(after.Entries.Count).IsEqualTo(entriesBefore);

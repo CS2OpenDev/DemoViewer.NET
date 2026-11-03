@@ -40,17 +40,9 @@ public sealed class WorkbenchCompletionData : ICompletionData
 
     private Grid BuildRow()
     {
-        Grid grid = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            MinWidth = 220
-        };
+        Grid grid = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto"), MinWidth = 220 };
 
-        TextBlock term = new()
-        {
-            Text = _completion.Text,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        TextBlock term = new() { Text = _completion.Text, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(term, 0);
 
         TextBlock badge = new()

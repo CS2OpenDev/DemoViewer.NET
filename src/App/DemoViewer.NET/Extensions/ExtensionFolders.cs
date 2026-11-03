@@ -24,7 +24,8 @@ internal static class ExtensionFolders
         ArgumentNullException.ThrowIfNull(name);
         if (!IsSafeName(name))
         {
-            throw new ArgumentException($"'{name}' is not usable as a folder or file name: letters, digits, '.', '-' and '_' only.",
+            throw new ArgumentException(
+                $"'{name}' is not usable as a folder or file name: letters, digits, '.', '-' and '_' only.",
                 nameof(name));
         }
 

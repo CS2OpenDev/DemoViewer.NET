@@ -563,7 +563,9 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         {
             (DemoAction action, string featureId) = gated;
             DemoActionRow row = new(action, featureId, isFeatureOn);
-            action.Changed += gated.ToUiThread is { } toUiThread ? () => toUiThread(RefreshDemoActions) : RefreshDemoActions;
+            action.Changed += gated.ToUiThread is { } toUiThread
+                ? () => toUiThread(RefreshDemoActions)
+                : RefreshDemoActions;
             DemoActions.Add(row);
         }
 
@@ -1095,8 +1097,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
 
             OverviewPlayer entry = new(p.Name, p.IsBot)
             {
-                Slot = p.Slot,
-                PlayerOverview = Entry(PlayerOverviewLink.Of(p.SteamId64, p.IsBot, false), p.Name)
+                Slot = p.Slot, PlayerOverview = Entry(PlayerOverviewLink.Of(p.SteamId64, p.IsBot, false), p.Name)
             };
             _steamIdBySlot[p.Slot] = entry.PlayerOverview.SteamId64;
 
@@ -1620,7 +1621,11 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
     // The scoreboard a cached render shows: the facet's when the demo has one, else the rows an earlier version
     // stored on the record, with the side split and round count from the same source so the reconcile never
     // mixes the two.
-    private readonly record struct CachedScoreboard(IReadOnlyList<CachedStatRow> Rows, int? CtSideWins, int? TSideWins, int Rounds)
+    private readonly record struct CachedScoreboard(
+        IReadOnlyList<CachedStatRow> Rows,
+        int? CtSideWins,
+        int? TSideWins,
+        int Rounds)
     {
         public static CachedScoreboard Of(DemoCacheRecord record, FactTable? facet)
         {
@@ -1630,7 +1635,8 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
                 return new CachedScoreboard(rows, ct, t, DemoCacheAnalysisProjector.Rounds(facet));
             }
 
-            return new CachedScoreboard(record.Scoreboard, record.CtSideWins, record.TSideWins, record.AnalysisRoundCount);
+            return new CachedScoreboard(record.Scoreboard, record.CtSideWins, record.TSideWins,
+                record.AnalysisRoundCount);
         }
     }
 
@@ -1931,7 +1937,9 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         for (int i = 0; i < side.Count; i++)
         {
             OverviewPlayer player = side[i];
-            ulong id = player.Slot >= 0 ? _steamIdBySlot.GetValueOrDefault(player.Slot) : player.PlayerOverview.SteamId64;
+            ulong id = player.Slot >= 0
+                ? _steamIdBySlot.GetValueOrDefault(player.Slot)
+                : player.PlayerOverview.SteamId64;
             if (id != player.PlayerOverview.SteamId64)
             {
                 side[i] = player with { PlayerOverview = Entry(id, player.PlayerOverview.Name) };

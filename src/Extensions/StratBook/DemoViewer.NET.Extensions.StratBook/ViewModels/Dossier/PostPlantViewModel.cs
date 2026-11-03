@@ -117,10 +117,13 @@ public sealed partial class PostPlantSectionViewModel : ObservableObject, IDispo
         int plants = set.Blocks.Sum(b => b.Planted.Count);
         int maps = set.Blocks.Select(b => b.Map).Distinct(StringComparer.Ordinal).Count();
         List<string> parts =
-            [$"{OpeningTendenciesSectionViewModel.Plural(plants, "plant")} over {OpeningTendenciesSectionViewModel.Plural(maps, "map")}"];
+        [
+            $"{OpeningTendenciesSectionViewModel.Plural(plants, "plant")} over {OpeningTendenciesSectionViewModel.Plural(maps, "map")}"
+        ];
         if (set.DemosWithoutPositions > 0)
         {
-            parts.Add($"{OpeningTendenciesSectionViewModel.Plural(set.DemosWithoutPositions, "demo")} without positions; rebuild the index");
+            parts.Add(
+                $"{OpeningTendenciesSectionViewModel.Plural(set.DemosWithoutPositions, "demo")} without positions; rebuild the index");
         }
 
         return string.Join(" · ", parts);
@@ -145,9 +148,12 @@ public sealed partial class PostPlantSectionViewModel : ObservableObject, IDispo
             return;
         }
 
-        int added = _review.Add(link.Bucket.Rounds.Select(r => OpeningTendenciesSectionViewModel.ReviewClipFor(link, r, _teamId)),
+        int added = _review.Add(
+            link.Bucket.Rounds.Select(r => OpeningTendenciesSectionViewModel.ReviewClipFor(link, r, _teamId)),
             $"Dossier · {_teamName} · {link.Title}", OpeningTendenciesSectionViewModel.Plural(link.Count, "round"));
-        ReviewLine = added == 0 ? "already in Review" : $"{OpeningTendenciesSectionViewModel.Plural(added, "round")} sent to Review";
+        ReviewLine = added == 0
+            ? "already in Review"
+            : $"{OpeningTendenciesSectionViewModel.Plural(added, "round")} sent to Review";
         _selectTab?.Invoke(ReviewQueueModule.TabId);
     }
 

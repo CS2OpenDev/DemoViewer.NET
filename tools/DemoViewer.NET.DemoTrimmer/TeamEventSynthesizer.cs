@@ -149,10 +149,7 @@ internal static class TeamEventSynthesizer
             writer.WriteBytes(payload);
         }
 
-        return new CDemoPacket
-        {
-            Data = ByteString.CopyFrom(writer.ToArray())
-        }.ToByteArray();
+        return new CDemoPacket { Data = ByteString.CopyFrom(writer.ToArray()) }.ToByteArray();
     }
 
     /// <summary>
@@ -163,11 +160,7 @@ internal static class TeamEventSynthesizer
     private static CMsgSource1LegacyGameEvent BuildEvent(
         CMsgSource1LegacyGameEventList.Types.descriptor_t descriptor, TeamSample sample)
     {
-        CMsgSource1LegacyGameEvent msg = new()
-        {
-            Eventid = descriptor.Eventid,
-            EventName = descriptor.Name
-        };
+        CMsgSource1LegacyGameEvent msg = new() { Eventid = descriptor.Eventid, EventName = descriptor.Name };
 
         foreach (CMsgSource1LegacyGameEventList.Types.key_t key in descriptor.Keys)
         {
@@ -181,10 +174,7 @@ internal static class TeamEventSynthesizer
                 _ => 0 // disconnect, isbot, anything the schema grows later
             };
 
-            CMsgSource1LegacyGameEvent.Types.key_t k = new()
-            {
-                Type = key.Type
-            };
+            CMsgSource1LegacyGameEvent.Types.key_t k = new() { Type = key.Type };
             // Mirror of GameEventDecoder.ExtractValue: each descriptor type reads exactly one val_*
             // field, so each must be WRITTEN to exactly that field.
             switch (key.Type)

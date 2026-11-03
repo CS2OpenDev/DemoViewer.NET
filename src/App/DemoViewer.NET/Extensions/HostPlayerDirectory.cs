@@ -115,7 +115,10 @@ internal sealed class HostPlayerDirectory : IPlayerDirectory
 
     private LibraryPlayerAccount Map(PlayerEntry entry) => _mapped.GetValue(entry, static e => new LibraryPlayerAccount(
         e.SteamId64,
-        [.. e.Aliases.Select(a => new LibraryPlayerAlias(a.Name, new DateTime(a.FirstSeenTicks, DateTimeKind.Utc), new DateTime(a.LastSeenTicks, DateTimeKind.Utc), a.Demos))],
+        [
+            .. e.Aliases.Select(a => new LibraryPlayerAlias(a.Name, new DateTime(a.FirstSeenTicks, DateTimeKind.Utc),
+                new DateTime(a.LastSeenTicks, DateTimeKind.Utc), a.Demos))
+        ],
         e.DemoCount,
         new DateTime(e.FirstSeenTicks, DateTimeKind.Utc),
         new DateTime(e.LastSeenTicks, DateTimeKind.Utc)));

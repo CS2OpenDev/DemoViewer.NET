@@ -30,7 +30,8 @@ public class MatchMetaTests
         }
 
         DemoMatchMeta meta = MatchMetaPass.Resolve(null, MatchMetaPass.ParseName(MatchInfoReaderTests.CommittedName),
-            MatchInfoReader.Read(MatchInfoReaderTests.CommittedInfo()), new DateTime(2026, 6, 18, 0, 0, 0, DateTimeKind.Utc));
+            MatchInfoReader.Read(MatchInfoReaderTests.CommittedInfo()),
+            new DateTime(2026, 6, 18, 0, 0, 0, DateTimeKind.Utc));
         string json = Lf(JsonSerializer.Serialize(meta, Indented));
         string path = Path.Combine(repo, "tests", "fixtures", "match-meta", "match-meta.sample.json");
         if (Environment.GetEnvironmentVariable("MATCH_META_GOLDEN_UPDATE") == "1")
@@ -48,20 +49,25 @@ public class MatchMetaTests
         DemoMatchMeta? back = JsonSerializer.Deserialize<DemoMatchMeta>(committed);
         using (Assert.Multiple())
         {
-            await Assert.That(json).IsEqualTo(committed).Because("MatchMeta is a published format; this build still writes the committed shape");
+            await Assert.That(json).IsEqualTo(committed)
+                .Because("MatchMeta is a published format; this build still writes the committed shape");
             await Assert.That(Lf(JsonSerializer.Serialize(back, Indented))).IsEqualTo(json).Because("round trip");
             await Assert.That(new DateTime(back!.MatchTimeUtcTicks!.Value, DateTimeKind.Utc).ToString("O"))
                 .IsEqualTo("2026-06-17T23:17:26.0000000Z");
             await Assert.That(back.MatchTimeSource).IsEqualTo(MatchTimeSource.ValveMatchInfo);
             await Assert.That(back.ReservationId).IsEqualTo("3826256877184877003");
-            await Assert.That(committed).Contains("\"MatchTimeSource\": \"ValveMatchInfo\"").Because("the source is written by name");
+            await Assert.That(committed).Contains("\"MatchTimeSource\": \"ValveMatchInfo\"")
+                .Because("the source is written by name");
         }
     }
 
     [Test]
     public async Task TheIndexRowMirrorsTheRecord_AndAPlainRecordWritesNoMatchMeta()
     {
-        DemoCacheRecord record = new() { Path = "/d/" + MatchInfoReaderTests.CommittedName, Size = 1, ModifiedTicks = 1 };
+        DemoCacheRecord record = new()
+        {
+            Path = "/d/" + MatchInfoReaderTests.CommittedName, Size = 1, ModifiedTicks = 1
+        };
         string plain = JsonSerializer.Serialize(record);
         string plainRow = JsonSerializer.Serialize(record.ToIndexEntry());
         record.MatchMeta = new DemoMatchMeta
@@ -75,13 +81,15 @@ public class MatchMetaTests
         copy.FillMissingFrom(record);
         using (Assert.Multiple())
         {
-            await Assert.That(plain).DoesNotContain("MatchMeta").Because("the field is additive: a record without it writes the old bytes");
+            await Assert.That(plain).DoesNotContain("MatchMeta")
+                .Because("the field is additive: a record without it writes the old bytes");
             await Assert.That(plainRow).DoesNotContain("MatchTime");
             await Assert.That(plainRow).DoesNotContain("ReservationId");
             await Assert.That(row.MatchTimeUtcTicks).IsEqualTo(639173350460000000);
             await Assert.That(row.MatchTimeSource).IsEqualTo(MatchTimeSource.ValveMatchInfo);
             await Assert.That(row.ReservationId).IsEqualTo("3826256877184877003");
-            await Assert.That(copy.MatchMeta).IsSameReferenceAs(record.MatchMeta).Because("a second path of the same bytes takes the capture");
+            await Assert.That(copy.MatchMeta).IsSameReferenceAs(record.MatchMeta)
+                .Because("a second path of the same bytes takes the capture");
         }
     }
 }

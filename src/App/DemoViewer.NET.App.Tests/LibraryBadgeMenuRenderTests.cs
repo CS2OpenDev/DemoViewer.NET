@@ -49,9 +49,11 @@ public class LibraryBadgeMenuRenderTests
         }
     }
 
-    private static (DemoLibraryService Library, DemoEntry Entry, LibraryTabView View, Window Window, Button Chip) Attach(TrackingContribution contribution)
+    private static (DemoLibraryService Library, DemoEntry Entry, LibraryTabView View, Window Window, Button Chip)
+        Attach(TrackingContribution contribution)
     {
-        DemoLibraryService lib = new(a => a(), Path.Combine(Path.GetTempPath(), "dvlibbadgemenu_" + Guid.NewGuid().ToString("N") + ".json"));
+        DemoLibraryService lib = new(a => a(),
+            Path.Combine(Path.GetTempPath(), "dvlibbadgemenu_" + Guid.NewGuid().ToString("N") + ".json"));
         DemoEntry entry = new()
         {
             FilePath = "/d/a.dem",
@@ -111,14 +113,16 @@ public class LibraryBadgeMenuRenderTests
 
             contribution.SetLabel(entry.ToLibraryDemo(), "scrim");
             Dispatcher.UIThread.RunJobs();
-            await Assert.That(entry.BadgeIsPinned).IsTrue().Because("pinned before the menu is opened, so the reset has something to undo");
+            await Assert.That(entry.BadgeIsPinned).IsTrue()
+                .Because("pinned before the menu is opened, so the reset has something to undo");
 
             chip.Flyout!.ShowAt(chip);
             Dispatcher.UIThread.RunJobs();
 
             MenuItem reset = window.GetVisualDescendants().OfType<MenuItem>()
                 .Single(i => i.Tag is LibraryBadgeMenuEntry { IsReset: true });
-            await Assert.That(reset.Classes.Contains("reset")).IsTrue().Because("the divider style marks the reset row");
+            await Assert.That(reset.Classes.Contains("reset")).IsTrue()
+                .Because("the divider style marks the reset row");
 
             reset.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Dispatcher.UIThread.RunJobs();

@@ -131,10 +131,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
             _checks.CheckChanged += OnCheckChanged;
         }
 
-        Chip = new StatusChipViewModel
-        {
-            FlyoutContent = this
-        };
+        Chip = new StatusChipViewModel { FlyoutContent = this };
 
         // Project the queue's live Items into row VMs and keep them in sync with the collection's own
         // add/remove/reset notifications (the queue reconciles Items by id on the post thread).
@@ -305,9 +302,12 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
     // The scheduler's planning has its own line; any other light work running names the first of it.
     private string BuildAlsoLine()
     {
-        List<string> running = [.. _queue.Items
-            .Where(i => i.Light && i.State == DemoQueueItemState.Running && i.Kind != QueueJobKind.Scheduling)
-            .Select(i => !string.IsNullOrEmpty(i.DisplayName) ? i.DisplayName! : i.Kind.ToString())];
+        List<string> running =
+        [
+            .. _queue.Items
+                .Where(i => i.Light && i.State == DemoQueueItemState.Running && i.Kind != QueueJobKind.Scheduling)
+                .Select(i => !string.IsNullOrEmpty(i.DisplayName) ? i.DisplayName! : i.Kind.ToString())
+        ];
         return running.Count switch
         {
             0 => "",
@@ -441,7 +441,9 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
 
         IsEmpty = Rows.Count == 0;
         IsRecentEmpty = RecentRows.Count == 0;
-        QueueViewLabel = Rows.Count == 0 ? "Queue" : string.Format(CultureInfo.InvariantCulture, "Queue ({0})", Rows.Count);
+        QueueViewLabel = Rows.Count == 0
+            ? "Queue"
+            : string.Format(CultureInfo.InvariantCulture, "Queue ({0})", Rows.Count);
         RecentViewLabel = RecentRows.Count == 0
             ? "Recent"
             : string.Format(CultureInfo.InvariantCulture, "Recent ({0})", RecentRows.Count);

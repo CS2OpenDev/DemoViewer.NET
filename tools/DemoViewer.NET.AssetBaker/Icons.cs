@@ -168,7 +168,7 @@ public static class Icons
             // Reported, not collapsed: aliasing them would make one manifest key resolve to another
             // key's file, and the ~10 KB saved is not worth that indirection in every consumer.
             log.Append(CultureInfo.InvariantCulture, $"  {"duplicate",-10} {duplicates.Count,3} identical sources: ")
-               .Append(string.Join("; ", duplicates)).Append('\n');
+                .Append(string.Join("; ", duplicates)).Append('\n');
         }
 
         log.Append(CultureInfo.InvariantCulture, $"  version    {version}");
@@ -264,10 +264,7 @@ public static class Icons
         SKBitmap outBmp = new(src.Width, src.Height);
         using SKCanvas canvas = new(outBmp);
         canvas.Clear(SKColors.Transparent);
-        using SKPaint paint = new()
-        {
-            ColorFilter = SKColorFilter.CreateBlendMode(tint, SKBlendMode.Modulate)
-        };
+        using SKPaint paint = new() { ColorFilter = SKColorFilter.CreateBlendMode(tint, SKBlendMode.Modulate) };
         canvas.DrawBitmap(src, 0, 0, paint);
         return outBmp;
     }
@@ -561,7 +558,10 @@ public static class Icons
             using MemoryStream ms = new(svg);
             root = XDocument.Load(ms).Root;
         }
-        catch (System.Xml.XmlException) { return null; }
+        catch (System.Xml.XmlException)
+        {
+            return null;
+        }
 
         string? vb = (string?)root?.Attribute("viewBox");
         if (vb is null)
@@ -592,8 +592,7 @@ public static class Icons
     // Matches Bundle.cs so the two baked manifests read the same way.
     private static readonly JsonSerializerOptions ManifestJson = new()
     {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
     /// <summary>The baked manifest: what exists, at what aspect, from which CS2 build.</summary>

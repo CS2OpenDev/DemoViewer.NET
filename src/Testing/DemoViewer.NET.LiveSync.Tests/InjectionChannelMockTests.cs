@@ -64,10 +64,7 @@ public class InjectionChannelMockTests
         CsvgWebHost host;
         try
         {
-            host = await CsvgWebHost.StartAsync(new LiveSyncSettings
-                {
-                    MockMode = true
-                }, logs,
+            host = await CsvgWebHost.StartAsync(new LiveSyncSettings { MockMode = true }, logs,
                 cancellationToken);
         }
         catch (LiveSyncPortInUseException ex)

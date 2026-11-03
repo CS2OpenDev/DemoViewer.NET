@@ -440,10 +440,7 @@ public class StatsBoardScaleTests
         vm.SelectedCategory = StatGroup.Accuracy;
         await Assert.That(Cell(vm, "Alice", "Acc%").Tooltip).IsNull();
 
-        StatCell one = new(300.0, ColumnCatalogue.Resolve("TTS"))
-        {
-            Denominator = 1
-        };
+        StatCell one = new(300.0, ColumnCatalogue.Resolve("TTS")) { Denominator = 1 };
         await Assert.That(one.Tooltip).IsEqualTo("300 ms over 1 engagement");
     }
 
@@ -512,7 +509,8 @@ public class StatsBoardScaleTests
             seen++;
             ColumnMeta count = ColumnCatalogue.Resolve(over.Key);
             await Assert.That(count.Hidden).IsTrue()
-                .Because($"{meta.Key} reads {over.Key}, which must be a catalogued hidden column and not a stray label");
+                .Because(
+                    $"{meta.Key} reads {over.Key}, which must be a catalogued hidden column and not a stray label");
         }
 
         await Assert.That(seen).IsEqualTo(12).Because("twelve aim columns read a count in their tooltip");
@@ -1168,6 +1166,7 @@ public class StatsBoardScaleTests
         Action act)
     {
         List<bool> seen = [];
+
         void OnChanged(object? _, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (string.Equals(e.PropertyName, property, StringComparison.Ordinal))
@@ -1464,14 +1463,8 @@ public class StatsBoardScaleTests
             StatsTabViewModel vm = BuildVm();
             vm.SelectedCategory = StatGroup.Other;
 
-            StatsTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1280, Height = 620, Content = view
-            };
+            StatsTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1280, Height = 620, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -1519,14 +1512,10 @@ public class StatsBoardScaleTests
                     app.RequestedThemeVariant = ThemeVariant.Dark;
                 }
 
-                StatsTabView view = new()
-                {
-                    DataContext = BuildVm()
-                };
+                StatsTabView view = new() { DataContext = BuildVm() };
                 Window window = new()
                 {
-                    Width = 1280, Height = 560, Content = view,
-                    RequestedThemeVariant = ThemeVariant.Dark
+                    Width = 1280, Height = 560, Content = view, RequestedThemeVariant = ThemeVariant.Dark
                 };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
@@ -1578,7 +1567,8 @@ public class StatsBoardScaleTests
 
                 Window window = new()
                 {
-                    Width = 1280, Height = 620,
+                    Width = 1280,
+                    Height = 620,
                     Content = new StatsTabView { DataContext = vm },
                     RequestedThemeVariant = ThemeVariant.Dark
                 };
@@ -1638,7 +1628,8 @@ public class StatsBoardScaleTests
 
                     Window window = new()
                     {
-                        Width = 1280, Height = 620,
+                        Width = 1280,
+                        Height = 620,
                         Content = new StatsTabView { DataContext = vm },
                         RequestedThemeVariant = variant
                     };
@@ -1849,14 +1840,8 @@ public class StatsBoardScaleTests
             StatsTabViewModel vm = BuildVm(sightless: true);
             vm.SelectedCategory = StatGroup.AimQuality;
 
-            StatsTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1280, Height = 620, Content = view
-            };
+            StatsTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1280, Height = 620, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -1980,7 +1965,6 @@ public class StatsBoardScaleTests
 
     private static NodeSnapshot Snap(double value) =>
         new(true, value.ToString("0.##", CultureInfo.InvariantCulture), (float)value);
-
 
 
     private sealed class StubNode(string name) : StateNode

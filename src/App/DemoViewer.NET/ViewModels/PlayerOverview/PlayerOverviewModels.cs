@@ -163,7 +163,8 @@ public sealed class MeAccountItem(string steamId64, string title, bool isActive)
               && directory.Get(id) is { Name.Length: > 0 } entry
                 ? DisplayText.Sanitize(entry.Name)
                 : account.SteamId64;
-        return new MeAccountItem(account.SteamId64, title, string.Equals(account.SteamId64, active, StringComparison.Ordinal));
+        return new MeAccountItem(account.SteamId64, title,
+            string.Equals(account.SteamId64, active, StringComparison.Ordinal));
     }
 }
 
@@ -203,9 +204,12 @@ public sealed class PlayerCandidateItem
     internal static PlayerCandidateItem From(PlayerEntry entry)
     {
         string name = entry.Name.Length > 0 ? DisplayText.Sanitize(entry.Name) : "Unnamed player";
-        string demos = entry.DemoCount == 1 ? "1 demo" : string.Create(CultureInfo.InvariantCulture, $"{entry.DemoCount} demos");
+        string demos = entry.DemoCount == 1
+            ? "1 demo"
+            : string.Create(CultureInfo.InvariantCulture, $"{entry.DemoCount} demos");
         string lastSeen = entry.LastSeenTicks > 0 && entry.LastSeenTicks <= DateTime.MaxValue.Ticks
-            ? "last seen " + new DateTime(entry.LastSeenTicks, DateTimeKind.Utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            ? "last seen "
+              + new DateTime(entry.LastSeenTicks, DateTimeKind.Utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : "";
         string aliases = string.Join(", ", entry.Aliases.Skip(1).Take(3).Select(a => DisplayText.Sanitize(a.Name)));
         return new PlayerCandidateItem(entry.SteamId64, name, demos, lastSeen, aliases);

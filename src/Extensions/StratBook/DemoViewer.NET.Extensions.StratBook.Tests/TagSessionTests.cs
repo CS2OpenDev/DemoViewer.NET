@@ -30,7 +30,10 @@ public class TagSessionTests
     private static readonly string[] OneCode = ["A execute"];
 
     private static TagSession Session(TagStore? store, bool browser = false) =>
-        new(store, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => browser, () => Created) { AutoSaveDelay = TimeSpan.FromHours(1) };
+        new(store, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => browser, () => Created)
+        {
+            AutoSaveDelay = TimeSpan.FromHours(1)
+        };
 
     private static async Task<TagSession> Attached(TagStore? store, bool browser = false)
     {
@@ -70,7 +73,18 @@ public class TagSessionTests
     {
         using TagSession session = await Attached(new TagStore(null));
         TagInstance press = Instance("A execute", 12_000, 13_000);
-        press.Positions = [new TagPosition { X = 1, Y = 2, LevelMinZ = 0, Tick = 12_500, PlaceSource = "pawn", Place = "Ramp" }];
+        press.Positions =
+        [
+            new TagPosition
+            {
+                X = 1,
+                Y = 2,
+                LevelMinZ = 0,
+                Tick = 12_500,
+                PlaceSource = "pawn",
+                Place = "Ramp"
+            }
+        ];
         session.Apply(new TagDelta.Add(press));
 
         TagInstance noted = session.Document!.Instances[0].Clone();
@@ -128,7 +142,8 @@ public class TagSessionTests
         TagInstance good = Instance("A execute", 1, 2);
         TagInstance bad = Instance("B execute", 50, 10);
 
-        Assert.Throws<ArgumentException>(() => session.Apply(new TagDelta.Batch([new TagDelta.Add(good), new TagDelta.Add(bad)])));
+        Assert.Throws<ArgumentException>(() =>
+            session.Apply(new TagDelta.Batch([new TagDelta.Add(good), new TagDelta.Add(bad)])));
         await Assert.That(session.Document!.Instances).IsEmpty();
         await Assert.That(session.UndoDepth).IsEqualTo(0);
     }
@@ -141,7 +156,8 @@ public class TagSessionTests
 
         using TagSession session = await Attached(store);
 
-        await Assert.That(session.Document!.Instances.Select(i => i.Round)).IsEquivalentTo(RoundsThreeAndOne, CollectionOrdering.Matching);
+        await Assert.That(session.Document!.Instances.Select(i => i.Round))
+            .IsEquivalentTo(RoundsThreeAndOne, CollectionOrdering.Matching);
         await Assert.That(session.UndoDepth).IsEqualTo(0);
     }
 
@@ -231,7 +247,8 @@ public class TagSessionTests
             session.Apply(new TagDelta.Add(Instance("A execute", 1, 2)));
             session.Detach();
 
-            await Assert.That(new TagStore(PackStores.At(root)).Index.Single().Codes).IsEquivalentTo(OneCode, CollectionOrdering.Matching);
+            await Assert.That(new TagStore(PackStores.At(root)).Index.Single().Codes)
+                .IsEquivalentTo(OneCode, CollectionOrdering.Matching);
             await Assert.That(File.Exists(Path.Combine(root, "index.json"))).IsTrue();
 
             // Released: another session can take the document now.
@@ -296,11 +313,13 @@ public class TagSessionTests
             using (TagSession session = await Attached(store))
             {
                 await Assert.That(session.ClockMismatch).IsTrue();
-                await Assert.That(session.StatusText).StartsWith("loaded from a different parse: tag spans may be off · saving to ");
+                await Assert.That(session.StatusText)
+                    .StartsWith("loaded from a different parse: tag spans may be off · saving to ");
             }
 
             File.WriteAllText(TagStore.SidecarPathFor(root, Sha),
-                File.ReadAllText(TagStore.SidecarPathFor(root, Sha)).Replace(Sha, new string('e', 64), StringComparison.Ordinal));
+                File.ReadAllText(TagStore.SidecarPathFor(root, Sha))
+                    .Replace(Sha, new string('e', 64), StringComparison.Ordinal));
             using TagSession foreign = await Attached(new TagStore(PackStores.At(root)));
             foreign.Apply(new TagDelta.Add(Instance("Default", 1, 2)));
             await foreign.FlushAsync();

@@ -23,7 +23,8 @@ namespace DemoViewer.NET.AppTests.Extensions;
 /// </summary>
 internal static class UpdateFixtures
 {
-    public static readonly ExtensionHostInfo Host = new(SemVersion.Parse("2.0.0"), SemVersion.Parse("0.9.0"), SemVersion.Parse("0.14.0"));
+    public static readonly ExtensionHostInfo Host = new(SemVersion.Parse("2.0.0"), SemVersion.Parse("0.9.0"),
+        SemVersion.Parse("0.14.0"));
 
     /// <summary>The feed URL the tests hand the service for every pack.</summary>
     public static Uri FeedUrl(string packId) => new($"https://example.invalid/feeds/{packId}/{ExtensionFeed.FileName}");
@@ -106,7 +107,8 @@ internal static class UpdateFixtures
                 : throw new HttpRequestException($"404 for {url}");
         }
 
-        public async Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress, CancellationToken ct)
+        public async Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress,
+            CancellationToken ct)
         {
             Downloads++;
             if (!Zips.TryGetValue(url, out byte[]? bytes))
@@ -160,7 +162,8 @@ internal static class UpdateFixtures
 
         public int ActiveCount(QueueJobKind kind) => 0;
 
-        public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default) =>
+        public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request) => throw new NotSupportedException();
@@ -217,7 +220,10 @@ internal static class UpdateFixtures
         private sealed class InlineHandle(Task completion) : IDemoQueueHandle
         {
             public Guid Id { get; } = Guid.NewGuid();
-            public DemoQueueItemState State => completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Running;
+
+            public DemoQueueItemState State =>
+                completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Running;
+
             public Task Completion => completion;
 
             public void Cancel()

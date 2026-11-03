@@ -638,7 +638,11 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
             MapFilters = mapFilters;
         }
 
-        List<string> teamFilters = [AllTeams, .. teams.Where(t => t is not (NoTeam or UnknownTeam)), .. teams.Where(t => t is NoTeam or UnknownTeam)];
+        List<string> teamFilters =
+        [
+            AllTeams, .. teams.Where(t => t is not (NoTeam or UnknownTeam)),
+            .. teams.Where(t => t is NoTeam or UnknownTeam)
+        ];
         if (!teamFilters.SequenceEqual(TeamFilters))
         {
             TeamFilters = teamFilters;
@@ -656,6 +660,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
             _queueChanged = false;
             OnPropertyChanged(nameof(PackSummary));
         }
+
         ClearCommand.NotifyCanExecuteChanged();
         ExportPackCommand.NotifyCanExecuteChanged();
 
@@ -860,7 +865,9 @@ public sealed partial class ReviewRowViewModel : ObservableObject
             ? unreviewedInScope == 0 && inScope > 0
                 ? string.Create(CultureInfo.InvariantCulture, $"Mark {inScope} unreviewed")
                 : string.Create(CultureInfo.InvariantCulture, $"Mark {unreviewedInScope} shown reviewed")
-            : unreviewed == 0 && total > 0 ? "Mark unreviewed" : "Mark section reviewed";
+            : unreviewed == 0 && total > 0
+                ? "Mark unreviewed"
+                : "Mark section reviewed";
         if (ReviewText != reviewText)
         {
             ReviewText = reviewText;

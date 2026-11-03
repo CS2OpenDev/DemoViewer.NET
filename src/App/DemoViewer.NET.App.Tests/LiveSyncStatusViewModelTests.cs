@@ -164,10 +164,7 @@ public class LiveSyncStatusViewModelTests
     [Test]
     public async Task LeftoverInstallModifications_SurfaceOfferedRestore_AndRestoreClearsIt()
     {
-        FakeLiveSync svc = new()
-        {
-            LeftoverModifications = true
-        };
+        FakeLiveSync svc = new() { LeftoverModifications = true };
         PlaybackController playback = new();
         LiveSyncStatusViewModel vm = new(svc, null, playback, () => { });
 

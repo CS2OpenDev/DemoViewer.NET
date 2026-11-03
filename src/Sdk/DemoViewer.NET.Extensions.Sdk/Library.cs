@@ -17,7 +17,12 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="MapName">The map, once the demo is indexed.</param>
 /// <param name="Modified">The file's last write time, local.</param>
 /// <param name="FileSizeBytes">The file's size.</param>
-public sealed record LibraryDemo(string FilePath, string FileName, string? MapName, DateTime Modified, long FileSizeBytes)
+public sealed record LibraryDemo(
+    string FilePath,
+    string FileName,
+    string? MapName,
+    DateTime Modified,
+    long FileSizeBytes)
 {
     private readonly IReadOnlyList<string>? _locations;
 
@@ -159,7 +164,8 @@ public sealed record LibraryFactState(string Id, int Schema, string? Fingerprint
     /// <param name="schema">The shape the reader expects.</param>
     /// <param name="fingerprint">The fingerprint the reader expects.</param>
     public bool IsCurrent(int schema, string? fingerprint) =>
-        State == DemoDataState.Written && Schema == schema && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
+        State == DemoDataState.Written && Schema == schema
+                                       && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
 
     /// <summary>True when rows were written at any schema under some fingerprint.</summary>
     public bool IsWritten => Schema > 0 && Fingerprint is not null;
@@ -347,7 +353,10 @@ public sealed record LibraryFilterItem(string Key, string Display);
 /// <param name="Matches">Whether a demo passes for the chosen key.</param>
 /// <param name="Tooltip">The drop-down's tooltip.</param>
 public sealed record LibraryFilter(
-    string Label, IReadOnlyList<LibraryFilterItem> Items, Func<LibraryDemo, string, bool> Matches, string? Tooltip = null);
+    string Label,
+    IReadOnlyList<LibraryFilterItem> Items,
+    Func<LibraryDemo, string, bool> Matches,
+    string? Tooltip = null);
 
 /// <summary>A chip on a Library row.</summary>
 /// <param name="Label">The chip text.</param>

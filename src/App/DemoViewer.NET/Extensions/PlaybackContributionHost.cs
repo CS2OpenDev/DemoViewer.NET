@@ -20,7 +20,8 @@ public sealed class PlaybackContributionHost
 
     /// <param name="packs">Each pack with its playback contributions, in pack order.</param>
     /// <param name="gate">The live gate, or null for a host that does not gate.</param>
-    public PlaybackContributionHost(IEnumerable<(IExtension Pack, IReadOnlyList<IPlaybackContribution> Contributions)> packs,
+    public PlaybackContributionHost(
+        IEnumerable<(IExtension Pack, IReadOnlyList<IPlaybackContribution> Contributions)> packs,
         IFeatureGate? gate)
     {
         ArgumentNullException.ThrowIfNull(packs);

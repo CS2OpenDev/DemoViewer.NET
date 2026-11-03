@@ -118,7 +118,10 @@ public class ZoneOverlayTests
         ZoneOverlayResult full = Apply(Overlay(
             zones: [new ZoneOverlayZone("E-box", ZoneFixtures.Upper, _hutPolygon, null, null, true)]));
         ZoneOverlayResult partial = Apply(Overlay(
-            zones: [new ZoneOverlayZone("Top", ZoneFixtures.Upper, [0, 0, 100, 0, 100, 100, 0, 100], null, null, true)]));
+            zones:
+            [
+                new ZoneOverlayZone("Top", ZoneFixtures.Upper, [0, 0, 100, 0, 100, 100, 0, 100], null, null, true)
+            ]));
 
         await Assert.That(new PlaceResolver(full.Effective).PlaceId("Hut")).IsNull();
         await Assert.That(full.Effective.Places.Count).IsEqualTo(4);
@@ -150,7 +153,8 @@ public class ZoneOverlayTests
             mapName: "de_other"));
 
         string[] codes = [.. result.Diagnostics.Select(d => d.Code)];
-        Console.WriteLine("[overlay] " + string.Join("\n[overlay] ", result.Diagnostics.Select(d => $"{d.Code}: {d.Message}")));
+        Console.WriteLine("[overlay] "
+                          + string.Join("\n[overlay] ", result.Diagnostics.Select(d => $"{d.Code}: {d.Message}")));
 
         await Assert.That(codes).Contains("zones.overlay.unknown-floor");
         await Assert.That(codes).Contains("zones.overlay.bad-polygon");
@@ -174,7 +178,10 @@ public class ZoneOverlayTests
     public async Task NameCollisionWithReplaces_GivesTheNameOneOwner()
     {
         ZoneOverlayResult result = Apply(Overlay(
-            zones: [new ZoneOverlayZone("Hut", ZoneFixtures.Upper, [200, 0, 250, 0, 250, 100, 200, 100], null, null, true)]));
+            zones:
+            [
+                new ZoneOverlayZone("Hut", ZoneFixtures.Upper, [200, 0, 250, 0, 250, 100, 200, 100], null, null, true)
+            ]));
         PlaceResolver resolver = new(result.Effective);
 
         await Assert.That(result.Diagnostics.Count).IsEqualTo(0);

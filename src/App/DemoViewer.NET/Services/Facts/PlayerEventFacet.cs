@@ -60,26 +60,30 @@ public static class PlayerEventFacet
         List<PlayerKill> result = new(kills.Count);
         foreach (FactRow kill in kills)
         {
-            if (Whole(kill.Dimensions, "tick") is not { } tick || Whole(kill.Dimensions, "player_slot") is not { } killer)
+            if (Whole(kill.Dimensions, "tick") is not { } tick
+                || Whole(kill.Dimensions, "player_slot") is not { } killer)
             {
                 continue;
             }
 
-            string? victim = Whole(kill.Values, "victim_slot") is { } slot ? victims.GetValueOrDefault((tick, killer, slot)) : null;
+            string? victim = Whole(kill.Values, "victim_slot") is { } slot
+                ? victims.GetValueOrDefault((tick, killer, slot))
+                : null;
             result.Add(new PlayerKill(
-                (int) (Whole(kill.Dimensions, "round_number") ?? 0),
+                (int)(Whole(kill.Dimensions, "round_number") ?? 0),
                 tick,
                 SteamId(kill.Dimensions),
                 victim,
                 kill.Values.GetValueOrDefault("weapon")?.AsText() is { Length: > 0 } weapon ? weapon : null,
-                kill.Values.GetValueOrDefault("headshot") is { } headshot && (headshot.AsBoolean() ?? headshot.AsNumber() > 0) == true));
+                kill.Values.GetValueOrDefault("headshot") is { } headshot
+                && (headshot.AsBoolean() ?? headshot.AsNumber() > 0) == true));
         }
 
         return result;
     }
 
     private static long? Whole(IReadOnlyDictionary<string, FactValue> cells, string name) =>
-        cells.GetValueOrDefault(name)?.AsNumber() is { } value ? (long) value : null;
+        cells.GetValueOrDefault(name)?.AsNumber() is { } value ? (long)value : null;
 
     private static string? SteamId(IReadOnlyDictionary<string, FactValue> dimensions) =>
         dimensions.GetValueOrDefault("steam_id")?.AsText() is { Length: > 0 } id && id != "0" ? id : null;

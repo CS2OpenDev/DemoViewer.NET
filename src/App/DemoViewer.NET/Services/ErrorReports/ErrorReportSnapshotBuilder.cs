@@ -53,8 +53,7 @@ public static class ErrorReportSnapshotBuilder
     {
         DemoErrorReportSnapshot snapshot = new()
         {
-            CapturedAtUtcTicks = nowUtc.ToUniversalTime().Ticks,
-            DemoPath = demoPath
+            CapturedAtUtcTicks = nowUtc.ToUniversalTime().Ticks, DemoPath = demoPath
         };
 
         AddDemo(snapshot, record);
@@ -148,8 +147,10 @@ public static class ErrorReportSnapshotBuilder
         if (snapshot.Packs.Count > 0)
         {
             groups.Add(new ErrorReportDiagnosticsGroup("Extension packs",
-                [.. snapshot.Packs.Select((p, i) => Row(
-                    i.ToString(CultureInfo.InvariantCulture), p))]));
+            [
+                .. snapshot.Packs.Select((p, i) => Row(
+                    i.ToString(CultureInfo.InvariantCulture), p))
+            ]));
         }
 
         groups.Add(new ErrorReportDiagnosticsGroup("Runtime",
@@ -214,6 +215,7 @@ public static class ErrorReportSnapshotBuilder
                 rows.Add(Row("excluded rulesets (now)", excluded));
             }
         }
+
         foreach ((string id, string hash) in snapshot.HighlightHashes.OrderBy(k => k.Key, StringComparer.Ordinal))
         {
             rows.Add(Row("highlight hash · " + id, hash));
@@ -389,9 +391,7 @@ public static class ErrorReportSnapshotBuilder
 
                 snapshot.Rulesets.Add(new DemoErrorReportRuleset
                 {
-                    Id = stamped.RulesetId,
-                    Name = stamped.Owner,
-                    Enabled = false
+                    Id = stamped.RulesetId, Name = stamped.Owner, Enabled = false
                 });
             }
         }
@@ -434,7 +434,7 @@ public static class ErrorReportSnapshotBuilder
         // Only when the report is about the demo actually open: health belongs to a parse, and a cached
         // preview of another demo has none of its own.
         if (openDemo is null || openDemoPath is null
-            || !string.Equals(demoPath, openDemoPath, StringComparison.OrdinalIgnoreCase))
+                             || !string.Equals(demoPath, openDemoPath, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

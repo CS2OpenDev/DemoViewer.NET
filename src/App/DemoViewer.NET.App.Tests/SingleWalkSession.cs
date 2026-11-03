@@ -92,7 +92,8 @@ internal static class SingleWalkSession
     ///     Boots the composition root against <paramref name="configDir" /> (created, settings written), runs
     ///     <paramref name="body" /> on the UI thread, then disposes. The directory is left for the caller.
     /// </summary>
-    public static async Task<T> WithAppAsync<T>(string configDir, string settingsJson, Func<ServiceProvider, Task<T>> body)
+    public static async Task<T> WithAppAsync<T>(string configDir, string settingsJson,
+        Func<ServiceProvider, Task<T>> body)
     {
         Directory.CreateDirectory(configDir);
         File.WriteAllText(Path.Combine(configDir, "settings.json"), settingsJson);
@@ -207,7 +208,8 @@ internal static class SingleWalkSession
                 scheduler.RecheckAll();
                 await SettleAsync(queue, scheduler);
 
-                DemoEntry entry = library.Entries.First(e => string.Equals(e.FilePath, demo, StringComparison.OrdinalIgnoreCase));
+                DemoEntry entry = library.Entries.First(e =>
+                    string.Equals(e.FilePath, demo, StringComparison.OrdinalIgnoreCase));
                 counting = visit.Sites;
                 metering = visit.Meter;
                 timing = true;
@@ -262,8 +264,9 @@ internal static class SingleWalkSession
 
                 // The real open: the shell's own rules run and scoreboard write, then the open's visit.
                 MainViewModel shell = provider.GetRequiredService<MainViewModel>();
-                FieldInfo passesField = typeof(MainViewModel).GetField("_openPassesTask", BindingFlags.Instance | BindingFlags.NonPublic)
-                                        ?? throw new MissingFieldException(nameof(MainViewModel), "_openPassesTask");
+                FieldInfo passesField =
+                    typeof(MainViewModel).GetField("_openPassesTask", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?? throw new MissingFieldException(nameof(MainViewModel), "_openPassesTask");
                 long analysisStart = 0;
                 Action<int> openCount = site =>
                 {
@@ -279,7 +282,8 @@ internal static class SingleWalkSession
                     long now = Stopwatch.GetTimestamp();
                     lock (gate)
                     {
-                        visit.Passes.Add(("shell-rules", PassOutcome.Ran, Stopwatch.GetElapsedTime(Volatile.Read(ref analysisStart), now).TotalMilliseconds));
+                        visit.Passes.Add(("shell-rules", PassOutcome.Ran,
+                            Stopwatch.GetElapsedTime(Volatile.Read(ref analysisStart), now).TotalMilliseconds));
                         last = now;
                     }
                 };
@@ -291,7 +295,8 @@ internal static class SingleWalkSession
                     counting = visit.Sites;
                     metering = visit.Meter;
                     timing = true;
-                    using (TimeOpenParses(queue, (s, e) => visit.ParseMs = Stopwatch.GetElapsedTime(s, e).TotalMilliseconds))
+                    using (TimeOpenParses(queue,
+                               (s, e) => visit.ParseMs = Stopwatch.GetElapsedTime(s, e).TotalMilliseconds))
                     using (window?.Invoke())
                     {
                         long start = Stopwatch.GetTimestamp();
@@ -347,7 +352,8 @@ internal static class SingleWalkSession
                 return null;
             }
 
-            if (site is null && ns.StartsWith("DemoViewer.NET", StringComparison.Ordinal) && !ns.StartsWith("DemoViewer.NET.AppTests", StringComparison.Ordinal))
+            if (site is null && ns.StartsWith("DemoViewer.NET", StringComparison.Ordinal)
+                             && !ns.StartsWith("DemoViewer.NET.AppTests", StringComparison.Ordinal))
             {
                 Type outer = type!;
                 while (outer.DeclaringType is { } parent)
@@ -369,7 +375,8 @@ internal static class SingleWalkSession
         {
             foreach (PackStamp stamp in r.PackStamps.ToList())
             {
-                if (stamp.Id == RoundFactsEvaluator.EvaluatorId || stamp.Id.StartsWith(StampedFacts.StampId(""), StringComparison.Ordinal))
+                if (stamp.Id == RoundFactsEvaluator.EvaluatorId
+                    || stamp.Id.StartsWith(StampedFacts.StampId(""), StringComparison.Ordinal))
                 {
                     r.SetStamp(stamp with { Fingerprint = null });
                 }
@@ -380,7 +387,8 @@ internal static class SingleWalkSession
     public static void WarmPageCache(string demo)
     {
         byte[] buffer = new byte[1 << 20];
-        using FileStream stream = new(demo, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan);
+        using FileStream stream = new(demo, FileMode.Open, FileAccess.Read, FileShare.Read, 1,
+            FileOptions.SequentialScan);
         while (stream.Read(buffer, 0, buffer.Length) > 0)
         {
         }
@@ -396,7 +404,8 @@ internal static class SingleWalkSession
     public static Task SettleAsync(ServiceProvider provider)
     {
         ArgumentNullException.ThrowIfNull(provider);
-        return SettleAsync(provider.GetRequiredService<DemoProcessingQueue>(), provider.GetRequiredService<DemoScheduler>());
+        return SettleAsync(provider.GetRequiredService<DemoProcessingQueue>(),
+            provider.GetRequiredService<DemoScheduler>());
     }
 
     /// <inheritdoc cref="SettleAsync(ServiceProvider)" />
@@ -436,15 +445,18 @@ internal static class SingleWalkSession
         WorkCheck check = scheduler.Check;
         string queued = string.Join(", ", queue.Snapshot()
             .Where(s => s.State is DemoQueueItemState.Queued or DemoQueueItemState.Running)
-            .Select(s => $"{s.Kind}/{string.Join("+", s.Owners)} {s.State}{(s.Hold == DemoQueueHold.None ? "" : " held " + s.Hold)}"));
-        return $"queue [{(queued.Length == 0 ? "empty" : queued)}], scheduler checking {check.IsChecking}, waiting {check.Waiting}";
+            .Select(s =>
+                $"{s.Kind}/{string.Join("+", s.Owners)} {s.State}{(s.Hold == DemoQueueHold.None ? "" : " held " + s.Hold)}"));
+        return
+            $"queue [{(queued.Length == 0 ? "empty" : queued)}], scheduler checking {check.IsChecking}, waiting {check.Waiting}";
     }
 
     // The queue's file parse, timed for one demo. Test-side: the queue has no timing seam.
     private static Restore TimeParses(DemoProcessingQueue queue, string demo, Action<long, long> parsed)
     {
-        FieldInfo field = typeof(DemoProcessingQueue).GetField("_parseFile", BindingFlags.Instance | BindingFlags.NonPublic)
-                          ?? throw new MissingFieldException(nameof(DemoProcessingQueue), "_parseFile");
+        FieldInfo field =
+            typeof(DemoProcessingQueue).GetField("_parseFile", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingFieldException(nameof(DemoProcessingQueue), "_parseFile");
         Func<string, DecodePlan, ParsedDemo> inner = (Func<string, DecodePlan, ParsedDemo>)field.GetValue(queue)!;
         field.SetValue(queue, (Func<string, DecodePlan, ParsedDemo>)((path, plan) =>
         {
@@ -463,8 +475,9 @@ internal static class SingleWalkSession
     // The open's parse of the bytes in hand. Test-side, like the file parse above.
     private static Restore TimeOpenParses(DemoProcessingQueue queue, Action<long, long> parsed)
     {
-        FieldInfo field = typeof(DemoProcessingQueue).GetField("_parseBytes", BindingFlags.Instance | BindingFlags.NonPublic)
-                          ?? throw new MissingFieldException(nameof(DemoProcessingQueue), "_parseBytes");
+        FieldInfo field =
+            typeof(DemoProcessingQueue).GetField("_parseBytes", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingFieldException(nameof(DemoProcessingQueue), "_parseBytes");
         Func<ReadOnlyMemory<byte>, ParsedDemo> inner = (Func<ReadOnlyMemory<byte>, ParsedDemo>)field.GetValue(queue)!;
         field.SetValue(queue, (Func<ReadOnlyMemory<byte>, ParsedDemo>)(bytes =>
         {
@@ -490,7 +503,10 @@ internal static class SingleWalkSession
         {
             LibraryDirectoryListing all = FileSystemLibraryFolderReader.Instance.Read(directory);
             return new LibraryDirectoryListing(
-                [.. all.Demos.Where(d => string.Equals(Path.GetFullPath(d.Path), Path.GetFullPath(demo), StringComparison.OrdinalIgnoreCase))],
+                [
+                    .. all.Demos.Where(d => string.Equals(Path.GetFullPath(d.Path), Path.GetFullPath(demo),
+                        StringComparison.OrdinalIgnoreCase))
+                ],
                 []);
         }
     }

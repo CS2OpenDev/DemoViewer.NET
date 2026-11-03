@@ -59,7 +59,8 @@ public class StratExportTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (StratBookTabViewModel vm, List<Playback2DExportStatusViewModel> chips, ExtensionSceneExport export) = OpenFiveSteps();
+            (StratBookTabViewModel vm, List<Playback2DExportStatusViewModel> chips, ExtensionSceneExport export) =
+                OpenFiveSteps();
             using (export)
             using (vm)
             {
@@ -75,13 +76,15 @@ public class StratExportTests
                     await Assert.That(dialog.SelectedFps).IsEqualTo(20);
                     await Assert.That(dialog.ResolvedSize).IsEqualTo(new SKSizeI(640, 640));
                     await Assert.That(dialog.SelectedRange!.StartFrame).IsEqualTo(320).Because("the first step");
-                    await Assert.That(dialog.SelectedRange.EndFrame).IsEqualTo(2880 + 128).Because("the last step plus 2 s");
+                    await Assert.That(dialog.SelectedRange.EndFrame).IsEqualTo(2880 + 128)
+                        .Because("the last step plus 2 s");
                     await Assert.That(dialog.EstimatedFrameCount).IsEqualTo(FiveStepFrames);
                     await Assert.That(Path.GetFileName(dialog.OutputPath)).IsEqualTo("A exec.gif");
                     await Assert.That(dialog.CanStart).IsTrue();
 
                     // The seven scene layers, the ink and the clock, named: the killfeed and roster have no source.
-                    await Assert.That(request.LayerIds).IsEquivalentTo(StratExportJob.LayerIds(true, true), CollectionOrdering.Matching);
+                    await Assert.That(request.LayerIds)
+                        .IsEquivalentTo(StratExportJob.LayerIds(true, true), CollectionOrdering.Matching);
                     await Assert.That(request.LayerIds.Count).IsEqualTo(9);
                     await Assert.That(request.LayerIds).DoesNotContain(SceneLayerIds.HudKillFeed);
 
@@ -135,7 +138,8 @@ public class StratExportTests
                 await Assert.That(codec.Info.Height).IsEqualTo(640);
 
                 byte[] actual = DecodeFrame(codec, GoldenFrame);
-                using SKCodec silencedCodec = SKCodec.Create(new MemoryStream(await File.ReadAllBytesAsync(silencedOutput)));
+                using SKCodec silencedCodec =
+                    SKCodec.Create(new MemoryStream(await File.ReadAllBytesAsync(silencedOutput)));
                 byte[] silenced = DecodeFrame(silencedCodec, GoldenFrame);
                 string golden = GoldenPath();
                 if (Environment.GetEnvironmentVariable("STRAT_GOLDEN_UPDATE") == "1")
@@ -160,11 +164,14 @@ public class StratExportTests
                 {
                     string artifacts = Path.Combine(AppContext.BaseDirectory, "artifacts");
                     Directory.CreateDirectory(artifacts);
-                    await File.WriteAllBytesAsync(Path.Combine(artifacts, "strat-export-five-steps.actual.png"), actual);
-                    await File.WriteAllBytesAsync(Path.Combine(artifacts, "strat-export-five-steps.silenced.png"), silenced);
+                    await File.WriteAllBytesAsync(Path.Combine(artifacts, "strat-export-five-steps.actual.png"),
+                        actual);
+                    await File.WriteAllBytesAsync(Path.Combine(artifacts, "strat-export-five-steps.silenced.png"),
+                        silenced);
                 }
 
-                await Assert.That(result.FailureReason).IsNull().Because(result.FailureReason ?? "the export succeeded");
+                await Assert.That(result.FailureReason).IsNull()
+                    .Because(result.FailureReason ?? "the export succeeded");
                 await Assert.That(result.Match).IsTrue();
             }
             finally
@@ -293,7 +300,10 @@ public class StratExportTests
 
             using Playback2DExportDialogViewModel dialog = new(
                 [new ExportRangeOption("whole round", 0, 115 * 64)],
-                new Playback2DSettings { ExportFormatId = ExportFormats.Gif, ExportFps = 20, ExportWidth = 640, ExportHeight = 640 },
+                new Playback2DSettings
+                {
+                    ExportFormatId = ExportFormats.Gif, ExportFps = 20, ExportWidth = 640, ExportHeight = 640
+                },
                 outputFrameCount: StratFrameSource.OutputFrameCount,
                 fileExists: _ => false,
                 scene: new ExportDialogScene("Export strat", "strat", FirstPartySceneExport.SizePresets,
@@ -313,7 +323,8 @@ public class StratExportTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            FeatureDescriptor descriptor = FeatureCatalog.All.Single(d => d.Id == StratBookTabViewModel.ExportFeatureId);
+            FeatureDescriptor descriptor =
+                FeatureCatalog.All.Single(d => d.Id == StratBookTabViewModel.ExportFeatureId);
             using ShellModuleFeatureGate onBrowser = new(null, static () => true);
             using ShellModuleFeatureGate onDesktop = new(null, static () => false);
 

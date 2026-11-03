@@ -46,11 +46,7 @@ public class RenderCorrectnessTests
         using SceneCompositor compositor = new();
         using CpuSurfaceProvider provider = new();
         using HeadlessSceneRenderer renderer = new(compositor, provider, new StackedLayout(),
-            ScenePalette.Dark)
-        {
-            Size = new SKSizeI(640, 360),
-            AdvanceCameras = true
-        };
+            ScenePalette.Dark) { Size = new SKSizeI(640, 360), AdvanceCameras = true };
 
         Scene2DFrame frame = PoisonedFrame();
         SceneTime time = new(1000, 0, 0, 1.0 / TickRate, false);
@@ -100,20 +96,8 @@ public class RenderCorrectnessTests
         SceneFrameBuilder builder = new();
         FakeEntity pawn = new FakeEntity("CCSPlayerPawn").With("m_iHealth", 100);
 
-        FakePlayer broken = new()
-        {
-            Slot = 0,
-            Team = 2,
-            Pawn = pawn,
-            WorldPosition = (float.NaN, 5f, 64f)
-        };
-        FakePlayer sound = new()
-        {
-            Slot = 1,
-            Team = 3,
-            Pawn = pawn,
-            WorldPosition = (100f, 200f, 64f)
-        };
+        FakePlayer broken = new() { Slot = 0, Team = 2, Pawn = pawn, WorldPosition = (float.NaN, 5f, 64f) };
+        FakePlayer sound = new() { Slot = 1, Team = 3, Pawn = pawn, WorldPosition = (100f, 200f, 64f) };
 
         Build(builder, Input([broken], 1, TickRate));
         WorldBounds afterPoison = builder.ObservedBounds;
@@ -193,7 +177,8 @@ public class RenderCorrectnessTests
         byte[] light = Snapshot(surface);
 
         await Assert.That(light).IsNotEquivalentTo(dark, CollectionOrdering.Matching)
-            .Because("a dark grid surviving a light swap at the same epoch is exactly the cache-key defect this guards");
+            .Because(
+                "a dark grid surviving a light swap at the same epoch is exactly the cache-key defect this guards");
     }
 
     // ── the single-pane Render pins every PerCamera key to a default pane ────────────────────────────
@@ -269,8 +254,7 @@ public class RenderCorrectnessTests
         using SKImage source = SolidImage(64, 64, SKColors.Magenta);
         using RadarLayer layer = new()
         {
-            CacheScaledImage = true,
-            RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100)
+            CacheScaledImage = true, RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100)
         };
 
         using CpuSurfaceProvider provider = new();
@@ -330,8 +314,7 @@ public class RenderCorrectnessTests
         using SKImage source = CheckerImage(Edge, Edge);
         using RadarLayer layer = new()
         {
-            CacheScaledImage = true,
-            RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100)
+            CacheScaledImage = true, RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100)
         };
 
         using CpuSurfaceProvider provider = new();
@@ -490,13 +473,7 @@ public class RenderCorrectnessTests
         // any HUD source built before the next Build.
         SceneFrameBuilder builder = new();
         FakeEntity pawn = new FakeEntity("CCSPlayerPawn").With("m_iHealth", 100);
-        FakePlayer player = new()
-        {
-            Slot = 0,
-            Team = 2,
-            Pawn = pawn,
-            WorldPosition = (10f, 20f, 64f)
-        };
+        FakePlayer player = new() { Slot = 0, Team = 2, Pawn = pawn, WorldPosition = (10f, 20f, 64f) };
 
         Build(builder, Input([player], 1, TickRate));
         await Assert.That(builder.LastRoster.Count).IsEqualTo(1);
@@ -650,11 +627,7 @@ public class RenderCorrectnessTests
             new PlayerMarker(0, 2, float.NaN, 0f, 0f, 0f, RingState.Team, 1, "AA", true),
             new PlayerMarker(1, 3, 500f, 300f, 0f, 0f, RingState.Team, 1, "BB", true)
         ],
-        Map = new SceneMapInfo
-        {
-            MapName = "synthetic_nan",
-            ObservedBounds = new WorldBounds(-1000, -1000, 1000, 1000)
-        }
+        Map = new SceneMapInfo { MapName = "synthetic_nan", ObservedBounds = new WorldBounds(-1000, -1000, 1000, 1000) }
     };
 
     // Ten markers on one Z band, and ten on another far enough apart that the density-valley split finds
@@ -679,19 +652,12 @@ public class RenderCorrectnessTests
             Markers = markers,
             Map = new SceneMapInfo
             {
-                MapName = "synthetic_floors",
-                ObservedBounds = new WorldBounds(-1200, -800, 1200, 800)
+                MapName = "synthetic_floors", ObservedBounds = new WorldBounds(-1200, -800, 1200, 800)
             }
         };
     }
 
-    private static MapLevel Level() => new()
-    {
-        Id = new MapLevelId(3),
-        Name = "floor",
-        ZMin = -1000,
-        ZMax = 1000
-    };
+    private static MapLevel Level() => new() { Id = new MapLevelId(3), Name = "floor", ZMin = -1000, ZMax = 1000 };
 
     // A single-pane context that HAS framed its pane, so picture caching is live: the palette gate and
     // the unframed-pane bypass are separate mechanisms and a test of one must not ride on the other.

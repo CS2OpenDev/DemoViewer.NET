@@ -100,7 +100,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     /// <param name="services">What the tab and its sections reach.</param>
     /// <param name="queue">The processing queue, for the paused and switched-off states; null reads as always running.</param>
     /// <param name="post">Runs a refresh later on the UI thread, so a burst of changes refreshes once; inline when null.</param>
-    public PlayerOverviewTabViewModel(PlayerOverviewServices services, IDemoProcessingQueue? queue = null, Action<Action>? post = null)
+    public PlayerOverviewTabViewModel(PlayerOverviewServices services, IDemoProcessingQueue? queue = null,
+        Action<Action>? post = null)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _queue = queue;
@@ -172,13 +173,15 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     public PlayerOverviewContext? Context => _context;
 
     /// <summary>True when the page shows a full-page empty state instead of sections.</summary>
-    public bool ShowEmpty => State is PlayerOverviewState.NoPlayers or PlayerOverviewState.NoSubject or PlayerOverviewState.SubjectNotFound;
+    public bool ShowEmpty => State is PlayerOverviewState.NoPlayers or PlayerOverviewState.NoSubject
+        or PlayerOverviewState.SubjectNotFound;
 
     /// <summary>True when the sections show.</summary>
     public bool ShowSections => !ShowEmpty;
 
     /// <summary>True when the sections show under a line saying some demos have no stats yet.</summary>
-    public bool ShowBanner => State is PlayerOverviewState.Computing or PlayerOverviewState.ProcessingOff or PlayerOverviewState.Paused;
+    public bool ShowBanner => State is PlayerOverviewState.Computing or PlayerOverviewState.ProcessingOff
+        or PlayerOverviewState.Paused;
 
     /// <summary>True when the state's action is setting who the user is.</summary>
     public bool CanOpenIdentity => State == PlayerOverviewState.NoSubject;
@@ -222,7 +225,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     /// <inheritdoc />
     public object? SnapshotState() =>
-        new PlayerOverviewSession(_subject?.ToString(CultureInfo.InvariantCulture), _pinned, SelectedPage.Kind.ToString());
+        new PlayerOverviewSession(_subject?.ToString(CultureInfo.InvariantCulture), _pinned,
+            SelectedPage.Kind.ToString());
 
     /// <summary>
     ///     Reopens the player the user had open. A subject that only followed the active account is not restored:
@@ -393,9 +397,11 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         {
             SteamIdForm.SteamId64 => true,
             SteamIdForm.SteamId3 => input.EndsWith(']'),
-            SteamIdForm.ProfileUrl => input.IndexOfAny(['/', '?', '#'], input.IndexOf("/profiles/", StringComparison.OrdinalIgnoreCase) + 10) >= 0
+            SteamIdForm.ProfileUrl => input.IndexOfAny(['/', '?', '#'],
+                                          input.IndexOf("/profiles/", StringComparison.OrdinalIgnoreCase) + 10) >= 0
                                       || input.EndsWith(']')
-                                      || input.EndsWith(id.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal),
+                                      || input.EndsWith(id.ToString(CultureInfo.InvariantCulture),
+                                          StringComparison.Ordinal),
             _ => false
         };
     }
@@ -440,7 +446,10 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     {
         if (_context is { } context)
         {
-            Show(context with { Filter = Filter.Filter, Window = PlayerAggregate.Window(context.Demos, Filter.Filter) });
+            Show(context with
+            {
+                Filter = Filter.Filter, Window = PlayerAggregate.Window(context.Demos, Filter.Filter)
+            });
         }
     }
 
@@ -544,7 +553,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         // A demo finishing in the background drops the subject from the caches; the stats read before stay on
         // show while the re-read runs, so the page does not flash a loading state for every demo the queue does.
         bool firstRead = reading && _rows is null;
-        PlayerOverviewContext context = Compose(new PlayerOverviewContext(_subject, player, matches, withStats, _subjectWasMine,
+        PlayerOverviewContext context = Compose(new PlayerOverviewContext(_subject, player, matches, withStats,
+            _subjectWasMine,
             _services, [], Filter.Filter, [], firstRead, _ranks, ranking && _ranks is null));
         RebuildMeAccounts();
         Pages.First(p => p.Kind == PlayerOverviewPageKind.History).Count = player is null ? null : matches.Count;
@@ -667,7 +677,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         {
             state = PlayerOverviewState.NoPlayers;
             Title = "No players yet";
-            Detail = "This library has no demos with SteamIDs. Players show up here once a demo that names them is indexed.";
+            Detail =
+                "This library has no demos with SteamIDs. Players show up here once a demo that names them is indexed.";
         }
         else if (context.SteamId64 is not { } id)
         {
@@ -732,7 +743,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     private static string StatsFor(int withStats, int total, int pending) =>
         string.Create(CultureInfo.InvariantCulture, $"Stats for {withStats} of {Demos(total)} · {pending} remaining");
 
-    private static string Demos(int count) => count == 1 ? "1 demo" : string.Create(CultureInfo.InvariantCulture, $"{count} demos");
+    private static string Demos(int count) =>
+        count == 1 ? "1 demo" : string.Create(CultureInfo.InvariantCulture, $"{count} demos");
 
     private static ulong? ParseId(string? steamId64) =>
         ulong.TryParse(steamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) && id != 0 ? id : null;

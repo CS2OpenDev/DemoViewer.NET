@@ -162,8 +162,7 @@ public sealed class SceneExportRunner : IExportRunner
             {
                 // Re-stamped from the source itself: the dialog sized the range with the source's own
                 // OutputFrameCount, and this is the assertion that the two agree.
-                StartFrame = 0,
-                EndFrame = last
+                StartFrame = 0, EndFrame = last
             };
 
             using SceneCompositor compositor = BuildCompositor(core, setup, hud);
@@ -196,11 +195,7 @@ public sealed class SceneExportRunner : IExportRunner
             request.DemoEndFrame,
             request.Core.Fps,
             request.Core.Speed,
-            setup.TickRate)
-        {
-            MapName = setup.MapName,
-            Radars = setup.MapAssets?.DescribeRadars()
-        };
+            setup.TickRate) { MapName = setup.MapName, Radars = setup.MapAssets?.DescribeRadars() };
 
         return source;
     }

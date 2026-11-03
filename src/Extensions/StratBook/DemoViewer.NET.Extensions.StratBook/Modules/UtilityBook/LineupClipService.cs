@@ -308,7 +308,8 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
                     {
                         Plan();
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                                   or InvalidOperationException)
                     {
                         _log?.Invoke($"lineup clips: plan: {ex.Message}");
                     }
@@ -397,7 +398,8 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
             bool gif = exists(job.GifPath);
             bool setpos = exists(job.SetposPath);
             if ((gif && setpos) || IsEvicted(job, evicted) || Adopt(job)
-                || (_planned.TryGetValue(job.Stem, out string? key) && string.Equals(key, job.Key, StringComparison.Ordinal)
+                || (_planned.TryGetValue(job.Stem, out string? key)
+                    && string.Equals(key, job.Key, StringComparison.Ordinal)
                     && !waiting.Contains(job.Stem)))
             {
                 continue;
@@ -549,7 +551,8 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
         if (LineupClipPlanner.PlanEvery(_clusters(), _directory)
                 .FirstOrDefault(j => (j.LineupId == lineupId || j.AliasIds.Contains(lineupId))
-                                     && (techniqueKey is null || string.Equals(j.TechniqueKey, techniqueKey, StringComparison.Ordinal)))
+                                     && (techniqueKey is null || string.Equals(j.TechniqueKey, techniqueKey,
+                                         StringComparison.Ordinal)))
             is not { } job)
         {
             return 0;
@@ -681,7 +684,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
         {
             string formerSetpos = LineupClipPlanner.SetposPathFor(former);
             if (!_folder!.FileExists(Inside(former)) || !_folder.FileExists(Inside(formerSetpos))
-                || !SameThrow(formerSetpos, job))
+                                                     || !SameThrow(formerSetpos, job))
             {
                 continue;
             }
@@ -974,6 +977,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
             _idle = idle;
             WorkerTask = idle.Task;
         }
+
         if (_jobs is null)
         {
             _ = Task.Run(() => DrainAsync(_ct), CancellationToken.None);
@@ -1019,7 +1023,8 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
         CancellationToken ct = _ct;
         IJobHandle handle = jobs.Enqueue(JobRequest.OnDemo(title, demo.Path,
             job => RenderBatchAsync(demo.Path, job.Parsed, job, ct),
-            new JobOptions(StratBookJobKinds.LineupClips, demo.Requested ? JobPriority.UserRequested : JobPriority.Background)));
+            new JobOptions(StratBookJobKinds.LineupClips,
+                demo.Requested ? JobPriority.UserRequested : JobPriority.Background)));
         if (handle.Status == JobStatus.Rejected)
         {
             Stop(false);
@@ -1075,8 +1080,11 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
             LineupClipJob best = _pending
                 .OrderByDescending(j => _requested.Contains(j.Stem)).ThenByDescending(j => j.Throws).First();
-            List<LineupClipJob> batch = [.. _pending
-                .Where(j => string.Equals(j.DemoPath, best.DemoPath, StringComparison.OrdinalIgnoreCase))];
+            List<LineupClipJob> batch =
+            [
+                .. _pending
+                    .Where(j => string.Equals(j.DemoPath, best.DemoPath, StringComparison.OrdinalIgnoreCase))
+            ];
             return new NextBatch(best.DemoPath, best.Map, batch.Count, batch.Any(j => _requested.Contains(j.Stem)));
         }
     }
@@ -1214,10 +1222,7 @@ public sealed class LineupClipRenderer : ILineupClipRenderer
         // the same one per clip without a second read.
         SceneExportScene scene = new()
         {
-            Frames = demo.Frames,
-            TickRate = demo.TickRate,
-            MapName = jobs[0].Map,
-            Palette = ScenePalette.Dark
+            Frames = demo.Frames, TickRate = demo.TickRate, MapName = jobs[0].Map, Palette = ScenePalette.Dark
         };
 
         List<LineupClipJob> rendered = [];
@@ -1232,8 +1237,7 @@ public sealed class LineupClipRenderer : ILineupClipRenderer
                 Directory.CreateDirectory(Path.GetDirectoryName(partial)!);
                 SceneExportClip clip = LineupClipPlanner.BuildClip(job, scene) with
                 {
-                    OutputPath = partial,
-                    Log = _log
+                    OutputPath = partial, Log = _log
                 };
 
                 if (await _render(clip, ct).ConfigureAwait(false) is { Completed: false } refused)
@@ -1269,5 +1273,4 @@ public sealed class LineupClipRenderer : ILineupClipRenderer
             _log?.Invoke($"lineup clips: {partial}: {ex.Message}");
         }
     }
-
 }

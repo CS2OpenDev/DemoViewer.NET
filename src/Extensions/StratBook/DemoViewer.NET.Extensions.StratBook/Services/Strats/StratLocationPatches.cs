@@ -77,7 +77,9 @@ public static class StratLocationPatches
             StratLocationKind.From => step.From,
             StratLocationKind.To when field.Slot is null => step.To,
             StratLocationKind.To => LineOf(step, field)?.To,
-            StratLocationKind.Landing => step.Utility?.Landing is { } landing ? StratLocations.FromLanding(landing) : null,
+            StratLocationKind.Landing => step.Utility?.Landing is { } landing
+                ? StratLocations.FromLanding(landing)
+                : null,
             StratLocationKind.RotateTo => step.Lurk?.Rotate?.To,
             _ => null
         };
@@ -96,7 +98,9 @@ public static class StratLocationPatches
         {
             return field.Slot is null
                 ? StratLocations.Via(step.Via, step.ViaPoints)
-                : LineOf(step, field) is { } line ? StratLocations.Via(line.Via, line.ViaPoints) : [];
+                : LineOf(step, field) is { } line
+                    ? StratLocations.Via(line.Via, line.ViaPoints)
+                    : [];
         }
 
         return single is null ? [] : [single];
@@ -116,18 +120,24 @@ public static class StratLocationPatches
         {
             StratLocationKind.From => StratStepFields.Uses(step.Verb, StratStepField.From) || step.From is not null,
             StratLocationKind.To when field.Slot is null => !StratStepLines.HasLines(step)
-                                                            && (StratStepFields.Uses(step.Verb, StratStepField.To) || step.To is not null),
+                                                            && (StratStepFields.Uses(step.Verb, StratStepField.To)
+                                                                || step.To is not null),
             StratLocationKind.To => IsInvolved(step, field)
-                                    && (StratStepFields.Uses(step.Verb, StratStepField.To) || LineOf(step, field)?.To is not null),
+                                    && (StratStepFields.Uses(step.Verb, StratStepField.To)
+                                        || LineOf(step, field)?.To is not null),
             StratLocationKind.Landing => step.Utility is not null,
             StratLocationKind.Watch => IsInvolved(step, field)
-                                       && (StratStepFields.Uses(step.Verb, StratStepField.Watch) || LineOf(step, field)?.Watch is not null),
-            StratLocationKind.LurkArea or StratLocationKind.RotateTo => StratStepFields.Uses(step.Verb, StratStepField.Lurk) || step.Lurk is not null,
+                                       && (StratStepFields.Uses(step.Verb, StratStepField.Watch)
+                                           || LineOf(step, field)?.Watch is not null),
+            StratLocationKind.LurkArea or StratLocationKind.RotateTo => StratStepFields.Uses(step.Verb,
+                StratStepField.Lurk) || step.Lurk is not null,
             StratLocationKind.Via when field.Slot is null => !StratStepLines.HasLines(step)
-                                                             && (StratStepFields.Uses(step.Verb, StratStepField.Via) || step.Via is not null
+                                                             && (StratStepFields.Uses(step.Verb, StratStepField.Via)
+                                                                 || step.Via is not null
                                                                  || step.ViaPoints is not null),
             StratLocationKind.Via => IsInvolved(step, field)
-                                     && (StratStepFields.Uses(step.Verb, StratStepField.Via) || LineOf(step, field) is { Via: not null } or { ViaPoints: not null }),
+                                     && (StratStepFields.Uses(step.Verb, StratStepField.Via)
+                                         || LineOf(step, field) is { Via: not null } or { ViaPoints: not null }),
             _ => false
         };
     }
@@ -141,7 +151,8 @@ public static class StratLocationPatches
     /// <param name="stepIndex">The step's index.</param>
     /// <param name="field">The field.</param>
     /// <param name="entries">What the field should hold.</param>
-    public static List<PatchOp> Write(StratDocument document, int stepIndex, StratLocationField field, IReadOnlyList<PlaceRef> entries)
+    public static List<PatchOp> Write(StratDocument document, int stepIndex, StratLocationField field,
+        IReadOnlyList<PlaceRef> entries)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(field);
@@ -158,12 +169,14 @@ public static class StratLocationPatches
                 List<PatchOp> to = Member(stepPath + "/to", step.To, next);
                 if (to.Count > 0 && next is not null && StratStepFields.MovesToTo(step.Verb))
                 {
-                    to.AddRange(StratLinePatches.DropCarried(step, stepPath, StratVocabulary.Slots.Where(s => StratStepLines.Involves(step, s))));
+                    to.AddRange(StratLinePatches.DropCarried(step, stepPath,
+                        StratVocabulary.Slots.Where(s => StratStepLines.Involves(step, s))));
                 }
 
                 return to;
             case StratLocationKind.To when field.IsAllLines:
-                return StratLinePatches.EditAll(step, stepPath, line => line.To = next is null ? null : StratLocations.Clone(next));
+                return StratLinePatches.EditAll(step, stepPath,
+                    line => line.To = next is null ? null : StratLocations.Clone(next));
             case StratLocationKind.To:
                 return StratLinePatches.EditLine(step, stepPath, field.Slot, line => line.To = next);
             case StratLocationKind.RotateTo:
@@ -178,8 +191,15 @@ public static class StratLocationPatches
                 IReadOnlyList<PlaceRef> areasBefore = StratLocations.LurkAreas(step.Lurk);
                 List<PatchOp> areas = StratLurkPatches.Edit(step, stepPath, lurk =>
                 {
-                    lurk.Areas = [.. entries.Where(StratLocations.HasPlace).Select(e => e.Place!).Distinct(StringComparer.Ordinal)];
-                    List<PlaceRef> areaPoints = [.. entries.Where(e => !StratLocations.HasPlace(e) && StratLocations.HasPoint(e)).Select(StratLocations.Clone)];
+                    lurk.Areas =
+                    [
+                        .. entries.Where(StratLocations.HasPlace).Select(e => e.Place!).Distinct(StringComparer.Ordinal)
+                    ];
+                    List<PlaceRef> areaPoints =
+                    [
+                        .. entries.Where(e => !StratLocations.HasPlace(e) && StratLocations.HasPoint(e))
+                            .Select(StratLocations.Clone)
+                    ];
                     lurk.AreaPoints = areaPoints.Count == 0 ? null : areaPoints;
                 });
 
@@ -192,7 +212,8 @@ public static class StratLocationPatches
                 if (areas.Count > 0 && areasAfter.Count > 0 && StratStepFields.MotionOf(step.Verb) == StepMotion.Lurk
                     && (areasBefore.Count == 0 || !SameEntry(areasBefore[0], areasAfter[0])))
                 {
-                    areas.AddRange(StratLinePatches.DropCarried(step, stepPath, StratVocabulary.Slots.Where(s => StratStepLines.Involves(step, s))));
+                    areas.AddRange(StratLinePatches.DropCarried(step, stepPath,
+                        StratVocabulary.Slots.Where(s => StratStepLines.Involves(step, s))));
                 }
 
                 return areas;
@@ -214,13 +235,20 @@ public static class StratLocationPatches
                     return stored is null ? [] : [PatchOp.RemoveOp(path, null)];
                 }
 
-                JsonNode? value = JsonSerializer.SerializeToNode(StratLocations.ToLanding(next), StratJsonContext.Default.UtilityLanding);
+                JsonNode? value = JsonSerializer.SerializeToNode(StratLocations.ToLanding(next),
+                    StratJsonContext.Default.UtilityLanding);
                 return [stored is null ? PatchOp.AddOp(path, value) : PatchOp.ReplaceOp(path, null, value)];
             case StratLocationKind.Via:
-                List<string>? viaPlaces = [.. entries.Where(StratLocations.HasPlace).Select(e => e.Place!).Distinct(StringComparer.Ordinal)];
-                List<PlaceRef>? viaPoints = [.. entries.Where(e => !StratLocations.HasPlace(e) && StratLocations.HasPoint(e)).Select(StratLocations.Clone)];
+                List<string>? viaPlaces =
+                    [.. entries.Where(StratLocations.HasPlace).Select(e => e.Place!).Distinct(StringComparer.Ordinal)];
+                List<PlaceRef>? viaPoints =
+                [
+                    .. entries.Where(e => !StratLocations.HasPlace(e) && StratLocations.HasPoint(e))
+                        .Select(StratLocations.Clone)
+                ];
                 viaPlaces = viaPlaces.Count == 0 ? null : viaPlaces;
                 viaPoints = viaPoints.Count == 0 ? null : viaPoints;
+
                 void SetVia(StepAssignment line)
                 {
                     line.Via = viaPlaces is null ? null : [.. viaPlaces];
@@ -233,8 +261,14 @@ public static class StratLocationPatches
                         ? StratLinePatches.EditAll(step, stepPath, SetVia)
                         : StratLinePatches.EditLine(step, stepPath, field.Slot, SetVia);
             case StratLocationKind.Watch when field.Slot is not null:
-                List<string> places = [.. entries.Where(StratLocations.HasPlace).Select(e => e.Place!).Distinct(StringComparer.Ordinal)];
-                List<PlaceRef> points = [.. entries.Where(e => !StratLocations.HasPlace(e) && StratLocations.HasPoint(e)).Select(StratLocations.Clone)];
+                List<string> places =
+                    [.. entries.Where(StratLocations.HasPlace).Select(e => e.Place!).Distinct(StringComparer.Ordinal)];
+                List<PlaceRef> points =
+                [
+                    .. entries.Where(e => !StratLocations.HasPlace(e) && StratLocations.HasPoint(e))
+                        .Select(StratLocations.Clone)
+                ];
+
                 void SetWatch(StepAssignment line)
                 {
                     line.Watch ??= new StepWatch();
@@ -242,7 +276,9 @@ public static class StratLocationPatches
                     line.Watch.Points = points.Count == 0 ? null : [.. points.Select(StratLocations.Clone)];
                 }
 
-                return field.IsAllLines ? StratLinePatches.EditAll(step, stepPath, SetWatch) : StratLinePatches.EditLine(step, stepPath, field.Slot, SetWatch);
+                return field.IsAllLines
+                    ? StratLinePatches.EditAll(step, stepPath, SetWatch)
+                    : StratLinePatches.EditLine(step, stepPath, field.Slot, SetWatch);
             default:
                 return [];
         }
@@ -261,7 +297,8 @@ public static class StratLocationPatches
     /// <param name="y">World Y.</param>
     /// <param name="levelMinZ">The clicked floor's level key.</param>
     /// <param name="placesKnown">False when the map's places could not be read.</param>
-    public static List<PatchOp> Pick(StratDocument document, int stepIndex, StratLocationField field, string? place, double x, double y,
+    public static List<PatchOp> Pick(StratDocument document, int stepIndex, StratLocationField field, string? place,
+        double x, double y,
         double levelMinZ, bool placesKnown)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -270,7 +307,8 @@ public static class StratLocationPatches
         IReadOnlyList<PlaceRef> current = Read(step, field);
         if (!field.IsMulti)
         {
-            return Write(document, stepIndex, field, [StratLocations.Picked(current.Count > 0 ? current[0] : null, place, x, y, levelMinZ, placesKnown)]);
+            return Write(document, stepIndex, field,
+                [StratLocations.Picked(current.Count > 0 ? current[0] : null, place, x, y, levelMinZ, placesKnown)]);
         }
 
         PlaceRef entry = placesKnown && !string.IsNullOrEmpty(place)
@@ -291,7 +329,8 @@ public static class StratLocationPatches
 
     // A line field names a player the step still has: a pick armed on a removed player must not add them back.
     private static bool IsInvolved(StratStep step, StratLocationField field) =>
-        field.IsAllLines || (field.Slot is not null && StratVocabulary.Slots.Contains(field.Slot) && StratStepLines.Involves(step, field.Slot));
+        field.IsAllLines || (field.Slot is not null && StratVocabulary.Slots.Contains(field.Slot)
+                                                    && StratStepLines.Involves(step, field.Slot));
 
     // A line field's line: the named slot's, or for every line the first, since the row shows them only while they agree.
     private static StepAssignment? LineOf(StratStep step, StratLocationField field) =>

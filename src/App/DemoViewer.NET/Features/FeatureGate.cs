@@ -62,7 +62,8 @@ public sealed class FeatureGate : IFeatureGate, IFeatureSuspension, IDisposable
 
     // Test seam: pass marshalChangedToUiThread=false to raise Changed inline (synchronously observable
     // without an Avalonia dispatcher).
-    internal FeatureGate(IOptionsMonitor<AppSettings> monitor, bool marshalChangedToUiThread, ExtensionFaults? faults = null)
+    internal FeatureGate(IOptionsMonitor<AppSettings> monitor, bool marshalChangedToUiThread,
+        ExtensionFaults? faults = null)
     {
         ArgumentNullException.ThrowIfNull(monitor);
         _monitor = monitor;
@@ -76,7 +77,8 @@ public sealed class FeatureGate : IFeatureGate, IFeatureSuspension, IDisposable
     public void SuspendForSession(string packFeatureId)
     {
         ArgumentException.ThrowIfNullOrEmpty(packFeatureId);
-        if (FeatureCatalog.ById(packFeatureId) is not { Scope: FeatureScope.Pack } || _suspended.Contains(packFeatureId))
+        if (FeatureCatalog.ById(packFeatureId) is not { Scope: FeatureScope.Pack }
+            || _suspended.Contains(packFeatureId))
         {
             return;
         }
@@ -163,7 +165,8 @@ public sealed class FeatureGate : IFeatureGate, IFeatureSuspension, IDisposable
                 }
 
                 // The Developer-full baseline: what a developer with default settings sees (no overrides).
-                bool developerBaseline = Resolve(descriptor, UserCategory.Developer, _emptyOverrides, _noneSuspended, null);
+                bool developerBaseline =
+                    Resolve(descriptor, UserCategory.Developer, _emptyOverrides, _noneSuspended, null);
                 bool current = Resolve(descriptor, category, overrides, suspended, null);
                 if (developerBaseline && !current)
                 {
@@ -237,7 +240,8 @@ public sealed class FeatureGate : IFeatureGate, IFeatureSuspension, IDisposable
 
     // A descriptor's own on/off, ignoring group and cascade: session suspension → Required → explicit
     // override → category default.
-    private static bool ResolveOwn(FeatureDescriptor descriptor, UserCategory category, IReadOnlyDictionary<string, bool> overrides,
+    private static bool ResolveOwn(FeatureDescriptor descriptor, UserCategory category,
+        IReadOnlyDictionary<string, bool> overrides,
         HashSet<string> suspended)
     {
         if (descriptor.Scope == FeatureScope.Pack && suspended.Contains(descriptor.Id))

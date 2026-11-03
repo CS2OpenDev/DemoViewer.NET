@@ -112,8 +112,8 @@
                 <Panel Grid.Row="1" IsVisible="{Binding EntityTab.HasEntitySelection}">
 
                     <ui:KeyValueTable Rows="{Binding EntityTab.EntityFieldRows}"
-                                            ShowDeltaOnly="{Binding EntityTab.ShowDeltaFieldsOnly}"
-                                            IsVisible="{Binding !EntityTab.ShowRelationshipTree}" />
+                                      ShowDeltaOnly="{Binding EntityTab.ShowDeltaFieldsOnly}"
+                                      IsVisible="{Binding !EntityTab.ShowRelationshipTree}" />
 
                     <Grid RowDefinitions="*,Auto"
                           IsVisible="{Binding EntityTab.ShowRelationshipTree}">

@@ -434,10 +434,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
 
         IsPlaying = true;
         _frameAccumulator = 0;
-        _timer = new DispatcherTimer
-        {
-            Interval = TimerInterval()
-        };
+        _timer = new DispatcherTimer { Interval = TimerInterval() };
         _timer.Tick += OnTimerTick;
         _timer.Start();
     }

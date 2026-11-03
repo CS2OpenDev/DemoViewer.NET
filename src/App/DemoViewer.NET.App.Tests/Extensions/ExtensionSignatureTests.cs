@@ -350,7 +350,8 @@ public class ExtensionSignatureTests
                 {
                     try
                     {
-                        File.SetUnixFileMode(subdir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                        File.SetUnixFileMode(subdir,
+                            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
                     }
                     catch (IOException)
                     {
@@ -430,7 +431,8 @@ public class ExtensionSignatureTests
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                throw new TUnit.Core.Exceptions.SkipTestException("symbolic links are not available here: " + ex.Message);
+                throw new TUnit.Core.Exceptions.SkipTestException(
+                    "symbolic links are not available here: " + ex.Message);
             }
 
             Exception? ex2 = Catch(() => ExtensionSignature.ComputeDigest(dir));
@@ -494,7 +496,8 @@ public class ExtensionSignatureTests
             {
                 try
                 {
-                    File.SetUnixFileMode(subdir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                    File.SetUnixFileMode(subdir,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
                 }
                 catch (IOException)
                 {
@@ -531,7 +534,8 @@ public class ExtensionSignatureTests
             using (Assert.Multiple())
             {
                 await Assert.That(key.KeySize).IsEqualTo(256);
-                await Assert.That(key.ExportParameters(false).Curve.Oid.Value).IsEqualTo(ECCurve.NamedCurves.nistP256.Oid.Value);
+                await Assert.That(key.ExportParameters(false).Curve.Oid.Value)
+                    .IsEqualTo(ECCurve.NamedCurves.nistP256.Oid.Value);
             }
         }
     }

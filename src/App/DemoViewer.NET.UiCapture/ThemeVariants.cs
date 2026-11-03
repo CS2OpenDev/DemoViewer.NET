@@ -46,30 +46,32 @@ public static partial class Variants
             ["theme-warning"] = ThemeWarning
         };
 
-    private static (ThemeRegistry Registry, SettingsService Settings, IOptionsMonitor<AppSettings> Monitor) ThemeScratch(string theme)
+    private static (ThemeRegistry Registry, SettingsService Settings, IOptionsMonitor<AppSettings> Monitor)
+        ThemeScratch(string theme)
     {
         string dir = Path.Combine(Path.GetTempPath(), "demoviewer-uicapture-themes", Guid.NewGuid().ToString("N"));
         string themes = Path.Combine(dir, "themes");
         Directory.CreateDirectory(themes);
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, dir);
         File.WriteAllText(Path.Combine(themes, "user-pastel.json"), """
-            {
-              "id": "user-pastel",
-              "name": "Pastel",
-              "base": "light",
-              "tokens": {
-                "ShellBg": "#F6EEF7", "PanelBg": "#FBF5FB", "CardBg": "#FFFFFF", "AccentInteractive": "#B45C9C",
-                "TextBright": "#4A2A44", "TextValue": "#3A1E36", "OldAccentName": "#123456"
-              }
-            }
-            """);
+                                                                    {
+                                                                      "id": "user-pastel",
+                                                                      "name": "Pastel",
+                                                                      "base": "light",
+                                                                      "tokens": {
+                                                                        "ShellBg": "#F6EEF7", "PanelBg": "#FBF5FB", "CardBg": "#FFFFFF", "AccentInteractive": "#B45C9C",
+                                                                        "TextBright": "#4A2A44", "TextValue": "#3A1E36", "OldAccentName": "#123456"
+                                                                      }
+                                                                    }
+                                                                    """);
         File.WriteAllText(Path.Combine(themes, "half-written.json"), """{ "id": "half", "tokens": { "ShellBg": """);
 
         SettingsService svc = new(dir);
         svc.Write(s => s.Theme = theme);
         ServiceCollection services = new();
         services.Configure<AppSettings>(svc.Configuration);
-        IOptionsMonitor<AppSettings> monitor = services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<AppSettings>>();
+        IOptionsMonitor<AppSettings> monitor =
+            services.BuildServiceProvider().GetRequiredService<IOptionsMonitor<AppSettings>>();
 
         ThemeRegistry registry = new();
         registry.Reload();
@@ -80,20 +82,22 @@ public static partial class Variants
     private static ThemeEditorView ThemeEditor(string themeId, bool missingOnly, Action<ThemeEditorViewModel>? then)
     {
         (ThemeRegistry registry, SettingsService svc, IOptionsMonitor<AppSettings> monitor) = ThemeScratch(themeId);
-        ThemeEditorViewModel vm = new(new UserThemeStore(registry), new ThemeEditorHost
-        {
-            ActiveThemeId = () => monitor.CurrentValue.Theme,
-            UseTheme = id => svc.Write(s => s.Theme = id),
-            ShowAppIn = _ => { },
-            RestoreApp = () => { }
-        }, themeId, missingOnly);
+        ThemeEditorViewModel vm = new(new UserThemeStore(registry),
+            new ThemeEditorHost
+            {
+                ActiveThemeId = () => monitor.CurrentValue.Theme,
+                UseTheme = id => svc.Write(s => s.Theme = id),
+                ShowAppIn = _ => { },
+                RestoreApp = () => { }
+            }, themeId, missingOnly);
         then?.Invoke(vm);
         return new ThemeEditorView { DataContext = vm };
     }
 
     private static StackPanel ThemeSettings()
     {
-        (ThemeRegistry registry, SettingsService svc, IOptionsMonitor<AppSettings> monitor) = ThemeScratch("user-pastel");
+        (ThemeRegistry registry, SettingsService svc, IOptionsMonitor<AppSettings> monitor) =
+            ThemeScratch("user-pastel");
         SettingsViewModel vm = new(svc, monitor, new FeatureGate(monitor), registry) { SettingsFilterText = "theme" };
         vm.AttachThemeEditor(_ => { });
 
@@ -102,28 +106,31 @@ public static partial class Variants
         SettingsView view = new() { DataContext = vm };
         ListBox list = new()
         {
-            ItemsSource = vm.Themes,
-            ItemTemplate = FindThemeTemplate(view),
-            Width = 260,
-            Margin = new Thickness(12)
+            ItemsSource = vm.Themes, ItemTemplate = FindThemeTemplate(view), Width = 260, Margin = new Thickness(12)
         };
         StackPanel stack = new();
         stack.Children.Add(view);
-        stack.Children.Add(new TextBlock { Text = "Theme list (the drop-down's items):", Margin = new Thickness(12, 4), Foreground = Brushes.Gray });
+        stack.Children.Add(new TextBlock
+        {
+            Text = "Theme list (the drop-down's items):", Margin = new Thickness(12, 4), Foreground = Brushes.Gray
+        });
         stack.Children.Add(list);
         return stack;
     }
 
     // The theme ComboBox's ItemTemplate, read off the real view once it has loaded its XAML.
     private static Avalonia.Controls.Templates.IDataTemplate? FindThemeTemplate(SettingsView view) =>
-        view.GetLogicalDescendantsOfType<ComboBox>().FirstOrDefault(c => ReferenceEquals(c.ItemsSource, ((SettingsViewModel)view.DataContext!).Themes))
+        view.GetLogicalDescendantsOfType<ComboBox>().FirstOrDefault(c =>
+                ReferenceEquals(c.ItemsSource, ((SettingsViewModel)view.DataContext!).Themes))
             ?.ItemTemplate;
 
     private static Views.MainView ThemeWarning()
     {
-        (ThemeRegistry registry, SettingsService svc, IOptionsMonitor<AppSettings> monitor) = ThemeScratch("user-pastel");
+        (ThemeRegistry registry, SettingsService svc, IOptionsMonitor<AppSettings> monitor) =
+            ThemeScratch("user-pastel");
         ThemeWarningViewModel warning = new(registry, () => monitor.CurrentValue.Theme,
-            () => monitor.CurrentValue.DismissedThemeWarning, sig => svc.Write(s => s.DismissedThemeWarning = sig), (_, _) => { });
+            () => monitor.CurrentValue.DismissedThemeWarning, sig => svc.Write(s => s.DismissedThemeWarning = sig),
+            (_, _) => { });
         MainViewModel shell = new();
         shell.AttachThemeWarning(warning);
         return new Views.MainView { DataContext = shell };

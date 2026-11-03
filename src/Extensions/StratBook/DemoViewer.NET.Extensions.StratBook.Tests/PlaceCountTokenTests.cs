@@ -19,7 +19,8 @@ public class PlaceCountTokenTests
         await Assert.That(token).IsEqualTo("BombsiteA:2|Outside:3");
 
         string ones = PlaceCountToken.EncodePlaces(["Ramp", "Ramp", "Lobby"]);
-        await Assert.That(ones).IsEqualTo("Lobby:1|Ramp:2").Because(":1 is written, so one decoder has no special case");
+        await Assert.That(ones).IsEqualTo("Lobby:1|Ramp:2")
+            .Because(":1 is written, so one decoder has no special case");
     }
 
     [Test]
@@ -27,11 +28,13 @@ public class PlaceCountTokenTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(PlaceCountToken.EncodePlaces([null, "Ramp", "Ramp", "Ramp", "Ramp"])).IsEqualTo("?:1|Ramp:4");
+            await Assert.That(PlaceCountToken.EncodePlaces([null, "Ramp", "Ramp", "Ramp", "Ramp"]))
+                .IsEqualTo("?:1|Ramp:4");
             await Assert.That(PlaceCountToken.EncodePlaces(["", "Ramp"])).IsEqualTo("?:1|Ramp:1");
             await Assert.That(PlaceCountToken.EncodePlaces([])).IsEqualTo("");
             await Assert.That(PlaceCountToken.Decode("")).IsEmpty();
-            await Assert.That(PlaceCountToken.AliveCount("?:1|Ramp:4")).IsEqualTo(5).Because("the man-count survives a null place");
+            await Assert.That(PlaceCountToken.AliveCount("?:1|Ramp:4")).IsEqualTo(5)
+                .Because("the man-count survives a null place");
         }
     }
 
@@ -49,7 +52,8 @@ public class PlaceCountTokenTests
             await Assert.That(decoded[0]).IsEqualTo(("BombsiteB", 5));
             await Assert.That(decoded[1]).IsEqualTo(("Z", 1));
             await Assert.That(decoded[2]).IsEqualTo(("a", 2));
-            await Assert.That(PlaceCountToken.Encode(decoded.Select(p => ((string?)p.Place, p.Count)))).IsEqualTo(token);
+            await Assert.That(PlaceCountToken.Encode(decoded.Select(p => ((string?)p.Place, p.Count))))
+                .IsEqualTo(token);
         }
     }
 

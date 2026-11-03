@@ -51,7 +51,8 @@ public class DetectedStratsTests
             await Assert.That(vm.Detected.Rows.All(r => r.Summary.Contains(" · CT · "))).IsTrue();
             vm.SelectedSide = StratVocabulary.SideT;
 
-            vm.Detected.SelectedRow = vm.Detected.Rows.First(r => r.Title.StartsWith("A execute", StringComparison.Ordinal));
+            vm.Detected.SelectedRow =
+                vm.Detected.Rows.First(r => r.Title.StartsWith("A execute", StringComparison.Ordinal));
             string header = vm.DetectedHeader;
             vm.Detected.AddToBookCommand.Execute(null);
 
@@ -60,12 +61,14 @@ public class DetectedStratsTests
                 await Assert.That(vm.IsDetectedView).IsFalse().Because("the new strat opens in the book");
                 await Assert.That(vm.SelectedStrat?.Name).StartsWith("A execute");
                 await Assert.That(library.Strats.Index.Single().Type).IsEqualTo("execute");
-                await Assert.That(vm.DetectedHeader).IsNotEqualTo(header).Because("a pattern in the book is no longer new");
+                await Assert.That(vm.DetectedHeader).IsNotEqualTo(header)
+                    .Because("a pattern in the book is no longer new");
             }
 
             vm.IsDetectedView = true;
             Guid added = library.Strats.Index.Single().Id;
-            await Assert.That(vm.Detected.Rows.Any(r => r.StratId == added)).IsFalse().Because("an added pattern leaves the default view");
+            await Assert.That(vm.Detected.Rows.Any(r => r.StratId == added)).IsFalse()
+                .Because("an added pattern leaves the default view");
             await Assert.That(vm.Detected.SettledLabel).IsEqualTo("Show settled (1)");
             vm.Detected.ShowSettled = true;
             await Assert.That(vm.Detected.Rows.Single(r => r.StratId == added).IsInBook).IsTrue();
@@ -118,7 +121,8 @@ public class DetectedStratsTests
             using StratMiningService mining = library.Service();
             using StratBookTabViewModel vm = Tab(library, mining);
             vm.IsDetectedView = true;
-            vm.Detected.SelectedRow = vm.Detected.Rows.First(r => r.Title.StartsWith("A execute", StringComparison.Ordinal));
+            vm.Detected.SelectedRow =
+                vm.Detected.Rows.First(r => r.Title.StartsWith("A execute", StringComparison.Ordinal));
             StratBookTabView view = new() { DataContext = vm };
             Window window = new() { Width = 1400, Height = 800, Content = view };
             window.Show();
@@ -126,7 +130,8 @@ public class DetectedStratsTests
 
             ListBox list = view.FindControl<ListBox>("DetectedList")!;
             Control detail = view.FindControl<Control>("DetectedDetail")!;
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "strat-detected.png"), new PngBitmapEncoderOptions());
+            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "strat-detected.png"),
+                new PngBitmapEncoderOptions());
             using (Assert.Multiple())
             {
                 await Assert.That(list.IsEffectivelyVisible).IsTrue();
@@ -156,7 +161,8 @@ public class DetectedStratsTests
             Window window = new() { Width = 1400, Height = 800, Content = view };
             window.Show();
             Playback2DTimelineHarness.Pump();
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "strat-detected-settled.png"), new PngBitmapEncoderOptions());
+            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "strat-detected-settled.png"),
+                new PngBitmapEncoderOptions());
             await Assert.That(vm.Detected.SettledLabel).IsEqualTo("Show settled (2)");
             window.Close();
         });
@@ -164,7 +170,8 @@ public class DetectedStratsTests
     private static DetectedRowViewModel SelectAExecute(StratBookTabViewModel vm)
     {
         vm.IsDetectedView = true;
-        DetectedRowViewModel row = vm.Detected.Rows.First(r => r.Title.StartsWith("A execute", StringComparison.Ordinal));
+        DetectedRowViewModel row =
+            vm.Detected.Rows.First(r => r.Title.StartsWith("A execute", StringComparison.Ordinal));
         vm.Detected.SelectedRow = row;
         return row;
     }
@@ -173,7 +180,8 @@ public class DetectedStratsTests
     private static string Normalized(StratDocument doc) =>
         Regex.Replace(
             Regex.Replace(
-                Regex.Replace(StratStore.Serialize(doc), "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", "<id>"),
+                Regex.Replace(StratStore.Serialize(doc),
+                    "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", "<id>"),
                 "\"\\d{4}-\\d{2}-\\d{2}T[^\"]*\"", "<utc>"),
             "\"revision\": \\d+", "\"revision\": 0");
 
@@ -185,7 +193,8 @@ public class DetectedStratsTests
             using Library library = Library.Create();
             using StratMiningService mining = library.Service();
             ReviewQueue review = new(null);
-            using StratBookTabViewModel vm = new(library.Strats, null, null, false, review: new ExtensionReviewQueue(review), tags: library.Tags, mining: mining);
+            using StratBookTabViewModel vm = new(library.Strats, null, null, false,
+                review: new ExtensionReviewQueue(review), tags: library.Tags, mining: mining);
             DetectedRowViewModel row = SelectAExecute(vm);
 
             int writes = 0;
@@ -212,7 +221,8 @@ public class DetectedStratsTests
                 await Assert.That(canvas.TokenEditor).IsNull();
                 await Assert.That(preview.Steps.Count).IsEqualTo(steps).And.IsGreaterThan(0);
                 await Assert.That(preview.Steps.Count(s => s.IsActive)).IsEqualTo(1);
-                await Assert.That(canvas.Projection!.Path.Count).IsEqualTo(steps).Because("the canvas's edits do not apply");
+                await Assert.That(canvas.Projection!.Path.Count).IsEqualTo(steps)
+                    .Because("the canvas's edits do not apply");
                 await Assert.That(writes).IsEqualTo(0);
                 await Assert.That(library.Strats.Index).IsEmpty();
                 await Assert.That(File.Exists(Path.Combine(library.Root, "strat-mining.json"))).IsFalse();
@@ -226,7 +236,8 @@ public class DetectedStratsTests
             StratDocument saved = library.Strats.TryLoad(library.Strats.Index.Single().Id)!;
             using (Assert.Multiple())
             {
-                await Assert.That(saved.Steps.Select(s => s.Id)).IsEquivalentTo(previewedSteps, CollectionOrdering.Matching)
+                await Assert.That(saved.Steps.Select(s => s.Id))
+                    .IsEquivalentTo(previewedSteps, CollectionOrdering.Matching)
                     .Because("Add to book saves the previewed document, not a rebuild");
                 await Assert.That(saved.Id).IsNotEqualTo(preview.Document.Id);
                 await Assert.That(Normalized(saved)).IsEqualTo(previewed);
@@ -272,7 +283,8 @@ public class DetectedStratsTests
             // Reviewed again: the rebuilt preview is what gets saved.
             List<Guid> steps = [.. vm.Detected.Preview!.Document!.Steps.Select(s => s.Id)];
             await vm.Detected.AddToBookCommand.ExecuteAsync(null);
-            await Assert.That(library.Strats.TryLoad(library.Strats.Index.Single().Id)!.Steps.Select(s => s.Id)).IsEquivalentTo(steps, CollectionOrdering.Matching);
+            await Assert.That(library.Strats.TryLoad(library.Strats.Index.Single().Id)!.Steps.Select(s => s.Id))
+                .IsEquivalentTo(steps, CollectionOrdering.Matching);
         });
     }
 
@@ -344,7 +356,8 @@ public class DetectedStratsTests
             await vm.Detected.PreviewStratCommand.ExecuteAsync(null);
             StratPreviewViewModel first = vm.Detected.Preview!;
             vm.Detected.ShowSettled = true;
-            await Assert.That(vm.Detected.Preview).IsSameReferenceAs(first).Because("a refresh reselects the same pattern");
+            await Assert.That(vm.Detected.Preview).IsSameReferenceAs(first)
+                .Because("a refresh reselects the same pattern");
 
             vm.Detected.SelectedRow = vm.Detected.Rows.First(r => r.Key != first.Key);
             using (Assert.Multiple())
@@ -398,15 +411,18 @@ public class DetectedStratsTests
 
             Control detail = view.FindControl<Control>("DetectedPreview")!;
             Control canvas = view.FindControl<Control>("DetectedPreviewCanvas")!;
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "strat-detected-preview.png"), new PngBitmapEncoderOptions());
+            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "strat-detected-preview.png"),
+                new PngBitmapEncoderOptions());
             using (Assert.Multiple())
             {
                 await Assert.That(detail.IsEffectivelyVisible).IsTrue();
                 await Assert.That(canvas.IsEffectivelyVisible).IsTrue();
-                await Assert.That(canvas.GetVisualDescendants().OfType<StratCanvasView>().Single().IsEffectivelyVisible).IsTrue();
+                await Assert.That(canvas.GetVisualDescendants().OfType<StratCanvasView>().Single().IsEffectivelyVisible)
+                    .IsTrue();
                 await Assert.That(detail.GetVisualDescendants().Any(c => c is TextBox or ComboBox)).IsFalse()
                     .Because("the preview reads as text, not fields");
-                await Assert.That(preview.Steps.Single(s => s.IsActive).NumberText).IsNotEqualTo("1").Because("the canvas moved on and the list follows");
+                await Assert.That(preview.Steps.Single(s => s.IsActive).NumberText).IsNotEqualTo("1")
+                    .Because("the canvas moved on and the list follows");
             }
 
             window.Close();

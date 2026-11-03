@@ -21,7 +21,8 @@ public sealed class ExtensionScope
     /// <param name="name">Its display name.</param>
     /// <param name="assembly">Its entry assembly.</param>
     /// <param name="ownFeatureIds">Every feature id the extension declares; its master switch is always one.</param>
-    public ExtensionScope(string id, string featureId, string name, Assembly assembly, IEnumerable<string>? ownFeatureIds = null)
+    public ExtensionScope(string id, string featureId, string name, Assembly assembly,
+        IEnumerable<string>? ownFeatureIds = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentException.ThrowIfNullOrEmpty(featureId);
@@ -66,7 +67,8 @@ public sealed class ExtensionScope
     public static ExtensionScope For(IExtension pack, string? name = null)
     {
         ArgumentNullException.ThrowIfNull(pack);
-        return new ExtensionScope(pack.Id, pack.FeatureId, name ?? LabelOf(pack), pack.GetType().Assembly, FeatureIdsOf(pack));
+        return new ExtensionScope(pack.Id, pack.FeatureId, name ?? LabelOf(pack), pack.GetType().Assembly,
+            FeatureIdsOf(pack));
     }
 
     /// <summary>

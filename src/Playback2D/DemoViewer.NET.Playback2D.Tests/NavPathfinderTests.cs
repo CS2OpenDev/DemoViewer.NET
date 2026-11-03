@@ -17,7 +17,10 @@ namespace DemoViewer.NET.Playback2DTests;
 public class NavPathfinderTests
 {
     private static readonly string[] Maps =
-        ["de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass", "de_train", "de_vertigo"];
+    [
+        "de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass",
+        "de_train", "de_vertigo"
+    ];
 
     [Test]
     public async Task EveryShippedMap_Builds_AndRoutesBetweenItsPlaces()
@@ -51,7 +54,8 @@ public class NavPathfinderTests
                 }
             }
 
-            Console.WriteLine($"[nav] {map}: {nav.AreaCount} areas, {nav.LinkCount} links, {nav.GapLinkCount} gaps, {routed}/{tried} routed");
+            Console.WriteLine(
+                $"[nav] {map}: {nav.AreaCount} areas, {nav.LinkCount} links, {nav.GapLinkCount} gaps, {routed}/{tried} routed");
             await Assert.That(routed).IsGreaterThanOrEqualTo(tried * 9 / 10);
         }
 
@@ -133,7 +137,8 @@ public class NavPathfinderTests
             }
         }
 
-        Console.WriteLine($"[nav] nuke Outside -> Ramp -> B: {path.Count} points, {changes} floor changes, {NavPathfinder.Length(path):F0} u");
+        Console.WriteLine(
+            $"[nav] nuke Outside -> Ramp -> B: {path.Count} points, {changes} floor changes, {NavPathfinder.Length(path):F0} u");
         await Assert.That(changes).IsGreaterThanOrEqualTo(1);
         await Assert.That(OffMesh(nav, path)).IsLessThanOrEqualTo(0.04);
     }
@@ -218,7 +223,8 @@ public class NavPathfinderTests
             throw new SkipTestException("no de_dust2 zones in this checkout");
         }
 
-        string[] places = ["TSpawn", "LongDoors", "BombsiteB", "CTSpawn", "Middle", "UpperTunnel", "LongA", "BombsiteA"];
+        string[] places =
+            ["TSpawn", "LongDoors", "BombsiteB", "CTSpawn", "Middle", "UpperTunnel", "LongA", "BombsiteA"];
         List<((double X, double Y, int Area) A, (double X, double Y, int Area) B)> pairs = [];
         NavPathfinder reference = NavPathfinder.Build(zones);
         foreach (string a in places)
@@ -230,7 +236,8 @@ public class NavPathfinderTests
         }
 
         // Expected from a graph of its own, so no answer comes out of the shared memo.
-        string[] expected = [.. pairs.Select(p => Describe(reference.FindPath(p.A.X, p.A.Y, p.A.Area, p.B.X, p.B.Y, p.B.Area)))];
+        string[] expected =
+            [.. pairs.Select(p => Describe(reference.FindPath(p.A.X, p.A.Y, p.A.Area, p.B.X, p.B.Y, p.B.Area)))];
         NavPathfinder shared = NavPathfinder.Build(zones);
         string[][] seen = new string[2][];
         await Task.WhenAll(Enumerable.Range(0, 2).Select(n => Task.Run(() =>
@@ -257,7 +264,9 @@ public class NavPathfinderTests
     }
 
     private static string Describe(IReadOnlyList<NavWaypoint>? path) =>
-        path is null ? "none" : string.Join(";", path.Select(p => FormattableString.Invariant($"{p.X:F3},{p.Y:F3},{p.FloorKey}")));
+        path is null
+            ? "none"
+            : string.Join(";", path.Select(p => FormattableString.Invariant($"{p.X:F3},{p.Y:F3},{p.FloorKey}")));
 
     internal static ZoneSet? Zones(string map)
     {
@@ -302,7 +311,9 @@ public class NavPathfinderTests
     private static (double X, double Y) Toward(NavWaypoint from, NavWaypoint to, double distance)
     {
         double dx = to.X - from.X, dy = to.Y - from.Y, len = Math.Sqrt(dx * dx + dy * dy);
-        return len < 1e-9 ? (from.X, from.Y) : (from.X + dx / len * Math.Min(distance, len / 2), from.Y + dy / len * Math.Min(distance, len / 2));
+        return len < 1e-9
+            ? (from.X, from.Y)
+            : (from.X + dx / len * Math.Min(distance, len / 2), from.Y + dy / len * Math.Min(distance, len / 2));
     }
 
     private static int Index(ZoneSet zones, int areaId)

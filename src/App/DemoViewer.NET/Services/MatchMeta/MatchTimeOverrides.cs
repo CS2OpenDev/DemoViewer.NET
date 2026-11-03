@@ -63,7 +63,8 @@ public static class MatchTimeOverrides
     public static bool TryParse(string? text, out DateTime utc)
     {
         utc = default;
-        if (!DateTime.TryParseExact(text?.Trim(), [InputFormat, "yyyy-MM-dd"], CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime local))
+        if (!DateTime.TryParseExact(text?.Trim(), [InputFormat, "yyyy-MM-dd"], CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateTime local))
         {
             return false;
         }

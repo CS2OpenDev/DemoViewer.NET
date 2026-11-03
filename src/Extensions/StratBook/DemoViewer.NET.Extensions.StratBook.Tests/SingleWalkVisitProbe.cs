@@ -31,11 +31,13 @@ public class SingleWalkVisitProbe
     public async Task Visit()
     {
         string demo = Require("SW_DEMO");
-        string[] scenarios = Require("SW_VISIT").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] scenarios = Require("SW_VISIT")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         string root = Require("SW_CONFIG_ROOT");
         foreach (string scenario in scenarios)
         {
-            if (scenario is not (SingleWalkSession.Sweep or SingleWalkSession.Open or SingleWalkSession.OpenStale or SingleWalkSession.Recheck))
+            if (scenario is not (SingleWalkSession.Sweep or SingleWalkSession.Open or SingleWalkSession.OpenStale
+                or SingleWalkSession.Recheck))
             {
                 throw new ArgumentException(
                     $"SW_VISIT entries must be {SingleWalkSession.Sweep}, {SingleWalkSession.Open}, {SingleWalkSession.OpenStale} or {SingleWalkSession.Recheck}, not {scenario}");
@@ -62,7 +64,8 @@ public class SingleWalkVisitProbe
         await Assert.That(misses).IsEmpty().Because(string.Join("; ", misses));
     }
 
-    private static async Task<SingleWalkSession.Visit> RunCellAsync(string demo, string scenario, string root, int trial)
+    private static async Task<SingleWalkSession.Visit> RunCellAsync(string demo, string scenario, string root,
+        int trial)
     {
         string config = Path.Combine(root, "sw-" + Guid.NewGuid().ToString("N"));
         double fileMb = new FileInfo(demo).Length / 1024.0 / 1024.0;
@@ -73,7 +76,8 @@ public class SingleWalkVisitProbe
         try
         {
             SingleWalkSession.Visit visit = await SingleWalkSession.WithAppAsync(config,
-                SingleWalkSession.Settings(Path.GetDirectoryName(demo)!, scenario is SingleWalkSession.Sweep or SingleWalkSession.Recheck),
+                SingleWalkSession.Settings(Path.GetDirectoryName(demo)!,
+                    scenario is SingleWalkSession.Sweep or SingleWalkSession.Recheck),
                 provider => SingleWalkSession.RunAsync(provider, scenario, demo, () =>
                 {
                     GC.Collect(2, GCCollectionMode.Forced, true, true);
@@ -110,13 +114,24 @@ public class SingleWalkVisitProbe
                 decodes = visit.Decodes,
                 analysisDecodes = visit.AnalysisDecodes,
                 shellDecodes = visit.ShellDecodes,
-                shellSites = visit.ShellSites.OrderBy(kv => kv.Key, StringComparer.Ordinal).ToDictionary(kv => kv.Key, kv => kv.Value),
+                shellSites =
+                    visit.ShellSites.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                        .ToDictionary(kv => kv.Key, kv => kv.Value),
                 counterSource = "meter",
-                meter = visit.Meter.OrderBy(kv => kv.Key, StringComparer.Ordinal).ToDictionary(kv => kv.Key, kv => kv.Value),
-                setupMeter = visit.SetupMeter.OrderBy(kv => kv.Key, StringComparer.Ordinal).ToDictionary(kv => kv.Key, kv => kv.Value),
+                meter =
+                    visit.Meter.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                        .ToDictionary(kv => kv.Key, kv => kv.Value),
+                setupMeter =
+                    visit.SetupMeter.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                        .ToDictionary(kv => kv.Key, kv => kv.Value),
                 hookDecodes = visit.HookDecodes,
-                sites = visit.Sites.OrderBy(kv => kv.Key).ToDictionary(kv => kv.Key.ToString(System.Globalization.CultureInfo.InvariantCulture), kv => kv.Value),
-                setupSites = visit.SetupSites.OrderBy(kv => kv.Key).ToDictionary(kv => kv.Key.ToString(System.Globalization.CultureInfo.InvariantCulture), kv => kv.Value),
+                sites =
+                    visit.Sites.OrderBy(kv => kv.Key)
+                        .ToDictionary(kv => kv.Key.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            kv => kv.Value),
+                setupSites =
+                    visit.SetupSites.OrderBy(kv => kv.Key).ToDictionary(
+                        kv => kv.Key.ToString(System.Globalization.CultureInfo.InvariantCulture), kv => kv.Value),
                 reads = visit.Reads,
                 passMs = visit.Passes.Where(p => p.Outcome == PassOutcome.Ran)
                     .GroupBy(p => p.Pass).ToDictionary(g => g.Key, g => Math.Round(g.Sum(p => p.Ms), 1)),
@@ -146,11 +161,14 @@ public class SingleWalkVisitProbe
             return $"shell decodes {visit.ShellDecodes}, expected 0 ({shellSites})";
         }
 
-        return scenario is SingleWalkSession.Open or SingleWalkSession.Sweep or SingleWalkSession.Recheck && visit.AnalysisDecodes != 1
+        return scenario is SingleWalkSession.Open or SingleWalkSession.Sweep or SingleWalkSession.Recheck
+               && visit.AnalysisDecodes != 1
             ? $"analysis decodes {visit.AnalysisDecodes}, expected 1"
             : null;
     }
 
     private static string Require(string name) =>
-        Environment.GetEnvironmentVariable(name) is { Length: > 0 } value ? value : throw new SkipTestException(name + " not set");
+        Environment.GetEnvironmentVariable(name) is { Length: > 0 } value
+            ? value
+            : throw new SkipTestException(name + " not set");
 }

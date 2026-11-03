@@ -36,12 +36,14 @@ public class RoundPositionsTests
     {
         foreach (int slot in CtSlots)
         {
-            yield return Sample(tick, slot, "BombsiteA", 600.4f + slot, -400.6f, -416.2f, alive: deadSlots?.Contains(slot) != true);
+            yield return Sample(tick, slot, "BombsiteA", 600.4f + slot, -400.6f, -416.2f,
+                alive: deadSlots?.Contains(slot) != true);
         }
 
         foreach (int slot in TSlots)
         {
-            yield return Sample(tick, slot, "Ramp", 1300.5f + slot, -1000f, -700f, alive: deadSlots?.Contains(slot) != true);
+            yield return Sample(tick, slot, "Ramp", 1300.5f + slot, -1000f, -700f,
+                alive: deadSlots?.Contains(slot) != true);
         }
     }
 
@@ -73,7 +75,8 @@ public class RoundPositionsTests
             await Assert.That(round.At(0).Count).IsEqualTo(10);
             await Assert.That(round.At(1).Count).IsEqualTo(9).Because("slot 3 died at the sampled tick");
             await Assert.That(round.At(1).Any(p => p.Slot == 3)).IsFalse();
-            await Assert.That(round.At(0).Select(p => p.Slot)).IsEquivalentTo([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], CollectionOrdering.Matching);
+            await Assert.That(round.At(0).Select(p => p.Slot))
+                .IsEquivalentTo([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], CollectionOrdering.Matching);
             await Assert.That(round.At(0)[0]).IsEqualTo(new RoundPosition(1, 601, -401, -416, 0));
             await Assert.That(round.At(0)[5]).IsEqualTo(new RoundPosition(6, 1307, -1000, -700, 1));
             await Assert.That(round.At(2).Single()).IsEqualTo(new RoundPosition(6, 10, 21, 30, 2));
@@ -90,9 +93,12 @@ public class RoundPositionsTests
         {
             HashSet<int> ct = [.. round.Ct];
             IReadOnlyList<RoundPosition> tuples = round.At(row.Step);
-            await Assert.That(PlaceCountToken.EncodePlaces(tuples.Where(t => ct.Contains(t.Slot)).Select(t => positions.PlaceOf(t.PlaceId))))
+            await Assert
+                .That(PlaceCountToken.EncodePlaces(tuples.Where(t => ct.Contains(t.Slot))
+                    .Select(t => positions.PlaceOf(t.PlaceId))))
                 .IsEqualTo(row.Ct);
-            await Assert.That(PlaceCountToken.EncodePlaces(tuples.Where(t => !ct.Contains(t.Slot)).Select(t => positions.PlaceOf(t.PlaceId))))
+            await Assert.That(PlaceCountToken.EncodePlaces(tuples.Where(t => !ct.Contains(t.Slot))
+                    .Select(t => positions.PlaceOf(t.PlaceId))))
                 .IsEqualTo(row.T);
         }
     }
@@ -199,7 +205,8 @@ public class RoundPositionsTests
         cache.Upsert(ParsedRecord(Demo, sha: "abc", facts: Facts(Round(1, 1000, 1200))));
         RoundIndexStore store = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
-        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), store, sources, () => true, walk: _ => [.. Placed(1000), .. Placed(1064)]);
+        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), store, sources, () => true,
+            walk: _ => [.. Placed(1000), .. Placed(1064)]);
 
         evaluator.Evaluate(Demo, RoundIndexTestData.Demo(lastTick: 5000));
 
@@ -253,14 +260,17 @@ public class RoundPositionsTests
             await Assert.That(loaded!.SchemaVersion).IsEqualTo(RoundPositionsDocument.CurrentSchemaVersion);
             await Assert.That(loaded.Fingerprint).EndsWith(";pos=1");
             await Assert.That(loaded.Demo.Sha256).IsNull();
-            await Assert.That(loaded.Places).IsEquivalentTo(["Outside", "Lobby", "Ramp", "?"], CollectionOrdering.Matching);
+            await Assert.That(loaded.Places)
+                .IsEquivalentTo(["Outside", "Lobby", "Ramp", "?"], CollectionOrdering.Matching);
             await Assert.That(loaded.Rounds.Single().Ct).IsEquivalentTo([0, 2, 5, 7, 9], CollectionOrdering.Matching);
             await Assert.That(loaded.Rounds[0].At(1)[1]).IsEqualTo(new RoundPosition(2, -129, -1848, -416, 1));
             await Assert.That(loaded.PlayerOf(2)).IsEqualTo(new RoundPositionsPlayer(2, 76561198000000002, "two"));
             await Assert.That(loaded.PlayerOf(4)).IsEqualTo(new RoundPositionsPlayer(4, 0, "BOT Kim"));
-            await Assert.That(loaded.Serialize() + "\n").IsEqualTo(original.Replace("\r\n", "\n", StringComparison.Ordinal))
+            await Assert.That(loaded.Serialize() + "\n")
+                .IsEqualTo(original.Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("the v2 positions file is a published format; a round trip must be field-identical");
-            await Assert.That(FixtureDocument().Serialize() + "\n").IsEqualTo(original.Replace("\r\n", "\n", StringComparison.Ordinal))
+            await Assert.That(FixtureDocument().Serialize() + "\n")
+                .IsEqualTo(original.Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("this build still writes the committed shape");
             await Assert.That(RoundPositionsDocument.TryDeserialize(loaded.SerializeUtf8())!.Serialize())
                 .IsEqualTo(loaded.Serialize()).Because("the UTF-8 round trip is the store's path");
@@ -281,16 +291,23 @@ public class RoundPositionsTests
 
         RoundIndexBuild build = RoundIndexBuilder.BuildWithPositions(values, Facts(Round(1, 1000, 1200)),
             RoundIndexOptions.Default, PawnPlaceSource.Instance, samples);
-        int[] slots = [.. build.Positions.Rounds.SelectMany(r => r.Pos).SelectMany(step => step).Select(t => t.Slot).Distinct().Order()];
+        int[] slots =
+        [
+            .. build.Positions.Rounds.SelectMany(r => r.Pos).SelectMany(step => step).Select(t => t.Slot).Distinct()
+                .Order()
+        ];
 
         using (Assert.Multiple())
         {
-            await Assert.That(build.Positions.Players.Select(p => p.Slot)).IsEquivalentTo(slots, CollectionOrdering.Matching);
-            await Assert.That(build.Positions.PlayerOf(1)).IsEqualTo(new RoundPositionsPlayer(1, 76561198000000001, "alpha"));
+            await Assert.That(build.Positions.Players.Select(p => p.Slot))
+                .IsEquivalentTo(slots, CollectionOrdering.Matching);
+            await Assert.That(build.Positions.PlayerOf(1))
+                .IsEqualTo(new RoundPositionsPlayer(1, 76561198000000001, "alpha"));
             await Assert.That(build.Positions.PlayerOf(6)).IsEqualTo(new RoundPositionsPlayer(6, 0, "BOT Kim"));
             await Assert.That(build.Positions.PlayerOf(2)).IsEqualTo(new RoundPositionsPlayer(2, 0, ""))
                 .Because("a slot the roster lacks is named, not dropped");
-            await Assert.That(build.Positions.PlayerOf(40)).IsNull().Because("only slots a tuple names are in the table");
+            await Assert.That(build.Positions.PlayerOf(40)).IsNull()
+                .Because("only slots a tuple names are in the table");
         }
     }
 
@@ -304,29 +321,31 @@ public class RoundPositionsTests
             [1] = new RosterEntry(76561198000000099, "alpha before a rename"),
             [2] = new RosterEntry(76561198000000002, "left at the half")
         };
-        RoundIndexDemoValues values = RoundIndexDemoValues.For(RoundIndexTestData.Demo()) with { Players = roster, Departed = departed };
+        RoundIndexDemoValues values = RoundIndexDemoValues.For(RoundIndexTestData.Demo()) with
+        {
+            Players = roster, Departed = departed
+        };
 
         RoundIndexBuild build = RoundIndexBuilder.BuildWithPositions(values, Facts(Round(1, 1000, 1200)),
             RoundIndexOptions.Default, PawnPlaceSource.Instance, samples);
 
         using (Assert.Multiple())
         {
-            await Assert.That(build.Positions.PlayerOf(2)).IsEqualTo(new RoundPositionsPlayer(2, 76561198000000002, "left at the half"))
+            await Assert.That(build.Positions.PlayerOf(2))
+                .IsEqualTo(new RoundPositionsPlayer(2, 76561198000000002, "left at the half"))
                 .Because("the final roster dropped the slot when its player left");
-            await Assert.That(build.Positions.PlayerOf(1)).IsEqualTo(new RoundPositionsPlayer(1, 76561198000000001, "alpha"))
+            await Assert.That(build.Positions.PlayerOf(1))
+                .IsEqualTo(new RoundPositionsPlayer(1, 76561198000000001, "alpha"))
                 .Because("the final roster wins where it still holds the slot");
         }
     }
 
     private static RoundIndexBuild Build()
     {
-        RoundIndexBuild build = RoundIndexBuilder.BuildWithPositions(RoundIndexTestData.Demo(), Facts(Round(1, 1000, 1200)),
+        RoundIndexBuild build = RoundIndexBuilder.BuildWithPositions(RoundIndexTestData.Demo(),
+            Facts(Round(1, 1000, 1200)),
             RoundIndexOptions.Default, PawnPlaceSource.Instance, [.. Placed(1000), .. Placed(1064)]);
-        build.Positions.Demo = new RoundPositionsDemo
-        {
-            StableKey = DemoCacheStore.StableKey(Demo),
-            Sha256 = "abc"
-        };
+        build.Positions.Demo = new RoundPositionsDemo { StableKey = DemoCacheStore.StableKey(Demo), Sha256 = "abc" };
         return build;
     }
 
@@ -334,11 +353,7 @@ public class RoundPositionsTests
     private static RoundPositionsDocument FixtureDocument() => new()
     {
         Fingerprint = "ri1;cadence=1;token=1;rf=1;src=pawn;pos=1",
-        Demo = new RoundPositionsDemo
-        {
-            StableKey = "3f9c0a1b2c3d4e5f60718293",
-            Sha256 = null
-        },
+        Demo = new RoundPositionsDemo { StableKey = "3f9c0a1b2c3d4e5f60718293", Sha256 = null },
         CadenceTicks = 64,
         Places = ["Outside", "Lobby", "Ramp", "?"],
         Rounds =

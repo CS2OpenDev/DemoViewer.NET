@@ -96,11 +96,7 @@ public sealed class GraphBreakpointStore
     // converter on only one side would write a file the other side can't parse (→ silent empty load).
     private static readonly JsonSerializerOptions _options = new()
     {
-        WriteIndented = true,
-        Converters =
-        {
-            new JsonStringEnumConverter()
-        }
+        WriteIndented = true, Converters = { new JsonStringEnumConverter() }
     };
 
     private readonly string? _path;
@@ -277,7 +273,8 @@ public sealed class GraphBreakpointStore
         }
         catch
         {
-            return new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal); // best-effort restore
+            return new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer
+                .Ordinal); // best-effort restore
         }
     }
 }

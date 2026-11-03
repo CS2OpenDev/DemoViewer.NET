@@ -45,9 +45,9 @@ public class PremierEmblemTests
             using SKBitmap bmp = Decode(key, scale);
 
             await Assert.That(Alpha(bmp, ClearTopLeftX, ClearTopLeftY))
-                        .IsLessThan((byte)16).Because($"{key}@{scale} top-left corner");
+                .IsLessThan((byte)16).Because($"{key}@{scale} top-left corner");
             await Assert.That(Alpha(bmp, ClearBottomRightX, ClearBottomRightY))
-                        .IsLessThan((byte)16).Because($"{key}@{scale} bottom-right corner");
+                .IsLessThan((byte)16).Because($"{key}@{scale} bottom-right corner");
         }
     }
 
@@ -70,7 +70,7 @@ public class PremierEmblemTests
             // a gold tier must not come back blue. Compared channel-wise against the declared colour.
             SKColor want = SKColor.Parse(tier.Hex);
             await Assert.That(chevron.Red > chevron.Blue).IsEqualTo(want.Red > want.Blue)
-                        .Because($"{tier.Key} red-vs-blue balance");
+                .Because($"{tier.Key} red-vs-blue balance");
         }
 
         await Assert.That(chevrons.Distinct().Count()).IsEqualTo(IconCatalogue.PremierTiers.Count);

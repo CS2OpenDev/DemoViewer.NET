@@ -46,7 +46,9 @@ public sealed class DemoJobInput
     public string DemoPath { get; }
 
     /// <summary>The parse. Throws once the job's turn has ended, so a kept input cannot hold the parse.</summary>
-    public ParsedDemo Parsed => _parsed ?? throw new ObjectDisposedException(nameof(DemoJobInput), "The job's turn on the parse has ended.");
+    public ParsedDemo Parsed => _parsed
+                                ?? throw new ObjectDisposedException(nameof(DemoJobInput),
+                                    "The job's turn on the parse has ended.");
 
     /// <summary>Fires when the job or its visit is cancelled, or the app shuts down.</summary>
     public CancellationToken CancellationToken { get; }
@@ -167,7 +169,9 @@ public sealed class DemoJob
             }
             else
             {
-                handed.TrySetCanceled(cancellationToken.IsCancellationRequested ? cancellationToken : CancellationToken.None);
+                handed.TrySetCanceled(cancellationToken.IsCancellationRequested
+                    ? cancellationToken
+                    : CancellationToken.None);
             }
         }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         return await handed.Task.ConfigureAwait(false);

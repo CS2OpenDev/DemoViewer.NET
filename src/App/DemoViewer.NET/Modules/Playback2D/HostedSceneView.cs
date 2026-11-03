@@ -103,7 +103,8 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(layer);
-        (string filed, Func<ISceneLayer> build) = ContributedSceneLayer.File(id, layer, "scene view layer factory", Faults);
+        (string filed, Func<ISceneLayer> build) =
+            ContributedSceneLayer.File(id, layer, "scene view layer factory", Faults);
 
         // The host holds the registry and refuses a duplicate, so nothing is recorded before it has taken it.
         _host.AddLayer(filed, build);
@@ -328,9 +329,10 @@ internal sealed class HostedTimeline : ITimelineBackend
             return;
         }
 
-        ITimelineTrack registered = ExtensionFaults.Current is { } faults && faults.Owner(track.GetType().Assembly) is { } owner
-            ? new GuardedTimelineTrack(track, faults.GuardFor(owner))
-            : track;
+        ITimelineTrack registered =
+            ExtensionFaults.Current is { } faults && faults.Owner(track.GetType().Assembly) is { } owner
+                ? new GuardedTimelineTrack(track, faults.GuardFor(owner))
+                : track;
         _tracks[track] = registered;
         _timeline.RegisterTrack(registered);
     }

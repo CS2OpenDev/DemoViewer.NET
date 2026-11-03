@@ -28,10 +28,7 @@ internal static class BackgroundPlans
 
     public static ParsedDemo Parse(string path, string read, string name)
     {
-        ParseOptions options = new()
-        {
-            Plan = Resolve(name)
-        };
+        ParseOptions options = new() { Plan = Resolve(name) };
         return read == "bytes"
             ? DemoParser.Parse(File.ReadAllBytes(path), options)
             : MemoryMappedDemoSource.ParseFile(path, options);

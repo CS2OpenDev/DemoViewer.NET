@@ -256,7 +256,8 @@ public class DemoLibraryServiceTests
             svc.Scheduler = scheduler;
             await svc.AddFoldersAsync([dir]);
             await WaitForAsync(() => svc.Entries.Count == 1 && svc.Entries[0].State == DemoIndexState.Indexed
-                                     && FullyIndexedInCacheFile(dataPath) == 1, "tier 2 read through the queue", 60000);
+                                                            && FullyIndexedInCacheFile(dataPath) == 1,
+                "tier 2 read through the queue", 60000);
 
             await Assert.That(svc.Entries.Count).IsEqualTo(1);
             DemoEntry entry = svc.Entries[0];
@@ -437,10 +438,7 @@ public class DemoLibraryServiceTests
                     parsedNames.Add(Path.GetFileName(path));
                     release.Wait(3000); // occupy the single worker until the open lands
                     return SyntheticDemo();
-                }, parseBytes: _ => SyntheticDemo())
-            {
-                MaxQueueSize = 1
-            };
+                }, parseBytes: _ => SyntheticDemo()) { MaxQueueSize = 1 };
 
             using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json"));
             using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
@@ -533,10 +531,7 @@ public class DemoLibraryServiceTests
                     }
 
                     return SyntheticDemo();
-                })
-            {
-                MaxQueueSize = 1
-            };
+                }) { MaxQueueSize = 1 };
 
             using DemoLibraryService svc = new(_inline, dataPath);
             using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
@@ -857,11 +852,13 @@ public class DemoLibraryServiceTests
             int worker = 0, armed = 0;
             Task? rescan = null;
             DemoLibraryService? svc = null;
+
             void Post(Action a)
             {
                 a();
                 // The tier 2's Indexed post: hold the visit here until a rescan has reconciled.
-                if (svc?.Entries is [{ State: DemoIndexState.Indexed }] && Interlocked.CompareExchange(ref armed, 1, 0) == 0)
+                if (svc?.Entries is [{ State: DemoIndexState.Indexed }]
+                    && Interlocked.CompareExchange(ref armed, 1, 0) == 0)
                 {
                     worker = Environment.CurrentManagedThreadId;
                     Volatile.Write(ref rescan, Task.Run(svc.RescanAsync));
@@ -1195,9 +1192,7 @@ public class DemoLibraryServiceTests
     {
         DemoLibraryData data = new()
         {
-            SchemaVersion = DemoLibraryCacheEntry.CurrentSchema,
-            Folders = [.. folders],
-            Cache = []
+            SchemaVersion = DemoLibraryCacheEntry.CurrentSchema, Folders = [.. folders], Cache = []
         };
         File.WriteAllText(path, JsonSerializer.Serialize(data));
     }

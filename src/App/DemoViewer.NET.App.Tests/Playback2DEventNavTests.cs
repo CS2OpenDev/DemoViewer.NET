@@ -22,12 +22,7 @@ public class Playback2DEventNavTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = NavCtx("player_death", "bomb_planted");
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
 
         vm.OnActivated(ctx);
         await Assert.That(vm.HasKillEvents).IsTrue();
@@ -46,12 +41,7 @@ public class Playback2DEventNavTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = NavCtx("round_start", "bomb_planted"); // no player_death
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Trinity",
-            SteamId = 2
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Trinity", SteamId = 2 });
 
         vm.OnActivated(ctx);
 

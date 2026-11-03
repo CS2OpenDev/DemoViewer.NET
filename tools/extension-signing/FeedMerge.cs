@@ -63,14 +63,15 @@ public static class ExtensionFeedMerge
         }
 
         JsonArray entries = feed["entries"] as JsonArray
-            ?? throw new ExtensionFeedMergeException("the existing feed has no 'entries' array.");
+                            ?? throw new ExtensionFeedMergeException("the existing feed has no 'entries' array.");
 
         List<JsonNode> kept = [];
         SemVersion? highest = null;
         int replaced = 0;
         foreach (JsonNode? node in entries)
         {
-            JsonObject existing = node as JsonObject ?? throw new ExtensionFeedMergeException("an existing entry is not a JSON object.");
+            JsonObject existing = node as JsonObject
+                                  ?? throw new ExtensionFeedMergeException("an existing entry is not a JSON object.");
             SemVersion existingVersion = RequiredVersion(existing, "version", "an existing entry");
             if (highest is null || existingVersion > highest)
             {
@@ -134,7 +135,8 @@ public static class ExtensionFeedMerge
 
     private static string RequiredString(JsonObject obj, string member, string subject)
     {
-        if (obj[member] is not JsonValue value || !value.TryGetValue(out string? text) || string.IsNullOrWhiteSpace(text))
+        if (obj[member] is not JsonValue value || !value.TryGetValue(out string? text)
+                                               || string.IsNullOrWhiteSpace(text))
         {
             throw new ExtensionFeedMergeException($"{subject} has no '{member}'.");
         }
@@ -147,7 +149,8 @@ public static class ExtensionFeedMerge
         string text = RequiredString(obj, member, subject);
         return SemVersion.TryParse(text, out SemVersion? version)
             ? version
-            : throw new ExtensionFeedMergeException($"{subject} has a '{member}' that is not a semantic version: '{text}'.");
+            : throw new ExtensionFeedMergeException(
+                $"{subject} has a '{member}' that is not a semantic version: '{text}'.");
     }
 
     private static string RequiredManifestId(JsonObject entry)

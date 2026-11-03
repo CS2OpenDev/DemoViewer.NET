@@ -108,7 +108,8 @@ public sealed partial class HighlightBacklogViewModel : ViewModelBase, IDisposab
 
         if (failed > 0)
         {
-            parts.Add(failed == 1 ? "1 demo failed its highlight scan." : $"{failed} demos failed their highlight scan.");
+            parts.Add(
+                failed == 1 ? "1 demo failed its highlight scan." : $"{failed} demos failed their highlight scan.");
         }
 
         return string.Join(" ", parts);

@@ -57,25 +57,9 @@ public sealed class ThemeRegistry
 
     public ThemeRegistry()
     {
-        Add(new Theme
-        {
-            Id = "dark",
-            DisplayName = "Dark",
-            Variant = ThemeVariant.Dark
-        });
-        Add(new Theme
-        {
-            Id = "light",
-            DisplayName = "Light",
-            Variant = ThemeVariant.Light
-        });
-        Add(new Theme
-        {
-            Id = "system",
-            DisplayName = "System",
-            Variant = ThemeVariant.Default,
-            CanCustomize = false
-        });
+        Add(new Theme { Id = "dark", DisplayName = "Dark", Variant = ThemeVariant.Dark });
+        Add(new Theme { Id = "light", DisplayName = "Light", Variant = ThemeVariant.Light });
+        Add(new Theme { Id = "system", DisplayName = "System", Variant = ThemeVariant.Default, CanCustomize = false });
 
         // The custom built-ins register only what they set; the rest falls through to Dark exactly as before.
         foreach (ThemeDefinition def in BuiltInThemes.CustomDefinitions)
@@ -117,7 +101,8 @@ public sealed class ThemeRegistry
     /// <summary>Registers a <see cref="ThemeDefinition" /> (parsed JSON, a built-in or a user drop-in).</summary>
     public Theme Register(ThemeDefinition def, ThemeSource source) => RegisterCore(def, source, null, []);
 
-    private Theme RegisterCore(ThemeDefinition def, ThemeSource source, string? filePath, IReadOnlyList<string> badValues)
+    private Theme RegisterCore(ThemeDefinition def, ThemeSource source, string? filePath,
+        IReadOnlyList<string> badValues)
     {
         ThemeVariant variant = new(def.Id, def.BaseVariant);
         _customDicts.ThemeDictionaries[variant] = BuildDictionary(def.Tokens, def.Gradients);
@@ -237,7 +222,8 @@ public sealed class ThemeRegistry
             // (last write wins), and the earlier file is reported.
             if (def.Id.StartsWith(PreviewId, StringComparison.OrdinalIgnoreCase))
             {
-                _problems.Add(new ThemeLoadProblem(name, $"Its id \"{def.Id}\" is reserved for the editor's preview. Give it a different id."));
+                _problems.Add(new ThemeLoadProblem(name,
+                    $"Its id \"{def.Id}\" is reserved for the editor's preview. Give it a different id."));
                 continue;
             }
 
@@ -307,7 +293,9 @@ public sealed class ThemeRegistry
 
         return theme.Source == ThemeSource.BuiltIn
             ? BuiltInThemes.Find(theme.Id)
-            : _userDefinitions.TryGetValue(theme.Id, out ThemeDefinition? def) ? ThemePalette.Resolve(def) : null;
+            : _userDefinitions.TryGetValue(theme.Id, out ThemeDefinition? def)
+                ? ThemePalette.Resolve(def)
+                : null;
     }
 
     /// <summary>The definition a user theme's file holds, as read. Null for a built-in.</summary>

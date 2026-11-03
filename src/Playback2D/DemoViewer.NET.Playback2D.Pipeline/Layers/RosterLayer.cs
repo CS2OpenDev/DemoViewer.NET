@@ -76,11 +76,7 @@ public sealed class RosterLayer : ISceneLayer
         _style = style ?? new HudStyle();
         _ownsText = text is null;
         _text = text ?? new TextBlobCache();
-        _paint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+        _paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
     }
 
     /// <inheritdoc />

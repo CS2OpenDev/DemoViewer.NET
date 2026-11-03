@@ -216,7 +216,8 @@ public sealed class StratBookPack : IExtension
         services.AddSingleton(sp =>
         {
             StratBookSettings settings = sp.GetRequiredService<StratBookSettings>();
-            return new RoundIndexPlaceSources(() => settings.TokenSource, sp.GetRequiredService<IZonePlaceResolverSource>());
+            return new RoundIndexPlaceSources(() => settings.TokenSource,
+                sp.GetRequiredService<IZonePlaceResolverSource>());
         });
         services.AddSingleton(sp => new RoundIndexStore(Data(sp)));
         services.AddSingleton(sp =>
@@ -234,7 +235,8 @@ public sealed class StratBookPack : IExtension
                 // Suggested Tags reads occupancy from the index, so the index is built wherever it wants a
                 // demo. Resolved per call: the service is not built while its feature is off.
                 wantedDownstream: path => features.IsEnabled(SuggestedTagsService.FeatureId)
-                                          && sp.GetRequiredService<SuggestedTagsService>().Interest(path) != DemoInterest.No);
+                                          && sp.GetRequiredService<SuggestedTagsService>().Interest(path)
+                                          != DemoInterest.No);
             built.Passes = Host(sp).Passes;
             return built;
         });
@@ -284,7 +286,8 @@ public sealed class StratBookPack : IExtension
         // no directory and offers the built-in alone.
         services.AddSingleton(sp =>
         {
-            TagPaletteStore palettes = new(SeededPalettes(StoresOf(sp).Open(StratBookStores.Palettes)), keymap: Host(sp).Keymap);
+            TagPaletteStore palettes = new(SeededPalettes(StoresOf(sp).Open(StratBookStores.Palettes)),
+                keymap: Host(sp).Keymap);
             palettes.Reload();
             return palettes;
         });
@@ -315,8 +318,10 @@ public sealed class StratBookPack : IExtension
             StratStore strats = sp.GetRequiredService<StratStore>();
             DossierNotesStore notes = sp.GetRequiredService<DossierNotesStore>();
             VetoHistoryStore vetoes = sp.GetRequiredService<VetoHistoryStore>();
+
             void Report() => teams.SetReferencedTeams(
                 strats.Index.Select(e => e.Owner.TeamId).OfType<Guid>().Concat(notes.TeamIds).Concat(vetoes.TeamIds));
+
             Report();
             strats.Changed += _ => Report();
             notes.Changed += Report;
@@ -337,7 +342,8 @@ public sealed class StratBookPack : IExtension
             Library(sp),
             async path => await Host(sp).Shell.OpenDemoAsync(path),
             command: (what, change) => Job(sp, "Teams: " + what.TrimEnd('…'), change,
-                new JobOptions(StratBookJobKinds.Teams, JobPriority.UserRequested, Serial: TeamIdentityService.QueueSerial)),
+                new JobOptions(StratBookJobKinds.Teams, JobPriority.UserRequested,
+                    Serial: TeamIdentityService.QueueSerial)),
             post: Host(sp).Post,
             openPlayerOverview: id => Host(sp).Shell.OpenPlayerOverview(id)));
 
@@ -438,7 +444,8 @@ public sealed class StratBookPack : IExtension
                 sp.GetRequiredService<TeamIdentityService>(),
                 tabId => Host(sp).Shell.SelectTab(tabId),
                 Host(sp).Post,
-                run: work => Job(sp, "Tags: matrix", work, new JobOptions(Key: "section:tag-matrix", Preemptible: true)));
+                run: work => Job(sp, "Tags: matrix", work,
+                    new JobOptions(Key: "section:tag-matrix", Preemptible: true)));
         });
 
         // Suggested Tags: the detectors as an evaluator one place after the Round Index, reading the index
@@ -643,10 +650,12 @@ public sealed class StratBookPack : IExtension
 
         // The Opponent Dossier's veto history: manual entry only, beside teams.json. No file (the
         // browser) keeps entries in memory for the session.
-        services.AddSingleton(sp => new VetoHistoryStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.VetoHistory))));
+        services.AddSingleton(sp =>
+            new VetoHistoryStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.VetoHistory))));
         // Dossier Editing And Export: the user's stars, rewritten lines, notes and summary per team, beside
         // the veto history; session-only on the browser the same way.
-        services.AddSingleton(sp => new DossierNotesStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.DossierNotes))));
+        services.AddSingleton(sp =>
+            new DossierNotesStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.DossierNotes))));
         // The Dossier tab VM: a container singleton resolved lazily on first activation, over Team
         // Identity's own teams and the unified cache the Map Pool Record reads. The Setup Heatmaps read
         // the round index's positions files under the same fingerprint the Situations tab trusts, and
@@ -789,7 +798,8 @@ public sealed class StratBookPack : IExtension
     {
         ServiceDescriptor original = services.First(d => d.ServiceType == typeof(T));
         Func<IServiceProvider, object> factory = original.ImplementationFactory
-            ?? throw new InvalidOperationException($"{typeof(T)} must be registered with a factory to track it.");
+                                                 ?? throw new InvalidOperationException(
+                                                     $"{typeof(T)} must be registered with a factory to track it.");
         services.Replace(ServiceDescriptor.Singleton(typeof(T), sp =>
         {
             T built = (T)factory(sp);
@@ -805,7 +815,8 @@ public sealed class StratBookPack : IExtension
     {
         ServiceDescriptor original = services.First(d => d.ServiceType == typeof(T));
         Func<IServiceProvider, object> factory = original.ImplementationFactory
-            ?? throw new InvalidOperationException($"{typeof(T)} must be registered with a factory to track it.");
+                                                 ?? throw new InvalidOperationException(
+                                                     $"{typeof(T)} must be registered with a factory to track it.");
         services.Replace(ServiceDescriptor.Singleton(typeof(T), sp =>
         {
             T built = (T)factory(sp);
@@ -873,8 +884,10 @@ public sealed class StratBookPack : IExtension
         // The Library's Team filter and provenance chip, each resolving its service lazily on first use.
         contributions.Library(new TeamLibraryContribution(sp.GetRequiredService<TeamIdentityService>));
         // A demo whose library row predates side players gets its sides from its record, without a parse.
-        contributions.RecordPass(TeamIdentityService.SidesPassId, () => sp.GetRequiredService<TeamIdentityService>().SidesPass);
-        contributions.Library(new ProvenanceLibraryContribution(sp.GetRequiredService<IDemoProvenanceSource>, sp.GetRequiredService<TeamIdentityService>));
+        contributions.RecordPass(TeamIdentityService.SidesPassId,
+            () => sp.GetRequiredService<TeamIdentityService>().SidesPass);
+        contributions.Library(new ProvenanceLibraryContribution(sp.GetRequiredService<IDemoProvenanceSource>,
+            sp.GetRequiredService<TeamIdentityService>));
 
         // Every module is registered on both hosts; each degrades to session-only state in the browser and
         // says so. The VMs are container singletons resolved lazily on first activation, so nothing here
@@ -887,7 +900,9 @@ public sealed class StratBookPack : IExtension
         contributions.Pass(RoundIndexEvaluator.EvaluatorId, () => sp.GetRequiredService<RoundIndexEvaluator>(),
             HostIds.RoundFactsPass);
         contributions.Ruleset(new RulesetContribution(RoundIndexTable.RulesetName, RoundIndexTable.OpenYaml)
-            { ReadBy = RoundIndexEvaluator.EvaluatorId });
+        {
+            ReadBy = RoundIndexEvaluator.EvaluatorId
+        });
         contributions.Pass(GrenadeIndexEvaluator.EvaluatorId, () => sp.GetRequiredService<GrenadeIndexEvaluator>(),
             HostIds.LibraryPass);
         // The grenade rows fold three tables off the run; the projectile ruleset reads the thrower's commands.
@@ -900,14 +915,17 @@ public sealed class StratBookPack : IExtension
             });
         }
 
-        contributions.Collector(GrenadeTrajectoryCollector.Contribution(() => sp.GetRequiredService<StratBookSettings>().TrajectoryStride));
+        contributions.Collector(GrenadeTrajectoryCollector.Contribution(() =>
+            sp.GetRequiredService<StratBookSettings>().TrajectoryStride));
         contributions.Pass(SuggestedTagsService.EvaluatorId, () => sp.GetRequiredService<SuggestedTagsService>(),
             RoundIndexEvaluator.EvaluatorId);
         contributions.Collector(ThrowerCollector.Contribution);
         contributions.Collector(RoundIndexRosterCollector.Contribution);
         // Proposals follow their inputs without a parse once a visit has stored the demo's detonations.
-        contributions.RecordPass(SuggestedTagsService.EvaluatorId, () => sp.GetRequiredService<SuggestedTagsService>().RecordPass,
-            DemoDataKey.RoundFacts, new DemoDataKey(PackId, RoundIndexStore.Facet), new DemoDataKey(PackId, DetonationStore.Facet));
+        contributions.RecordPass(SuggestedTagsService.EvaluatorId,
+            () => sp.GetRequiredService<SuggestedTagsService>().RecordPass,
+            DemoDataKey.RoundFacts, new DemoDataKey(PackId, RoundIndexStore.Facet),
+            new DemoDataKey(PackId, DetonationStore.Facet));
         contributions.Pass(LineupClipPass.PassId, () => sp.GetRequiredService<LineupClipPass>(),
             GrenadeIndexEvaluator.EvaluatorId);
 
@@ -922,9 +940,11 @@ public sealed class StratBookPack : IExtension
         // Create Strat From Round in 2D Playback: the round band's entry and the review pane, one
         // contribution. It resolves IStratCapture through the tab's context when a band is pressed, so the
         // gate above decides what the band offers; nothing is constructed here.
-        contributions.Playback(new CreateStratPlaybackContribution(contributions.Context.Post, contributions.Context.Jobs,
+        contributions.Playback(new CreateStratPlaybackContribution(contributions.Context.Post,
+            contributions.Context.Jobs,
             contributions.Context.Library.Facts.RoundFacts));
-        contributions.Playback(new Modules.RoundTagger.Review.ReviewPanelsPlaybackContribution(Host(sp).Post, library: Library(sp)));
+        contributions.Playback(
+            new Modules.RoundTagger.Review.ReviewPanelsPlaybackContribution(Host(sp).Post, library: Library(sp)));
         contributions.Playback(new Modules.Situations.SituationsPlaybackContribution());
 
         // The Situations tab. The badge reads Watched Situations, so the service resolves now, but only
@@ -981,12 +1001,13 @@ public sealed class StratBookPack : IExtension
         return new UtilityBookTabViewModel(
             sp.GetRequiredService<GrenadeIndex>(),
             sp.GetRequiredService<ISituationPlayback>(),
-            demoDate: path => library.Find(path) is { Modified.Ticks: > 0 } entry ? new DateTime(entry.Modified.Ticks) : null,
+            demoDate: path =>
+                library.Find(path) is { Modified.Ticks: > 0 } entry ? new DateTime(entry.Modified.Ticks) : null,
             clipDirectory: StoresOf(sp).Open(StratBookStores.LineupClips)?.Path,
             background: work => _ = Job(sp, lockedMap is null ? "Utility Book" : "Lineup picker", work,
-                new JobOptions(Key: lockedMap is null ? "section:utility" : "section:lineup-picker", Preemptible: true)),
+                new JobOptions(Key: lockedMap is null ? "section:utility" : "section:lineup-picker",
+                    Preemptible: true)),
             post: Host(sp).Post,
             lockedMap: lockedMap);
     }
-
 }

@@ -83,7 +83,8 @@ internal static class BackgroundRunCommand
 
             if (with is not null)
             {
-                RuleConfigLoadResult extra = YamlConfigLoader.LoadDocuments([(Path.GetFileName(with), File.ReadAllText(with))]);
+                RuleConfigLoadResult extra =
+                    YamlConfigLoader.LoadDocuments([(Path.GetFileName(with), File.ReadAllText(with))]);
                 if (!extra.Success)
                 {
                     throw new RuleConfigException(extra.Errors);
@@ -97,8 +98,12 @@ internal static class BackgroundRunCommand
         {
             null => null,
             "none" => new HashSet<string>(StringComparer.Ordinal),
-            "all" => new HashSet<string>(rules?.Rulesets.SelectMany(r => r.Show?.Tables.Select(t => t.Name) ?? []) ?? [], StringComparer.Ordinal),
-            _ => new HashSet<string>(outputsArg.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), StringComparer.Ordinal)
+            "all" => new HashSet<string>(
+                rules?.Rulesets.SelectMany(r => r.Show?.Tables.Select(t => t.Name) ?? []) ?? [],
+                StringComparer.Ordinal),
+            _ => new HashSet<string>(
+                outputsArg.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                StringComparer.Ordinal)
         };
 
         // The same sampler and interval as the single-demo bench and the single-walk probe, so peak
@@ -207,19 +212,18 @@ internal static class BackgroundRunCommand
     // NoInlining keeps the demo and the evaluation result out of the caller's frame, so they are
     // unreachable once the job returns, as they are when the queue moves on.
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static (double ParseMs, int Highlights) Job(string path, string read, string? plan, RuleConfigLoadResult? rules,
+    private static (double ParseMs, int Highlights) Job(string path, string read, string? plan,
+        RuleConfigLoadResult? rules,
         IReadOnlySet<string>? outputs)
     {
-        AnalysisOptions bare = new()
-        {
-            CaptureSnapshots = false
-        };
+        AnalysisOptions bare = new() { CaptureSnapshots = false };
         VisibilityEngine? visibility = read == "app-forward" ? Vision(path) : null;
         long t = Stopwatch.GetTimestamp();
         if (read == "app-forward")
         {
             using DemoReader reader = DemoReader.OpenFile(path, ForwardDemoPass.ReaderOptions(CancellationToken.None));
-            ForwardDemoResult pass = ForwardDemoPass.Run(reader, ForwardNeeds.FinalState | ForwardNeeds.Rules, rules!.Rulesets, null, outputs,
+            ForwardDemoResult pass = ForwardDemoPass.Run(reader, ForwardNeeds.FinalState | ForwardNeeds.Rules,
+                rules!.Rulesets, null, outputs,
                 CollectorSet.Empty, visibility: visibility);
             // The recorded tables are projected as the facts and Round Facts passes do, so their cost lands in the job.
             _lastTableRows = pass.Run!.ProjectConfiguredOutputs().Sum(table => table.Rows.Count);
@@ -293,7 +297,13 @@ internal static class BackgroundRunCommand
     }
 
     // The last GC's figures, without forcing one: "end" with --compact=none is what the app would hold.
-    internal sealed record Snapshot(double CommittedMb, double HeapMb, double FragMb, double LohMb, double LohFreeMb, double WsMb)
+    internal sealed record Snapshot(
+        double CommittedMb,
+        double HeapMb,
+        double FragMb,
+        double LohMb,
+        double LohFreeMb,
+        double WsMb)
     {
         public static Snapshot Take()
         {

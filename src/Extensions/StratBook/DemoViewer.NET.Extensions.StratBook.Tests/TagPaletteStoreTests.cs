@@ -23,15 +23,15 @@ public class TagPaletteStoreTests
     private static readonly string[] DefaultCodes = ["A execute", "B execute", "Default", "Retake"];
 
     private static string Palette(string id, string hotkey = "1", string group = "outcome", string extra = "") => $$"""
-        {
-          "schemaVersion": 1, "id": "{{id}}", "name": "{{id}} palette",
-          "panels": [
-            { "id": "root", "buttons": [
-                { "code": "Push", "hotkey": "{{hotkey}}", "leadSeconds": 2, "lagSeconds": 8, "then": "result" } ] },
-            { "id": "result", "kind": "labels", "group": "{{group}}", "buttons": [ { "value": "won", "hotkey": "W" } ] }
-          ]{{extra}}
-        }
-        """;
+          {
+            "schemaVersion": 1, "id": "{{id}}", "name": "{{id}} palette",
+            "panels": [
+              { "id": "root", "buttons": [
+                  { "code": "Push", "hotkey": "{{hotkey}}", "leadSeconds": 2, "lagSeconds": 8, "then": "result" } ] },
+              { "id": "result", "kind": "labels", "group": "{{group}}", "buttons": [ { "value": "won", "hotkey": "W" } ] }
+            ]{{extra}}
+          }
+          """;
 
     private static TagPaletteValidation Validate(string json) =>
         TagPaletteValidator.Validate(TagPaletteStore.TryParse(json, out _)!, TagPaletteValidator.DefaultReservedGroups,
@@ -55,7 +55,8 @@ public class TagPaletteStoreTests
         using (Assert.Multiple())
         {
             await Assert.That(palette.Id).IsEqualTo(TagPaletteStore.DefaultId);
-            await Assert.That(palette.Root!.Buttons.Select(b => b.Code!)).IsEquivalentTo(DefaultCodes, CollectionOrdering.Matching);
+            await Assert.That(palette.Root!.Buttons.Select(b => b.Code!))
+                .IsEquivalentTo(DefaultCodes, CollectionOrdering.Matching);
             await Assert.That(palette.ClampToRound).IsTrue().Because("the shipped palette clamps");
             await Assert.That(palette.StickyGroups).Contains("opponent");
             // Refused for nothing, and shadowing exactly what it should: the
@@ -97,7 +98,8 @@ public class TagPaletteStoreTests
 
             File.Delete(Path.Combine(dir, "b-team.tagpalette.json"));
             store.Reload();
-            await Assert.That(store.Palettes.Select(p => p.Id)).DoesNotContain("zeta").Because("a reload drops deleted files");
+            await Assert.That(store.Palettes.Select(p => p.Id)).DoesNotContain("zeta")
+                .Because("a reload drops deleted files");
         }
         finally
         {
@@ -131,9 +133,12 @@ public class TagPaletteStoreTests
                 await Assert.That(store.Palettes.Select(p => p.Id)).DoesNotContain("refused");
                 await Assert.That(store.Palettes.Count(p => p.Id == TagPaletteStore.DefaultId)).IsEqualTo(1)
                     .Because("a drop-in may not take the built-in's id");
-                await Assert.That(store.Diagnostics.Any(d => d.StartsWith("1-broken.tagpalette.json: skipped", StringComparison.Ordinal))).IsTrue();
-                await Assert.That(store.Diagnostics.Any(d => d.StartsWith("2-refused.tagpalette.json: skipped", StringComparison.Ordinal))).IsTrue();
-                await Assert.That(store.Diagnostics.Any(d => d.StartsWith("4-builtin.tagpalette.json: skipped", StringComparison.Ordinal))).IsTrue();
+                await Assert.That(store.Diagnostics.Any(d =>
+                    d.StartsWith("1-broken.tagpalette.json: skipped", StringComparison.Ordinal))).IsTrue();
+                await Assert.That(store.Diagnostics.Any(d =>
+                    d.StartsWith("2-refused.tagpalette.json: skipped", StringComparison.Ordinal))).IsTrue();
+                await Assert.That(store.Diagnostics.Any(d =>
+                    d.StartsWith("4-builtin.tagpalette.json: skipped", StringComparison.Ordinal))).IsTrue();
             }
         }
         finally
@@ -162,7 +167,8 @@ public class TagPaletteStoreTests
     [Test]
     public async Task WithNoKeymap_ThePalettesOwnKeysAreStillRefused()
     {
-        TagPaletteValidation result = TagPaletteValidator.Validate(TagPaletteStore.TryParse(Palette("p", "Escape"), out _)!,
+        TagPaletteValidation result = TagPaletteValidator.Validate(
+            TagPaletteStore.TryParse(Palette("p", "Escape"), out _)!,
             TagPaletteValidator.DefaultReservedGroups);
 
         await Assert.That(result.IsValid).IsFalse();
@@ -195,7 +201,8 @@ public class TagPaletteStoreTests
         TagPaletteValidation asPanel = Validate(Palette("p", group: group));
         TagPaletteValidation asSticky = Validate(Palette("p", extra: $", \"stickyGroups\": [\"{group}\"]"));
 
-        await Assert.That(asPanel.IsValid).IsFalse().Because($"'{group}' is Round Facts' or the Strat Model's, never a human label");
+        await Assert.That(asPanel.IsValid).IsFalse()
+            .Because($"'{group}' is Round Facts' or the Strat Model's, never a human label");
         await Assert.That(asSticky.IsValid).IsFalse();
     }
 
@@ -213,30 +220,34 @@ public class TagPaletteStoreTests
     public async Task ABrokenFlow_IsRefused()
     {
         const string loop = """
-            { "id": "loop", "panels": [
-                { "id": "root", "buttons": [ { "code": "X", "hotkey": "1", "then": "a" } ] },
-                { "id": "a", "kind": "labels", "group": "g1", "buttons": [ { "value": "v" } ], "then": "b" },
-                { "id": "b", "kind": "labels", "group": "g2", "buttons": [ { "value": "v" } ], "then": "a" } ] }
-            """;
+                            { "id": "loop", "panels": [
+                                { "id": "root", "buttons": [ { "code": "X", "hotkey": "1", "then": "a" } ] },
+                                { "id": "a", "kind": "labels", "group": "g1", "buttons": [ { "value": "v" } ], "then": "b" },
+                                { "id": "b", "kind": "labels", "group": "g2", "buttons": [ { "value": "v" } ], "then": "a" } ] }
+                            """;
         const string missing = """
-            { "id": "missing", "panels": [ { "id": "root", "buttons": [ { "code": "X", "then": "nowhere" } ] } ] }
-            """;
+                               { "id": "missing", "panels": [ { "id": "root", "buttons": [ { "code": "X", "then": "nowhere" } ] } ] }
+                               """;
         const string toCodes = """
-            { "id": "codes", "panels": [
-                { "id": "root", "buttons": [ { "code": "X", "then": "more" } ] },
-                { "id": "more", "buttons": [ { "code": "Y" } ] } ] }
-            """;
+                               { "id": "codes", "panels": [
+                                   { "id": "root", "buttons": [ { "code": "X", "then": "more" } ] },
+                                   { "id": "more", "buttons": [ { "code": "Y" } ] } ] }
+                               """;
         const string duplicateKey = """
-            { "id": "dup", "panels": [ { "id": "root", "buttons": [
-                { "code": "X", "hotkey": "1" }, { "code": "Y", "hotkey": "1" } ] } ] }
-            """;
+                                    { "id": "dup", "panels": [ { "id": "root", "buttons": [
+                                        { "code": "X", "hotkey": "1" }, { "code": "Y", "hotkey": "1" } ] } ] }
+                                    """;
 
         using (Assert.Multiple())
         {
             await Assert.That(Validate(loop).Errors.Any(e => e.Contains("loop", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(Validate(missing).Errors.Any(e => e.Contains("not a panel", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(Validate(toCodes).Errors.Any(e => e.Contains("codes panel", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(Validate(duplicateKey).Errors.Any(e => e.Contains("used twice", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(Validate(missing).Errors.Any(e => e.Contains("not a panel", StringComparison.Ordinal)))
+                .IsTrue();
+            await Assert.That(Validate(toCodes).Errors.Any(e => e.Contains("codes panel", StringComparison.Ordinal)))
+                .IsTrue();
+            await Assert
+                .That(Validate(duplicateKey).Errors.Any(e => e.Contains("used twice", StringComparison.Ordinal)))
+                .IsTrue();
         }
     }
 
@@ -248,7 +259,8 @@ public class TagPaletteStoreTests
 
         await Assert.That(error).IsEqualTo("");
         await Assert.That(palette!.Extra!.ContainsKey("futureRoot")).IsTrue();
-        await Assert.That(TagPaletteValidator.Validate(palette, TagPaletteValidator.DefaultReservedGroups).IsValid).IsTrue();
+        await Assert.That(TagPaletteValidator.Validate(palette, TagPaletteValidator.DefaultReservedGroups).IsValid)
+            .IsTrue();
     }
 
     [Test]
@@ -259,7 +271,8 @@ public class TagPaletteStoreTests
         await Assert.That(none).IsEqualTo(KeyModifiers.None);
         await Assert.That(TagPaletteHotkey.Matches(one, none, Key.NumPad1, KeyModifiers.None)).IsTrue();
 
-        await Assert.That(TagPaletteHotkey.TryParse("Ctrl+Shift+2", out Key two, out KeyModifiers chord, out _)).IsTrue();
+        await Assert.That(TagPaletteHotkey.TryParse("Ctrl+Shift+2", out Key two, out KeyModifiers chord, out _))
+            .IsTrue();
         await Assert.That(two).IsEqualTo(Key.D2);
         await Assert.That(chord).IsEqualTo(KeyModifiers.Control | KeyModifiers.Shift);
     }

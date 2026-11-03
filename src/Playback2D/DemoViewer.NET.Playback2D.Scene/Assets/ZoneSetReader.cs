@@ -77,7 +77,8 @@ internal static class ZoneSetReader
         {
             if (area.Place >= places.Count)
             {
-                throw new JsonException($"zones.json area {area.Id} names place {area.Place}, beyond the {places.Count} places.");
+                throw new JsonException(
+                    $"zones.json area {area.Id} names place {area.Place}, beyond the {places.Count} places.");
             }
 
             areas.Add(new ZoneArea(area.Id, area.Place < 0 ? -1 : area.Place, area.Floor, area.Seed, area.Z,
@@ -103,7 +104,8 @@ internal static class ZoneSetReader
         int placeId = dto.Place ?? -1;
         if (kind == ZoneVolumeKind.Place && (placeId < 0 || placeId >= placeCount))
         {
-            throw new JsonException($"zones.json place volume {dto.Entity} names place {placeId}, beyond the {placeCount} places.");
+            throw new JsonException(
+                $"zones.json place volume {dto.Entity} names place {placeId}, beyond the {placeCount} places.");
         }
 
         Bombsite? site = dto.Site switch

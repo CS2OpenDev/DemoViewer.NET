@@ -43,7 +43,8 @@ internal sealed class InlineJobs : IExtensionJobs
     public CancellationToken JobToken { get; set; }
 
     /// <summary>Returns once <paramref name="until" /> holds, re-checking on each submission.</summary>
-    public Task WaitForSubmissionAsync(Func<bool> until) => _submissions.WaitUntilAsync(until, "the expected job to be submitted");
+    public Task WaitForSubmissionAsync(Func<bool> until) =>
+        _submissions.WaitUntilAsync(until, "the expected job to be submitted");
 
     /// <summary>The parse a job on a demo gets; a job on a demo is rejected when null.</summary>
     public Func<string, ParsedDemo>? ParseDemo { get; set; }

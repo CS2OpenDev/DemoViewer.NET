@@ -37,17 +37,17 @@ public class StratBookLifecycleTests
 {
     // FirstRunCompleted: the wizard has asked, so StartPacks does not wait for it.
     private const string PackOnSeed = """
-                                       {
-                                         "FirstRunCompleted": true
-                                       }
-                                       """;
+                                      {
+                                        "FirstRunCompleted": true
+                                      }
+                                      """;
 
     private const string PackOffSeed = """
-                                        {
-                                          "FirstRunCompleted": true,
-                                          "Features": { "Overrides": { "pack.stratbook": false } }
-                                        }
-                                        """;
+                                       {
+                                         "FirstRunCompleted": true,
+                                         "Features": { "Overrides": { "pack.stratbook": false } }
+                                       }
+                                       """;
 
     // The exact items the lifecycle queues on enable, in order: the attach item first (it queues Team
     // Identity's file read and its StartAsync update when it runs, and this recorder never runs a body, so
@@ -72,7 +72,8 @@ public class StratBookLifecycleTests
             using (Assert.Multiple())
             {
                 await Assert.That(titles).IsEqualTo(string.Join(", ", _expectedStartupLabels))
-                    .Because("the attach item first, so Team Identity's read is not behind both loads, then the startup loads in the order App.axaml.cs ran them by hand");
+                    .Because(
+                        "the attach item first, so Team Identity's read is not behind both loads, then the startup loads in the order App.axaml.cs ran them by hand");
                 await Assert.That(instances.Situations).IsNotNull();
                 await Assert.That(instances.Grenades).IsNotNull();
                 await Assert.That(instances.Teams).IsNotNull();
@@ -122,7 +123,8 @@ public class StratBookLifecycleTests
             using (Assert.Multiple())
             {
                 await Assert.That(instances.Watched).IsNotNull()
-                    .Because("the section's own id is on, so Contribute resolved it eagerly, same as the Suggested section");
+                    .Because(
+                        "the section's own id is on, so Contribute resolved it eagerly, same as the Suggested section");
                 await Assert.That(recorder.Titles.Skip(before)).Contains("Load: review queue")
                     .Because("ReviewQueue is core and resolving it eagerly queues its own startup read");
                 await Assert.That(situations.CreateTabs(null!).Single().Badge).IsNull()
@@ -148,7 +150,8 @@ public class StratBookLifecycleTests
             using (Assert.Multiple())
             {
                 await Assert.That(instances.Watched).IsNull()
-                    .Because("the section's own id cascades off with the pack, so Contribute never resolved the service");
+                    .Because(
+                        "the section's own id cascades off with the pack, so Contribute never resolved the service");
                 await Assert.That(recorder.Titles.Skip(before)).DoesNotContain("Load: review queue")
                     .Because("ReviewQueue was never resolved through the gated Contribute path");
                 await Assert.That(situations.CreateTabs(null!).Single().Badge).IsNull();
@@ -173,7 +176,8 @@ public class StratBookLifecycleTests
                 await Assert.That(titles).DoesNotContain("Load: teams")
                     .Because("the pack is off, so the core factory reads teams.json inline instead of queuing it");
                 await Assert.That(titles).DoesNotContain("Load: review queue");
-                await Assert.That(vm).IsNotNull().Because("the Library filter still needs a working Team Identity service");
+                await Assert.That(vm).IsNotNull()
+                    .Because("the Library filter still needs a working Team Identity service");
             }
         });
     }
@@ -216,7 +220,8 @@ public class StratBookLifecycleTests
                 IndexOneGrenade(cache, "/d/a.dem", "de_dust2");
                 // No background drain: the default schedule (Task.Run) writes the moment Query marks the
                 // store dirty, racing this test's "before" check. Only an explicit Flush should write here.
-                using GrenadeIndex grenades = new(cache.Library(), lineups: new GrenadeLineupStore(root), scheduleSave: _ => Task.CompletedTask);
+                using GrenadeIndex grenades = new(cache.Library(), lineups: new GrenadeLineupStore(root),
+                    scheduleSave: _ => Task.CompletedTask);
                 grenades.Load();
                 // Minting the first anchor for this map marks the lineup store dirty (GrenadeIndex.EnsureAssignedLocked).
                 _ = grenades.Query(new GrenadeQuery("de_dust2"));
@@ -229,7 +234,8 @@ public class StratBookLifecycleTests
 
                 await Assert.That(File.Exists(lineupsPath)).IsFalse().Because("nothing has flushed yet");
                 lifecycle.OnShutdown(TimeSpan.FromSeconds(5));
-                await Assert.That(File.Exists(lineupsPath)).IsTrue().Because("OnShutdown's FlushLineups wrote the pending lineup");
+                await Assert.That(File.Exists(lineupsPath)).IsTrue()
+                    .Because("OnShutdown's FlushLineups wrote the pending lineup");
             }
             finally
             {
@@ -302,7 +308,8 @@ public class StratBookLifecycleTests
             await Assert.That(configRoot).IsNotNull();
             string indexPath = Path.Combine(configRoot!, StratBookStores.Strats, "index.json");
             await Assert.That(File.Exists(indexPath)).IsTrue()
-                .Because("the strat committed through the real store must survive shutdown even though the lifecycle never started");
+                .Because(
+                    "the strat committed through the real store must survive shutdown even though the lifecycle never started");
             await Assert.That(await File.ReadAllTextAsync(indexPath))
                 .Contains("Written while the pack was off at startup");
         });
@@ -350,6 +357,7 @@ public class StratBookLifecycleTests
         public int RunningCount => 0;
 
         public event Action? Changed;
+
         public event Action? CapacityAvailable
         {
             add { }
@@ -434,9 +442,11 @@ public class StratBookLifecycleTests
             {
                 FeatureCatalog.Compose(FeaturePacks.Default); // idempotent (TheCatalog_IsComposedOnce...)
                 RecordingQueue recorder = new();
-                ServiceCollection services = App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Default);
+                ServiceCollection services =
+                    App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Default);
                 services.Replace(ServiceDescriptor.Singleton<IDemoProcessingQueue>(_ => recorder));
-                ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
+                ServiceProvider provider =
+                    services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
                 try
                 {
                     QueueWork.Ambient = provider.GetRequiredService<IDemoProcessingQueue>();

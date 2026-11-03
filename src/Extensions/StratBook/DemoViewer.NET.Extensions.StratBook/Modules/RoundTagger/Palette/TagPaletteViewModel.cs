@@ -21,7 +21,8 @@ public sealed record PaletteKeymap(Func<Key, KeyModifiers, string?> ActionFor, F
     public static PaletteKeymap Default { get; } = new(
         (key, modifiers) => StratBookCommands.All.FirstOrDefault(c => c.Scope == StratBookActions.PaletteScope
                                                                       && c.DefaultChord is { } chord
-                                                                      && chord.Key == key && chord.KeyModifiers == modifiers)?.Id,
+                                                                      && chord.Key == key
+                                                                      && chord.KeyModifiers == modifiers)?.Id,
         id => StratBookCommands.All.FirstOrDefault(c => c.Id == id)?.DefaultChord is { } chord
             ? KeyGestureText.Format(chord.Key, chord.KeyModifiers)
             : "");
@@ -944,7 +945,8 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
 
     private static string Describe(TagInstance instance)
     {
-        string labels = string.Join(", ", instance.Labels.Select(l => l.Group.Length == 0 ? l.Value : $"{l.Group}={l.Value}"));
+        string labels = string.Join(", ",
+            instance.Labels.Select(l => l.Group.Length == 0 ? l.Value : $"{l.Group}={l.Value}"));
         string text = labels.Length == 0 ? instance.Code : $"{instance.Code} · {labels}";
         if (instance.Positions.Count + instance.Movements.Count > 0)
         {

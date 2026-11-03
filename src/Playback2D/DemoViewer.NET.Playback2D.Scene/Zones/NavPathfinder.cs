@@ -35,7 +35,8 @@ public sealed class NavPathfinder
 
     private const int MemoCapacity = 1024;
 
-    [ThreadStatic] private static Scratch? _scratch;
+    [ThreadStatic]
+    private static Scratch? _scratch;
 
     private readonly ZoneArea[] _areas;
     private readonly Dictionary<long, int[]> _grid;
@@ -205,7 +206,8 @@ public sealed class NavPathfinder
     /// <param name="floorKey">Only areas on this floor.</param>
     /// <param name="placeId">Only areas of this place.</param>
     /// <param name="snap">How far off the mesh a point may be.</param>
-    public NavWaypoint? Snap(double x, double y, double? floorKey = null, int? placeId = null, double snap = DefaultSnap)
+    public NavWaypoint? Snap(double x, double y, double? floorKey = null, int? placeId = null,
+        double snap = DefaultSnap)
     {
         int area = Locate(x, y, floorKey, placeId, snap);
         if (area < 0)
@@ -222,7 +224,9 @@ public sealed class NavPathfinder
         // Nudged a unit inside along the way from the edge to the centroid, so the snapped point locates in its area.
         (double nx, double ny) = NearestOnPolygon(a, x, y);
         double dx = a.CentroidX - nx, dy = a.CentroidY - ny, len = Math.Sqrt(dx * dx + dy * dy);
-        return len > 1 ? new NavWaypoint(nx + dx / len, ny + dy / len, a.FloorKey) : new NavWaypoint(nx, ny, a.FloorKey);
+        return len > 1
+            ? new NavWaypoint(nx + dx / len, ny + dy / len, a.FloorKey)
+            : new NavWaypoint(nx, ny, a.FloorKey);
     }
 
     /// <summary>
@@ -366,7 +370,8 @@ public sealed class NavPathfinder
             if (len > 2 * q.Clearance + 1)
             {
                 double ux = (bx - ax) / len, uy = (by - ay) / len;
-                (ax, ay, bx, by) = (ax + ux * q.Clearance, ay + uy * q.Clearance, bx - ux * q.Clearance, by - uy * q.Clearance);
+                (ax, ay, bx, by) = (ax + ux * q.Clearance, ay + uy * q.Clearance, bx - ux * q.Clearance,
+                    by - uy * q.Clearance);
             }
             else
             {
@@ -627,7 +632,14 @@ public sealed class NavPathfinder
     private readonly record struct Link(int To, Portal Portal);
 
     // Exact doubles: a rounded key would hand one caller another's endpoints, and the projection must be pure.
-    private readonly record struct Query(double Sx, double Sy, int StartArea, double Ex, double Ey, int EndArea, double Clearance);
+    private readonly record struct Query(
+        double Sx,
+        double Sy,
+        int StartArea,
+        double Ex,
+        double Ey,
+        int EndArea,
+        double Clearance);
 
     // One thread's search state, reused across queries and graphs. A generation stamp stands in for clearing g.
     private sealed class Scratch

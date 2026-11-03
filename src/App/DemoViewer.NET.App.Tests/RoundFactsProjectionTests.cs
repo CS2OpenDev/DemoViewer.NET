@@ -108,7 +108,8 @@ public class RoundFactsProjectionTests
             await Assert.That(second.T.BuyType).IsEqualTo(BuyType.Eco);
             await Assert.That(second.WinnerSide).IsEqualTo(Ct).Because("the CT row's value wins a disagreement");
             await Assert.That(second.ProjectionWarnings.Any(w => w.StartsWith("winner_side", StringComparison.Ordinal)))
-                .IsTrue().Because("a disagreeing round-level column is a warning on the round, and the row still lands");
+                .IsTrue()
+                .Because("a disagreeing round-level column is a warning on the round, and the row still lands");
             await Assert.That(second.ProjectionWarnings.Any(w => w.StartsWith("end_reason", StringComparison.Ordinal)))
                 .IsTrue();
         }
@@ -204,7 +205,8 @@ public class RoundFactsProjectionTests
         using (Assert.Multiple())
         {
             await Assert.That(round.Kills.Count).IsEqualTo(2);
-            await Assert.That(round.ProjectionWarnings.Any(w => w.Contains("kill_victim_side has 2 entries for 3 kills", StringComparison.Ordinal)))
+            await Assert.That(round.ProjectionWarnings.Any(w =>
+                    w.Contains("kill_victim_side has 2 entries for 3 kills", StringComparison.Ordinal)))
                 .IsTrue();
         }
     }
@@ -214,8 +216,7 @@ public class RoundFactsProjectionTests
     {
         HashSet<string> unavailable = new(StringComparer.Ordinal)
         {
-            RoundFactsColumns.Money,
-            RoundFactsColumns.PlantSite
+            RoundFactsColumns.Money, RoundFactsColumns.PlantSite
         };
         RoundFactsTable table = Table(
         [
@@ -292,8 +293,7 @@ public class RoundFactsProjectionTests
     {
         Dictionary<string, object?> parameters = new(StringComparer.Ordinal)
         {
-            ["eco_max_per_player"] = 2000,
-            ["regulation_rounds"] = 30
+            ["eco_max_per_player"] = 2000, ["regulation_rounds"] = 30
         };
         RoundFactsTable table = Table(
         [
@@ -307,9 +307,11 @@ public class RoundFactsProjectionTests
         {
             await Assert.That(round.Ct.Thresholds.EcoMaxPerPlayer).IsEqualTo(2000);
             await Assert.That(round.Ct.Thresholds.RegulationRounds).IsEqualTo(30);
-            await Assert.That(round.Ct.Thresholds.FullMinPerPlayerCt).IsEqualTo(4000).Because("undeclared parameters keep the shipped default");
+            await Assert.That(round.Ct.Thresholds.FullMinPerPlayerCt).IsEqualTo(4000)
+                .Because("undeclared parameters keep the shipped default");
             await Assert.That(round.MatchRoundNumber).IsEqualTo(16);
-            await Assert.That(round.Ct.BuyType).IsEqualTo(BuyType.Pistol).Because("round 16 opens the second half at MR15");
+            await Assert.That(round.Ct.BuyType).IsEqualTo(BuyType.Pistol)
+                .Because("round 16 opens the second half at MR15");
             await Assert.That(round.Half).IsEqualTo(RoundHalf.Second);
         }
     }
@@ -428,7 +430,8 @@ public class RoundFactsProjectionTests
         using (Assert.Multiple())
         {
             await Assert.That(round.FreezeEndTick).IsEqualTo(1000);
-            await Assert.That(round.ProjectionWarnings.Any(w => w.StartsWith("freeze_end_tick 1001", StringComparison.Ordinal)))
+            await Assert
+                .That(round.ProjectionWarnings.Any(w => w.StartsWith("freeze_end_tick 1001", StringComparison.Ordinal)))
                 .IsTrue();
         }
     }
@@ -449,7 +452,8 @@ public class RoundFactsProjectionTests
     public async Task CellsThatArriveAsJson_CoerceLikeBoxedValues()
     {
         // The engine seam may hand back JsonElement cells (a table read back from a run's output).
-        using JsonDocument doc = JsonDocument.Parse("""{"n": 21000, "list": [1500, 1900], "site": "BombsiteB", "flag": true}""");
+        using JsonDocument doc =
+            JsonDocument.Parse("""{"n": 21000, "list": [1500, 1900], "site": "BombsiteB", "flag": true}""");
         JsonElement root = doc.RootElement;
         RoundFactsTable table = Table(
         [

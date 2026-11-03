@@ -25,7 +25,7 @@ public class PlayerEventRealDemoTests
     // The first rounds of a real demo, the accounts and names replaced by slot.
     private static void WriteSamples(string repo, FactTable kills, FactTable deaths)
     {
-        foreach (FactTable table in (FactTable[]) [kills, deaths])
+        foreach (FactTable table in (FactTable[])[kills, deaths])
         {
             List<FactRow> rows = [];
             foreach (FactRow real in table.Rows.Where(r => r.Dimensions["round_number"].AsInteger() <= 2))
@@ -34,14 +34,16 @@ public class PlayerEventRealDemoTests
                 Dictionary<string, FactValue> dimensions = new(real.Dimensions, StringComparer.Ordinal)
                 {
                     ["player_name"] = FactValue.Of(string.Create(CultureInfo.InvariantCulture, $"player_{slot}")),
-                    ["steam_id"] = FactValue.Of(string.Create(CultureInfo.InvariantCulture, $"765611900000000{slot:00}"))
+                    ["steam_id"] =
+                        FactValue.Of(string.Create(CultureInfo.InvariantCulture, $"765611900000000{slot:00}"))
                 };
                 rows.Add(new FactRow(dimensions, real.Values));
             }
 
             string path = PlayerEventFacetTests.SamplePath(repo, table.Key.Output);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, PlayerMatchFacetTests.Indent(FactsCodec.Encode(table with { Fingerprint = "sample", Rows = rows })));
+            File.WriteAllText(path,
+                PlayerMatchFacetTests.Indent(FactsCodec.Encode(table with { Fingerprint = "sample", Rows = rows })));
         }
     }
 
@@ -66,10 +68,14 @@ public class PlayerEventRealDemoTests
             facts.EvaluateForward(path, ForwardDemoPass.Run(reader, ForwardNeeds.Rules, rules.Docs, outputs: cut));
         }
 
-        FactTable killRows = library.TryGet(path, PlayerEventFacet.KillsKey) ?? throw new InvalidOperationException("the visit wrote no kills");
-        FactTable deathRows = library.TryGet(path, PlayerEventFacet.DeathsKey) ?? throw new InvalidOperationException("the visit wrote no deaths");
-        FactTable facet = library.TryGet(path, PlayerMatchFacet.Key) ?? throw new InvalidOperationException("the visit wrote no player_match");
-        if (Environment.GetEnvironmentVariable(PlayerEventFacetTests.SampleUpdateVar) == "1" && DemoTestHelper.FindRepoRoot() is { } repo)
+        FactTable killRows = library.TryGet(path, PlayerEventFacet.KillsKey)
+                             ?? throw new InvalidOperationException("the visit wrote no kills");
+        FactTable deathRows = library.TryGet(path, PlayerEventFacet.DeathsKey)
+                              ?? throw new InvalidOperationException("the visit wrote no deaths");
+        FactTable facet = library.TryGet(path, PlayerMatchFacet.Key)
+                          ?? throw new InvalidOperationException("the visit wrote no player_match");
+        if (Environment.GetEnvironmentVariable(PlayerEventFacetTests.SampleUpdateVar) == "1"
+            && DemoTestHelper.FindRepoRoot() is { } repo)
         {
             WriteSamples(repo, killRows, deathRows);
         }
@@ -77,14 +83,16 @@ public class PlayerEventRealDemoTests
         List<PlayerKill> kills = PlayerEventFacet.Kills(killRows.Rows, deathRows.Rows);
         HashSet<long> botSlots =
         [
-            .. deathRows.Rows.Where(r => r.Dimensions["steam_id"].AsText() is null or "0").Select(r => r.Dimensions["player_slot"].AsInteger()!.Value)
+            .. deathRows.Rows.Where(r => r.Dimensions["steam_id"].AsText() is null or "0")
+                .Select(r => r.Dimensions["player_slot"].AsInteger()!.Value)
         ];
         List<string> mismatches = [];
         foreach (IGrouping<string, FactRow> account in facet.Rows
                      .Where(r => r.Dimensions["steam_id"].AsText() is { Length: > 0 } id && id != "0")
                      .GroupBy(r => r.Dimensions["steam_id"].AsText()!))
         {
-            double expected = account.Sum(r => (r.Values["TotalK"].AsNumber() ?? 0) + (r.Values["TeamKills"].AsNumber() ?? 0));
+            double expected = account.Sum(r =>
+                (r.Values["TotalK"].AsNumber() ?? 0) + (r.Values["TeamKills"].AsNumber() ?? 0));
             int counted = kills.Count(k => k.Killer == account.Key);
             if (counted != expected)
             {
@@ -97,7 +105,8 @@ public class PlayerEventRealDemoTests
         {
             await Assert.That(library.Status(path, PlayerEventFacet.KillsKey)).IsEqualTo(FactStatus.Current);
             await Assert.That(library.Status(path, PlayerEventFacet.DeathsKey)).IsEqualTo(FactStatus.Current);
-            await Assert.That(row.Stamp(StampedFacts.StampId(PlayerEventFacet.RulesetId))?.State).IsEqualTo(DemoAnalysisState.Indexed);
+            await Assert.That(row.Stamp(StampedFacts.StampId(PlayerEventFacet.RulesetId))?.State)
+                .IsEqualTo(DemoAnalysisState.Indexed);
             await Assert.That(killRows.Grain).IsEqualTo("player_event");
             await Assert.That(kills.Count).IsGreaterThan(50);
             await Assert.That(kills.Count(k => k.Victim is null))
@@ -105,7 +114,8 @@ public class PlayerEventRealDemoTests
                 .Because("every kill pairs with its death, and only a bot victim has no account");
             await Assert.That(kills.All(k => k.Killer != k.Victim)).IsTrue();
             await Assert.That(mismatches).IsEmpty().Because(string.Join("; ", mismatches));
-            await Assert.That(deathRows.Rows.Count).IsGreaterThanOrEqualTo(killRows.Rows.Count).Because("every kill is a death; a fall is a death alone");
+            await Assert.That(deathRows.Rows.Count).IsGreaterThanOrEqualTo(killRows.Rows.Count)
+                .Because("every kill is a death; a fall is a death alone");
         }
     }
 }

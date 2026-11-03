@@ -35,7 +35,8 @@ public class RoundIndexRosterRealDemoTests
         IReadOnlyDictionary<int, RosterEntry> held = RoundIndexRoster.Of(parsed.AllGameEvents);
 
         CollectorSet set = CollectorSet.Of([CollectorKit.Register(RoundIndexRosterCollector.Contribution)]);
-        MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null));
+        MergedRulesBuild rules = new(() =>
+            YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null));
         using DemoReader reader = DemoReader.OpenFile(path, ForwardDemoPass.ReaderOptions(CancellationToken.None));
         ForwardDemoResult forward = ForwardDemoPass.Run(reader, ForwardNeeds.Rules, rules.Docs, null, null, set);
         IReadOnlyDictionary<int, RosterEntry>? read =
@@ -45,7 +46,8 @@ public class RoundIndexRosterRealDemoTests
         {
             await Assert.That(held.Count).IsGreaterThan(0).Because("every benchmark demo has disconnects");
             await Assert.That(read).IsNotNull();
-            await Assert.That(read!.OrderBy(kv => kv.Key)).IsEquivalentTo(held.OrderBy(kv => kv.Key), CollectionOrdering.Matching);
+            await Assert.That(read!.OrderBy(kv => kv.Key))
+                .IsEquivalentTo(held.OrderBy(kv => kv.Key), CollectionOrdering.Matching);
         }
     }
 

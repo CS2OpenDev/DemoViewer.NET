@@ -41,7 +41,8 @@ public sealed record DemoDataStamp(
     /// <param name="schema">The payload shape the extension reads.</param>
     /// <param name="fingerprint">What the extension would write now.</param>
     public bool IsCurrent(int schema, string? fingerprint) =>
-        State == DemoDataState.Written && Schema == schema && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
+        State == DemoDataState.Written && Schema == schema
+                                       && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
 }
 
 /// <summary>One facet of one demo, as written.</summary>
@@ -75,7 +76,12 @@ public sealed record DemoDataWrite(string Facet, int Schema, string? Fingerprint
 /// <param name="ExtensionVersion">The extension's version that wrote it.</param>
 /// <param name="WrittenAtTicks">When it was written, in UTC ticks.</param>
 /// <param name="Content">The payload, or the part asked for.</param>
-public sealed record DemoDataRecord(int Schema, string? Fingerprint, string? ExtensionVersion, long WrittenAtTicks, byte[] Content);
+public sealed record DemoDataRecord(
+    int Schema,
+    string? Fingerprint,
+    string? ExtensionVersion,
+    long WrittenAtTicks,
+    byte[] Content);
 
 /// <summary>
 ///     The extension's per-demo data: content the extension computes for a demo and can always compute again,

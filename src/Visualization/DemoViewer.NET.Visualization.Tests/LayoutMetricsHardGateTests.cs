@@ -1,6 +1,5 @@
 #region
 
-
 #endregion
 
 namespace DemoViewer.NET.Visualization.Tests;

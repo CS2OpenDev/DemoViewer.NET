@@ -22,7 +22,8 @@ public static class PeriodDiffService
     /// <param name="library">The library a demo's map, score and side-round totals come from.</param>
     /// <param name="teamId">The team the diff is for.</param>
     /// <param name="windowSize">Demos per period; <see cref="DefaultWindowSize" /> when zero or negative.</param>
-    public static PeriodDiffSet Build(TeamIdentityService teams, IExtensionLibrary library, Guid teamId, int windowSize = DefaultWindowSize)
+    public static PeriodDiffSet Build(TeamIdentityService teams, IExtensionLibrary library, Guid teamId,
+        int windowSize = DefaultWindowSize)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -63,7 +64,8 @@ public static class PeriodDiffService
             string? rosterId = sideAssignment.RosterId;
             string rosterLabel = rosterId is null
                 ? ""
-                : team?.Rosters.FirstOrDefault(r => string.Equals(r.Id, rosterId, StringComparison.Ordinal))?.Label ?? rosterId;
+                : team?.Rosters.FirstOrDefault(r => string.Equals(r.Id, rosterId, StringComparison.Ordinal))?.Label
+                  ?? rosterId;
 
             rows.Add(new PeriodDiffDemoRow(demo.Path, demo.Sha256, map, entry?.Modified.Ticks ?? 0, side,
                 rosterId, rosterLabel, sideAssignment.StandIn && sideAssignment.Tier == 1, won, ctRounds, tRounds));
@@ -73,7 +75,8 @@ public static class PeriodDiffService
         PeriodDiffPeriod previous = BuildPeriod("previous", [.. rows.Skip(windowSize).Take(windowSize)]);
 
         bool rosterChanged = recent.DominantRoster is { } r && previous.DominantRoster is { } p
-                              && !string.Equals(r.RosterId, p.RosterId, StringComparison.Ordinal);
+                                                            && !string.Equals(r.RosterId, p.RosterId,
+                                                                StringComparison.Ordinal);
 
         return new PeriodDiffSet
         {

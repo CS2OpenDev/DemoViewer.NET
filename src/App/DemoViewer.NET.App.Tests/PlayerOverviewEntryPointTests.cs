@@ -42,7 +42,8 @@ public class PlayerOverviewEntryPointTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo") }, CollectionOrdering.Matching);
+            await Assert.That(opened)
+                .IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo") }, CollectionOrdering.Matching);
             await Assert.That(live.Tip).IsNull();
             await Assert.That(none.Tip).IsEqualTo(PlayerOverviewLink.NoSteamIdTip);
             await Assert.That(none.CanOpen).IsFalse();
@@ -66,27 +67,72 @@ public class PlayerOverviewEntryPointTests
             CtScore = 13,
             TScore = 9
         };
-        r.Players.Add(new CachedPlayerInfo { Slot = 0, Name = "Neo", SteamId64 = Neo.ToString(CultureInfo.InvariantCulture), Team = 3 });
+        r.Players.Add(new CachedPlayerInfo
+        {
+            Slot = 0, Name = "Neo", SteamId64 = Neo.ToString(CultureInfo.InvariantCulture), Team = 3
+        });
         r.Players.Add(new CachedPlayerInfo { Slot = 1, Name = "Bob", SteamId64 = "0", Team = 3 });
-        r.Players.Add(new CachedPlayerInfo { Slot = 2, Name = "BOT Kirk", SteamId64 = "0", Team = 2, IsBot = true });
-        r.Players.Add(new CachedPlayerInfo { Slot = 3, Name = "Coach", SteamId64 = Coach.ToString(CultureInfo.InvariantCulture), Team = 2, IsCoach = true });
-        r.Players.Add(new CachedPlayerInfo { Slot = 4, Name = "Trin", SteamId64 = Trin.ToString(CultureInfo.InvariantCulture), Team = 2 });
+        r.Players.Add(new CachedPlayerInfo
+        {
+            Slot = 2,
+            Name = "BOT Kirk",
+            SteamId64 = "0",
+            Team = 2,
+            IsBot = true
+        });
+        r.Players.Add(new CachedPlayerInfo
+        {
+            Slot = 3,
+            Name = "Coach",
+            SteamId64 = Coach.ToString(CultureInfo.InvariantCulture),
+            Team = 2,
+            IsCoach = true
+        });
+        r.Players.Add(new CachedPlayerInfo
+        {
+            Slot = 4, Name = "Trin", SteamId64 = Trin.ToString(CultureInfo.InvariantCulture), Team = 2
+        });
         r.Scoreboard =
         [
-            new CachedStatRow { Slot = 0, Team = 3, Kills = 20, Adr = 90, Rating = 1.2 },
-            new CachedStatRow { Slot = 1, Team = 3, Kills = 10, Adr = 70, Rating = 0.9 },
-            new CachedStatRow { Slot = 3, Team = 2, Kills = 0, Adr = 0, Rating = 0 },
-            new CachedStatRow { Slot = 4, Team = 2, Kills = 15, Adr = 80, Rating = 1.1 }
+            new CachedStatRow
+            {
+                Slot = 0,
+                Team = 3,
+                Kills = 20,
+                Adr = 90,
+                Rating = 1.2
+            },
+            new CachedStatRow
+            {
+                Slot = 1,
+                Team = 3,
+                Kills = 10,
+                Adr = 70,
+                Rating = 0.9
+            },
+            new CachedStatRow
+            {
+                Slot = 3,
+                Team = 2,
+                Kills = 0,
+                Adr = 0,
+                Rating = 0
+            },
+            new CachedStatRow
+            {
+                Slot = 4,
+                Team = 2,
+                Kills = 15,
+                Adr = 80,
+                Rating = 1.1
+            }
         ];
         return r;
     }
 
     internal static MatchOverviewTabViewModel Overview(List<(ulong, string?)> opened)
     {
-        MatchOverviewTabViewModel vm = new()
-        {
-            PlayerOverviewOpener = (id, name) => opened.Add((id, name))
-        };
+        MatchOverviewTabViewModel vm = new() { PlayerOverviewOpener = (id, name) => opened.Add((id, name)) };
         vm.SetCachedRecord(Cached());
         return vm;
     }
@@ -106,7 +152,8 @@ public class PlayerOverviewEntryPointTests
         }
 
         roster.Single(p => p.Name == "Trin").PlayerOverview.Open();
-        await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Trin, "Trin") }, CollectionOrdering.Matching);
+        await Assert.That(opened)
+            .IsEquivalentTo(new (ulong, string?)[] { (Trin, "Trin") }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -123,7 +170,8 @@ public class PlayerOverviewEntryPointTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.PlayerStats.Count).IsEqualTo(4);
-            await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo"), (Trin, "Trin") }, CollectionOrdering.Matching)
+            await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo"), (Trin, "Trin") },
+                    CollectionOrdering.Matching)
                 .Because("Bob has no SteamID and the coach is no player");
             await Assert.That(vm.PlayerStats.Single(r => r.Name == "Coach").PlayerOverview.CanOpen).IsFalse();
         }
@@ -145,10 +193,7 @@ public class PlayerOverviewEntryPointTests
         List<(ulong, string?)> opened = [];
         StatsTabViewModel stats = FocusPlayerTests.Updated();
         (_, ParsedDemo demo, _) = FocusPlayerTests.BuildScenario();
-        MatchOverviewTabViewModel vm = new()
-        {
-            PlayerOverviewOpener = (id, name) => opened.Add((id, name))
-        };
+        MatchOverviewTabViewModel vm = new() { PlayerOverviewOpener = (id, name) => opened.Add((id, name)) };
         vm.BeginOpening("entry_de_nuke.dem", "Nuke", "Server", Demo);
         vm.SetSummary(Demo, demo);
         vm.SetAnalysis(Demo, stats.GameTable, null, 13, stats.AccountsBySlot);
@@ -161,9 +206,11 @@ public class PlayerOverviewEntryPointTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.PlayerStats.Count).IsGreaterThan(0);
-            await Assert.That(opened.Select(o => o.Item1).Distinct()).IsEquivalentTo(new[] { FocusPlayerTests.Alice }, CollectionOrdering.Matching);
+            await Assert.That(opened.Select(o => o.Item1).Distinct())
+                .IsEquivalentTo(new[] { FocusPlayerTests.Alice }, CollectionOrdering.Matching);
             await Assert.That(vm.PlayerStats.Single(r => r.Name == "Bob").PlayerOverview.CanOpen).IsFalse();
-            await Assert.That(vm.CounterTerrorists.Concat(vm.Terrorists).Single(p => p.Name == "Coach").PlayerOverview.CanOpen).IsFalse()
+            await Assert.That(vm.CounterTerrorists.Concat(vm.Terrorists).Single(p => p.Name == "Coach").PlayerOverview
+                    .CanOpen).IsFalse()
                 .Because("the analysis names the coach after the roster was filled");
         }
     }
@@ -182,8 +229,10 @@ public class PlayerOverviewEntryPointTests
         using (Assert.Multiple())
         {
             await Assert.That(stats.Podium.Count).IsEqualTo(3);
-            await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (FocusPlayerTests.Alice, "Alice") }, CollectionOrdering.Matching);
-            await Assert.That(stats.Podium.Single(p => p.Name == "Bob").PlayerOverview.Tip).IsEqualTo(PlayerOverviewLink.NoSteamIdTip);
+            await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (FocusPlayerTests.Alice, "Alice") },
+                CollectionOrdering.Matching);
+            await Assert.That(stats.Podium.Single(p => p.Name == "Bob").PlayerOverview.Tip)
+                .IsEqualTo(PlayerOverviewLink.NoSteamIdTip);
         }
     }
 
@@ -192,8 +241,22 @@ public class PlayerOverviewEntryPointTests
         DemoCacheRecord record = Cached();
         record.Highlights =
         [
-            new CachedHighlightEvent { RulesetId = "r", HighlightId = "ace", PlayerSlot = 0, RoundNumber = 3, Tick = 1000 },
-            new CachedHighlightEvent { RulesetId = "r", HighlightId = "ace", PlayerSlot = 2, RoundNumber = 4, Tick = 2000 }
+            new CachedHighlightEvent
+            {
+                RulesetId = "r",
+                HighlightId = "ace",
+                PlayerSlot = 0,
+                RoundNumber = 3,
+                Tick = 1000
+            },
+            new CachedHighlightEvent
+            {
+                RulesetId = "r",
+                HighlightId = "ace",
+                PlayerSlot = 2,
+                RoundNumber = 4,
+                Tick = 2000
+            }
         ];
         return new AddClipsPickerViewModel([record], 1, _ => false, _ => { }, _ => { }, () => { },
             playerOverviewOpener: (id, name) => opened.Add((id, name)));
@@ -213,7 +276,8 @@ public class PlayerOverviewEntryPointTests
         using (Assert.Multiple())
         {
             await Assert.That(picker.Rows.Count).IsEqualTo(2);
-            await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo") }, CollectionOrdering.Matching);
+            await Assert.That(opened)
+                .IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo") }, CollectionOrdering.Matching);
             await Assert.That(picker.Rows.Single(r => r.PlayerName == "BOT Kirk").PlayerOverview.CanOpen).IsFalse();
         }
     }
@@ -285,7 +349,8 @@ public class PlayerOverviewEntryPointTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo"), (Trin, "Trin") }, CollectionOrdering.Matching);
+            await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo"), (Trin, "Trin") },
+                CollectionOrdering.Matching);
             await Assert.That(ambiguous.CanOpen).IsFalse();
             await Assert.That(ambiguous.Tip).Contains("2 accounts");
         }
@@ -319,7 +384,8 @@ public class PlayerOverviewEntryPointTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo") }, CollectionOrdering.Matching)
+            await Assert.That(opened)
+                .IsEquivalentTo(new (ulong, string?)[] { (Neo, "Neo") }, CollectionOrdering.Matching)
                 .Because("a slot with no SteamID does not make the name a second account");
             await Assert.That(kirk.CanOpen).IsFalse();
             await Assert.That(kirk.Tip).IsEqualTo(PlayerOverviewLink.NoSteamIdTip);
@@ -338,7 +404,8 @@ public class PlayerOverviewEntryPointTests
         vm.SelectedPlayer = "Neo";
         PlayerOverviewEntry neo = vm.SelectedPlayerOverview;
         int raised = 0;
-        vm.PropertyChanged += (_, e) => raised += e.PropertyName == nameof(LibraryTabViewModel.SelectedPlayerOverview) ? 1 : 0;
+        vm.PropertyChanged += (_, e) =>
+            raised += e.PropertyName == nameof(LibraryTabViewModel.SelectedPlayerOverview) ? 1 : 0;
         svc.Entries.Add(LibraryEntry("f.dem", "Neo", "Smith"));
 
         using (Assert.Multiple())

@@ -30,8 +30,15 @@ public class StratMapFirstTests
 
     // The upper floor of a two-floor synthetic map, key QuantizeZ(-500) = -512: Hut is the square at the origin,
     // Ramp the one to its right. The lower floor has no places.
-    internal static readonly MapLevel Upper = new() { Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000 };
-    private static readonly MapLevel Lower = new() { Id = MapSpace.IdForZMin(-2000), Name = "lower", ZMin = -2000, ZMax = -500 };
+    internal static readonly MapLevel Upper = new()
+    {
+        Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000
+    };
+
+    private static readonly MapLevel Lower = new()
+    {
+        Id = MapSpace.IdForZMin(-2000), Name = "lower", ZMin = -2000, ZMax = -500
+    };
 
     // Its adapter carries a nav graph, but a canvas without a feature gate does not route: a test that wants routes passes
     // routing: () => true.
@@ -46,11 +53,13 @@ public class StratMapFirstTests
         ],
         [(1, 2)], [(0, 1)], null)));
 
-    private static StratCanvasViewModel MapCanvas(StratSession session, Func<string, Task<IZonePlaceResolver?>>? places = null,
+    private static StratCanvasViewModel MapCanvas(StratSession session,
+        Func<string, Task<IZonePlaceResolver?>>? places = null,
         Action<Action>? post = null)
     {
         StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
-            placesFor: places ?? (_ => Task.FromResult<IZonePlaceResolver?>(SyntheticZones())), post: post ?? (a => a()));
+            placesFor: places ?? (_ => Task.FromResult<IZonePlaceResolver?>(SyntheticZones())),
+            post: post ?? (a => a()));
         return canvas;
     }
 
@@ -141,7 +150,8 @@ public class StratMapFirstTests
             using (Assert.Multiple())
             {
                 await Assert.That(session.UndoDepth).IsEqualTo(depth + 1);
-                await Assert.That(session.Document!.Steps[1].Assignments!.Single(l => l.Slot == "C").To!.X).IsEqualTo(400);
+                await Assert.That(session.Document!.Steps[1].Assignments!.Single(l => l.Slot == "C").To!.X)
+                    .IsEqualTo(400);
                 await Assert.That(StratStepLines.Involves(session.Document!.Steps[2], "C")).IsFalse();
                 await Assert.That(canvas.ActiveStepIndex).IsEqualTo(1).Because("the edit keeps the selection");
                 await Assert.That(editor.Steps[1].IsSelected).IsTrue();
@@ -162,18 +172,21 @@ public class StratMapFirstTests
             {
                 await Assert.That(canvas.PlaceTarget).IsEqualTo(StratPlaceTarget.To);
                 await Assert.That(canvas.SetPlaceText).IsEqualTo("Set “to” on map");
-                await Assert.That(canvas.TryTagPositionAt(Upper, 50, 50)).IsFalse().Because("off, a click goes to the tools");
+                await Assert.That(canvas.TryTagPositionAt(Upper, 50, 50)).IsFalse()
+                    .Because("off, a click goes to the tools");
             }
 
             await Assert.That(canvas.BeginSetPlace()).IsTrue();
-            await Assert.That(canvas.IsToolActive).IsTrue().Because("so Esc resolves to cancel, as it does under a tool");
+            await Assert.That(canvas.IsToolActive).IsTrue()
+                .Because("so Esc resolves to cancel, as it does under a tool");
             int depth = session.UndoDepth;
             await Assert.That(canvas.TryTagPositionAt(Upper, 50, 50)).IsTrue();
 
             using (Assert.Multiple())
             {
                 await Assert.That(session.Document!.Steps[1].To!.Place).IsEqualTo("Hut");
-                await Assert.That(session.Document!.Steps[1].To!.X).IsEqualTo(50).Because("a click inside a place stores the place and the point");
+                await Assert.That(session.Document!.Steps[1].To!.X).IsEqualTo(50)
+                    .Because("a click inside a place stores the place and the point");
                 await Assert.That(session.Document!.Steps[1].To!.LevelMinZ).IsEqualTo(-512);
                 await Assert.That(session.UndoDepth).IsEqualTo(depth + 1);
                 await Assert.That(canvas.IsSettingPlace).IsFalse().Because("one click, one write");
@@ -262,7 +275,8 @@ public class StratMapFirstTests
             StratDocument document = FiveSteps();
             document.Steps[1].To = new PlaceRef { Place = "Ramp" };
             document.Steps[3].Verb = "throw";
-            document.Steps[3].Utility = new UtilityRef { Kind = "flash", Landing = new UtilityLanding { Place = "Hut" } };
+            document.Steps[3].Utility =
+                new UtilityRef { Kind = "flash", Landing = new UtilityLanding { Place = "Hut" } };
             (StratStore _, StratSession session) = Opened(document);
             using StratCanvasViewModel canvas = MapCanvas(session);
 
@@ -438,7 +452,8 @@ public class StratMapFirstTests
                 await Assert.That(canvas.IsPlaying).IsFalse();
                 await Assert.That(canvas.Transport.Tick).IsEqualTo(grabbed).Because("no seek after the edit either");
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
-                await Assert.That(session.Document!.Steps[0].Assignments!.Single(l => l.Slot == "B").To!.Y).IsEqualTo(250);
+                await Assert.That(session.Document!.Steps[0].Assignments!.Single(l => l.Slot == "B").To!.Y)
+                    .IsEqualTo(250);
                 await Assert.That(session.Document!.Steps[1].Positions.Any(p => p.Slot == "B")).IsFalse();
             }
         });
@@ -475,7 +490,8 @@ public class StratMapFirstTests
         {
             StratDocument document = FiveSteps();
             document.Steps[3].Verb = "throw";
-            document.Steps[3].Utility = new UtilityRef { Kind = "flash", Landing = new UtilityLanding { Place = "Hut" } };
+            document.Steps[3].Utility =
+                new UtilityRef { Kind = "flash", Landing = new UtilityLanding { Place = "Hut" } };
             (StratStore _, StratSession session) = Opened(document);
 
             foreach (Func<string, Task<IZonePlaceResolver?>> none in new Func<string, Task<IZonePlaceResolver?>>[]
@@ -532,7 +548,8 @@ public class StratMapFirstTests
         await HeadlessSession.RunOnUi(async () =>
         {
             (StratStore _, StratSession session) = Opened(FiveSteps());
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped, readOnly: true,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped, readOnly: true,
                 placesFor: _ => Task.FromResult<IZonePlaceResolver?>(SyntheticZones()));
             canvas.SelectStep(session.Document!.Steps[1].Id);
             using (Assert.Multiple())

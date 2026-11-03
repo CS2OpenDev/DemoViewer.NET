@@ -396,10 +396,7 @@ public class SettingsServiceTests
             SessionPayload session = new(
                 new TabSessionState(7, "root/x", true), null, null,
                 true, false, "parser");
-            List<RecentFile> recents = new()
-            {
-                new RecentFile("/demos/a.dem", "de_dust2", DateTime.UtcNow)
-            };
+            List<RecentFile> recents = new() { new RecentFile("/demos/a.dem", "de_dust2", DateTime.UtcNow) };
             svc.SaveSession(session);
             svc.SaveRecents(recents);
 
@@ -485,10 +482,7 @@ public class SettingsServiceTests
                 new TabSessionState(3, null, false), null, null, false, true, "entity");
             await File.WriteAllTextAsync(
                 Path.Combine(dir, "session.json"), JsonSerializer.Serialize(legacySession));
-            List<RecentFile> legacyRecents = new()
-            {
-                new RecentFile("/demos/legacy.dem", "de_nuke", DateTime.UtcNow)
-            };
+            List<RecentFile> legacyRecents = new() { new RecentFile("/demos/legacy.dem", "de_nuke", DateTime.UtcNow) };
             await File.WriteAllTextAsync(
                 Path.Combine(dir, "recent-files.json"), JsonSerializer.Serialize(legacyRecents));
 
@@ -515,10 +509,7 @@ public class SettingsServiceTests
             // Idempotency: a re-dropped legacy file must NOT overwrite the already-migrated section, and is
             // left untouched (the absent-section guard never re-enters once the section exists).
             await File.WriteAllTextAsync(Path.Combine(dir, "recent-files.json"),
-                JsonSerializer.Serialize(new List<RecentFile>
-                {
-                    new("/demos/other.dem", null, DateTime.UtcNow)
-                }));
+                JsonSerializer.Serialize(new List<RecentFile> { new("/demos/other.dem", null, DateTime.UtcNow) }));
             SettingsService svc3 = new(dir);
             IReadOnlyList<RecentFile> r3 = svc3.LoadRecents();
             await Assert.That(r3.Count).IsEqualTo(1);

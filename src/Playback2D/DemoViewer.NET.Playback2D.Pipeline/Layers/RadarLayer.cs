@@ -73,21 +73,10 @@ public sealed class RadarLayer : ISceneLayer
         // The resample into the cached image. Opaque white and full alpha, because the opacity in _image
         // must be applied ONCE, at the final draw. Baking it in here and multiplying again there would
         // render the radar at 0.81 opacity instead of 0.9.
-        _resample = new SKPaint
-        {
-            IsAntialias = true
-        };
+        _resample = new SKPaint { IsAntialias = true };
 
-        _minor = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            IsAntialias = true
-        };
-        _major = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            IsAntialias = true
-        };
+        _minor = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true };
+        _major = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true };
     }
 
     /// <summary>

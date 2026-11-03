@@ -168,16 +168,28 @@ public sealed class CorpusManifest
 
     private sealed class ManifestFile
     {
-        [JsonPropertyName("demos")] public List<ManifestEntry>? Demos { get; init; }
+        [JsonPropertyName("demos")]
+        public List<ManifestEntry>? Demos { get; init; }
     }
 
     private sealed class ManifestEntry
     {
-        [JsonPropertyName("name")] public string? Name { get; init; }
-        [JsonPropertyName("file")] public string? File { get; init; }
-        [JsonPropertyName("sha256")] public string? Sha256 { get; init; }
-        [JsonPropertyName("bytes")] public long Bytes { get; init; }
-        [JsonPropertyName("dir")] public string? Dir { get; init; }
-        [JsonPropertyName("sets")] public List<string>? Sets { get; init; }
+        [JsonPropertyName("name")]
+        public string? Name { get; init; }
+
+        [JsonPropertyName("file")]
+        public string? File { get; init; }
+
+        [JsonPropertyName("sha256")]
+        public string? Sha256 { get; init; }
+
+        [JsonPropertyName("bytes")]
+        public long Bytes { get; init; }
+
+        [JsonPropertyName("dir")]
+        public string? Dir { get; init; }
+
+        [JsonPropertyName("sets")]
+        public List<string>? Sets { get; init; }
     }
 }

@@ -23,7 +23,8 @@ internal static class CoarseLayoutPass
 {
     internal static void Run(LayoutContext ctx)
     {
-        (IReadOnlyDictionary<IGraphNode, NodePosition> positions, IReadOnlyDictionary<IGraphEdge, IReadOnlyList<Point>> routes, _, _) =
+        (IReadOnlyDictionary<IGraphNode, NodePosition> positions,
+                IReadOnlyDictionary<IGraphEdge, IReadOnlyList<Point>> routes, _, _) =
             MsaglTranslator.RunLayout(ctx.Nodes, ctx.Edges, ctx.Style);
 
         ctx.NodePositions = new Dictionary<IGraphNode, NodePosition>(positions);

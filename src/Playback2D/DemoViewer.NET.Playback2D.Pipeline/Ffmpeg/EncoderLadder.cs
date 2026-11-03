@@ -40,7 +40,7 @@ public static class EncoderLadder
     ///     bisect, a bitrate comparison or a "why does this file look different on my laptop" wants.
     /// </summary>
     public const string Software = "software";
-    
+
     /// <summary>
     ///     AV1 on NVENC. Ada's AV1 block; on Turing and older the probe fails and the ladder moves on.
     ///     <para>
@@ -141,7 +141,7 @@ public static class EncoderLadder
     private static readonly VideoEncoder[] _webm = [Av1Nvenc, Av1Qsv, Av1Amf, Vp9];
     private static readonly VideoEncoder[] _mp4 = [H264Nvenc, H264Qsv, H264Amf, X264];
     private static readonly VideoEncoder[] _gif = [Gif];
-    
+
     /// <summary>
     ///     The rungs for a format, the best first. An unknown format id gets the WebM ladder, matching
     ///     <c>SceneExportSession.SupportedFps</c>'s treatment of the same case.
@@ -156,7 +156,7 @@ public static class EncoderLadder
             _ => _webm
         };
     }
-    
+
     /// <summary>
     ///     The software rung of a format's ladder, always its last entry. What
     ///     <c>--encoder software</c> resolves to, and the sink's default when no selection was made.

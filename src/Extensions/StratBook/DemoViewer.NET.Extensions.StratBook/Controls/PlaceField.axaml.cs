@@ -31,12 +31,14 @@ public partial class PlaceField : UserControl
     private const double RowHeight = 22;
 
     public static readonly StyledProperty<IReadOnlyList<PlaceRef>?> ValueProperty =
-        AvaloniaProperty.Register<PlaceField, IReadOnlyList<PlaceRef>?>(nameof(Value), defaultBindingMode: BindingMode.TwoWay);
+        AvaloniaProperty.Register<PlaceField, IReadOnlyList<PlaceRef>?>(nameof(Value),
+            defaultBindingMode: BindingMode.TwoWay);
 
     public static readonly StyledProperty<CalloutResolver?> CalloutsProperty =
         AvaloniaProperty.Register<PlaceField, CalloutResolver?>(nameof(Callouts));
 
-    public static readonly StyledProperty<bool> IsMultiProperty = AvaloniaProperty.Register<PlaceField, bool>(nameof(IsMulti));
+    public static readonly StyledProperty<bool> IsMultiProperty =
+        AvaloniaProperty.Register<PlaceField, bool>(nameof(IsMulti));
 
     public static readonly StyledProperty<ICommand?> PickCommandProperty =
         AvaloniaProperty.Register<PlaceField, ICommand?>(nameof(PickCommand));
@@ -44,9 +46,11 @@ public partial class PlaceField : UserControl
     public static readonly StyledProperty<object?> PickCommandParameterProperty =
         AvaloniaProperty.Register<PlaceField, object?>(nameof(PickCommandParameter));
 
-    public static readonly StyledProperty<bool> IsPickingProperty = AvaloniaProperty.Register<PlaceField, bool>(nameof(IsPicking));
+    public static readonly StyledProperty<bool> IsPickingProperty =
+        AvaloniaProperty.Register<PlaceField, bool>(nameof(IsPicking));
 
-    public static readonly StyledProperty<object?> ArmedTargetProperty = AvaloniaProperty.Register<PlaceField, object?>(nameof(ArmedTarget));
+    public static readonly StyledProperty<object?> ArmedTargetProperty =
+        AvaloniaProperty.Register<PlaceField, object?>(nameof(ArmedTarget));
 
     public static readonly StyledProperty<double?> CurrentLevelMinZProperty =
         AvaloniaProperty.Register<PlaceField, double?>(nameof(CurrentLevelMinZ));
@@ -287,7 +291,8 @@ public partial class PlaceField : UserControl
 
     private void OnTextChanged(object? sender, TextChangedEventArgs e)
     {
-        if (!_syncing && FieldBox.IsFocused && !string.Equals(FieldBox.Text ?? "", _model.Text, StringComparison.Ordinal))
+        if (!_syncing && FieldBox.IsFocused
+                      && !string.Equals(FieldBox.Text ?? "", _model.Text, StringComparison.Ordinal))
         {
             _model.Type(FieldBox.Text);
         }
@@ -383,7 +388,8 @@ public partial class PlaceField : UserControl
 
     private void OnListPressed(object? sender, PointerPressedEventArgs e)
     {
-        if ((e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<Control>().FirstOrDefault(c => c.DataContext is PlaceOption)
+        if ((e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<Control>()
+            .FirstOrDefault(c => c.DataContext is PlaceOption)
             ?.DataContext is PlaceOption option)
         {
             Store(_model.Choose(option));
@@ -465,10 +471,7 @@ public partial class PlaceField : UserControl
 
     private Border Chip(int index, string text)
     {
-        Button remove = new()
-        {
-            Content = "✕", Focusable = false, IsTabStop = false, Classes = { "placeFieldBtn" }
-        };
+        Button remove = new() { Content = "✕", Focusable = false, IsTabStop = false, Classes = { "placeFieldBtn" } };
         AutomationProperties.SetName(remove, "Remove " + text);
         ToolTip.SetTip(remove, "Remove");
         remove.Click += (_, _) => RemoveChip(index, false);
@@ -476,7 +479,9 @@ public partial class PlaceField : UserControl
 
         Border chip = new()
         {
-            Classes = { "placeChip" }, Focusable = true, IsTabStop = false,
+            Classes = { "placeChip" },
+            Focusable = true,
+            IsTabStop = false,
             Child = new DockPanel { Children = { remove, new TextBlock { Text = text } } }
         };
         AutomationProperties.SetName(chip, text);
@@ -493,8 +498,10 @@ public partial class PlaceField : UserControl
         {
             Items =
             {
-                MenuEntry("Move left", new KeyGesture(Key.Left, KeyModifiers.Alt), _model.CanShift(index, -1), () => ShiftChip(index, -1)),
-                MenuEntry("Move right", new KeyGesture(Key.Right, KeyModifiers.Alt), _model.CanShift(index, 1), () => ShiftChip(index, 1)),
+                MenuEntry("Move left", new KeyGesture(Key.Left, KeyModifiers.Alt), _model.CanShift(index, -1),
+                    () => ShiftChip(index, -1)),
+                MenuEntry("Move right", new KeyGesture(Key.Right, KeyModifiers.Alt), _model.CanShift(index, 1),
+                    () => ShiftChip(index, 1)),
                 MenuEntry("Remove", new KeyGesture(Key.Delete), true, () => RemoveChip(index, false))
             }
         };

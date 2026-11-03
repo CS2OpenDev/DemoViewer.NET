@@ -122,10 +122,7 @@ public class EraseToolTests
             new FloorSlice(-448, -384), new FloorSlice(-384, -128));
 
         AnnotationDocument document = new();
-        AnnotationSession session = new(document)
-        {
-            EraserWorldRadius = 20f
-        };
+        AnnotationSession session = new(document) { EraserWorldRadius = 20f };
         FakeToolServices services = new(session, panes);
         EraseTool tool = new();
 
@@ -196,10 +193,7 @@ public class EraseToolTests
         {
             Pane = AnnotationFakes.Pane(600, 400);
             Document = new AnnotationDocument();
-            Session = new AnnotationSession(Document)
-            {
-                EraserWorldRadius = 20f
-            };
+            Session = new AnnotationSession(Document) { EraserWorldRadius = 20f };
             Services = new FakeToolServices(Session, Pane);
             Tool = new EraseTool();
         }

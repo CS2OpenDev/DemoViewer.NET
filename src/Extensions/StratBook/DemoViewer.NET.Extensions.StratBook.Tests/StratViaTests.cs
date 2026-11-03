@@ -34,7 +34,8 @@ public class StratViaTests
             StratDocument document = Moving();
             document.Steps[0].ViaPoints = [new PlaceRef { X = 120, Y = -40, LevelMinZ = -99968 }];
             string json = StratStore.Serialize(document);
-            StratDocument read = System.Text.Json.JsonSerializer.Deserialize(json, StratJsonContext.Default.StratDocument)!;
+            StratDocument read =
+                System.Text.Json.JsonSerializer.Deserialize(json, StratJsonContext.Default.StratDocument)!;
 
             using (Assert.Multiple())
             {
@@ -57,10 +58,12 @@ public class StratViaTests
             // A pick outside every place adds a point; a place already there is not added twice.
             StratLocationField plain = new(step.Id, null, StratLocationKind.Via);
             await Assert.That(StratLocationPatches.Applies(step, plain)).IsTrue();
-            await Assert.That(string.Join(",", StratLocationPatches.Read(step, plain).Select(p => p.Place)!)).IsEqualTo("OutsideLong");
+            await Assert.That(string.Join(",", StratLocationPatches.Read(step, plain).Select(p => p.Place)!))
+                .IsEqualTo("OutsideLong");
             List<PatchOp> pick = StratLocationPatches.Pick(document, 0, plain, null, 300, 400, -99968, true);
             await Assert.That(pick.Single().Path).IsEqualTo("/steps/0/viaPoints");
-            await Assert.That(StratLocationPatches.Pick(document, 0, plain, "OutsideLong", 0, 0, -99968, true)).IsEmpty();
+            await Assert.That(StratLocationPatches.Pick(document, 0, plain, "OutsideLong", 0, 0, -99968, true))
+                .IsEmpty();
 
             // A watch makes B a line: the via goes with the to.
             List<PatchOp> lined = StratLinePatches.WatchYaw(step, "/steps/0", "B", 90);
@@ -75,7 +78,8 @@ public class StratViaTests
 
             // The line's own field writes the line; clearing the angle folds it back to a plain step, via and all.
             StratLocationField line = new(step.Id, "B", StratLocationKind.Via);
-            List<PatchOp> two = StratLocationPatches.Write(after, 0, line, [new PlaceRef { Place = "OutsideLong" }, new PlaceRef { Place = "Middle" }]);
+            List<PatchOp> two = StratLocationPatches.Write(after, 0, line,
+                [new PlaceRef { Place = "OutsideLong" }, new PlaceRef { Place = "Middle" }]);
             await Assert.That(two.Single().Path).IsEqualTo("/steps/0/assignments/0/via");
             StratDocument folded = StratHistory.Apply(after, StratLinePatches.WatchYaw(onLine, "/steps/0", "B", null));
             await Assert.That(folded.Steps[0].Assignments).IsNull();
@@ -107,7 +111,8 @@ public class StratViaTests
             StratDocument document = Moving();
             document.Steps[0].Via = ["OutsideLong", "Nowhere"];
             StratStep lined = Step(2, 100, StratVocabulary.ActorAll, "push");
-            lined.Assignments = [new StepAssignment { Slot = "C", To = new PlaceRef { Place = "BombsiteB" }, Via = ["Atlantis"] }];
+            lined.Assignments =
+                [new StepAssignment { Slot = "C", To = new PlaceRef { Place = "BombsiteB" }, Via = ["Atlantis"] }];
             lined.Actor = "C";
             lined.Via = ["Middle"];
             document.Steps.Add(lined);
@@ -115,10 +120,15 @@ public class StratViaTests
             IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, Places());
             using (Assert.Multiple())
             {
-                await Assert.That(issues.Any(i => i.Field == "/steps/0/via/1" && i.Severity == StratIssueSeverity.Warning)).IsTrue();
+                await Assert
+                    .That(issues.Any(i => i.Field == "/steps/0/via/1" && i.Severity == StratIssueSeverity.Warning))
+                    .IsTrue();
                 await Assert.That(issues.Any(i => i.Field == "/steps/0/via/0")).IsFalse();
-                await Assert.That(issues.Any(i => i.Field == "/steps/1/assignments/0/via/0" && i.Message.Contains("Atlantis"))).IsTrue();
-                await Assert.That(issues.Any(i => i.Field == "/steps/1/via" && i.Message.Contains("not used"))).IsTrue();
+                await Assert
+                    .That(issues.Any(i => i.Field == "/steps/1/assignments/0/via/0" && i.Message.Contains("Atlantis")))
+                    .IsTrue();
+                await Assert.That(issues.Any(i => i.Field == "/steps/1/via" && i.Message.Contains("not used")))
+                    .IsTrue();
                 await Assert.That(StratValidator.Validate(document).Any(i => i.Field.Contains("/via/"))).IsFalse()
                     .Because("place warnings wait for the map's zones");
             }
@@ -145,9 +155,12 @@ public class StratViaTests
             string html = RoleSheetHtmlWriter.Html(document, [b, c]);
             using (Assert.Multiple())
             {
-                await Assert.That(StratStepPhrasing.Phrase(document.Steps[0], null)).IsEqualTo("B moves T Spawn → Long Doors via Outside Long");
-                await Assert.That(StratStepPhrasing.PhraseLine(push.Assignments[0], "push", null)).IsEqualTo("C → Bombsite B via Middle");
-                await Assert.That(StratStepPhrasing.PhraseLine(push.Assignments[1], "push", null)).IsEqualTo("D → Bombsite B");
+                await Assert.That(StratStepPhrasing.Phrase(document.Steps[0], null))
+                    .IsEqualTo("B moves T Spawn → Long Doors via Outside Long");
+                await Assert.That(StratStepPhrasing.PhraseLine(push.Assignments[0], "push", null))
+                    .IsEqualTo("C → Bombsite B via Middle");
+                await Assert.That(StratStepPhrasing.PhraseLine(push.Assignments[1], "push", null))
+                    .IsEqualTo("D → Bombsite B");
                 await Assert.That(call).Contains("B moves T Spawn → Long Doors via Outside Long");
                 await Assert.That(call).Contains("C → Bombsite B via Middle");
                 await Assert.That(html).Contains("Long Doors via Outside Long");
@@ -163,17 +176,20 @@ public class StratViaTests
         {
             StratDocument document = Moving();
             StratStep plain = document.Steps[0];
-            List<PatchOp> set = StratLocationPatches.Write(document, 0, new StratLocationField(plain.Id, null, StratLocationKind.Via),
+            List<PatchOp> set = StratLocationPatches.Write(document, 0,
+                new StratLocationField(plain.Id, null, StratLocationKind.Via),
                 [new PlaceRef { Place = "OutsideLong" }, new PlaceRef { Place = "Middle" }]);
             StratDocument after = StratHistory.Apply(document, set);
             string summary = StratDiffPhrasing.SummaryAfter(after, set);
 
             StratDocument empty = Minimal(map: "de_dust2");
             empty.Steps = [];
-            PatchOp add = PatchOp.AddOp("/steps/0", System.Text.Json.JsonSerializer.SerializeToNode(plain, StratJsonContext.Default.StratStep));
+            PatchOp add = PatchOp.AddOp("/steps/0",
+                System.Text.Json.JsonSerializer.SerializeToNode(plain, StratJsonContext.Default.StratStep));
             string added = StratDiffPhrasing.SummaryAfter(StratHistory.Apply(empty, [add]), [add]);
 
-            List<PatchOp> cleared = StratLocationPatches.Write(after, 0, new StratLocationField(plain.Id, null, StratLocationKind.Via), []);
+            List<PatchOp> cleared = StratLocationPatches.Write(after, 0,
+                new StratLocationField(plain.Id, null, StratLocationKind.Via), []);
             string clearedSummary = StratDiffPhrasing.SummaryAfter(StratHistory.Apply(after, cleared), cleared);
             Console.WriteLine($"[via] {summary} | {added} | {clearedSummary}");
             using (Assert.Multiple())
@@ -238,8 +254,10 @@ public class StratViaTests
             written = vm.Session.Document!.Steps[0];
             using (Assert.Multiple())
             {
-                await Assert.That(string.Join(",", written.Assignments!.Single(l => l.Slot == "A").Via!)).IsEqualTo("Middle");
-                await Assert.That(string.Join(",", written.Assignments!.Single(l => l.Slot == "B").Via!)).IsEqualTo("OutsideLong,Middle");
+                await Assert.That(string.Join(",", written.Assignments!.Single(l => l.Slot == "A").Via!))
+                    .IsEqualTo("Middle");
+                await Assert.That(string.Join(",", written.Assignments!.Single(l => l.Slot == "B").Via!))
+                    .IsEqualTo("OutsideLong,Middle");
                 await Assert.That(row.ShowCompact).IsFalse();
             }
         });

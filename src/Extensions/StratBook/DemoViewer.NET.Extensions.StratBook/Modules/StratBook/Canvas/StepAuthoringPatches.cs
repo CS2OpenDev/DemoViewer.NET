@@ -213,7 +213,8 @@ public static class StepAuthoringPatches
         JsonObject node = JsonSerializer.SerializeToNode(source, StratJsonContext.Default.StratStep)!.AsObject();
         node["id"] = id.ToString("D", CultureInfo.InvariantCulture);
         node["atSeconds"] = ClampBetween(document, index,
-            StratClock.AtSecondsOf(document.Clock, StratClock.ElapsedOf(document.Clock, source.AtSeconds) + DuplicateOffsetSeconds));
+            StratClock.AtSecondsOf(document.Clock,
+                StratClock.ElapsedOf(document.Clock, source.AtSeconds) + DuplicateOffsetSeconds));
 
         if (node["strokes"] is JsonArray strokes)
         {
@@ -307,7 +308,8 @@ public static class StepAuthoringPatches
         }
 
         double clamped = Math.Max(from, Math.Min(until, StratClock.ElapsedOf(clock, atSeconds)));
-        double rounded = Math.Round(clamped * StepSchedule.TicksPerSecond, MidpointRounding.AwayFromZero) / StepSchedule.TicksPerSecond;
+        double rounded = Math.Round(clamped * StepSchedule.TicksPerSecond, MidpointRounding.AwayFromZero)
+                         / StepSchedule.TicksPerSecond;
         return StratClock.AtSecondsOf(clock, rounded > until || rounded < from ? clamped : rounded);
     }
 

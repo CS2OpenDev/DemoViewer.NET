@@ -42,7 +42,8 @@ public static class StratVocabulary
         ["move", "push", "rotate", "hold", "peek", "lurk", "throw", "fake", "plant", "defuse", "wait", "call", "other"];
 
     /// <summary>The rotate conditions a lurk's row suggests. The file stores free text; these are not a vocabulary.</summary>
-    public static readonly IReadOnlyList<string> RotateConditions = ["on the call", "on contact", "bomb planted", "after first kill"];
+    public static readonly IReadOnlyList<string> RotateConditions =
+        ["on the call", "on contact", "bomb planted", "after first kill"];
 
     /// <summary>Grenade kinds a step's utility may name.</summary>
     public static readonly IReadOnlyList<string> UtilityKinds = ["smoke", "molotov", "he", "flash", "decoy"];
@@ -107,7 +108,8 @@ public sealed class StratOwner : IEquatable<StratOwner>
     ///     <c>team-&lt;guid&gt;</c> or <c>me</c>.
     /// </summary>
     [JsonIgnore]
-    public string FolderName => IsTeam ? TeamKind + "-" + TeamId!.Value.ToString("D", CultureInfo.InvariantCulture) : MeKind;
+    public string FolderName =>
+        IsTeam ? TeamKind + "-" + TeamId!.Value.ToString("D", CultureInfo.InvariantCulture) : MeKind;
 
     [JsonIgnore]
     public bool IsTeam => string.Equals(Kind, TeamKind, StringComparison.Ordinal) && TeamId is not null;

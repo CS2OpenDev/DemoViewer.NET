@@ -70,10 +70,7 @@ internal sealed class LayoutContext
 
     internal LayoutResult ToResult() => new(
         NodePositions, EdgeRoutes, SelfLoopRoutes, GroupBounds, TableLayouts,
-        TotalWidth, TotalHeight)
-    {
-        LabelPositions = LabelPositions
-    };
+        TotalWidth, TotalHeight) { LabelPositions = LabelPositions };
 
     /// <summary>Translates every placed primitive by (dx, dy). Used by containment to remove negative coordinates.</summary>
     internal void Translate(double dx, double dy)
@@ -108,11 +105,7 @@ internal sealed class LayoutContext
         SelfLoopRoutes = movedLoops;
 
         GroupBounds = GroupBounds
-            .Select(g => g with
-            {
-                X = g.X + dx,
-                Y = g.Y + dy
-            })
+            .Select(g => g with { X = g.X + dx, Y = g.Y + dy })
             .ToList();
 
         TableLayouts = TableLayouts
@@ -131,11 +124,7 @@ internal sealed class LayoutContext
             Dictionary<IGraphEdge, LabelPlacement> movedLabels = new(LabelPositions.Count);
             foreach ((IGraphEdge e, LabelPlacement l) in LabelPositions)
             {
-                movedLabels[e] = l with
-                {
-                    X = l.X + dx,
-                    Y = l.Y + dy
-                };
+                movedLabels[e] = l with { X = l.X + dx, Y = l.Y + dy };
             }
 
             LabelPositions = movedLabels;

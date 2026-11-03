@@ -73,8 +73,7 @@ public sealed class Playback2DModule : IWorkspaceModule
             // and drive the VM's OnActivated/OnDeactivated lifecycle.
             ViewModelFactory = () => new Playback2DTabViewModel(_roundFacts?.Invoke())
             {
-                Contributions = _contributions?.Invoke(),
-                PlayerOverviewOpener = _playerOverview?.Invoke()
+                Contributions = _contributions?.Invoke(), PlayerOverviewOpener = _playerOverview?.Invoke()
             },
             ViewFactory = () => new Playback2DView()
         };

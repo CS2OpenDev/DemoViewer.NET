@@ -148,17 +148,17 @@ public class ReleaseGateTests
             // assertions), plus a leftover retired-v1 `chains:` file (the containment case: it
             // must error loudly and legibly without breaking the rest of the tier).
             File.WriteAllText(Path.Combine(userDir, "journey-check.rules.yaml"), """
-                                                                                 ruleset: journey_check_rs
-                                                                                 for: each_player
-                                                                                 stats:
-                                                                                   journey_check:
-                                                                                     compute: "777"
-                                                                                     per: match
-                                                                                     format: F0
-                                                                                 show:
-                                                                                   scoreboard:
-                                                                                     - { stat: journey_check, label: JourneyCheck }
-                                                                                 """);
+                ruleset: journey_check_rs
+                for: each_player
+                stats:
+                  journey_check:
+                    compute: "777"
+                    per: match
+                    format: F0
+                show:
+                  scoreboard:
+                    - { stat: journey_check, label: JourneyCheck }
+                """);
             File.WriteAllText(Path.Combine(userDir, "journey-new.rules.yaml"), """
                                                                                ruleset: journey_new
                                                                                for: each_player

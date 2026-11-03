@@ -132,7 +132,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     /// <param name="roundIndex">The round index stamps the projection key reads; none when null.</param>
     /// <param name="notes">The user's stars, edits and notes; a session-only store when null.</param>
     /// <param name="export">Writes an export (text, stem, extension) and opens it; the temp-file writer when null.</param>
-    public DossierTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes, bool? isBrowser = null,
+    public DossierTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes,
+        bool? isBrowser = null,
         SetupHeatmapService? heatmaps = null,
         IExtensionReviewQueue? review = null,
         Func<string, bool>? selectTab = null,
@@ -166,13 +167,15 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         _runSection = runSection ?? (_ => work => Task.Run(work));
         Openings = new OpeningTendenciesSectionViewModel(openings, review, selectTab, _post, _runSection("openings"));
         PostPlant = new PostPlantSectionViewModel(postPlant, review, selectTab, _post, _runSection("post-plant"));
-        Situational = new SituationalBehaviourSectionViewModel(situational, review, selectTab, _post, _runSection("situational"));
+        Situational =
+            new SituationalBehaviourSectionViewModel(situational, review, selectTab, _post, _runSection("situational"));
         Editor = new DossierEditorViewModel(notes ?? new DossierNotesStore(null), IsBrowser, export);
         Openings.PropertyChanged += OnSectionChanged;
         PostPlant.PropertyChanged += OnSectionChanged;
         Situational.PropertyChanged += OnSectionChanged;
         Editor.Projected += OnEditorProjected;
-        foreach (DossierSectionViewModel section in (DossierSectionViewModel[])[RecordSection, RosterSection, VetoSection, NotesSection])
+        foreach (DossierSectionViewModel section in (DossierSectionViewModel[])
+                 [RecordSection, RosterSection, VetoSection, NotesSection])
         {
             section.PropertyChanged += OnSectionToggled;
         }
@@ -183,6 +186,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         {
             _grenades.Changed += Refresh;
         }
+
         Refresh();
     }
 
@@ -255,7 +259,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
 
     private void OnSectionToggled(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (!_applyingDefault && e.PropertyName == nameof(DossierSectionViewModel.IsExpanded) && sender is DossierSectionViewModel section)
+        if (!_applyingDefault && e.PropertyName == nameof(DossierSectionViewModel.IsExpanded)
+                              && sender is DossierSectionViewModel section)
         {
             _expanded[section.Key] = section.IsExpanded;
         }
@@ -279,14 +284,17 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
             }
         }
 
-        Dictionary<string, DossierMapSectionViewModel> existing = MapSections.ToDictionary(m => m.Map, StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, DossierMapSectionViewModel> existing =
+            MapSections.ToDictionary(m => m.Map, StringComparer.OrdinalIgnoreCase);
         List<DossierMapSectionViewModel> wanted = [];
         foreach (string map in maps)
         {
-            List<DossierFindingViewModel> findings = Editor.MapFindings.TryGetValue(map, out List<DossierFindingViewModel>? f) ? f : [];
+            List<DossierFindingViewModel> findings =
+                Editor.MapFindings.TryGetValue(map, out List<DossierFindingViewModel>? f) ? f : [];
             if (!existing.TryGetValue(map, out DossierMapSectionViewModel? section))
             {
-                section = new DossierMapSectionViewModel(map, _expanded.TryGetValue("map|" + map, out bool open) && open);
+                section = new DossierMapSectionViewModel(map,
+                    _expanded.TryGetValue("map|" + map, out bool open) && open);
                 section.PropertyChanged += OnSectionToggled;
             }
 
@@ -323,7 +331,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     {
         foreach (DossierMapSectionViewModel section in MapSections)
         {
-            List<DossierFindingViewModel> findings = Editor.MapFindings.TryGetValue(section.Map, out List<DossierFindingViewModel>? f) ? f : [];
+            List<DossierFindingViewModel> findings =
+                Editor.MapFindings.TryGetValue(section.Map, out List<DossierFindingViewModel>? f) ? f : [];
             section.SetFindings(findings);
             OpenByDefault(section, findings.Count);
         }
@@ -448,7 +457,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     private void OnSectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(OpeningTendenciesSectionViewModel.IsBuilding) && sender is ObservableObject section
-                                                                                     && !IsSectionBuilding(section))
+            && !IsSectionBuilding(section))
         {
             CollectFindings();
         }
@@ -567,7 +576,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         key.Append(CultureInfo.InvariantCulture, $"|grenades:{_grenades?.IsReady}");
         foreach ((DemoRef demo, int side, TeamAssignment assignment) in _teams.SidesOf(row.Id))
         {
-            key.Append('|').Append(side).Append(JsonSerializer.Serialize(demo)).Append(JsonSerializer.Serialize(assignment));
+            key.Append('|').Append(side).Append(JsonSerializer.Serialize(demo))
+                .Append(JsonSerializer.Serialize(assignment));
             if (_library.Find(demo.Path) is { } entry)
             {
                 DemoDataStamp? index = _roundIndex?.Stamp(demo.Path);
@@ -934,7 +944,8 @@ public sealed class PeriodDiffRowViewModel
         CountLabel = period.Count == 1 ? "1 demo" : $"{period.Count} demos";
         RecordLabel = period.Wins + period.Losses == 0
             ? "no resolved score"
-            : $"{period.Wins}-{period.Losses}" + (period.Undetermined > 0 ? $" ({period.Undetermined} undetermined)" : "");
+            : $"{period.Wins}-{period.Losses}"
+              + (period.Undetermined > 0 ? $" ({period.Undetermined} undetermined)" : "");
         WinRateLabel = period.WinRate is { } wr
             ? wr.ToString("P0", CultureInfo.InvariantCulture)
             : "—";

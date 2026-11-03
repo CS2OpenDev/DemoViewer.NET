@@ -345,13 +345,7 @@ public class ContentIdentityTests
     [Test]
     public async Task FrameClock_FillsTheHeaderFromTheContext()
     {
-        Playback2DFakeContext ctx = new()
-        {
-            TickRate = 128,
-            TotalFrames = 154_869,
-            FirstTick = 1,
-            LastTick = 132_516
-        };
+        Playback2DFakeContext ctx = new() { TickRate = 128, TotalFrames = 154_869, FirstTick = 1, LastTick = 132_516 };
 
         ClockIdentity clock = FrameClock.IdentityFor(ctx);
         using (Assert.Multiple())
@@ -421,7 +415,8 @@ public class ContentIdentityTests
                 FirstTick = 1,
                 LastTick = 4_000,
                 Gate = new FakeModuleFeatureGate(),
-                DemoPath = Path.Combine(Path.GetTempPath(), "dv-no-such-folder-" + Guid.NewGuid().ToString("N"), "match.dem"),
+                DemoPath = Path.Combine(Path.GetTempPath(), "dv-no-such-folder-" + Guid.NewGuid().ToString("N"),
+                    "match.dem"),
                 DemoSha256 = hash
             };
 

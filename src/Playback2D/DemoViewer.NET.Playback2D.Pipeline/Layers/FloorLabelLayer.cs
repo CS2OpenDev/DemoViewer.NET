@@ -33,11 +33,7 @@ public sealed class FloorLabelLayer : ISceneLayer
     {
         _ownsText = text is null;
         _text = text ?? new TextBlobCache();
-        _paint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+        _paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
     }
 
     /// <inheritdoc />

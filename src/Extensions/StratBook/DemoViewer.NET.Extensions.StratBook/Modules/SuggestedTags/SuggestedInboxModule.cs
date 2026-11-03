@@ -38,7 +38,8 @@ public sealed class SuggestedInboxModule : IWorkspaceModule
     ///     value stale until the next unrelated <c>proposals.Changed</c>. Null skips that push and keeps the
     ///     poll-on-read behaviour.
     /// </param>
-    public SuggestedInboxModule(Func<SuggestedInboxViewModel> viewModelFactory, Func<bool> enabled, ProposalStore? proposals = null,
+    public SuggestedInboxModule(Func<SuggestedInboxViewModel> viewModelFactory, Func<bool> enabled,
+        ProposalStore? proposals = null,
         IExtensionFeatures? gate = null)
     {
         ArgumentNullException.ThrowIfNull(viewModelFactory);

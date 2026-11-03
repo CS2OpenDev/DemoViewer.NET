@@ -50,8 +50,10 @@ public class RoundIndexTableParityTests
             new FactKey(RoundIndexTable.RulesetId, RoundIndexTable.TableName), "", 0, "player_event").Rows);
 
         DemoCacheStore store = new(null);
-        new RoundFactsEvaluator(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity()).Evaluate(path, parsed);
-        RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts ?? throw new InvalidOperationException("no round facts rows");
+        new RoundFactsEvaluator(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity())
+            .Evaluate(path, parsed);
+        RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts
+                              ?? throw new InvalidOperationException("no round facts rows");
         RoundIndexDemoValues values = RoundIndexDemoValues.For(parsed);
         List<PositionSample> b = CadenceFrames(parsed, rows, values);
 
@@ -61,14 +63,17 @@ public class RoundIndexTableParityTests
         RoundIndexBuild foldPass = Fold(values, rows, passRows);
 
         // The walk visits pawns through a live-pawn scan and the table every player, so only B's keys compare.
-        Dictionary<(int, int), int> sideAt = c.GroupBy(s => (s.Tick, s.PlayerSlot)).ToDictionary(g => g.Key, g => g.Last().Team);
+        Dictionary<(int, int), int> sideAt =
+            c.GroupBy(s => (s.Tick, s.PlayerSlot)).ToDictionary(g => g.Key, g => g.Last().Team);
         int missing = b.Count(s => !sideAt.ContainsKey((s.Tick, s.PlayerSlot)));
         int sideDiffers = b.Count(s => sideAt.TryGetValue((s.Tick, s.PlayerSlot), out int side) && side != s.Team);
         Console.WriteLine($"B samples with no table row {missing}, whose side differs {sideDiffers}");
 
         int serverVsFrame = parsed.Frames.Count(f => f.GameTick is { } g && g != f.ServerTick);
-        Console.WriteLine($"demo {Path.GetFileName(path)}: frames {parsed.Frames.Count}, frames whose GameTick != ServerTick {serverVsFrame}");
-        Console.WriteLine($"rows: table {table.Rows.Count}, table samples {c.Count}, null-position rows {table.Rows.Count - c.Count}, B samples {b.Count}");
+        Console.WriteLine(
+            $"demo {Path.GetFileName(path)}: frames {parsed.Frames.Count}, frames whose GameTick != ServerTick {serverVsFrame}");
+        Console.WriteLine(
+            $"rows: table {table.Rows.Count}, table samples {c.Count}, null-position rows {table.Rows.Count - c.Count}, B samples {b.Count}");
         Report("A vs B (stride shift)", foldA, foldB);
         Report("B vs C (table path)", foldB, foldC);
 
@@ -78,21 +83,25 @@ public class RoundIndexTableParityTests
             await Assert.That(sideDiffers).IsEqualTo(0).Because("player.team is the pawn's side at the step");
             await Assert.That(foldC.Index.Serialize()).IsEqualTo(foldB.Index.Serialize());
             await Assert.That(Positions(foldC)).IsEqualTo(Positions(foldB));
-            await Assert.That(foldPass.Index.Serialize()).IsEqualTo(foldB.Index.Serialize()).Because("the pass's rows fold like the table's");
+            await Assert.That(foldPass.Index.Serialize()).IsEqualTo(foldB.Index.Serialize())
+                .Because("the pass's rows fold like the table's");
             await Assert.That(Positions(foldPass)).IsEqualTo(Positions(foldB));
         }
     }
 
     internal static RulesetDoc LoadRuleset() => RoundIndexTable.LoadRuleset();
 
-    private static RoundIndexBuild Fold(RoundIndexDemoValues values, RoundFactsRows rows, IEnumerable<PositionSample> samples) =>
-        RoundIndexBuilder.BuildWithPositions(values, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance, samples);
+    private static RoundIndexBuild Fold(RoundIndexDemoValues values, RoundFactsRows rows,
+        IEnumerable<PositionSample> samples) =>
+        RoundIndexBuilder.BuildWithPositions(values, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance,
+            samples);
 
     private static string Positions(RoundIndexBuild build) => Encoding.UTF8.GetString(build.Positions.SerializeUtf8());
 
     // The cadence's frames: from each live round's freeze end, the first frame whose frame clock reaches each
     // due tick, stamped with that clock. The fold clips to the round windows, so stepping past an end is harmless.
-    private static List<PositionSample> CadenceFrames(ParsedDemo parsed, RoundFactsRows rows, RoundIndexDemoValues values)
+    private static List<PositionSample> CadenceFrames(ParsedDemo parsed, RoundFactsRows rows,
+        RoundIndexDemoValues values)
     {
         int period = RoundIndexOptions.Default.CadenceTicks(values.TickRate);
         List<int> anchors = [.. rows.Rounds.Where(r => r.IsLive).Select(r => r.FreezeEndTick).Order()];
@@ -120,20 +129,26 @@ public class RoundIndexTableParityTests
             }
         }
 
-        return [.. PositionSampler.Walk(parsed).Where(s => picked.ContainsKey(s.FrameIndex)).Select(s => s with { Tick = picked[s.FrameIndex] })];
+        return
+        [
+            .. PositionSampler.Walk(parsed).Where(s => picked.ContainsKey(s.FrameIndex))
+                .Select(s => s with { Tick = picked[s.FrameIndex] })
+        ];
     }
 
     private static void Report(string label, RoundIndexBuild expected, RoundIndexBuild actual)
     {
         string ei = expected.Index.Serialize(), ai = actual.Index.Serialize();
         string ep = Positions(expected), ap = Positions(actual);
-        int roundDiffs = expected.Index.Rounds.Zip(actual.Index.Rounds).Count(p => string.Join(";", p.First.Runs) != string.Join(";", p.Second.Runs));
+        int roundDiffs = expected.Index.Rounds.Zip(actual.Index.Rounds)
+            .Count(p => string.Join(";", p.First.Runs) != string.Join(";", p.Second.Runs));
         int stepDiffs = expected.Positions.Rounds.Zip(actual.Positions.Rounds)
             .Sum(p => p.First.Pos.Zip(p.Second.Pos).Count(s => string.Join(",", s.First) != string.Join(",", s.Second))
                       + Math.Abs(p.First.Pos.Count - p.Second.Pos.Count));
         int steps = expected.Positions.Rounds.Sum(r => r.Pos.Count);
-        Console.WriteLine($"{label}: index {(ei == ai ? "equal" : "differs")}, positions {(ep == ap ? "equal" : "differs")}, " +
-                          $"rounds whose runs differ {roundDiffs}/{expected.Index.Rounds.Count}, steps whose tuples differ {stepDiffs}/{steps}");
+        Console.WriteLine(
+            $"{label}: index {(ei == ai ? "equal" : "differs")}, positions {(ep == ap ? "equal" : "differs")}, " +
+            $"rounds whose runs differ {roundDiffs}/{expected.Index.Rounds.Count}, steps whose tuples differ {stepDiffs}/{steps}");
         PrintFirstDiff(label + " index", ei, ai);
         PrintFirstDiff(label + " positions", ep, ap);
     }

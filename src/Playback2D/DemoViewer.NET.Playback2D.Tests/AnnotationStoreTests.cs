@@ -62,7 +62,8 @@ public class AnnotationStoreTests
         await Assert.That(saved).IsTrue();
         await Assert.That(store.ResolvePath(unreachable)!.StartsWith(tree.AppData, StringComparison.Ordinal))
             .IsTrue();
-        await Assert.That(Path.GetFileName(store.ResolvePath(unreachable)!)).IsEqualTo("abc123" + AnnotationStore.SidecarExtension);
+        await Assert.That(Path.GetFileName(store.ResolvePath(unreachable)!))
+            .IsEqualTo("abc123" + AnnotationStore.SidecarExtension);
         await Assert.That(File.Exists(store.ResolvePath(unreachable)!)).IsTrue();
     }
 
@@ -103,7 +104,8 @@ public class AnnotationStoreTests
         {
             await Assert.That(store.ResolveLocation(unreachable)).IsEqualTo(AnnotationStoreLocation.AppData);
             await Assert.That(store.ResolvePath(unreachable)).IsNull();
-            await Assert.That(await store.SaveAsync(unreachable, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()])).IsFalse();
+            await Assert.That(await store.SaveAsync(unreachable, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]))
+                .IsFalse();
             await Assert.That(Directory.Exists(Path.Combine(tree.AppData, "annotations"))).IsFalse();
         }
     }
@@ -559,10 +561,7 @@ public class AnnotationStoreTests
         AnnotationElement anchored = AnnotationFakes.Stroke(time: new TimeEnvelope(500, 900, 0, 0));
         await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [stat, anchored]);
 
-        ClockIdentity reparsed = tree.Clock with
-        {
-            FrameCount = tree.Clock.FrameCount + 17
-        };
+        ClockIdentity reparsed = tree.Clock with { FrameCount = tree.Clock.FrameCount + 17 };
 
         AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, reparsed);
 
@@ -683,10 +682,7 @@ public class AnnotationStoreTests
         using JsonDocument source = JsonDocument.Parse(File.ReadAllText(path));
 
         using MemoryStream buffer = new();
-        using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions
-               {
-                   Indented = true
-               }))
+        using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions { Indented = true }))
         {
             writer.WriteStartObject();
             foreach (JsonProperty property in source.RootElement.EnumerateObject())

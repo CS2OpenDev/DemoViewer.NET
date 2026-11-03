@@ -56,9 +56,7 @@ public sealed class GraphBreakpointService
 
         GraphBreakpoint bp = new()
         {
-            TargetKind = GraphBreakpointTarget.Node,
-            NodeKey = node.Key,
-            Condition = condition
+            TargetKind = GraphBreakpointTarget.Node, NodeKey = node.Key, Condition = condition
         };
         AddInternal(bp);
         return bp;

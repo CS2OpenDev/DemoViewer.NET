@@ -38,8 +38,10 @@ public class ReviewQueueMigrationTests
             ReviewEntry dossier = ReviewEntry.Clip("/d/x.dem", 1, 2, "plant", ReviewSources.Dossier);
             Write(root,
             [
-                ReviewEntry.Section("Lineup clips, de_mirage"), Lineup("Smoke into CT. " + ConsoleLine), Lineup("Molotov into Jungle. " + ConsoleLine),
-                ReviewEntry.Section("Lineup clips, de_nuke"), Lineup("Smoke into Outside. " + ConsoleLine), asked, renoted,
+                ReviewEntry.Section("Lineup clips, de_mirage"), Lineup("Smoke into CT. " + ConsoleLine),
+                Lineup("Molotov into Jungle. " + ConsoleLine),
+                ReviewEntry.Section("Lineup clips, de_nuke"), Lineup("Smoke into Outside. " + ConsoleLine), asked,
+                renoted,
                 ReviewEntry.Section("Dossier"), dossier
             ]);
             string original = await File.ReadAllTextAsync(Path.Combine(root, ReviewQueue.FileName));
@@ -51,7 +53,8 @@ public class ReviewQueueMigrationTests
             {
                 await Assert.That(queue.Migration).IsEqualTo(new ReviewQueueMigrationResult(3, 2, 1));
                 await Assert.That(queue.Entries.Select(e => e.Kind == ReviewEntryKind.Section ? e.Title : e.Note))
-                    .IsEquivalentTo(["Lineup clips, de_nuke", asked.Note, renoted.Note, "Dossier", "plant"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["Lineup clips, de_nuke", asked.Note, renoted.Note, "Dossier", "plant"],
+                        CollectionOrdering.Matching);
                 await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, ReviewQueueMigration.BackupFileName)))
                     .IsEqualTo(original);
                 await Assert.That(File.Exists(Path.Combine(root, ReviewQueue.FileName + ".migrating"))).IsFalse();
@@ -97,8 +100,10 @@ public class ReviewQueueMigrationTests
         string root = Root();
         try
         {
-            Write(root, [ReviewEntry.Section("Lineup clips, de_nuke"), Lineup("Smoke into Outside. " + ConsoleLine),
-                ReviewEntry.Section("Dossier"), ReviewEntry.Clip("/d/x.dem", 1, 2, "plant", ReviewSources.Dossier)]);
+            Write(root, [
+                ReviewEntry.Section("Lineup clips, de_nuke"), Lineup("Smoke into Outside. " + ConsoleLine),
+                ReviewEntry.Section("Dossier"), ReviewEntry.Clip("/d/x.dem", 1, 2, "plant", ReviewSources.Dossier)
+            ]);
             string path = Path.Combine(root, ReviewQueue.FileName);
             string original = await File.ReadAllTextAsync(path);
             Directory.CreateDirectory(path + ".migrating"); // the rewrite cannot be written
@@ -117,8 +122,10 @@ public class ReviewQueueMigrationTests
             await reread.Loaded;
             using (Assert.Multiple())
             {
-                await Assert.That(reread.Clips.Select(c => c.Note)).IsEquivalentTo(["plant"], CollectionOrdering.Matching);
-                await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, ReviewQueueMigration.BackupFileName))).IsEqualTo(original);
+                await Assert.That(reread.Clips.Select(c => c.Note))
+                    .IsEquivalentTo(["plant"], CollectionOrdering.Matching);
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, ReviewQueueMigration.BackupFileName)))
+                    .IsEqualTo(original);
             }
         }
         finally
@@ -159,7 +166,8 @@ public class ReviewQueueMigrationTests
         string root = Root();
         try
         {
-            string newer = """{ "schemaVersion": 99, "entries": [ { "kind": "clip", "source": "lineup", "note": "x" } ] }""";
+            string newer =
+                """{ "schemaVersion": 99, "entries": [ { "kind": "clip", "source": "lineup", "note": "x" } ] }""";
             string path = Path.Combine(root, ReviewQueue.FileName);
             await File.WriteAllTextAsync(path, newer);
 

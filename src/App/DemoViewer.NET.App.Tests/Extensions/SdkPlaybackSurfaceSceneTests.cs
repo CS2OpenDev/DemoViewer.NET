@@ -25,7 +25,10 @@ namespace DemoViewer.NET.AppTests.Extensions;
 [NotInParallel]
 public class SdkPlaybackSurfaceSceneTests
 {
-    private static readonly MapLevel Floor = new() { Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000 };
+    private static readonly MapLevel Floor = new()
+    {
+        Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000
+    };
 
     private static (Playback2DTabViewModel Vm, Playback2DSurface Surface) Surface(Func<Scene2DFrame>? frame = null)
     {
@@ -74,8 +77,10 @@ public class SdkPlaybackSurfaceSceneTests
         using (Assert.Multiple())
         {
             await Assert.That(filed).IsEqualTo("ext.pack.fake.heat");
-            await Assert.That(built.Id).IsEqualTo(filed).Because("the layer's own id is never used, so it cannot claim a host id");
-            await Assert.That(filed.StartsWith("playback2d.", StringComparison.Ordinal) || filed.StartsWith("hud.", StringComparison.Ordinal))
+            await Assert.That(built.Id).IsEqualTo(filed)
+                .Because("the layer's own id is never used, so it cannot claim a host id");
+            await Assert.That(filed.StartsWith("playback2d.", StringComparison.Ordinal)
+                              || filed.StartsWith("hud.", StringComparison.Ordinal))
                 .IsFalse();
         }
 
@@ -473,7 +478,8 @@ public class SdkPlaybackSurfaceSceneTests
         });
 
         inner.TryExecute("x.run");
-        inner.TryHandlePointerPress(new ScenePointer(Floor, 1, 2, SKPoint.Empty, ToolModifiers.None, shown, () => null));
+        inner.TryHandlePointerPress(new ScenePointer(Floor, 1, 2, SKPoint.Empty, ToolModifiers.None, shown,
+            () => null));
 
         await Assert.That(ranWith).IsSameReferenceAs(shown);
         await Assert.That(pressedWith).IsSameReferenceAs(shown);
@@ -502,7 +508,8 @@ public class SdkPlaybackSurfaceSceneTests
                 .Because("a lane is filed under its extension exactly as a layer is");
             await Assert.That(mark.Glyph).IsEqualTo("*");
             await Assert.That(mark.Tooltip).IsEqualTo("a mark");
-            await Assert.That(mark.Kind).IsEqualTo(TimelineMarkerKind.Kill).Because("the kind is the track's to choose");
+            await Assert.That(mark.Kind).IsEqualTo(TimelineMarkerKind.Kill)
+                .Because("the kind is the track's to choose");
             await Assert.That(band.Label).IsEqualTo("3");
             await Assert.That(SdkPlaybackSurface.Band(band).IsRound).IsFalse()
                 .Because("the track stamped \"round\" on it and the host overwrote that with the lane's id");
@@ -549,7 +556,8 @@ public class SdkPlaybackSurfaceSceneTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id))
-                .IsEquivalentTo(["ext.pack.b.tag"], CollectionOrdering.Matching).Because("disposing one leaves the other registered");
+                .IsEquivalentTo(["ext.pack.b.tag"], CollectionOrdering.Matching)
+                .Because("disposing one leaves the other registered");
             await Assert.That(vm.Timeline.LaneBands.Select(band => band.Label))
                 .IsEquivalentTo(["B"], CollectionOrdering.Matching).Because("and still drawing");
         }
@@ -626,7 +634,8 @@ public class SdkPlaybackSurfaceSceneTests
     {
         string[] hostIds =
         [
-            SceneLayerIds.Radar, SceneLayerIds.Guides, SceneLayerIds.HudClock, SceneLayerIds.Query, SceneLayerIds.Utility
+            SceneLayerIds.Radar, SceneLayerIds.Guides, SceneLayerIds.HudClock, SceneLayerIds.Query,
+            SceneLayerIds.Utility
         ];
 
         string composed = ExtensionLayerIds.Compose("playback2d", "radar");
@@ -673,7 +682,8 @@ public class SdkPlaybackSurfaceSceneTests
 
         public bool IsAvailable(ITimelineData data) => true;
 
-        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => [new TimelineBand(id, 10, 20, label, "", 0)];
+        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
+            [new TimelineBand(id, 10, 20, label, "", 0)];
 
         public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
     }

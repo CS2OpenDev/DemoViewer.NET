@@ -25,7 +25,8 @@ public static class StratLurkPatches
     /// <summary>Whether a lurk says nothing: no area, no area point, no rotate and no unknown field.</summary>
     /// <param name="lurk">The lurk.</param>
     public static bool IsEmpty(StepLurk lurk) =>
-        lurk.Areas.Count == 0 && lurk.AreaPoints is not { Count: > 0 } && (lurk.Rotate is null || IsEmpty(lurk.Rotate)) && lurk.Extra is not { Count: > 0 };
+        lurk.Areas.Count == 0 && lurk.AreaPoints is not { Count: > 0 } && (lurk.Rotate is null || IsEmpty(lurk.Rotate))
+        && lurk.Extra is not { Count: > 0 };
 
     /// <summary>Whether a rotate says nothing: no time, condition, place or unknown field.</summary>
     /// <param name="rotate">The rotate.</param>
@@ -54,12 +55,15 @@ public static class StratLurkPatches
             return [PatchOp.RemoveOp(path, beforeNode)];
         }
 
-        return [.. StratHistory.Diff(beforeNode, afterNode).Select(op => op.Op switch
-        {
-            PatchOp.Add => PatchOp.AddOp(path + op.Path, op.Value),
-            PatchOp.Remove => PatchOp.RemoveOp(path + op.Path, op.From),
-            _ => PatchOp.ReplaceOp(path + op.Path, op.From, op.Value)
-        })];
+        return
+        [
+            .. StratHistory.Diff(beforeNode, afterNode).Select(op => op.Op switch
+            {
+                PatchOp.Add => PatchOp.AddOp(path + op.Path, op.Value),
+                PatchOp.Remove => PatchOp.RemoveOp(path + op.Path, op.From),
+                _ => PatchOp.ReplaceOp(path + op.Path, op.From, op.Value)
+            })
+        ];
     }
 
     /// <summary><see cref="Write" /> of the step's lurk after <paramref name="edit" /> changes a copy of it.</summary>
@@ -82,7 +86,8 @@ public static class StratLurkPatches
     /// <param name="stepAtSeconds">The step's time.</param>
     /// <param name="clock">The strat's clock.</param>
     public static bool IsLater(double rotateAtSeconds, double stepAtSeconds, StratClockInfo? clock) =>
-        double.IsFinite(rotateAtSeconds) && StratClock.StratTickOf(clock, rotateAtSeconds) > StratClock.StratTickOf(clock, stepAtSeconds);
+        double.IsFinite(rotateAtSeconds) && StratClock.StratTickOf(clock, rotateAtSeconds)
+        > StratClock.StratTickOf(clock, stepAtSeconds);
 
     /// <summary><see cref="IsLater(double, double, StratClockInfo)" /> on a round clock of <paramref name="roundSeconds" />.</summary>
     public static bool IsLater(double rotateAtSeconds, double stepAtSeconds, double roundSeconds) =>
@@ -97,7 +102,8 @@ public static class StratLurkPatches
     /// <summary>A copy of a lurk, unknown fields included.</summary>
     /// <param name="lurk">The lurk.</param>
     public static StepLurk Clone(StepLurk lurk) =>
-        JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StepLurk)!.Deserialize(StratJsonContext.Default.StepLurk)!;
+        JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StepLurk)!.Deserialize(StratJsonContext.Default
+            .StepLurk)!;
 
     private static StepLurk? Canonical(StepLurk lurk)
     {
@@ -129,5 +135,6 @@ public static class StratLurkPatches
         return IsEmpty(lurk) ? null : lurk;
     }
 
-    private static JsonNode Node(StepLurk lurk) => JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StepLurk)!;
+    private static JsonNode Node(StepLurk lurk) =>
+        JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StepLurk)!;
 }

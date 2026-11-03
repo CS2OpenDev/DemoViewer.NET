@@ -123,8 +123,14 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     // later as an obscure duplicate-id failure out of SceneCompositor.Add.
     private static readonly HashSet<string> OwnLayerIds = new(StringComparer.Ordinal)
     {
-        SceneLayerIds.Radar, SceneLayerIds.Trails, SceneLayerIds.AreaEffects, SceneLayerIds.Vision,
-        SceneLayerIds.Markers, SceneLayerIds.Bomb, SceneLayerIds.FloorLabel, SceneLayerIds.Annotations,
+        SceneLayerIds.Radar,
+        SceneLayerIds.Trails,
+        SceneLayerIds.AreaEffects,
+        SceneLayerIds.Vision,
+        SceneLayerIds.Markers,
+        SceneLayerIds.Bomb,
+        SceneLayerIds.FloorLabel,
+        SceneLayerIds.Annotations,
         SceneLayerIds.Zones
     };
 
@@ -550,10 +556,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         _visionLayer = new VisionLayer(
             new VisibilityEngineSolver(() => _vm?.VisionEngine, _smoother), _smoother);
 
-        _compositor = new SceneCompositor
-        {
-            Gate = _gate
-        };
+        _compositor = new SceneCompositor { Gate = _gate };
         _compositor.Add(_radarLayer);
         _compositor.Add(new TrailLayer());
         _compositor.Add(new AreaEffectLayer());
@@ -845,8 +848,10 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     private bool TryPrimaryPress(in ToolPointerEvent sample)
     {
         if (sample.Button != ToolPointerButton.Left || sample.Pane is not { } pane
-            || Router.IsSpaceHeld || (sample.Modifiers & (ToolModifiers.Space | ToolModifiers.Control)) != 0
-            || _vm is not { } vm)
+                                                    || Router.IsSpaceHeld || (sample.Modifiers
+                                                                              & (ToolModifiers.Space
+                                                                                  | ToolModifiers.Control)) != 0
+                                                    || _vm is not { } vm)
         {
             return false;
         }
@@ -861,8 +866,11 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     private bool TryContributedTool(in ToolPointerEvent sample)
     {
         if (sample.Button != ToolPointerButton.Left || sample.Pane is null
-            || Router.IsSpaceHeld || (sample.Modifiers & (ToolModifiers.Space | ToolModifiers.Control)) != 0
-            || _vm is not { } vm || vm.ContributedTools is not { Count: > 0 } tools)
+                                                    || Router.IsSpaceHeld || (sample.Modifiers
+                                                                              & (ToolModifiers.Space
+                                                                                  | ToolModifiers.Control)) != 0
+                                                    || _vm is not { } vm || vm.ContributedTools is not
+                                                        { Count: > 0 } tools)
         {
             return false;
         }
@@ -1101,11 +1109,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         bool discontinuity = frame.Time.IsDiscontinuity && identity != _lastFrameIdentity;
         _lastFrameIdentity = identity;
 
-        SceneTime time = frame.Time with
-        {
-            DeltaSeconds = _lastDt,
-            IsDiscontinuity = discontinuity
-        };
+        SceneTime time = frame.Time with { DeltaSeconds = _lastDt, IsDiscontinuity = discontinuity };
 
         if (discontinuity)
         {

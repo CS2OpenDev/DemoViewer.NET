@@ -80,7 +80,8 @@ public static class SidecarJson
     /// <summary>Reads a whole file into a pooled buffer and deserializes it. Throws like <see cref="Deserialize{T}" />.</summary>
     public static T? ReadFile<T>(string path, JsonSerializerOptions? options)
     {
-        using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan);
+        using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1,
+            FileOptions.SequentialScan);
         long size = stream.Length;
         if (size > int.MaxValue)
         {

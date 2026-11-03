@@ -33,7 +33,10 @@ public class StratStepMotionTests
     internal static IZonePlaceResolver Zones() => new ZonePlaceResolverAdapter(new PlaceResolver(new ZoneSet(
         "de_motion", "1", "1", null, 64,
         [new ZoneFloor(-512, -528, 100_000), new ZoneFloor(-2048, -100_000, -528)],
-        [new ZonePlace(0, "TSpawn", PlaceOrigin.Baked), new ZonePlace(1, "BombsiteA", PlaceOrigin.Baked), new ZonePlace(2, "BombsiteB", PlaceOrigin.Baked)],
+        [
+            new ZonePlace(0, "TSpawn", PlaceOrigin.Baked), new ZonePlace(1, "BombsiteA", PlaceOrigin.Baked),
+            new ZonePlace(2, "BombsiteB", PlaceOrigin.Baked)
+        ],
         [],
         [
             new ZoneArea(1, 0, -512, true, -400, [0, 0, 200, 0, 200, 200, 0, 200]),
@@ -56,12 +59,14 @@ public class StratStepMotionTests
     private static TokenKeyframe At(TokenTrack track, int tick) =>
         track.TrySample(tick, out TokenKeyframe k) ? k : throw new InvalidOperationException($"no sample at {tick}");
 
-    private static StepPosition Upper(string slot, double x, double y) => new() { Slot = slot, X = x, Y = y, LevelMinZ = -512 };
+    private static StepPosition Upper(string slot, double x, double y) =>
+        new() { Slot = slot, X = x, Y = y, LevelMinZ = -512 };
 
     // A stands at (100, 100) in TSpawn from 1:50; at 1:40 the step sends A to a place.
     private static StratDocument Sent(string verb, string to = "BombsiteA", string actor = "A")
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "motion", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "motion", Created);
         StratStep one = Step(1, 110, StratVocabulary.ActorAll, "hold");
         one.Positions = [.. StratVocabulary.Slots.Select((s, i) => Upper(s, 20 + 40 * i, 100)), .. Opponents()];
         one.Positions[0] = Upper("A", 100, 100);
@@ -71,7 +76,8 @@ public class StratStepMotionTests
     }
 
     // The other side's five, as a new strat's seed places them.
-    private static IEnumerable<StepPosition> Opponents() => StratVocabulary.OpponentSlots.Select((s, i) => Upper(s, 1100 + 40 * i, 300));
+    private static IEnumerable<StepPosition> Opponents() =>
+        StratVocabulary.OpponentSlots.Select((s, i) => Upper(s, 1100 + 40 * i, 300));
 
     internal static int RunTicks(double dx, double dy) =>
         Math.Max(1, (int)Math.Ceiling(Math.Sqrt(dx * dx + dy * dy) / StratSceneProjection.RunUnitsPerSecond * 64));
@@ -96,7 +102,8 @@ public class StratStepMotionTests
                 await Assert.That(At(a, arrive - 5).X).IsLessThan(1200f);
                 await Assert.That(At(a, arrive).X).IsEqualTo(1200f);
                 await Assert.That(At(a, arrive).Y).IsEqualTo(200f);
-                await Assert.That(At(a, (Two + arrive) / 2).YawDegrees).IsEqualTo((float)Math.Round(Math.Atan2(100, 1100) * 180 / Math.PI, 2))
+                await Assert.That(At(a, (Two + arrive) / 2).YawDegrees)
+                    .IsEqualTo((float)Math.Round(Math.Atan2(100, 1100) * 180 / Math.PI, 2))
                     .Because("a runner faces where it runs");
                 await Assert.That(At(a, arrive + 6400).X).IsEqualTo(1200f).Because("it stays at the place");
             }
@@ -117,7 +124,8 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That(At(a, One).X).IsEqualTo(100f);
-                await Assert.That(At(a, (One + Two) / 2).X).IsBetween(500f, 800f).Because("it walks there from its last keyframe");
+                await Assert.That(At(a, (One + Two) / 2).X).IsBetween(500f, 800f)
+                    .Because("it walks there from its last keyframe");
                 await Assert.That(At(a, Two).X).IsEqualTo(1200f);
                 await Assert.That(At(a, Two).Y).IsEqualTo(200f);
             }
@@ -146,7 +154,8 @@ public class StratStepMotionTests
             document.Steps[1].To = null;
             document.Steps[1].Lurk = new StepLurk
             {
-                Areas = ["BombsiteA"], Rotate = new LurkRotate { AtSeconds = 60, To = new PlaceRef { Place = "TSpawn" } }
+                Areas = ["BombsiteA"],
+                Rotate = new LurkRotate { AtSeconds = 60, To = new PlaceRef { Place = "TSpawn" } }
             };
             TokenTrack a = Track(document, "A");
             int arrive = Two + WalkTicks(1100, 100);
@@ -157,14 +166,16 @@ public class StratStepMotionTests
                 await Assert.That(At(a, arrive - 1).X).IsLessThan(1200f).Because("a lurker walks, it does not run");
                 await Assert.That(At(a, arrive).X).IsEqualTo(1200f);
                 await Assert.That(At(a, rotate).X).IsEqualTo(1200f).Because("it works the area until the rotate");
-                await Assert.That(At(a, rotate + WalkTicks(1100, 100) - 1).X).IsGreaterThan(100f).Because("the rotate is a walk too");
+                await Assert.That(At(a, rotate + WalkTicks(1100, 100) - 1).X).IsGreaterThan(100f)
+                    .Because("the rotate is a walk too");
                 await Assert.That(At(a, rotate + WalkTicks(1100, 100)).X).IsEqualTo(100f);
             }
 
             document.Steps[1].Lurk!.Areas = [];
             document.Steps[1].Lurk!.AreaPoints = [new PlaceRef { X = 600, Y = 150, LevelMinZ = -512 }];
             TokenTrack point = Track(document, "A");
-            await Assert.That(At(point, Two + WalkTicks(500, 50)).X).IsEqualTo(600f).Because("a picked area point is where it walks");
+            await Assert.That(At(point, Two + WalkTicks(500, 50)).X).IsEqualTo(600f)
+                .Because("a picked area point is where it walks");
         });
     }
 
@@ -187,10 +198,12 @@ public class StratStepMotionTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratSceneProjection projection = Project(Sent("move", actor: StratVocabulary.ActorAll));
-            List<TokenKeyframe> ends = [.. StratVocabulary.Slots.Select(s => projection.Tracks.Single(t => t.Slot == s).Keyframes[^1])];
+            List<TokenKeyframe> ends =
+                [.. StratVocabulary.Slots.Select(s => projection.Tracks.Single(t => t.Slot == s).Keyframes[^1])];
             using (Assert.Multiple())
             {
-                await Assert.That(ends.Select(k => (k.X, k.Y)).Distinct().Count()).IsEqualTo(5).Because("no two tokens stack");
+                await Assert.That(ends.Select(k => (k.X, k.Y)).Distinct().Count()).IsEqualTo(5)
+                    .Because("no two tokens stack");
                 await Assert.That(ends.All(k => Inside("BombsiteA", k))).IsTrue();
                 await Assert.That(ends.All(k => Math.Abs(k.X - 1200) <= 160 && Math.Abs(k.Y - 200) <= 160)).IsTrue();
             }
@@ -204,7 +217,8 @@ public class StratStepMotionTests
                 new StepAssignment { Slot = "D", To = new PlaceRef { Place = "BombsiteA" } }
             ];
             StratSceneProjection two = Project(lines);
-            TokenKeyframe b = two.Tracks.Single(t => t.Slot == "B").Keyframes[^1], d = two.Tracks.Single(t => t.Slot == "D").Keyframes[^1];
+            TokenKeyframe b = two.Tracks.Single(t => t.Slot == "B").Keyframes[^1],
+                d = two.Tracks.Single(t => t.Slot == "D").Keyframes[^1];
             using (Assert.Multiple())
             {
                 await Assert.That((b.X, b.Y)).IsEqualTo((ends[1].X, ends[1].Y));
@@ -215,7 +229,8 @@ public class StratStepMotionTests
             foreach (string opponent in StratVocabulary.OpponentSlots)
             {
                 TokenTrack o = projection.Tracks.Single(t => t.Slot == opponent);
-                await Assert.That(o.Keyframes.All(k => k.X == o.Keyframes[0].X && k.Y == o.Keyframes[0].Y)).IsTrue().Because($"{opponent} never moves");
+                await Assert.That(o.Keyframes.All(k => k.X == o.Keyframes[0].X && k.Y == o.Keyframes[0].Y)).IsTrue()
+                    .Because($"{opponent} never moves");
             }
 
             // Alone, a token goes to the centre.
@@ -314,7 +329,8 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That(At(a, arrive).X).IsEqualTo(1200f).Because("the copy gives way to the destination");
-                await Assert.That(At(a, StepSchedule.TickFor(80, 115)).X).IsEqualTo(1200f).Because("a later copy does not pull it back");
+                await Assert.That(At(a, StepSchedule.TickFor(80, 115)).X).IsEqualTo(1200f)
+                    .Because("a later copy does not pull it back");
             }
 
             // One that moved the token is a person's.
@@ -340,10 +356,13 @@ public class StratStepMotionTests
             TokenTrack a = Track(after, "A");
             using (Assert.Multiple())
             {
-                await Assert.That(copied.Single(p => p.Slot == "A").Carried).IsNull().Because("an authored entry stays authored");
-                await Assert.That(copied.Single(p => p.Slot == "B").Carried).IsTrue().Because("a carried entry stays carried");
+                await Assert.That(copied.Single(p => p.Slot == "A").Carried).IsNull()
+                    .Because("an authored entry stays authored");
+                await Assert.That(copied.Single(p => p.Slot == "B").Carried).IsTrue()
+                    .Because("a carried entry stays carried");
                 await Assert.That(StratSceneProjection.IsLegacyCarry(after)).IsFalse();
-                await Assert.That((At(a, Project(after).Ticks[2]).X, At(a, Project(after).Ticks[2]).Y)).IsEqualTo((600f, 600f))
+                await Assert.That((At(a, Project(after).Ticks[2]).X, At(a, Project(after).Ticks[2]).Y))
+                    .IsEqualTo((600f, 600f))
                     .Because("the duplicate's drag is not read as a copy: it is where A leaves from");
             }
         });
@@ -358,8 +377,17 @@ public class StratStepMotionTests
             StratDocument document = Sent("hold");
             document.Steps[0].Positions[0] = Upper("A", 1200, 200);
             document.Steps[1].To = null;
-            document.Steps[1].Assignments = [new StepAssignment { Slot = "A", To = new PlaceRef { Place = "BombsiteA" }, Watch = new StepWatch { Places = ["TSpawn"] } }];
-            float toSpawn = (float)Math.Round(StratFromRound.NormalizeYaw(Math.Atan2(100 - 200, 100 - 1200) * 180 / Math.PI), 2);
+            document.Steps[1].Assignments =
+            [
+                new StepAssignment
+                {
+                    Slot = "A",
+                    To = new PlaceRef { Place = "BombsiteA" },
+                    Watch = new StepWatch { Places = ["TSpawn"] }
+                }
+            ];
+            float toSpawn =
+                (float)Math.Round(StratFromRound.NormalizeYaw(Math.Atan2(100 - 200, 100 - 1200) * 180 / Math.PI), 2);
             await Assert.That(At(Track(document, "A"), Two).YawDegrees).IsEqualTo(toSpawn);
 
             // The same on a push, a run with no distance to cover.
@@ -375,11 +403,20 @@ public class StratStepMotionTests
         {
             StratDocument document = Sent("push");
             document.Steps[1].To = null;
-            document.Steps[1].Assignments = [new StepAssignment { Slot = "A", To = new PlaceRef { Place = "BombsiteA" }, Watch = new StepWatch { Places = ["TSpawn"] } }];
+            document.Steps[1].Assignments =
+            [
+                new StepAssignment
+                {
+                    Slot = "A",
+                    To = new PlaceRef { Place = "BombsiteA" },
+                    Watch = new StepWatch { Places = ["TSpawn"] }
+                }
+            ];
             TokenTrack a = Track(document, "A");
             int arrive = Two + RunTicks(1100, 100);
             float run = (float)Math.Round(Math.Atan2(100, 1100) * 180 / Math.PI, 2);
-            float toSpawn = (float)Math.Round(StratFromRound.NormalizeYaw(Math.Atan2(100 - 200, 100 - 1200) * 180 / Math.PI), 2);
+            float toSpawn =
+                (float)Math.Round(StratFromRound.NormalizeYaw(Math.Atan2(100 - 200, 100 - 1200) * 180 / Math.PI), 2);
             using (Assert.Multiple())
             {
                 await Assert.That(At(a, Two).YawDegrees).IsEqualTo(run);
@@ -426,7 +463,8 @@ public class StratStepMotionTests
             document.Steps[1].Verb = "lurk";
             document.Steps[1].To = null;
             document.Steps[1].Lurk = new StepLurk { Areas = ["BombsiteA"] };
-            await Assert.That((Track(document, "A").Keyframes[0].X, Track(document, "A").Keyframes[0].Tick)).IsEqualTo((1200f, Two));
+            await Assert.That((Track(document, "A").Keyframes[0].X, Track(document, "A").Keyframes[0].Tick))
+                .IsEqualTo((1200f, Two));
         });
     }
 
@@ -442,9 +480,11 @@ public class StratStepMotionTests
                 StepPosition copy = Upper("A", 100, 100);
                 copy.Carried = true;
                 document.Steps[1].Positions = [copy];
-                List<PatchOp> ops = StratLocationPatches.Write(document, 1, new StratLocationField(document.Steps[1].Id, null, StratLocationKind.To),
+                List<PatchOp> ops = StratLocationPatches.Write(document, 1,
+                    new StratLocationField(document.Steps[1].Id, null, StratLocationKind.To),
                     [new PlaceRef { Place = "BombsiteA" }]);
-                await Assert.That(ops.Any(o => o.Path.Contains("/positions/", StringComparison.Ordinal))).IsFalse().Because(verb);
+                await Assert.That(ops.Any(o => o.Path.Contains("/positions/", StringComparison.Ordinal))).IsFalse()
+                    .Because(verb);
             }
         });
     }
@@ -467,7 +507,8 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That(At(a, StepSchedule.TickFor(99, 115)).X).IsBetween(100f, 1200f);
-                await Assert.That(xs.Min()).IsGreaterThanOrEqualTo(1200f).Because("the token never goes back to where it started");
+                await Assert.That(xs.Min()).IsGreaterThanOrEqualTo(1200f)
+                    .Because("the token never goes back to where it started");
                 await Assert.That(At(a, end).X).IsEqualTo(1300f);
             }
         });
@@ -499,14 +540,20 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That(Inside("BombsiteA", planted)).IsTrue();
-                await Assert.That(Enumerable.Range(turn, 2000).All(t => At(b, t).X == planted.X && At(b, t).Y == planted.Y)).IsTrue()
+                await Assert
+                    .That(Enumerable.Range(turn, 2000).All(t => At(b, t).X == planted.X && At(b, t).Y == planted.Y))
+                    .IsTrue()
                     .Because("no slide on after the plant");
             }
 
             // A lurk that rotates before reaching its first area still rotates.
             StratDocument lurk = Sent("lurk");
             lurk.Steps[1].To = null;
-            lurk.Steps[1].Lurk = new StepLurk { Areas = ["BombsiteA"], Rotate = new LurkRotate { AtSeconds = 99, To = new PlaceRef { Place = "TSpawn" } } };
+            lurk.Steps[1].Lurk = new StepLurk
+            {
+                Areas = ["BombsiteA"],
+                Rotate = new LurkRotate { AtSeconds = 99, To = new PlaceRef { Place = "TSpawn" } }
+            };
             TokenTrack l = Track(lurk, "A");
             await Assert.That((l.Keyframes[^1].X, l.Keyframes[^1].Y)).IsEqualTo((100f, 100f));
             await Assert.That(l.Keyframes.Any(k => k.X == 1200f)).IsFalse();
@@ -524,7 +571,8 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That(a.Keyframes.All(k => k.X < 1000f)).IsTrue().Because("A never heads for Bombsite A");
-                await Assert.That((a.Keyframes[^1].X, a.Keyframes[^1].Y, a.Keyframes[^1].LevelMinZ)).IsEqualTo((200f, 1200f, -2048d));
+                await Assert.That((a.Keyframes[^1].X, a.Keyframes[^1].Y, a.Keyframes[^1].LevelMinZ))
+                    .IsEqualTo((200f, 1200f, -2048d));
             }
         });
     }
@@ -571,8 +619,10 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That(At(a, arrive - 1).Y).IsLessThan(1200f).Because("the lurker walks");
-                await Assert.That((At(a, arrive).X, At(a, arrive).Y, At(a, arrive).LevelMinZ)).IsEqualTo((200f, 1200f, -2048d));
-                await Assert.That(a.Keyframes.Any(k => k.X == 1200f)).IsFalse().Because("the earlier move's place is overridden");
+                await Assert.That((At(a, arrive).X, At(a, arrive).Y, At(a, arrive).LevelMinZ))
+                    .IsEqualTo((200f, 1200f, -2048d));
+                await Assert.That(a.Keyframes.Any(k => k.X == 1200f)).IsFalse()
+                    .Because("the earlier move's place is overridden");
             }
         });
     }
@@ -591,8 +641,10 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That(At(a, arrive - 5).X).IsLessThan(1200f);
-                await Assert.That((At(a, arrive).X, At(a, arrive).Y)).IsEqualTo((1200f, 200f)).Because("the later move runs");
-                await Assert.That(a.Keyframes.All(k => k.LevelMinZ == -512d)).IsTrue().Because("it never heads for Bombsite B");
+                await Assert.That((At(a, arrive).X, At(a, arrive).Y)).IsEqualTo((1200f, 200f))
+                    .Because("the later move runs");
+                await Assert.That(a.Keyframes.All(k => k.LevelMinZ == -512d)).IsTrue()
+                    .Because("it never heads for Bombsite B");
             }
         });
     }
@@ -612,7 +664,8 @@ public class StratStepMotionTests
             TokenTrack a = Track(document, "A");
             using (Assert.Multiple())
             {
-                await Assert.That((At(a, Two + 640).X, At(a, Two + 640).Y)).IsEqualTo((150f, 150f)).Because($"the {verb}'s spot is where A stays");
+                await Assert.That((At(a, Two + 640).X, At(a, Two + 640).Y)).IsEqualTo((150f, 150f))
+                    .Because($"the {verb}'s spot is where A stays");
                 await Assert.That(a.Keyframes.Any(k => k.X == 1200f)).IsFalse();
             }
         });
@@ -632,7 +685,8 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That((At(a, Two).X, At(a, Two).Y)).IsEqualTo((150f, 150f));
-                await Assert.That((At(a, arrive).X, At(a, arrive).Y)).IsEqualTo((1200f, 200f)).Because("C's wait does not name A");
+                await Assert.That((At(a, arrive).X, At(a, arrive).Y)).IsEqualTo((1200f, 200f))
+                    .Because("C's wait does not name A");
             }
         });
     }
@@ -655,7 +709,8 @@ public class StratStepMotionTests
                 StratSceneProjection projection = Project(document);
                 TokenTrack projected = projection.Tracks.Single(t => t.Slot == "A");
                 TokenTrack dragged = projection.TrackWith("A", index, new TokenPlacement(150, 150, -512, null));
-                await Assert.That(dragged.Keyframes).IsEquivalentTo(projected.Keyframes, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                await Assert.That(dragged.Keyframes).IsEquivalentTo(projected.Keyframes,
+                    TUnit.Assertions.Enums.CollectionOrdering.Matching);
             }
         });
     }
@@ -689,9 +744,11 @@ public class StratStepMotionTests
             int arrive = Two + RunTicks(50, 1050);
             using (Assert.Multiple())
             {
-                await Assert.That((At(a, Two).X, At(a, Two).Y)).IsEqualTo((150f, 150f)).Because("the hold's spot is where A stands on the tick");
+                await Assert.That((At(a, Two).X, At(a, Two).Y)).IsEqualTo((150f, 150f))
+                    .Because("the hold's spot is where A stands on the tick");
                 await Assert.That(At(a, arrive - 5).Y).IsLessThan(1200f);
-                await Assert.That((At(a, arrive).X, At(a, arrive).Y, At(a, arrive).LevelMinZ)).IsEqualTo((200f, 1200f, -2048d));
+                await Assert.That((At(a, arrive).X, At(a, arrive).Y, At(a, arrive).LevelMinZ))
+                    .IsEqualTo((200f, 1200f, -2048d));
                 await Assert.That(a.Keyframes.Any(k => k.X == 1200f)).IsFalse();
             }
 
@@ -733,7 +790,8 @@ public class StratStepMotionTests
             int arrive = Two + RunTicks(1500, 500);
             using (Assert.Multiple())
             {
-                await Assert.That((At(b, Two).X, At(b, Two).Y)).IsEqualTo((-300f, -300f)).Because("it leaves from the lineup");
+                await Assert.That((At(b, Two).X, At(b, Two).Y)).IsEqualTo((-300f, -300f))
+                    .Because("it leaves from the lineup");
                 await Assert.That((At(b, arrive).X, At(b, arrive).Y)).IsEqualTo((1200f, 200f));
             }
         });
@@ -775,9 +833,11 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That(StratSceneProjection.IsLegacyObserved(document)).IsFalse();
-                await Assert.That(a.Keyframes.Any(k => k.X == 1200f)).IsFalse().Because("the captured move stays where A was seen");
+                await Assert.That(a.Keyframes.Any(k => k.X == 1200f)).IsFalse()
+                    .Because("the captured move stays where A was seen");
                 await Assert.That((At(a, three).X, At(a, three).Y)).IsEqualTo((700f, 700f));
-                await Assert.That(Inside("TSpawn", a.Keyframes[^1])).IsTrue().Because("the added move leaves its drag for its place");
+                await Assert.That(Inside("TSpawn", a.Keyframes[^1])).IsTrue()
+                    .Because("the added move leaves its drag for its place");
             }
 
             // The same capture written before the mark: every position is the spot, the added step's too.
@@ -832,7 +892,8 @@ public class StratStepMotionTests
             using (Assert.Multiple())
             {
                 await Assert.That((At(a, arrive).X, At(a, arrive).Y)).IsEqualTo((1200f, 200f));
-                await Assert.That(a.Keyframes.All(k => k.LevelMinZ == -512d)).IsTrue().Because("it never heads for Bombsite B");
+                await Assert.That(a.Keyframes.All(k => k.LevelMinZ == -512d)).IsTrue()
+                    .Because("it never heads for Bombsite B");
             }
         });
     }
@@ -859,41 +920,52 @@ public class StratStepMotionTests
         {
             StratDocument document = Sent("move", actor: StratVocabulary.ActorAll);
             document.Steps[1].To = null;
-            document.Steps[1].Positions = [.. document.Steps[0].Positions.Where(p => StratVocabulary.Slots.Contains(p.Slot)).Select(p =>
-            {
-                StepPosition copy = Upper(p.Slot, p.X, p.Y);
-                copy.Carried = p.Slot != "C" ? true : null;
-                return copy;
-            })];
+            document.Steps[1].Positions =
+            [
+                .. document.Steps[0].Positions.Where(p => StratVocabulary.Slots.Contains(p.Slot)).Select(p =>
+                {
+                    StepPosition copy = Upper(p.Slot, p.X, p.Y);
+                    copy.Carried = p.Slot != "C" ? true : null;
+                    return copy;
+                })
+            ];
             (StratStore _, StratSession session) = Opened(document);
             string before = StratStore.Serialize(session.Document!);
             int depth = session.UndoDepth;
 
             StratLocationField field = new(document.Steps[1].Id, "B", StratLocationKind.To);
-            List<PatchOp> ops = StratLocationPatches.Write(session.Document!, 1, field, [new PlaceRef { Place = "BombsiteA" }]);
+            List<PatchOp> ops =
+                StratLocationPatches.Write(session.Document!, 1, field, [new PlaceRef { Place = "BombsiteA" }]);
             string said = StratDiffPhrasing.Summary(StratHistory.ToNode(session.Document!), ops);
-            await Assert.That(said).EndsWith("B's carried position dropped").Because("the history says what went, not that B left the step");
+            await Assert.That(said).EndsWith("B's carried position dropped")
+                .Because("the history says what went, not that B left the step");
             session.Apply(ops);
             List<StepPosition> after = session.Document!.Steps[1].Positions;
             using (Assert.Multiple())
             {
-                await Assert.That(after.Select(p => p.Slot)).IsEquivalentTo(["A", "C", "D", "E"], CollectionOrdering.Matching).Because("only B's carried entry goes");
+                await Assert.That(after.Select(p => p.Slot))
+                    .IsEquivalentTo(["A", "C", "D", "E"], CollectionOrdering.Matching)
+                    .Because("only B's carried entry goes");
                 await Assert.That(session.UndoDepth).IsEqualTo(depth + 1);
             }
 
             // C's entry is a person's: setting C's place leaves it.
             field = new StratLocationField(document.Steps[1].Id, "C", StratLocationKind.To);
-            session.Apply(StratLocationPatches.Write(session.Document!, 1, field, [new PlaceRef { Place = "BombsiteA" }]));
+            session.Apply(StratLocationPatches.Write(session.Document!, 1, field,
+                [new PlaceRef { Place = "BombsiteA" }]));
             await Assert.That(session.Document!.Steps[1].Positions.Any(p => p.Slot == "C")).IsTrue();
 
             await Assert.That(session.Undo()).IsTrue();
             await Assert.That(session.Undo()).IsTrue();
-            await Assert.That(StratStore.Serialize(session.Document!)).IsEqualTo(before).Because("undo restores the exact bytes");
+            await Assert.That(StratStore.Serialize(session.Document!)).IsEqualTo(before)
+                .Because("undo restores the exact bytes");
 
             // The step's own to on a step for everyone drops every carried entry it has.
             StratLocationField own = new(document.Steps[1].Id, null, StratLocationKind.To);
-            session.Apply(StratLocationPatches.Write(session.Document!, 1, own, [new PlaceRef { Place = "BombsiteA" }]));
-            await Assert.That(session.Document!.Steps[1].Positions.Select(p => p.Slot)).IsEquivalentTo(["C"], CollectionOrdering.Matching);
+            session.Apply(StratLocationPatches.Write(session.Document!, 1, own,
+                [new PlaceRef { Place = "BombsiteA" }]));
+            await Assert.That(session.Document!.Steps[1].Positions.Select(p => p.Slot))
+                .IsEquivalentTo(["C"], CollectionOrdering.Matching);
             await Assert.That(session.Undo()).IsTrue();
             await Assert.That(StratStore.Serialize(session.Document!)).IsEqualTo(before);
         });
@@ -924,7 +996,8 @@ public class StratStepMotionTests
             StratDocument document = Sent("move");
             (StratStore _, StratSession session) = Opened(document);
             // Routing off: the straight-line arithmetic this pins. StratRoutingTests covers the routed arrival.
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped,
                 placesFor: _ => Task.FromResult<IZonePlaceResolver?>(Map), post: a => a(), routing: () => false);
             canvas.Transport.Seek(0);
             int arrive = Two + RunTicks(1100, 100);
@@ -948,8 +1021,12 @@ public class StratStepMotionTests
     // A strat from a template on the motion map: the five in TSpawn at the round start, then the template's steps.
     internal static StratDocument FromTemplate(StratTemplate template)
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_motion", template.Side ?? "T", template.Type, template.Name, Created);
-        StratStep seed = new() { Id = Guid.NewGuid(), AtSeconds = 115, Actor = StratVocabulary.ActorAll, Verb = "hold" };
+        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_motion", template.Side ?? "T",
+            template.Type, template.Name, Created);
+        StratStep seed = new()
+        {
+            Id = Guid.NewGuid(), AtSeconds = 115, Actor = StratVocabulary.ActorAll, Verb = "hold"
+        };
         seed.Positions = [.. StratVocabulary.Slots.Select((s, i) => Upper(s, 20 + 40 * i, 100)), .. Opponents()];
         document.Steps = [seed];
         StratTemplates.Apply(document, template);
@@ -996,7 +1073,10 @@ public class StratStepMotionTests
             int later = StepSchedule.TickFor(100, 115);
             using (Assert.Multiple())
             {
-                foreach ((string slot, string place) in new[] { ("A", "BombsiteA"), ("B", "BombsiteA"), ("D", "BombsiteB"), ("E", "BombsiteB") })
+                foreach ((string slot, string place) in new[]
+                         {
+                             ("A", "BombsiteA"), ("B", "BombsiteA"), ("D", "BombsiteB"), ("E", "BombsiteB")
+                         })
                 {
                     TokenTrack track = projection.Tracks.Single(t => t.Slot == slot);
                     await Assert.That(Inside("TSpawn", At(track, 0))).IsTrue().Because($"{slot} starts in spawn");
@@ -1033,8 +1113,10 @@ public class StratStepMotionTests
 
                         any = true;
                         TokenTrack track = projection.Tracks.Single(t => t.Slot == slot);
-                        bool reached = Enumerable.Range(tick, Math.Max(1, projection.ContentEndTick - tick + 1)).Any(t => Inside(place, At(track, t)));
-                        await Assert.That(reached).IsTrue().Because($"{template.Id}: {slot} reaches {place} from step {i}");
+                        bool reached = Enumerable.Range(tick, Math.Max(1, projection.ContentEndTick - tick + 1))
+                            .Any(t => Inside(place, At(track, t)));
+                        await Assert.That(reached).IsTrue()
+                            .Because($"{template.Id}: {slot} reaches {place} from step {i}");
                     }
                 }
 
@@ -1044,7 +1126,8 @@ public class StratStepMotionTests
                 }
             }
 
-            await Assert.That(still).IsEquivalentTo(["default", "anti-eco"], CollectionOrdering.Matching).Because("only these two send no one anywhere");
+            await Assert.That(still).IsEquivalentTo(["default", "anti-eco"], CollectionOrdering.Matching)
+                .Because("only these two send no one anywhere");
         });
     }
 }

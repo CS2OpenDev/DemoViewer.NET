@@ -51,7 +51,8 @@ public sealed partial class ThemeEditorListItem(Theme theme, int missingCount) :
 }
 
 /// <summary>One section of tokens, with the rows the search and filter leave showing.</summary>
-public sealed partial class ThemeEditorSection(string title, IReadOnlyList<ThemeTokenRowViewModel> rows) : ObservableObject
+public sealed partial class ThemeEditorSection(string title, IReadOnlyList<ThemeTokenRowViewModel> rows)
+    : ObservableObject
 {
     public string Title { get; } = title;
 
@@ -99,7 +100,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     private ThemeVariant _savedBase = ThemeVariant.Dark;
     private bool _restoring;
 
-    public ThemeEditorViewModel(UserThemeStore store, ThemeEditorHost host, string? themeId = null, bool missingOnly = false)
+    public ThemeEditorViewModel(UserThemeStore store, ThemeEditorHost host, string? themeId = null,
+        bool missingOnly = false)
     {
         _store = store;
         _registry = store.Registry;
@@ -107,9 +109,10 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
         _missingOnly = missingOnly;
         RebuildList();
         string? id = themeId ?? host.ActiveThemeId();
-        ThemeEditorListItem? start = Themes.FirstOrDefault(t => string.Equals(t.Theme.Id, id, StringComparison.OrdinalIgnoreCase))
-                                     ?? Themes.FirstOrDefault(t => t.Theme.Id == ThemeBaseIdForSystem())
-                                     ?? Themes[0];
+        ThemeEditorListItem? start =
+            Themes.FirstOrDefault(t => string.Equals(t.Theme.Id, id, StringComparison.OrdinalIgnoreCase))
+            ?? Themes.FirstOrDefault(t => t.Theme.Id == ThemeBaseIdForSystem())
+            ?? Themes[0];
         Load(start.Theme);
     }
 
@@ -126,7 +129,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
 
     /// <summary>The theme being shown.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsReadOnly), nameof(CanEdit), nameof(IsActive), nameof(CanUseTheme), nameof(CopyButtonText))]
+    [NotifyPropertyChangedFor(nameof(IsReadOnly), nameof(CanEdit), nameof(IsActive), nameof(CanUseTheme),
+        nameof(CopyButtonText))]
     private Theme _theme = null!;
 
     /// <summary>True for a built-in: shown, copied, never changed.</summary>
@@ -251,9 +255,10 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     /// <summary>Raised when the window should close.</summary>
     public event EventHandler? CloseRequested;
 
-    private static string ThemeBaseIdForSystem() => ThemeJson.BaseName(Avalonia.Application.Current?.ActualThemeVariant == ThemeVariant.Light
-        ? ThemeVariant.Light
-        : ThemeVariant.Dark);
+    private static string ThemeBaseIdForSystem() => ThemeJson.BaseName(
+        Avalonia.Application.Current?.ActualThemeVariant == ThemeVariant.Light
+            ? ThemeVariant.Light
+            : ThemeVariant.Dark);
 
     private void RebuildList()
     {
@@ -306,7 +311,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
             List<ThemeTokenRowViewModel> rows = [];
             foreach (string token in section.Tokens)
             {
-                ThemeTokenRowViewModel row = new(token, ThemeTokenValue.From(palette, token), theme.IsBuiltIn || !palette.Inherited.Contains(token),
+                ThemeTokenRowViewModel row = new(token, ThemeTokenValue.From(palette, token),
+                    theme.IsBuiltIn || !palette.Inherited.Contains(token),
                     ThemeTokenValue.From(basePalette, token), OnRowChanged);
                 rows.Add(row);
                 _rows.Add(row);
@@ -593,7 +599,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
 
     /// <summary>Opens the name prompt for a copy of the theme as saved.</summary>
     [RelayCommand]
-    private void Copy() => Guard(() => AskCopyName(false, Theme.IsBuiltIn ? $"Customize {Theme.DisplayName}" : $"Duplicate {Theme.DisplayName}"));
+    private void Copy() => Guard(() =>
+        AskCopyName(false, Theme.IsBuiltIn ? $"Customize {Theme.DisplayName}" : $"Duplicate {Theme.DisplayName}"));
 
     /// <summary>Opens the name prompt for a copy of the current edits.</summary>
     [RelayCommand]

@@ -85,10 +85,7 @@ public class ThemeRegistryTests
             {
                 registry.RegisterCustom(
                     "test-custom", "Test Custom", ThemeVariant.Dark,
-                    new Dictionary<string, Color>
-                    {
-                        ["ShellBg"] = Color.Parse("#FF00FF")
-                    });
+                    new Dictionary<string, Color> { ["ShellBg"] = Color.Parse("#FF00FF") });
                 registry.Install(Application.Current!);
 
                 ThemeVariant v = registry.VariantFor("test-custom");

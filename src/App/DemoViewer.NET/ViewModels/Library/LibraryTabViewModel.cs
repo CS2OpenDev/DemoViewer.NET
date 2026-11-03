@@ -279,7 +279,8 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
                 return [];
             }
 
-            List<LibraryBadgeMenuEntry> entries = [.. active.BadgeLabels.Select(l => new LibraryBadgeMenuEntry(l, false, null))];
+            List<LibraryBadgeMenuEntry> entries =
+                [.. active.BadgeLabels.Select(l => new LibraryBadgeMenuEntry(l, false, null))];
             if (active.BadgeResetLabel is { } reset)
             {
                 entries.Add(new LibraryBadgeMenuEntry(reset, true, active.BadgeResetTooltip));
@@ -685,6 +686,7 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
     // ── Filter / sort ─────────────────────────────────────────────────────────
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
+
     partial void OnSelectedPlayerChanged(string value)
     {
         RefreshPlayerOverview();
@@ -919,13 +921,15 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
         List<(string Display, string MapKey)> groups = _library.Entries
             .Where(e => e.MapDisplay is { Length: > 0 } && e.MapDisplay != "Unknown")
             .GroupBy(e => e.MapDisplay, StringComparer.OrdinalIgnoreCase)
-            .Select(g => (Display: g.Key, MapKey: g.Select(e => e.MapName).FirstOrDefault(m => m is { Length: > 0 }) ?? g.Key))
+            .Select(g => (Display: g.Key,
+                MapKey: g.Select(e => e.MapName).FirstOrDefault(m => m is { Length: > 0 }) ?? g.Key))
             .OrderBy(x => x.Display, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         // No change to the map set → keep the current chips (and their checked state) untouched.
         if (groups.Count == MapFilters.Count &&
-            groups.All(g => MapFilters.Any(f => string.Equals(f.Display, g.Display, StringComparison.OrdinalIgnoreCase))))
+            groups.All(g =>
+                MapFilters.Any(f => string.Equals(f.Display, g.Display, StringComparison.OrdinalIgnoreCase))))
         {
             return;
         }
@@ -943,10 +947,7 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
         MapFilters.Clear();
         foreach ((string display, string mapKey) in groups)
         {
-            MapFilterItem item = new(display, mapKey)
-            {
-                IsSelected = selected.Contains(display)
-            };
+            MapFilterItem item = new(display, mapKey) { IsSelected = selected.Contains(display) };
             item.PropertyChanged += OnMapFilterChanged;
             MapFilters.Add(item);
         }
@@ -1004,7 +1005,8 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
                 {
                     if (SteamIdParser.IsIndividual(p.SteamId64)
                         && (string.Equals(p.Name, SelectedPlayer, StringComparison.OrdinalIgnoreCase)
-                            || string.Equals(DisplayText.Sanitize(p.Name), SelectedPlayer, StringComparison.OrdinalIgnoreCase)))
+                            || string.Equals(DisplayText.Sanitize(p.Name), SelectedPlayer,
+                                StringComparison.OrdinalIgnoreCase)))
                     {
                         accounts.Add(p.SteamId64);
                     }
@@ -1021,8 +1023,8 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
         // A library tick that leaves the answer as it was keeps the bound entry, so the flyout is not rebuilt.
         PlayerOverviewEntry current = SelectedPlayerOverview;
         if (next.SteamId64 == current.SteamId64 && next.Offers == current.Offers
-            && string.Equals(next.Name, current.Name, StringComparison.Ordinal)
-            && string.Equals(next.Tip, current.Tip, StringComparison.Ordinal))
+                                                && string.Equals(next.Name, current.Name, StringComparison.Ordinal)
+                                                && string.Equals(next.Tip, current.Tip, StringComparison.Ordinal))
         {
             return;
         }
@@ -1074,7 +1076,8 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
         {
             LibraryBrowserSort.Newest => q.OrderByDescending(e => e.Modified),
             LibraryBrowserSort.Oldest => q.OrderBy(e => e.Modified),
-            LibraryBrowserSort.MapAz => q.OrderBy(e => e.MapDisplay, StringComparer.OrdinalIgnoreCase).ThenByDescending(e => e.Modified),
+            LibraryBrowserSort.MapAz => q.OrderBy(e => e.MapDisplay, StringComparer.OrdinalIgnoreCase)
+                .ThenByDescending(e => e.Modified),
             LibraryBrowserSort.NameAz => q.OrderBy(e => e.FileName, StringComparer.OrdinalIgnoreCase),
             LibraryBrowserSort.LargestFirst => q.OrderByDescending(e => e.FileSizeBytes),
             _ => q

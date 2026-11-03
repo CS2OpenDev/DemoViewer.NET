@@ -49,10 +49,8 @@ public class StatsRealDemoRenderProbe
         Console.WriteLine(visibility is null
             ? $"[capture] no collision bake for {demo.MapName}; visibility columns will be empty"
             : $"[capture] collision bake loaded for {demo.MapName}");
-        BuildResult build = DemoAnalysis.Build(demo, loaded.Rulesets, new AnalysisOptions
-        {
-            VisibilityEngine = visibility
-        });
+        BuildResult build =
+            DemoAnalysis.Build(demo, loaded.Rulesets, new AnalysisOptions { VisibilityEngine = visibility });
         AnalysisRun run = DemoAnalysis.Evaluate(demo, build);
 
         await HeadlessSession.RunOnUi(async () =>
@@ -60,16 +58,8 @@ public class StatsRealDemoRenderProbe
             StatsTabViewModel vm = new(null, () => path);
             vm.UpdateFromRun(run, demo);
 
-            StatsTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1400,
-                Height = 700,
-                Content = view
-            };
+            StatsTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1400, Height = 700, Content = view };
             window.Show();
 
             Dispatcher.UIThread.RunJobs();
@@ -77,7 +67,8 @@ public class StatsRealDemoRenderProbe
             Dispatcher.UIThread.RunJobs();
 
             WriteableBitmap? board = window.CaptureRenderedFrame();
-            board!.Save(Path.Combine(HeadlessSession.ArtifactDir, "real-scoreboard.png"), new PngBitmapEncoderOptions());
+            board!.Save(Path.Combine(HeadlessSession.ArtifactDir, "real-scoreboard.png"),
+                new PngBitmapEncoderOptions());
 
             // The two aim boards on the match table. Captured because the aim family is the widest
             // the catalogue carries and every column in it is new: a column that resolves to
@@ -85,8 +76,7 @@ public class StatsRealDemoRenderProbe
             // back null, renders as a plausible table rather than as an error.
             foreach ((StatGroup chip, string file) in new[]
                      {
-                         (StatGroup.Accuracy, "real-accuracy.png"),
-                         (StatGroup.AimQuality, "real-aim-quality.png")
+                         (StatGroup.Accuracy, "real-accuracy.png"), (StatGroup.AimQuality, "real-aim-quality.png")
                      })
             {
                 vm.SelectedCategory = chip;
@@ -116,7 +106,8 @@ public class StatsRealDemoRenderProbe
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
             WriteableBitmap? damage = window.CaptureRenderedFrame();
-            damage!.Save(Path.Combine(HeadlessSession.ArtifactDir, "real-rounds-damage.png"), new PngBitmapEncoderOptions());
+            damage!.Save(Path.Combine(HeadlessSession.ArtifactDir, "real-rounds-damage.png"),
+                new PngBitmapEncoderOptions());
 
             Console.WriteLine("[damage round cols] " + string.Join(" | ", vm.RoundColumns.Select(c => c.Label)));
             Console.WriteLine("[damage row0] " + string.Join(" | ",
@@ -133,7 +124,8 @@ public class StatsRealDemoRenderProbe
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
             WriteableBitmap? details = window.CaptureRenderedFrame();
-            details!.Save(Path.Combine(HeadlessSession.ArtifactDir, "real-player-details.png"), new PngBitmapEncoderOptions());
+            details!.Save(Path.Combine(HeadlessSession.ArtifactDir, "real-player-details.png"),
+                new PngBitmapEncoderOptions());
             Console.WriteLine(
                 $"[capture] {HeadlessSession.ArtifactDir}/real-player-details.png " +
                 $"player={vm.PlayerDetails!.PlayerName} tiles={vm.PlayerDetails.CoreTiles.Count} " +
@@ -145,12 +137,15 @@ public class StatsRealDemoRenderProbe
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
             WriteableBitmap? detailRounds = window.CaptureRenderedFrame();
-            detailRounds!.Save(Path.Combine(HeadlessSession.ArtifactDir, "real-player-details-rounds.png"), new PngBitmapEncoderOptions());
+            detailRounds!.Save(Path.Combine(HeadlessSession.ArtifactDir, "real-player-details-rounds.png"),
+                new PngBitmapEncoderOptions());
             vm.ClosePlayerDetailsCommand.Execute(null);
 
             Console.WriteLine($"[capture] {HeadlessSession.ArtifactDir}/real-scoreboard.png cols={vm.Columns.Count}");
-            Console.WriteLine($"[capture] {HeadlessSession.ArtifactDir}/real-rounds.png cols={vm.RoundColumns.Count} rows={vm.RoundRows.Count}");
-            Console.WriteLine("[round cols] " + string.Join(" | ", vm.RoundColumns.Select(c => $"{c.Label}:{c.Meta.Width}")));
+            Console.WriteLine(
+                $"[capture] {HeadlessSession.ArtifactDir}/real-rounds.png cols={vm.RoundColumns.Count} rows={vm.RoundRows.Count}");
+            Console.WriteLine("[round cols] "
+                              + string.Join(" | ", vm.RoundColumns.Select(c => $"{c.Label}:{c.Meta.Width}")));
             if (vm.RoundRows.Count > 0)
             {
                 Console.WriteLine("[row0 cells] " + string.Join(" | ",

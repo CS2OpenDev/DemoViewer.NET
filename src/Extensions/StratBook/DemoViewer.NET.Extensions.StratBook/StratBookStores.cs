@@ -45,23 +45,29 @@ internal static class StratBookStores
         new(SuggestedTags, "Suggested Tags tuning", StoreRoot.Config, ["suggested-tags"], IsUserWork: true),
         new(LineupClips, "Lineup clips", StoreRoot.Config, ["lineup-clips"], IsUserWork: true),
         new(Teams, "Teams", StoreRoot.Config, [TeamIdentityService.TeamsFileName], IsUserWork: true),
-        new(WatchedSituations, "Watched Situations", StoreRoot.Config, [WatchedSituationsService.FileName], IsUserWork: true),
+        new(WatchedSituations, "Watched Situations", StoreRoot.Config, [WatchedSituationsService.FileName],
+            IsUserWork: true),
         new(VetoHistory, "Veto history", StoreRoot.Config, [VetoHistoryStore.FileName], IsUserWork: true),
         new(DossierNotes, "Dossier notes", StoreRoot.Config, [DossierNotesStore.FileName], IsUserWork: true),
 
         // ── Config root: the old layout, read once to copy into the extension's own folder ──
-        new(StratMiningState, "Strat Mining dismissed and promoted (old layout)", StoreRoot.Config, [StratMiningFiles.StatePath],
+        new(StratMiningState, "Strat Mining dismissed and promoted (old layout)", StoreRoot.Config,
+            [StratMiningFiles.StatePath],
             IsUserWork: true),
 
         // ── Cache root: the old layout of what the extension's own cache folder holds now ──
-        new("strat-mining-cache", "Strat Mining detections (old layout)", StoreRoot.Cache, ["strat-mining"], IsUserWork: false),
+        new("strat-mining-cache", "Strat Mining detections (old layout)", StoreRoot.Cache, ["strat-mining"],
+            IsUserWork: false),
         new("team-index", "Team index (old layout)", StoreRoot.Cache, ["team-index.json"], IsUserWork: false),
 
         // ── Cache root: the old layout, read once or not at all ─────────────────
         new("round-index", "Round Index (old layout)", StoreRoot.Cache, ["round-index"], IsUserWork: false),
-        new("suggestions", "Suggested Tags proposals (old layout)", StoreRoot.Cache, ["suggestions"], IsUserWork: false),
-        new(GrenadeLineups, "Grenade lineups (old layout)", StoreRoot.Cache, [GrenadeLineupStore.FileName], IsUserWork: false),
-        new("grenades-v3-attempts", "Grenade migration attempts (old layout)", StoreRoot.Cache, ["grenades-v3.attempts.json"],
+        new("suggestions", "Suggested Tags proposals (old layout)", StoreRoot.Cache, ["suggestions"],
+            IsUserWork: false),
+        new(GrenadeLineups, "Grenade lineups (old layout)", StoreRoot.Cache, [GrenadeLineupStore.FileName],
+            IsUserWork: false),
+        new("grenades-v3-attempts", "Grenade migration attempts (old layout)", StoreRoot.Cache,
+            ["grenades-v3.attempts.json"],
             IsUserWork: false),
         new("grenade-sidecars", "Grenade sidecars (old layout)", StoreRoot.Cache,
         [

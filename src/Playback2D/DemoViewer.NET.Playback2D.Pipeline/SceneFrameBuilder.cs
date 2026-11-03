@@ -57,7 +57,8 @@ public sealed class SceneFrameBuilder
     // all carry CBodyComponent cell coords). Built once (static) so the per-frame scan allocates no strings.
     private static readonly string[] _grenadeProjectileClasses =
     {
-        "CHEGrenadeProjectile", "CFlashbangProjectile", "CSmokeGrenadeProjectile", "CMolotovProjectile", "CDecoyProjectile"
+        "CHEGrenadeProjectile", "CFlashbangProjectile", "CSmokeGrenadeProjectile", "CMolotovProjectile",
+        "CDecoyProjectile"
     };
 
     // Last-known world position per slot. When a pawn orphans on death (no live position) a gray marker
@@ -747,10 +748,7 @@ public sealed class SceneFrameBuilder
 
                 if (!_trails.TryGetValue(proj.Serial, out GrenadeTrail? trail))
                 {
-                    trail = new GrenadeTrail
-                    {
-                        Kind = KindForClass(cls)
-                    };
+                    trail = new GrenadeTrail { Kind = KindForClass(cls) };
                     _trails[proj.Serial] = trail;
                 }
 
@@ -962,12 +960,7 @@ public sealed class SceneFrameBuilder
     private sealed class FrameSlot
     {
         public FrameSlot() =>
-            Frame = new Scene2DFrame
-            {
-                Markers = Markers,
-                AreaEffects = AreaEffects,
-                Trails = Trails
-            };
+            Frame = new Scene2DFrame { Markers = Markers, AreaEffects = AreaEffects, Trails = Trails };
 
         public Scene2DFrame Frame { get; }
         public List<PlayerMarker> Markers { get; } = new(16);

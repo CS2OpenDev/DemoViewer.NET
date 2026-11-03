@@ -53,7 +53,8 @@ public class RuleWorkbenchExtensionRulesetTests
             {
                 await Assert.That(vm.DocumentText).IsEqualTo(Yaml);
                 await Assert.That(vm.IsExtensionFile).IsTrue();
-                await Assert.That(vm.IsReadOnlyFile).IsTrue().Because("developer mode unlocks shipped files, never an extension's");
+                await Assert.That(vm.IsReadOnlyFile).IsTrue()
+                    .Because("developer mode unlocks shipped files, never an extension's");
                 await Assert.That(vm.IsDirty).IsFalse();
                 await Assert.That(vm.IsClean).IsTrue().Because("the extension's ruleset composes with the shipped set");
             }
@@ -68,7 +69,8 @@ public class RuleWorkbenchExtensionRulesetTests
             vm.SelectedFile = vm.OpenableFiles.First(f => f.IsExtension);
             vm.DocumentText += "\n# my copy\n";
             vm.SaveCommand.Execute(null);
-            await Assert.That(Directory.EnumerateFiles(userDir)).IsEmpty().Because("Save on an extension's ruleset never writes");
+            await Assert.That(Directory.EnumerateFiles(userDir)).IsEmpty()
+                .Because("Save on an extension's ruleset never writes");
 
             await Assert.That(vm.SaveAsName).IsEqualTo(Id);
             vm.SaveAsCommand.Execute(null);
@@ -76,7 +78,8 @@ public class RuleWorkbenchExtensionRulesetTests
             using (Assert.Multiple())
             {
                 await Assert.That(File.Exists(Path.Combine(userDir, Id + ".rules.yaml"))).IsTrue();
-                await Assert.That(vm.OpenableFiles.Any(f => f.IsExtension)).IsFalse().Because("a user file of its id overrides it");
+                await Assert.That(vm.OpenableFiles.Any(f => f.IsExtension)).IsFalse()
+                    .Because("a user file of its id overrides it");
                 await Assert.That(vm.SelectedFile?.IsExtension).IsFalse();
                 await Assert.That(vm.IsReadOnlyFile).IsFalse();
             }
@@ -86,7 +89,8 @@ public class RuleWorkbenchExtensionRulesetTests
     [Test]
     public async Task ABrokenExtensionRuleset_IsListed_WithItsDiagnostics()
     {
-        const string broken = "ruleset: dev_example_hello__kills\nfor: each_player\nstats:\n  kills:\n    count: no_such_event\n    per: match\n";
+        const string broken =
+            "ruleset: dev_example_hello__kills\nfor: each_player\nstats:\n  kills:\n    count: no_such_event\n    per: match\n";
         await With([new ContributedRuleset(Id, Owner, "pack.hello", () => broken)], null, async (vm, _) =>
         {
             RulesetFileRef file = vm.OpenableFiles.First(f => f.IsExtension);
@@ -100,7 +104,8 @@ public class RuleWorkbenchExtensionRulesetTests
     [Test]
     public async Task AnExtensionRulesetThatTakesAShippedId_IsNotListed()
     {
-        string shippedId = YamlConfigLoader.TryLoadDirectory(RuleSetLocator.ResolveShippedRulesDirectory()).Rulesets[0].Id;
+        string shippedId = YamlConfigLoader.TryLoadDirectory(RuleSetLocator.ResolveShippedRulesDirectory()).Rulesets[0]
+            .Id;
         await With([new ContributedRuleset(shippedId, Owner, "pack.hello", () => "ruleset: " + shippedId + "\n")], null,
             async (vm, _) => await Assert.That(vm.OpenableFiles.Any(f => f.IsExtension)).IsFalse());
     }

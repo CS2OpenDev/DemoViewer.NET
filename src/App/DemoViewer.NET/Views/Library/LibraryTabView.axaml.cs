@@ -53,7 +53,8 @@ public partial class LibraryTabView : UserControl
     // never lands on nothing if one does not. IsReset means "go back to automatic".
     private void OnBadgeLabelPicked(object? sender, RoutedEventArgs e)
     {
-        if (sender is not MenuItem { Tag: LibraryBadgeMenuEntry picked } item || DataContext is not LibraryTabViewModel vm)
+        if (sender is not MenuItem { Tag: LibraryBadgeMenuEntry picked } item
+            || DataContext is not LibraryTabViewModel vm)
         {
             return;
         }

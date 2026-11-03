@@ -49,7 +49,8 @@ public class GrenadeIndexEvaluatorTests
     {
         DemoCacheStore cache = new(root);
         cache.Upsert(RoundIndexTestData.ParsedRecord(Demo, sha: sha));
-        GrenadeIndexEvaluator evaluator = new(cache.Library(), new GrenadeStore(root is null ? cache.Data() : cache.DiskData(root)), () => background,
+        GrenadeIndexEvaluator evaluator = new(cache.Library(),
+            new GrenadeStore(root is null ? cache.Data() : cache.DiskData(root)), () => background,
             () => open, walk: walk ?? OneSmoke, enabled: enabled);
         return (cache, evaluator);
     }
@@ -70,7 +71,8 @@ public class GrenadeIndexEvaluatorTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(beforeWalk).IsEqualTo(DemoInterest.AfterUpstream).Because("it joins the visit the walk is on");
+            await Assert.That(beforeWalk).IsEqualTo(DemoInterest.AfterUpstream)
+                .Because("it joins the visit the walk is on");
             await Assert.That(afterWalk).IsEqualTo(DemoInterest.Yes);
             await Assert.That(afterRun).IsEqualTo(DemoInterest.No)
                 .Because("a re-check after the visit must not read the demo again for its clips");
@@ -133,7 +135,8 @@ public class GrenadeIndexEvaluatorTests
             await Assert.That(off.PendingPaths()).IsEmpty();
             await Assert.That(on.Wants(Demo)).IsTrue();
             await Assert.That(on.Wants("/d/unparsed.dem")).IsFalse();
-            await Assert.That(on.WantsAfterUpstream("/d/unparsed.dem")).IsTrue().Because("the walk follows the Library's parse on the same visit");
+            await Assert.That(on.WantsAfterUpstream("/d/unparsed.dem")).IsTrue()
+                .Because("the walk follows the Library's parse on the same visit");
             await Assert.That(on.WantsAfterUpstream(Demo)).IsFalse().Because("a parsed demo is Wants' call");
             await Assert.That(off.WantsAfterUpstream("/d/unparsed.dem")).IsFalse();
             await Assert.That(on.PendingPaths()).IsEquivalentTo(new[] { Demo }, CollectionOrdering.Matching);
@@ -146,7 +149,8 @@ public class GrenadeIndexEvaluatorTests
     {
         DemoCacheStore cache = new(null);
         cache.Upsert(RoundIndexTestData.ParsedRecord(Demo, sha: "abc"));
-        GrenadeIndexEvaluator evaluator = new(cache.Library(), cache.Grenades(), () => true, () => Demo, walk: OneSmoke, enabled: () => false);
+        GrenadeIndexEvaluator evaluator = new(cache.Library(), cache.Grenades(), () => true, () => Demo, walk: OneSmoke,
+            enabled: () => false);
 
         using (Assert.Multiple())
         {
@@ -268,7 +272,8 @@ public class GrenadeIndexEvaluatorTests
             walks++;
             return OneSmoke(d);
         });
-        ParsedDemo narrowed = SyntheticParsedDemo.Create(tickCount: 5000, plan: DemoProcessingQueue.WithoutUserCommands);
+        ParsedDemo narrowed =
+            SyntheticParsedDemo.Create(tickCount: 5000, plan: DemoProcessingQueue.WithoutUserCommands);
 
         evaluator.Evaluate(Demo, narrowed);
 
@@ -293,7 +298,8 @@ public class GrenadeIndexEvaluatorTests
         });
         evaluator.Request(Demo);
 
-        evaluator.Evaluate(Demo, SyntheticParsedDemo.Create(tickCount: 5000, plan: DemoProcessingQueue.WithoutUserCommands));
+        evaluator.Evaluate(Demo,
+            SyntheticParsedDemo.Create(tickCount: 5000, plan: DemoProcessingQueue.WithoutUserCommands));
 
         using (Assert.Multiple())
         {
@@ -316,7 +322,8 @@ public class GrenadeIndexEvaluatorTests
 
         await Assert.That(evaluator.Wants("/d/other.dem")).IsFalse()
             .Because("another demo's visit does not turn the sweep the user left off back on");
-        await Assert.That(evaluator.Wants(Demo)).IsTrue().Because("the open demo is walked on the parse its open paid for");
+        await Assert.That(evaluator.Wants(Demo)).IsTrue()
+            .Because("the open demo is walked on the parse its open paid for");
         evaluator.Evaluate(Demo, Parse());
 
         using (Assert.Multiple())
@@ -377,7 +384,8 @@ public class GrenadeIndexEvaluatorTests
         using (Assert.Multiple())
         {
             await Assert.That(evaluator.Store.TryReadRows(Demo, "def")).IsNull();
-            await Assert.That(GrenadeSidecar.SameDemo(null, "abc")).IsTrue().Because("a path-keyed row accepts any file");
+            await Assert.That(GrenadeSidecar.SameDemo(null, "abc")).IsTrue()
+                .Because("a path-keyed row accepts any file");
             await Assert.That(GrenadeSidecar.SameDemo("abc", null)).IsTrue();
             await Assert.That(GrenadeSidecar.SameDemo("ABC", "abc")).IsTrue();
         }
@@ -400,7 +408,8 @@ public class GrenadeIndexEvaluatorTests
             await Assert.That(GrenadeSidecar.Serialize(pathsBack)).IsEqualTo(pathsJson);
             await Assert.That(json).Contains("\"kind\":\"Smoke\"").Because("enums are written by name");
             await Assert.That(json).Contains("\"releasePosition\":[-2260,-1036,-414]");
-            await Assert.That(json).Contains("\"sha256\":null").Because("the hash is visibly null until Content Identity fills it");
+            await Assert.That(json).Contains("\"sha256\":null")
+                .Because("the hash is visibly null until Content Identity fills it");
             await Assert.That(GrenadeSidecar.TryDeserializeRows("{\"schemaVersion\":99}")).IsNull();
             await Assert.That(GrenadeSidecar.TryDeserializeRows("not json")).IsNull();
         }

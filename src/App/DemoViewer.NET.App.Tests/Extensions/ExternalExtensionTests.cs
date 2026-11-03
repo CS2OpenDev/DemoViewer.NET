@@ -41,8 +41,10 @@ public class ExternalExtensionTests
 
     internal static string NewRoot() => Path.Combine(Path.GetTempPath(), "dv-ext-" + Guid.NewGuid().ToString("N"));
 
-    internal static ExternalResolution Resolve(string root, bool allowUnverified, IReadOnlyList<IExtension>? shipped = null) =>
-        ExternalExtensions.Resolve(root, shipped ?? [], ExtensionHost.Current, new ExternalTrust(PublisherKeys.Current, allowUnverified));
+    internal static ExternalResolution Resolve(string root, bool allowUnverified,
+        IReadOnlyList<IExtension>? shipped = null) =>
+        ExternalExtensions.Resolve(root, shipped ?? [], ExtensionHost.Current,
+            new ExternalTrust(PublisherKeys.Current, allowUnverified));
 
     internal static void Cleanup(string root)
     {
@@ -71,8 +73,10 @@ public class ExternalExtensionTests
                 .Where(n => n.StartsWith("DemoViewer.NET", StringComparison.Ordinal))
         ];
 
-        await Assert.That(references).IsEquivalentTo(["DemoViewer.NET.Extensions.Sdk", "DemoViewer.NET.Extensions.Sdk.Ui",
-                "DemoViewer.NET.Modules.Abstractions", "DemoViewer.NET.Playback2D.Scene"],
+        await Assert.That(references).IsEquivalentTo([
+                "DemoViewer.NET.Extensions.Sdk", "DemoViewer.NET.Extensions.Sdk.Ui",
+                "DemoViewer.NET.Modules.Abstractions", "DemoViewer.NET.Playback2D.Scene"
+            ],
             TUnit.Assertions.Enums.CollectionOrdering.Any);
     }
 
@@ -138,7 +142,9 @@ public class ExternalExtensionTests
         {
             string installed = Install(root, "net.demoviewer.hello");
             string manifest = Path.Combine(installed, ExtensionManifest.FileName);
-            await File.WriteAllTextAsync(manifest, (await File.ReadAllTextAsync(manifest)).Replace(HelloId, "net.demoviewer.hello", StringComparison.Ordinal));
+            await File.WriteAllTextAsync(manifest,
+                (await File.ReadAllTextAsync(manifest)).Replace(HelloId, "net.demoviewer.hello",
+                    StringComparison.Ordinal));
 
             ExternalResolution result = Resolve(root, allowUnverified: true);
 
@@ -164,7 +170,8 @@ public class ExternalExtensionTests
 
             await Assert.That(result.Loaded).IsEmpty();
             await Assert.That(result.Rejected.Single().Failure).IsEqualTo(LoadFailure.Untrusted);
-            await Assert.That(ExternalExtensions.Classify(installed, PublisherKeys.Current).Trust).IsEqualTo(ExternalExtensions.Trust.Invalid);
+            await Assert.That(ExternalExtensions.Classify(installed, PublisherKeys.Current).Trust)
+                .IsEqualTo(ExternalExtensions.Trust.Invalid);
         }
         finally
         {
@@ -198,8 +205,12 @@ public class ExternalExtensionTests
         {
             Install(root);
             ExtensionStartupResult result = ExtensionStartup.Resolve(root,
-                [ShippedPack.BesideApp(StratBookPackId, static () => new global::DemoViewer.NET.Extensions.StratBook.StratBookPack())],
-                ExtensionHost.Current, TrustPolicy.Nothing, PublisherKeys.Current, allowUnverified: true, safeMode: true);
+                [
+                    ShippedPack.BesideApp(StratBookPackId,
+                        static () => new global::DemoViewer.NET.Extensions.StratBook.StratBookPack())
+                ],
+                ExtensionHost.Current, TrustPolicy.Nothing, PublisherKeys.Current, allowUnverified: true,
+                safeMode: true);
 
             await Assert.That(result.Statuses).IsEmpty();
             await Assert.That(result.ExternalRejected).IsEmpty();
@@ -220,10 +231,15 @@ public class ExternalExtensionTests
         {
             Install(root);
             ExtensionStartupResult result = ExtensionStartup.Resolve(root,
-                [ShippedPack.BesideApp(StratBookPackId, static () => new global::DemoViewer.NET.Extensions.StratBook.StratBookPack())],
-                ExtensionHost.Current, TrustPolicy.Nothing, PublisherKeys.Current, allowUnverified: true, safeMode: false);
+                [
+                    ShippedPack.BesideApp(StratBookPackId,
+                        static () => new global::DemoViewer.NET.Extensions.StratBook.StratBookPack())
+                ],
+                ExtensionHost.Current, TrustPolicy.Nothing, PublisherKeys.Current, allowUnverified: true,
+                safeMode: false);
 
-            await Assert.That(result.Statuses.Select(s => s.Pack.Id)).IsEquivalentTo([StratBookPackId, HelloId], CollectionOrdering.Matching);
+            await Assert.That(result.Statuses.Select(s => s.Pack.Id))
+                .IsEquivalentTo([StratBookPackId, HelloId], CollectionOrdering.Matching);
         }
         finally
         {
@@ -280,8 +296,10 @@ public class ExternalExtensionTests
                 Microsoft.Extensions.DependencyInjection.ServiceCollection services =
                     App.ComposeServices(new Services.DesktopWindowService(() => null), [hello]);
                 using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
-                    Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(services);
-                PackContributions contributed = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                    Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions
+                        .BuildServiceProvider(services);
+                PackContributions contributed = Microsoft.Extensions.DependencyInjection
+                    .ServiceProviderServiceExtensions
                     .GetRequiredService<PackContributionSet>(provider).Packs.Single();
 
                 Modules.Abstractions.WorkspaceTabDescriptor[] tabs =
@@ -291,7 +309,8 @@ public class ExternalExtensionTests
                 Avalonia.Controls.Control map = tabs.Single(t => t.TabId == "hello.map").ViewFactory();
 
                 // Its 2D Playback contribution draws on the tab's map under the extension's own id root.
-                (Modules.Playback2D.Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
+                (Modules.Playback2D.Playback2DTabViewModel vm, Playback2DFakeContext ctx) =
+                    Playback2DTimelineHarness.Tab();
                 IPlaybackContribution playback = contributed.PlaybackContributions.Single();
                 playback.Attach(vm.Surface, ctx);
                 string[] layers = [.. vm.Surface.Layers.Select(l => l.Key)];
@@ -308,7 +327,8 @@ public class ExternalExtensionTests
                     await Assert.That(contributed.PlaybackContributions.Single()).IsTypeOf<SdkPlaybackContribution>();
                     await Assert.That(map).IsTypeOf<global::DemoViewer.NET.Extensions.Sdk.Ui.Controls.MapView>()
                         .Because("the UI kit resolves from the app, so the extension embeds the host's own map view");
-                    await Assert.That(layers).IsEquivalentTo(["ext.dev.example.hello.rings"], CollectionOrdering.Matching);
+                    await Assert.That(layers)
+                        .IsEquivalentTo(["ext.dev.example.hello.rings"], CollectionOrdering.Matching);
                     await Assert.That(vm.Surface.Layers).IsEmpty().Because("the detach took the layer with it");
                     await Assert.That(contributed.HubTabs.Single().Id).IsEqualTo("dev.example.hello.hub");
                     await Assert.That(contributed.StatusChips.Single().FeatureId).IsEqualTo("pack.hello");
@@ -343,11 +363,14 @@ public class ExternalExtensionTests
                 Microsoft.Extensions.DependencyInjection.ServiceCollection services =
                     App.ComposeServices(new Services.DesktopWindowService(() => null), [hello]);
                 // The sample answered on, whatever the composed gate defaults a loaded extension to.
-                Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton<Features.IFeatureGate>(
-                    services, new SwitchableGate());
+                Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions
+                    .AddSingleton<Features.IFeatureGate>(
+                        services, new SwitchableGate());
                 await using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
-                    Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(services);
-                PackContributions contributed = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                    Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions
+                        .BuildServiceProvider(services);
+                PackContributions contributed = Microsoft.Extensions.DependencyInjection
+                    .ServiceProviderServiceExtensions
                     .GetRequiredService<PackContributionSet>(provider).Packs.Single();
                 NotificationCenter center = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
                     .GetRequiredService<NotificationCenter>(provider);
@@ -396,17 +419,20 @@ public class ExternalExtensionTests
             Install(root);
             IExtension hello = Resolve(root, allowUnverified: true).Loaded.Single().Pack;
 
-            CommandRegistry registry = CommandRegistry.Build([new global::DemoViewer.NET.Extensions.StratBook.StratBookPack(), hello]);
+            CommandRegistry registry =
+                CommandRegistry.Build([new global::DemoViewer.NET.Extensions.StratBook.StratBookPack(), hello]);
             using (Assert.Multiple())
             {
                 await Assert.That(registry.Conflicts).IsEmpty();
                 await Assert.That(Modules.Playback2D.Playback2DKeymap.FindConflicts(registry.EffectiveBindings,
                     Modules.Playback2D.Playback2DKeymap.ReservedGestures(true))).IsEmpty();
                 await Assert.That(registry.ActionIds).Contains(where);
-                await Assert.That(registry.TryResolve(Avalonia.Input.Key.H, Avalonia.Input.KeyModifiers.Shift, "playback2d",
+                await Assert.That(registry.TryResolve(Avalonia.Input.Key.H, Avalonia.Input.KeyModifiers.Shift,
+                    "playback2d",
                     _ => true, out CommandDescriptor? on)).IsTrue();
                 await Assert.That(on!.Id).IsEqualTo(where);
-                await Assert.That(registry.TryResolve(Avalonia.Input.Key.H, Avalonia.Input.KeyModifiers.Shift, "playback2d",
+                await Assert.That(registry.TryResolve(Avalonia.Input.Key.H, Avalonia.Input.KeyModifiers.Shift,
+                    "playback2d",
                     id => id != "pack.hello", out _)).IsFalse();
             }
 
@@ -416,8 +442,10 @@ public class ExternalExtensionTests
                 Microsoft.Extensions.DependencyInjection.ServiceCollection services =
                     App.ComposeServices(new Services.DesktopWindowService(() => null), [hello]);
                 using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
-                    Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(services);
-                PackContributions contributed = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                    Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions
+                        .BuildServiceProvider(services);
+                PackContributions contributed = Microsoft.Extensions.DependencyInjection
+                    .ServiceProviderServiceExtensions
                     .GetRequiredService<PackContributionSet>(provider).Packs.Single();
 
                 SwitchableGate gate = new();
@@ -481,7 +509,8 @@ public class ExternalExtensionTests
             Microsoft.Extensions.DependencyInjection.ServiceCollection services =
                 App.ComposeServices(new Services.DesktopWindowService(() => null), [pack]);
             using Microsoft.Extensions.DependencyInjection.ServiceProvider provider =
-                Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(services);
+                Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions
+                    .BuildServiceProvider(services);
             ExtensionFaults faults = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
                 .GetRequiredService<ExtensionFaults>(provider);
             PackContributions contributed = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
@@ -493,7 +522,8 @@ public class ExternalExtensionTests
                     .Because("nothing from the failed Register reached the container");
                 await Assert.That(faults.StartupFailed(pack.Id)).IsTrue();
                 await Assert.That(faults.StateOf(pack.FeatureId).Suspended).IsTrue();
-                await Assert.That(pack.Contributed).IsFalse().Because("an extension with no services contributes nothing");
+                await Assert.That(pack.Contributed).IsFalse()
+                    .Because("an extension with no services contributes nothing");
                 await Assert.That(contributed.Modules).IsEmpty();
             }
         });
@@ -595,6 +625,7 @@ public class ExternalExtensionTests
         public string Id => "dev.example.other";
         public string FeatureId => "pack.hello";
         public ExtensionManifest Manifest => FakeManifests.For(Id);
+
         public IEnumerable<ExtensionFeature> Features =>
             [new("pack.hello", ExtensionFeatureKind.Extension, "Other", "d", null, AudienceDefaults.Everyone)];
 

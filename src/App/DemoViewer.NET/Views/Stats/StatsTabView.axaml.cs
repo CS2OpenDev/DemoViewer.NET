@@ -82,8 +82,7 @@ public partial class StatsTabView : UserControl
         IReadOnlyList<IStorageFolder> folders = await top.StorageProvider.OpenFolderPickerAsync(
             new FolderPickerOpenOptions
             {
-                Title = $"Export stats as {formatId.ToUpperInvariant()} — choose a folder",
-                AllowMultiple = false
+                Title = $"Export stats as {formatId.ToUpperInvariant()} — choose a folder", AllowMultiple = false
             });
 
         if (folders.Count == 1 && folders[0].TryGetLocalPath() is { } dir)

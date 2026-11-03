@@ -54,7 +54,8 @@ public class PlaybackContributionTests
         using (Assert.Multiple())
         {
             await Assert.That(fake.Context).IsSameReferenceAs(ctx);
-            await Assert.That(menu.Select(m => m.Header)).IsEquivalentTo([FakeContribution.Header], CollectionOrdering.Matching);
+            await Assert.That(menu.Select(m => m.Header))
+                .IsEquivalentTo([FakeContribution.Header], CollectionOrdering.Matching);
             await Assert.That(vm.Surface.Panes.Count).IsEqualTo(1);
             await Assert.That(vm.Surface.SidePane).IsNull();
         }
@@ -201,7 +202,8 @@ public class PlaybackContributionTests
         fake.Pane.Open();
         vm.OnDeactivated();
         await Assert.That(vm.Surface.SidePane).IsNull();
-        await Assert.That(vm.Timeline.MenuFor(RoundBand).Count).IsEqualTo(1).Because("deactivation keeps the contribution");
+        await Assert.That(vm.Timeline.MenuFor(RoundBand).Count).IsEqualTo(1)
+            .Because("deactivation keeps the contribution");
 
         vm.Dispose();
     }

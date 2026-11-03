@@ -97,10 +97,7 @@ public class FfmpegArgumentTests
     public async Task BuildingArguments_DoesNotTouchGlobalFfOptions()
     {
         string? before = GlobalFFOptions.Current.BinaryFolder;
-        FfmpegFrameSink.DescribeArguments(Options(ExportFormats.WebM) with
-        {
-            BinaryFolder = "/somewhere/else"
-        });
+        FfmpegFrameSink.DescribeArguments(Options(ExportFormats.WebM) with { BinaryFolder = "/somewhere/else" });
 
         // The binary folder is passed per invocation on purpose: GlobalFFOptions is process-global
         // mutable state, and an in-app export and a dv2d export must be able to disagree about it.
@@ -231,7 +228,8 @@ public class ChannelVideoFrameSourceTests
 
         // A second pass would silently produce an empty stream, a video file with no frames and no
         // error, which is a much worse failure than saying so.
-        await Assert.That(SceneExportSessionLoopTests.Throws<InvalidOperationException>(() => bridge.GetEnumerator())).IsNotNull();
+        await Assert.That(SceneExportSessionLoopTests.Throws<InvalidOperationException>(() => bridge.GetEnumerator()))
+            .IsNotNull();
     }
 }
 
@@ -308,7 +306,8 @@ public class ManagedGifSinkTests
             for (int i = 0; i < 6; i++)
             {
                 await Assert.That(gif.Frames[i].DelayCentiseconds).IsEqualTo(5);
-                await Assert.That(gif.Frames[i].Rgb).IsEquivalentTo(Rgb(Frame(8, 8, (byte)(i * 40))), CollectionOrdering.Matching);
+                await Assert.That(gif.Frames[i].Rgb)
+                    .IsEquivalentTo(Rgb(Frame(8, 8, (byte)(i * 40))), CollectionOrdering.Matching);
             }
         }
         finally
@@ -427,7 +426,8 @@ public class ManagedGifSinkTests
     {
         // 30 fps is 3.33 centiseconds. Accepting it would export a 30 fps request at 33.3 fps and say
         // nothing, which is the kind of quiet wrongness a user only notices after uploading it.
-        await Assert.That(SceneExportSessionLoopTests.Throws<ExportValidationException>(() => new ManagedGifSink("x.gif", 30).DisposeAsync().AsTask().GetAwaiter().GetResult()))
+        await Assert.That(SceneExportSessionLoopTests.Throws<ExportValidationException>(() =>
+                new ManagedGifSink("x.gif", 30).DisposeAsync().AsTask().GetAwaiter().GetResult()))
             .IsNotNull();
     }
 
@@ -570,18 +570,9 @@ public class HashingFrameSinkTests
         RecordingFrameSink inner = new();
         HashingFrameSink hashing = new(inner);
 
-        await hashing.WriteAsync(new byte[]
-        {
-            1, 2, 3, 4
-        }, 1, 1, CancellationToken.None);
-        await hashing.WriteAsync(new byte[]
-        {
-            1, 2, 3, 4
-        }, 1, 1, CancellationToken.None);
-        await hashing.WriteAsync(new byte[]
-        {
-            9, 9, 9, 9
-        }, 1, 1, CancellationToken.None);
+        await hashing.WriteAsync(new byte[] { 1, 2, 3, 4 }, 1, 1, CancellationToken.None);
+        await hashing.WriteAsync(new byte[] { 1, 2, 3, 4 }, 1, 1, CancellationToken.None);
+        await hashing.WriteAsync(new byte[] { 9, 9, 9, 9 }, 1, 1, CancellationToken.None);
         await hashing.DisposeAsync();
 
         await Assert.That(inner.Frames.Count).IsEqualTo(3);

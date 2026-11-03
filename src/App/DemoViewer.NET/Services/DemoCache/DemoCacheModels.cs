@@ -151,11 +151,7 @@ public static class CachedRoundExtensions
         ArgumentNullException.ThrowIfNull(rounds);
         return
         [
-            .. rounds.Select(r => new CachedRound
-            {
-                Number = r.Number,
-                StartTickFrameClock = r.StartTickFrameClock
-            })
+            .. rounds.Select(r => new CachedRound { Number = r.Number, StartTickFrameClock = r.StartTickFrameClock })
         ];
     }
 }
@@ -318,6 +314,7 @@ public sealed class DemoCacheRecord : IJsonOnDeserialized
     ///     has none. Nothing writes it.
     /// </summary>
     public List<CachedStatRow> Scoreboard { get; set; } = [];
+
     public List<CachedHighlightEvent> Highlights { get; set; } = [];
 
     /// <summary>
@@ -485,7 +482,8 @@ public sealed class DemoCacheRecord : IJsonOnDeserialized
 
         RoundFacts ??= other.RoundFacts;
         ErrorReport ??= other.ErrorReport;
-        if (other.MatchMeta is { MatchTimeSource: MatchTimeSource.UserOverride } chosen && MatchMeta?.MatchTimeSource != MatchTimeSource.UserOverride)
+        if (other.MatchMeta is { MatchTimeSource: MatchTimeSource.UserOverride } chosen
+            && MatchMeta?.MatchTimeSource != MatchTimeSource.UserOverride)
         {
             MatchMeta ??= chosen;
             MatchMeta.MatchTimeUtcTicks = chosen.MatchTimeUtcTicks;
@@ -718,7 +716,10 @@ public sealed class DemoCacheRecord : IJsonOnDeserialized
                 continue;
             }
 
-            players.Add(new IndexSidePlayer { SteamId64 = player.SteamId64, Name = player.Name, Slots = [player.Slot] });
+            players.Add(new IndexSidePlayer
+            {
+                SteamId64 = player.SteamId64, Name = player.Name, Slots = [player.Slot]
+            });
         }
 
         return players;

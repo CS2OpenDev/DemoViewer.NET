@@ -104,8 +104,7 @@ public sealed record BenchmarkReport(
 {
     private static readonly JsonSerializerOptions _json = new()
     {
-        WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never
+        WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.Never
     };
 
     /// <summary>Serializes the report.</summary>

@@ -58,7 +58,10 @@ public class HeadToHeadTests
                     ? new CachedPlayerInfo { Slot = 7, Name = "stranger", SteamId64 = Id(Stranger), Team = 2 }
                     : new CachedPlayerInfo { Slot = 7, Name = "rival", SteamId64 = Id(Rival), Team = i == 3 ? 3 : 2 }
             ],
-            MatchMeta = new DemoMatchMeta { MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo }
+            MatchMeta = new DemoMatchMeta
+            {
+                MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo
+            }
         };
         DemoCacheStore.StampHeader(record);
         DemoCacheStore.StampParse(record);
@@ -76,11 +79,20 @@ public class HeadToHeadTests
         ["player_slot", "steam_id", "team"], [], new Dictionary<string, string>(),
         [
             new FactRow(
-                new Dictionary<string, FactValue> { ["player_slot"] = FactValue.Of(2L), ["steam_id"] = FactValue.Of(Id(Grim)), ["team"] = FactValue.Of(3L) },
                 new Dictionary<string, FactValue>
                 {
-                    ["rounds"] = FactValue.Of(22L), ["TotalK"] = FactValue.Of(20L), ["TotalD"] = FactValue.Of(15L), ["Shots"] = FactValue.Of(300L),
-                    ["CTW"] = FactValue.Of(i % 2 == 0 ? 13L : 9L), ["CTL"] = FactValue.Of(i % 2 == 0 ? 9L : 13L)
+                    ["player_slot"] = FactValue.Of(2L),
+                    ["steam_id"] = FactValue.Of(Id(Grim)),
+                    ["team"] = FactValue.Of(3L)
+                },
+                new Dictionary<string, FactValue>
+                {
+                    ["rounds"] = FactValue.Of(22L),
+                    ["TotalK"] = FactValue.Of(20L),
+                    ["TotalD"] = FactValue.Of(15L),
+                    ["Shots"] = FactValue.Of(300L),
+                    ["CTW"] = FactValue.Of(i % 2 == 0 ? 13L : 9L),
+                    ["CTL"] = FactValue.Of(i % 2 == 0 ? 9L : 13L)
                 })
         ]);
 
@@ -121,7 +133,8 @@ public class HeadToHeadTests
                 ? Row(k.Tick, k.Killer, k.KillerId, "victim_slot", k.Victim, k.Headshot)
                 : Row(k.Tick, k.Victim, k.VictimId, "attacker_slot", k.Killer))
         ];
-        return new FactTable(key, "fp-events", StampedFacts.Schema, "player_event", ["round_number", "tick", "player_slot", "steam_id"], [],
+        return new FactTable(key, "fp-events", StampedFacts.Schema, "player_event",
+            ["round_number", "tick", "player_slot", "steam_id"], [],
             new Dictionary<string, string>(), rows);
     }
 
@@ -136,7 +149,8 @@ public class HeadToHeadTests
         return store;
     }
 
-    internal static int IndexOf(string path) => int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
+    internal static int IndexOf(string path) =>
+        int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
 
     private sealed class Rig : IDisposable
     {
@@ -146,12 +160,15 @@ public class HeadToHeadTests
             Directory = new PlayerDirectory(store, _ => true);
             Identity = new IdentityService(new SettingsService((string?)null));
             PlayerRowCache rows = new(store, Directory, path => Facet(IndexOf(path)));
-            Services = new PlayerOverviewServices(Directory, Identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { })
+            Services = new PlayerOverviewServices(Directory, Identity, rows, _ => { }, _ => { }, (_, _) => { },
+                _ => { })
             {
                 Events = new PlayerEventCache((path, key) =>
                 {
                     Reads.Enqueue(path);
-                    return store.TryGetIndex(path)?.Stamp(EventStamp) is { State: DemoAnalysisState.Indexed } ? Events(IndexOf(path), key) : null;
+                    return store.TryGetIndex(path)?.Stamp(EventStamp) is { State: DemoAnalysisState.Indexed }
+                        ? Events(IndexOf(path), key)
+                        : null;
                 })
             };
             Section = new HeadToHeadSectionViewModel(Services);
@@ -169,7 +186,8 @@ public class HeadToHeadTests
             IReadOnlyList<PlayerMatch> matches = Directory.Matches(subject);
             PlayerDemo[] demos = [.. matches.Select(m => new PlayerDemo(m, false, null))];
             filter ??= PlayerFilter.All;
-            return new PlayerOverviewContext(subject, Directory.Get(subject), matches, 0, false, Services, demos, filter,
+            return new PlayerOverviewContext(subject, Directory.Get(subject), matches, 0, false, Services, demos,
+                filter,
                 PlayerAggregate.Window(demos, filter), false, null, false);
         }
 
@@ -184,7 +202,8 @@ public class HeadToHeadTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(opponents.Select(o => o.SteamId64)).IsEquivalentTo([Rival, Stranger], CollectionOrdering.Matching)
+            await Assert.That(opponents.Select(o => o.SteamId64))
+                .IsEquivalentTo([Rival, Stranger], CollectionOrdering.Matching)
                 .Because("a teammate is never an opponent, and Rival was on Grim's side in one demo");
             await Assert.That(opponents[0].Matches).IsEqualTo(3);
             await Assert.That(opponents[0].Name).IsEqualTo("rival");
@@ -198,7 +217,8 @@ public class HeadToHeadTests
         PlayerDirectory directory = new(Library(), _ => true);
         IReadOnlyList<PlayerMatch> against = HeadToHead.Against(directory.Matches(Grim), directory.Matches(Rival));
 
-        await Assert.That(against.Select(m => m.Row.Path)).IsEquivalentTo(["/lib/2.dem", "/lib/1.dem", "/lib/0.dem"], CollectionOrdering.Matching);
+        await Assert.That(against.Select(m => m.Row.Path))
+            .IsEquivalentTo(["/lib/2.dem", "/lib/1.dem", "/lib/0.dem"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -208,11 +228,15 @@ public class HeadToHeadTests
         IReadOnlyList<PlayerMatch> against = HeadToHead.Against(directory.Matches(Grim), directory.Matches(Rival));
         Dictionary<string, IReadOnlyList<PlayerKill>> kills = new(StringComparer.Ordinal)
         {
-            ["sha0"] = PlayerEventFacet.Kills(Events(0, PlayerEventFacet.KillsKey).Rows, Events(0, PlayerEventFacet.DeathsKey).Rows),
-            ["sha1"] = PlayerEventFacet.Kills(Events(1, PlayerEventFacet.KillsKey).Rows, Events(1, PlayerEventFacet.DeathsKey).Rows)
+            ["sha0"] =
+                PlayerEventFacet.Kills(Events(0, PlayerEventFacet.KillsKey).Rows,
+                    Events(0, PlayerEventFacet.DeathsKey).Rows),
+            ["sha1"] = PlayerEventFacet.Kills(Events(1, PlayerEventFacet.KillsKey).Rows,
+                Events(1, PlayerEventFacet.DeathsKey).Rows)
         };
 
-        HeadToHead result = HeadToHead.Of(Grim, Rival, against, m => IndexOf(m.Row.Path) % 2 == 0 ? MatchOutcome.Win : MatchOutcome.Loss, kills);
+        HeadToHead result = HeadToHead.Of(Grim, Rival, against,
+            m => IndexOf(m.Row.Path) % 2 == 0 ? MatchOutcome.Win : MatchOutcome.Loss, kills);
 
         using (Assert.Multiple())
         {
@@ -236,17 +260,21 @@ public class HeadToHeadTests
         using (Assert.Multiple())
         {
             await Assert.That(rig.Section.IsVisible).IsTrue();
-            await Assert.That(rig.Section.Opponents.Select(o => o.Title)).IsEquivalentTo(["rival (3 matches)", "stranger (1 match)"],
+            await Assert.That(rig.Section.Opponents.Select(o => o.Title)).IsEquivalentTo(
+                ["rival (3 matches)", "stranger (1 match)"],
                 CollectionOrdering.Matching);
             await Assert.That(rig.Section.SelectedOpponent?.SteamId64).IsEqualTo(Rival);
             await Assert.That(rig.Section.CountText).IsEqualTo("3 matches against");
             await Assert.That(rig.Section.RecordText).IsEqualTo("2-1");
             await Assert.That((rig.Section.KillsText, rig.Section.DeathsText, rig.Section.KdText, rig.Section.HsText))
                 .IsEqualTo(("4", "2", "2.00", "50%"));
-            await Assert.That(rig.Section.NoteText).IsEqualTo("Kills from 2 of 3 matches; the library is computing the rest");
+            await Assert.That(rig.Section.NoteText)
+                .IsEqualTo("Kills from 2 of 3 matches; the library is computing the rest");
             await Assert.That((pending.HasKills, pending.KillsNote)).IsEqualTo((false, "pending"));
-            await Assert.That((won.HasKills, won.KillsText, won.ResultText, won.IsWin)).IsEqualTo((true, "2-1", "W", true));
-            await Assert.That(rig.Reads.Distinct().Order()).IsEquivalentTo(["/lib/0.dem", "/lib/1.dem"], CollectionOrdering.Matching)
+            await Assert.That((won.HasKills, won.KillsText, won.ResultText, won.IsWin))
+                .IsEqualTo((true, "2-1", "W", true));
+            await Assert.That(rig.Reads.Distinct().Order())
+                .IsEquivalentTo(["/lib/0.dem", "/lib/1.dem"], CollectionOrdering.Matching)
                 .Because("a demo whose facet is not written is never read");
         }
     }
@@ -286,9 +314,11 @@ public class HeadToHeadTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(rig.Section.Opponents.Select(o => o.Title)).IsEquivalentTo(["rival (2 matches)", "stranger (1 match)"],
+            await Assert.That(rig.Section.Opponents.Select(o => o.Title)).IsEquivalentTo(
+                ["rival (2 matches)", "stranger (1 match)"],
                 CollectionOrdering.Matching).Because("demo 1 is on Inferno");
-            await Assert.That(rig.Section.Rows.Select(r => r.Match.Match.Row.Path)).IsEquivalentTo(["/lib/2.dem", "/lib/0.dem"],
+            await Assert.That(rig.Section.Rows.Select(r => r.Match.Match.Row.Path)).IsEquivalentTo(
+                ["/lib/2.dem", "/lib/0.dem"],
                 CollectionOrdering.Matching);
             await Assert.That(rig.Section.CountText).IsEqualTo("2 matches against");
             await Assert.That(rig.Section.RecordText).IsEqualTo("2-0");
@@ -297,7 +327,8 @@ public class HeadToHeadTests
 
         rig.Section.Update(rig.Context(Grim, new PlayerFilter { Map = "de_inferno" }));
         await rig.Section.Loading;
-        await Assert.That(rig.Section.Opponents.Select(o => o.SteamId64)).IsEquivalentTo([Rival], CollectionOrdering.Matching);
+        await Assert.That(rig.Section.Opponents.Select(o => o.SteamId64))
+            .IsEquivalentTo([Rival], CollectionOrdering.Matching);
         await Assert.That((rig.Section.CountText, rig.Section.RecordText)).IsEqualTo(("1 match against", "0-1"));
     }
 
@@ -366,10 +397,12 @@ public class HeadToHeadRenderTests
             using IdentityService identity = new(new SettingsService((string?)null));
             PlayerRowCache rows = new(store, directory, path => HeadToHeadTests.Facet(HeadToHeadTests.IndexOf(path)));
             await rows.LoadAsync(HeadToHeadTests.Grim);
-            using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { })
-            {
-                Events = new PlayerEventCache((path, key) => HeadToHeadTests.Events(HeadToHeadTests.IndexOf(path), key))
-            });
+            using PlayerOverviewTabViewModel vm =
+                new(new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { })
+                {
+                    Events = new PlayerEventCache((path, key) =>
+                        HeadToHeadTests.Events(HeadToHeadTests.IndexOf(path), key))
+                });
             vm.OnActivated(null!);
             vm.OpenPlayer(HeadToHeadTests.Grim);
             HeadToHeadSectionViewModel section = vm.Reveal<HeadToHeadSectionViewModel>();
@@ -377,7 +410,10 @@ public class HeadToHeadRenderTests
 
             vm.ShowPage(PlayerOverviewPageKind.History);
 
-            Window window = new() { Width = 1300, Height = 4000, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1300, Height = 4000, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -392,7 +428,8 @@ public class HeadToHeadRenderTests
                 await Assert.That(picker.ItemCount).IsEqualTo(2);
                 await Assert.That((picker.SelectedItem as OpponentItem)?.SteamId64).IsEqualTo(76561190000000007UL);
                 await Assert.That(list.GetVisualDescendants().OfType<ListBoxItem>().Count()).IsEqualTo(3);
-                await Assert.That(view.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? "")).Contains("2-1");
+                await Assert.That(view.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? ""))
+                    .Contains("2-1");
             }
 
             window.Close();

@@ -143,10 +143,7 @@ public class Playback2DAnnotationHostTests
             double before = ((SpaceRef.World)f.Document.Elements[0].Space).LevelMinZ;
             int undoBefore = f.Document.UndoDepth;
 
-            f.Vm.ApplyAnnotationLevelRebuild(new Dictionary<double, double>
-            {
-                [before] = before + 64
-            });
+            f.Vm.ApplyAnnotationLevelRebuild(new Dictionary<double, double> { [before] = before + 64 });
 
             await Assert.That(((SpaceRef.World)f.Document.Elements[0].Space).LevelMinZ)
                 .IsEqualTo(before + 64);
@@ -429,7 +426,8 @@ public class Playback2DAnnotationHostTests
 
         Type readOnlyList = typeof(IReadOnlyList<>).MakeGenericType(rawPoint);
         Type lazyType = typeof(Lazy<>).MakeGenericType(readOnlyList);
-        object lazy = Activator.CreateInstance(lazyType, Delegate.CreateDelegate(typeof(Func<>).MakeGenericType(readOnlyList), history,
+        object lazy = Activator.CreateInstance(lazyType, Delegate.CreateDelegate(
+            typeof(Func<>).MakeGenericType(readOnlyList), history,
             listType.GetMethod("AsReadOnly")!))!;
 
         ConstructorInfo ctor = typeof(PointerEventArgs)

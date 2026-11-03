@@ -62,10 +62,7 @@ public class StatsVisibilityTests
 
     private static ParsedDemo BuildDemo(string mapName) => SyntheticParsedDemo.Create(
         [], [],
-        new Dictionary<int, PlayerInfo>
-        {
-            [0] = new(0, "Alice", 0UL, 0, 2, false)
-        },
+        new Dictionary<int, PlayerInfo> { [0] = new(0, "Alice", 0UL, 0, 2, false) },
         null, mapName, 0, 1f / 64f,
         "t", "t", "csgo", 0,
         0, 0, "valve_demo_2",
@@ -252,7 +249,8 @@ public class StatsVisibilityTests
         await Assert.That(vm.ExportTables.Any(t => t.Name == "visibility_pairs")).IsTrue();
 
         double topExposed = vm.VisibilityRows.Max(r => r.ExposedSec);
-        Console.WriteLine($"[f4smoke] rows={vm.VisibilityRows.Count} topExposed={topExposed.ToString("F1", CultureInfo.InvariantCulture)}s");
+        Console.WriteLine(
+            $"[f4smoke] rows={vm.VisibilityRows.Count} topExposed={topExposed.ToString("F1", CultureInfo.InvariantCulture)}s");
     }
 
     // ── Synthetic evaluation fixture (minimal StatsTabTests mirror) ───────────

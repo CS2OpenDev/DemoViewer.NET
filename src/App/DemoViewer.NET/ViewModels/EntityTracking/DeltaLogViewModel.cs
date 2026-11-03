@@ -45,13 +45,7 @@ public sealed partial class DeltaLogViewModel : ObservableObject
         for (int i = 0; i < count; i++)
         {
             (string field, string prev, string curr) = changes[i];
-            Entries.Add(new DeltaLogEntry
-            {
-                Tick = tick,
-                Field = field,
-                Prev = prev,
-                Curr = curr
-            });
+            Entries.Add(new DeltaLogEntry { Tick = tick, Field = field, Prev = prev, Curr = curr });
         }
 
         HeaderText = changes.Count > 0

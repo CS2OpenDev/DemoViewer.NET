@@ -44,7 +44,8 @@ public class ClipReplayPlanRealDemoTests
         try
         {
             ParsedDemo full = BackgroundPlanRealDemoTests.ParseMapped(path, DecodePlan.Everything);
-            GrenadeWalk walk = GrenadeWalker.Assemble(GrenadeIndexEvaluator.Run(full, 4), ClipRounds.Derive(full), full.Players.Values,
+            GrenadeWalk walk = GrenadeWalker.Assemble(GrenadeIndexEvaluator.Run(full, 4), ClipRounds.Derive(full),
+                full.Players.Values,
                 full.TickRate > 0 ? full.TickRate : 64, full.ServerStartTick);
             List<GrenadeRow> rows = [.. walk.Rows.Where(r => r.ThrowerSteamId is not null)];
             if (rows.Count < 3)
@@ -84,9 +85,11 @@ public class ClipReplayPlanRealDemoTests
             full = null!;
             List<string> replayFrames = await RenderPackClip(path, from, to, rate, null);
             await Assert.That(fullFrames.Distinct().Count()).IsGreaterThan(10).Because("a still clip proves nothing");
-            await Assert.That(replayFrames).IsEquivalentTo(fullFrames, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(replayFrames)
+                .IsEquivalentTo(fullFrames, TUnit.Assertions.Enums.CollectionOrdering.Matching);
 
-            Console.WriteLine($"{Path.GetFileName(path)}: {fullGifs.Count} GIFs identical, pack clip {fullFrames.Count} frames identical");
+            Console.WriteLine(
+                $"{Path.GetFileName(path)}: {fullGifs.Count} GIFs identical, pack clip {fullFrames.Count} frames identical");
         }
         finally
         {

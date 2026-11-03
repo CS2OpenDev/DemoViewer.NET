@@ -26,7 +26,8 @@ namespace DemoViewer.NET.UiCapture;
 public static partial class Variants
 {
     private static HubTabView StratEditor(bool railCollapsed, bool listCollapsed, bool bare = false,
-        Action<StratBookTabViewModel>? configure = null, IZonePlaceResolver? places = null, string? template = null, string map = "de_mirage")
+        Action<StratBookTabViewModel>? configure = null, IZonePlaceResolver? places = null, string? template = null,
+        string map = "de_mirage")
     {
         StratBookLayout layout = new() { IsListCollapsed = listCollapsed };
         StratBookTabViewModel strats = SeededStratBook(layout, bare, places, template, map);
@@ -37,8 +38,12 @@ public static partial class Variants
         [
             new()
             {
-                TabId = "stratbook.browser", Header = "Strats", Order = 0, HostId = HostIds.StratBookHub,
-                ViewModelFactory = () => strats, ViewFactory = () => new StratBookTabView()
+                TabId = "stratbook.browser",
+                Header = "Strats",
+                Order = 0,
+                HostId = HostIds.StratBookHub,
+                ViewModelFactory = () => strats,
+                ViewFactory = () => new StratBookTabView()
             }
         ];
         (string Id, string Header, string? Badge)[] others =
@@ -51,8 +56,13 @@ public static partial class Variants
             (string id, string header, string? badge) = others[i];
             sections.Add(new WorkspaceTabDescriptor
             {
-                TabId = id, Header = header, Order = i + 1, HostId = HostIds.StratBookHub, Badge = badge,
-                ViewFactory = () => new TextBlock { Text = header, HorizontalAlignment = HorizontalAlignment.Center }
+                TabId = id,
+                Header = header,
+                Order = i + 1,
+                HostId = HostIds.StratBookHub,
+                Badge = badge,
+                ViewFactory = () =>
+                    new TextBlock { Text = header, HorizontalAlignment = HorizontalAlignment.Center }
             });
         }
 
@@ -123,12 +133,16 @@ public static partial class Variants
     {
         using AssetZonePlaceResolverSource zoneSource = new();
         IZonePlaceResolver? zones = zoneSource.TryGet("de_mirage");
+
         (double X, double Y) Near(string place, double dx, double dy) =>
             zones?.PlaceCentre(place, 0) is { } c ? (Math.Round(c.X + dx), Math.Round(c.Y + dy)) : (dx, dy);
 
         StratDocument document = vm.Session.Document!;
         double level = document.Steps.SelectMany(s => s.Positions).FirstOrDefault()?.LevelMinZ ?? 0;
-        StepPosition At(string slot, (double X, double Y) p) => new() { Slot = slot, X = p.X, Y = p.Y, LevelMinZ = level };
+
+        StepPosition At(string slot, (double X, double Y) p) =>
+            new() { Slot = slot, X = p.X, Y = p.Y, LevelMinZ = level };
+
         StratStep step = new()
         {
             Id = Guid.NewGuid(),
@@ -140,13 +154,21 @@ public static partial class Variants
             [
                 new StepAssignment
                 {
-                    Slot = "B", To = new PlaceRef { Place = "PalaceInterior" },
+                    Slot = "B",
+                    To = new PlaceRef { Place = "PalaceInterior" },
                     Watch = new StepWatch { Places = ["BombsiteA", "CTSpawn"] }
                 },
-                new StepAssignment { Slot = "C", To = new PlaceRef { Place = "Connector" }, Watch = new StepWatch { Places = ["Stairs"] } },
                 new StepAssignment
                 {
-                    Slot = "D", To = new PlaceRef { Place = "Stairs" }, Watch = new StepWatch { Places = ["TRamp"], YawDegrees = 135 }
+                    Slot = "C",
+                    To = new PlaceRef { Place = "Connector" },
+                    Watch = new StepWatch { Places = ["Stairs"] }
+                },
+                new StepAssignment
+                {
+                    Slot = "D",
+                    To = new PlaceRef { Place = "Stairs" },
+                    Watch = new StepWatch { Places = ["TRamp"], YawDegrees = 135 }
                 }
             ],
             Positions =
@@ -154,7 +176,8 @@ public static partial class Variants
                 At("B", Near("PalaceInterior", 0, 0)), At("C", Near("Connector", 0, 0)), At("D", Near("Stairs", 0, 0))
             ]
         };
-        vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep)));
+        vm.Session.Apply(PatchOp.AddOp("/steps/-",
+            JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep)));
     }
 
     // Two players holding one place and one watching, shown as one "who"; then a lurk with its areas and rotate.
@@ -169,31 +192,53 @@ public static partial class Variants
             double at = document.Steps[^1].AtSeconds - 5;
             StratStep pair = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = at, Actor = StratVocabulary.ActorAll, Verb = "hold",
+                Id = Guid.NewGuid(),
+                AtSeconds = at,
+                Actor = StratVocabulary.ActorAll,
+                Verb = "hold",
                 Assignments =
                 [
-                    new StepAssignment { Slot = "B", To = new PlaceRef { Place = "BombsiteA" }, Watch = new StepWatch { Places = ["Stairs", "CTSpawn"] } },
-                    new StepAssignment { Slot = "C", To = new PlaceRef { Place = "BombsiteA" }, Watch = new StepWatch { Places = ["Stairs", "CTSpawn"] } }
+                    new StepAssignment
+                    {
+                        Slot = "B",
+                        To = new PlaceRef { Place = "BombsiteA" },
+                        Watch = new StepWatch { Places = ["Stairs", "CTSpawn"] }
+                    },
+                    new StepAssignment
+                    {
+                        Slot = "C",
+                        To = new PlaceRef { Place = "BombsiteA" },
+                        Watch = new StepWatch { Places = ["Stairs", "CTSpawn"] }
+                    }
                 ]
             };
             StratStep lurk = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = at - 5, Actor = "E", Verb = "lurk",
+                Id = Guid.NewGuid(),
+                AtSeconds = at - 5,
+                Actor = "E",
+                Verb = "lurk",
                 Lurk = new StepLurk
                 {
                     Areas = ["PalaceInterior", "Connector"],
-                    Rotate = new LurkRotate { AtSeconds = 40, When = "on the call", To = new PlaceRef { Place = "BombsiteB" } }
+                    Rotate = new LurkRotate
+                    {
+                        AtSeconds = 40, When = "on the call", To = new PlaceRef { Place = "BombsiteB" }
+                    }
                 }
             };
-            vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(pair, StratJsonContext.Default.StratStep)));
-            vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StratStep)));
+            vm.Session.Apply(PatchOp.AddOp("/steps/-",
+                JsonSerializer.SerializeToNode(pair, StratJsonContext.Default.StratStep)));
+            vm.Session.Apply(PatchOp.AddOp("/steps/-",
+                JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StratStep)));
         });
         view.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() =>
         {
             StratStepRow row = strats!.Editor.Steps[^1];
             strats.StepSelection.Select(row.Id);
             if (view.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault(c => c.Name == "StepRows") is { } rows
-                && rows.ContainerFromIndex(strats.Editor.Steps.Count - 2) is { } pairRow && rows.ContainerFromIndex(strats.Editor.Steps.Count - 1) is { } lurkRow)
+                && rows.ContainerFromIndex(strats.Editor.Steps.Count - 2) is { } pairRow
+                && rows.ContainerFromIndex(strats.Editor.Steps.Count - 1) is { } lurkRow)
             {
                 lurkRow.BringIntoView();
                 pairRow.BringIntoView();
@@ -214,7 +259,8 @@ public static partial class Variants
         view.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() =>
         {
             strats!.Canvas.Transport.Pause();
-            strats.Canvas.Transport.Seek(DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(atSeconds, 115));
+            strats.Canvas.Transport.Seek(
+                DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(atSeconds, 115));
         }, DispatcherPriority.Background);
         return view;
     }
@@ -239,7 +285,10 @@ public static partial class Variants
                     continue;
                 }
 
-                UtilityRef landed = new() { Kind = utility.Kind, Landing = new UtilityLanding { Place = landings[n++] } };
+                UtilityRef landed = new()
+                {
+                    Kind = utility.Kind, Landing = new UtilityLanding { Place = landings[n++] }
+                };
                 ops.Add(PatchOp.ReplaceOp($"/steps/{i}/utility",
                     JsonSerializer.SerializeToNode(utility, StratJsonContext.Default.UtilityRef),
                     JsonSerializer.SerializeToNode(landed, StratJsonContext.Default.UtilityRef)));
@@ -250,7 +299,8 @@ public static partial class Variants
         view.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() =>
         {
             strats!.Canvas.Transport.Pause();
-            strats.Canvas.Transport.Seek(DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(57.8, 115));
+            strats.Canvas.Transport.Seek(
+                DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TickFor(57.8, 115));
         }, DispatcherPriority.Background);
         return view;
     }
@@ -265,18 +315,26 @@ public static partial class Variants
             strats = vm;
             StratStep lurk = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = vm.Session.Document!.Steps[^1].AtSeconds - 5, Actor = "E", Verb = "lurk",
+                Id = Guid.NewGuid(),
+                AtSeconds = vm.Session.Document!.Steps[^1].AtSeconds - 5,
+                Actor = "E",
+                Verb = "lurk",
                 Lurk = new StepLurk
                 {
                     Areas = ["PalaceInterior"],
-                    Rotate = new LurkRotate { AtSeconds = 40, To = new PlaceRef { X = -1234.4, Y = -560.6, LevelMinZ = -256 } }
+                    Rotate = new LurkRotate
+                    {
+                        AtSeconds = 40, To = new PlaceRef { X = -1234.4, Y = -560.6, LevelMinZ = -256 }
+                    }
                 }
             };
-            vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StratStep)));
+            vm.Session.Apply(PatchOp.AddOp("/steps/-",
+                JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StratStep)));
         });
         view.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() =>
         {
-            if (view.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault(c => c.Name == "StepRows") is not { } rows
+            if (view.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault(c => c.Name == "StepRows") is not
+                    { } rows
                 || rows.ContainerFromIndex(strats!.Editor.Steps.Count - 1) is not { } row)
             {
                 return;
@@ -285,7 +343,8 @@ public static partial class Variants
             row.BringIntoView();
             Dispatcher.UIThread.Post(() =>
             {
-                if (row.GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>().FirstOrDefault(f => f.Name == "LurkAreasField")
+                if (row.GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>()
+                        .FirstOrDefault(f => f.Name == "LurkAreasField")
                         ?.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is { } box)
                 {
                     box.Focus();
@@ -307,43 +366,60 @@ public static partial class Variants
             PlaceRef point = new() { X = -1234.4, Y = -560.6, LevelMinZ = -256 };
             StratStep push = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = at, Actor = StratVocabulary.ActorAll, Verb = "move",
+                Id = Guid.NewGuid(),
+                AtSeconds = at,
+                Actor = StratVocabulary.ActorAll,
+                Verb = "move",
                 Assignments =
                 [
                     new StepAssignment
                     {
-                        Slot = "B", To = new PlaceRef { Place = "BombsiteA" }, Watch = new StepWatch { Places = ["Stairs", "CTSpawn", "Jungle"] },
-                        Via = ["TopofMid", "Connector"], ViaPoints = [point]
+                        Slot = "B",
+                        To = new PlaceRef { Place = "BombsiteA" },
+                        Watch = new StepWatch { Places = ["Stairs", "CTSpawn", "Jungle"] },
+                        Via = ["TopofMid", "Connector"],
+                        ViaPoints = [point]
                     },
                     new StepAssignment
                     {
-                        Slot = "C", To = new PlaceRef { Place = "BombsiteA" }, Watch = new StepWatch { Places = ["TRamp"], Points = [point] },
+                        Slot = "C",
+                        To = new PlaceRef { Place = "BombsiteA" },
+                        Watch = new StepWatch { Places = ["TRamp"], Points = [point] },
                         Via = ["PalaceAlley"]
                     }
                 ]
             };
             StratStep lurk = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = at - 5, Actor = "E", Verb = "lurk",
+                Id = Guid.NewGuid(),
+                AtSeconds = at - 5,
+                Actor = "E",
+                Verb = "lurk",
                 Assignments =
                 [
                     new StepAssignment
                     {
-                        Slot = "E", Watch = new StepWatch { Places = ["Connector", "TopofMid"], Points = [point] }, Via = ["Catwalk", "Underpass"]
+                        Slot = "E",
+                        Watch = new StepWatch { Places = ["Connector", "TopofMid"], Points = [point] },
+                        Via = ["Catwalk", "Underpass"]
                     }
                 ],
                 Lurk = new StepLurk
                 {
-                    Areas = ["PalaceInterior", "Connector", "Underpass", "Apartments"], AreaPoints = [point],
+                    Areas = ["PalaceInterior", "Connector", "Underpass", "Apartments"],
+                    AreaPoints = [point],
                     Rotate = new LurkRotate { AtSeconds = 40, To = new PlaceRef { Place = "BombsiteB" } }
                 }
             };
-            vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(push, StratJsonContext.Default.StratStep)));
-            vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StratStep)));
+            vm.Session.Apply(PatchOp.AddOp("/steps/-",
+                JsonSerializer.SerializeToNode(push, StratJsonContext.Default.StratStep)));
+            vm.Session.Apply(PatchOp.AddOp("/steps/-",
+                JsonSerializer.SerializeToNode(lurk, StratJsonContext.Default.StratStep)));
         });
         view.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() =>
         {
-            if (view.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault(c => c.Name == "StepRows") is not { } rows
+            if (view.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault(c => c.Name == "StepRows") is not
+                    { } rows
                 || rows.ContainerFromIndex(strats!.Editor.Steps.Count - 2) is not { } pushRow
                 || rows.ContainerFromIndex(strats.Editor.Steps.Count - 1) is not { } lurkRow)
             {
@@ -359,7 +435,8 @@ public static partial class Variants
             }
 
             // Scrolled first and focused once that has settled, so the list opens where the field ends up.
-            if (lurkRow.GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>().FirstOrDefault(f => f.Name == "LurkAreasField")
+            if (lurkRow.GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>()
+                    .FirstOrDefault(f => f.Name == "LurkAreasField")
                     ?.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is not { } box)
             {
                 return;
@@ -375,7 +452,8 @@ public static partial class Variants
         return view;
     }
 
-    private static StratBookTabViewModel SeededStratBook(StratBookLayout layout, bool bare, IZonePlaceResolver? places = null,
+    private static StratBookTabViewModel SeededStratBook(StratBookLayout layout, bool bare,
+        IZonePlaceResolver? places = null,
         string? template = null, string map = "de_mirage")
     {
         StratStore store = new(null);
@@ -405,6 +483,7 @@ public static partial class Variants
         vm.Editor.Name = "A split through palace";
 
         StratEditorViewModel editor = vm.Editor;
+
         void Step(string actor, string verb, Action<StratStepRow>? fill = null)
         {
             editor.AddStepCommand.Execute(null);
@@ -453,10 +532,22 @@ public static partial class Variants
         public IReadOnlyList<PlayerRosterEntry> Players => [];
         public IReadOnlyList<IPlayerState> CurrentPlayers => [];
         public double CurtimeSeconds(int tick) => 0;
-        public void RequestSeekToFrame(int frameIndex) { }
-        public void RequestSeekToTick(int tick) { }
-        public void RequestPlay() { }
-        public void RequestPause() { }
+
+        public void RequestSeekToFrame(int frameIndex)
+        {
+        }
+
+        public void RequestSeekToTick(int tick)
+        {
+        }
+
+        public void RequestPlay()
+        {
+        }
+
+        public void RequestPause()
+        {
+        }
 
         public event Action<IPlaybackSnapshot>? Advanced
         {

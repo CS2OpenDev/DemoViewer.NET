@@ -66,7 +66,8 @@ public sealed record PlayerBenchmark(int Population, IReadOnlyList<BenchmarkStat
     /// <param name="subject">The account left out.</param>
     /// <param name="filter">The subject's filter, applied to each account's demos as to the subject's.</param>
     /// <param name="minimumMatches">The fewest demos with stats.</param>
-    public static IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> PopulationOf(LibraryRows library, ulong subject, PlayerFilter filter,
+    public static IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> PopulationOf(LibraryRows library,
+        ulong subject, PlayerFilter filter,
         int minimumMatches)
     {
         ArgumentNullException.ThrowIfNull(library);
@@ -93,7 +94,8 @@ public sealed record PlayerBenchmark(int Population, IReadOnlyList<BenchmarkStat
     /// <param name="subject">The subject's pool.</param>
     /// <param name="population">The pools compared with.</param>
     /// <param name="keys">Catalogue keys, or <see cref="WinRate" />.</param>
-    public static PlayerBenchmark Of(PlayerAggregate subject, IReadOnlyList<PlayerAggregate> population, IReadOnlyList<string> keys)
+    public static PlayerBenchmark Of(PlayerAggregate subject, IReadOnlyList<PlayerAggregate> population,
+        IReadOnlyList<string> keys)
     {
         ArgumentNullException.ThrowIfNull(subject);
         ArgumentNullException.ThrowIfNull(population);

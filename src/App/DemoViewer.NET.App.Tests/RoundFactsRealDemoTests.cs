@@ -32,7 +32,8 @@ public class RoundFactsRealDemoTests
     private static RoundFactsRows RowsFor(ParsedDemo parsed, string path)
     {
         DemoCacheStore store = new(null);
-        RoundFactsEvaluator evaluator = new(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
+        RoundFactsEvaluator evaluator = new(store, new EngineRoundFactsRowSource(),
+            new RulesRoundFactsRulesetIdentity());
         evaluator.Evaluate(path, parsed);
         return store.RoundFactsOf(path)
                ?? throw new InvalidOperationException("the evaluator wrote no rows");
@@ -89,7 +90,9 @@ public class RoundFactsRealDemoTests
                     continue;
                 }
 
-                await Assert.That(officiallyEnded.Any(t => panels.Any(s => Math.Abs(t - (decided + s * parsed.TickRate)) <= 1))).IsTrue()
+                await Assert
+                    .That(officiallyEnded.Any(t => panels.Any(s => Math.Abs(t - (decided + s * parsed.TickRate)) <= 1)))
+                    .IsTrue()
                     .Because($"round {round.Number}: the close is 7 s or 8.5 s after the decision");
             }
         }

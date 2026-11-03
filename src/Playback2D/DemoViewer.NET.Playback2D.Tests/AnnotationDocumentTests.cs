@@ -270,11 +270,7 @@ public class AnnotationDocumentTests
         int undoBefore = doc.UndoDepth;
         int redoBefore = doc.RedoDepth;
 
-        doc.RemapWorldLevels(new Dictionary<double, double>
-        {
-            [-448] = -384,
-            [-128] = -64
-        });
+        doc.RemapWorldLevels(new Dictionary<double, double> { [-448] = -384, [-128] = -64 });
 
         await Assert.That(((SpaceRef.World)doc.Elements[0].Space).LevelMinZ).IsEqualTo(-384);
         await Assert.That(doc.UndoDepth).IsEqualTo(undoBefore);
@@ -299,10 +295,7 @@ public class AnnotationDocumentTests
         int raised = 0;
         doc.Changed += () => raised++;
 
-        doc.ApplyMigration(new DocDelta.Add(element with
-        {
-            Time = new TimeEnvelope(10, 20, 0, 0)
-        }, 0));
+        doc.ApplyMigration(new DocDelta.Add(element with { Time = new TimeEnvelope(10, 20, 0, 0) }, 0));
 
         await Assert.That(doc.Elements.Count).IsEqualTo(1);
         await Assert.That(doc.UndoDepth).IsEqualTo(undoBefore);
@@ -334,10 +327,7 @@ public class AnnotationDocumentTests
         AnnotationElement original = AnnotationFakes.Stroke();
         doc.Apply(new DocDelta.Add(original, 0));
 
-        AnnotationElement edited = original with
-        {
-            Time = new TimeEnvelope(500, 800, 4, 8)
-        };
+        AnnotationElement edited = original with { Time = new TimeEnvelope(500, 800, 4, 8) };
         doc.Apply(new DocDelta.Replace(original.Id, edited));
         await Assert.That(doc.Elements[0].Time.FromTick).IsEqualTo(500);
 

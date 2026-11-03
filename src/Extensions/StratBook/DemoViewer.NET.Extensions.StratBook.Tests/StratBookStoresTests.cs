@@ -27,7 +27,8 @@ namespace DemoViewer.NET.AppTests.Extensions.StratBook;
 [NotInParallel]
 public class StratBookStoresTests
 {
-    private static string TempRoot(string tag) => Path.Combine(Path.GetTempPath(), $"dv-stores-{tag}-{Guid.NewGuid():N}");
+    private static string TempRoot(string tag) =>
+        Path.Combine(Path.GetTempPath(), $"dv-stores-{tag}-{Guid.NewGuid():N}");
 
     [Test]
     public async Task EveryDescriptor_CoversAtLeastOneRealFile_AndEveryFileIsCovered()
@@ -51,11 +52,13 @@ public class StratBookStoresTests
                 foreach (StoreInventoryItem item in inventory.Items)
                 {
                     await Assert.That(item.FileCount).IsGreaterThanOrEqualTo(1)
-                        .Because($"'{item.Descriptor.Id}' ({string.Join(", ", item.Descriptor.Paths)}) matched no real file");
+                        .Because(
+                            $"'{item.Descriptor.Id}' ({string.Join(", ", item.Descriptor.Paths)}) matched no real file");
                 }
 
                 await Assert.That(coveredFiles).IsEqualTo(realFiles)
-                    .Because("every file the real writers created must be covered by exactly the declared descriptors, no more, no less");
+                    .Because(
+                        "every file the real writers created must be covered by exactly the declared descriptors, no more, no less");
             }
         }
         finally
@@ -96,7 +99,8 @@ public class StratBookStoresTests
     private static void WriteOneItemPerStore(string configRoot, string cacheRoot)
     {
         // strats/: real API.
-        new StratStore(PackStores.Folder(configRoot, StratBookStores.Strats)).Create(StratOwner.Me(), "de_dust2", "T", "default", "test");
+        new StratStore(PackStores.Folder(configRoot, StratBookStores.Strats)).Create(StratOwner.Me(), "de_dust2", "T",
+            "default", "test");
 
         // tags/: the store's own path, written directly rather than through a live TagSession.
         TagStore tags = new(PackStores.Folder(configRoot, StratBookStores.Tags));
@@ -124,10 +128,14 @@ public class StratBookStoresTests
         File.WriteAllText(Path.Combine(configRoot, WatchedSituationsService.FileName), "{}");
 
         // veto-history.json: real API.
-        new VetoHistoryStore(StoredFile.At(Path.Combine(configRoot, VetoHistoryStore.FileName))).Add(new VetoEntry { OpponentTeamId = Guid.NewGuid(), Order = 0, Map = "de_dust2" });
+        new VetoHistoryStore(StoredFile.At(Path.Combine(configRoot, VetoHistoryStore.FileName))).Add(new VetoEntry
+        {
+            OpponentTeamId = Guid.NewGuid(), Order = 0, Map = "de_dust2"
+        });
 
         // dossier-notes.json: real API.
-        new DossierNotesStore(StoredFile.At(Path.Combine(configRoot, DossierNotesStore.FileName))).AddNote(Guid.NewGuid(), "a note");
+        new DossierNotesStore(StoredFile.At(Path.Combine(configRoot, DossierNotesStore.FileName))).AddNote(
+            Guid.NewGuid(), "a note");
 
         // strat-mining.json: the old layout of Strat Mining's user file, copied once into the extension's folder.
         File.WriteAllText(Path.Combine(configRoot, "strat-mining.json"), "{}");

@@ -159,10 +159,7 @@ public class FreehandOutlineTests
             new(0, 0, 0.5f), new(30, 0, 0.5f), new(60, 0, 0.5f), new(90, 0, 0.5f)
         ];
 
-        FreehandOptions options = FreehandOptions.Default with
-        {
-            Streamline = 0
-        };
+        FreehandOptions options = FreehandOptions.Default with { Streamline = 0 };
 
         List<StrokePoint> points = [];
         FreehandOutline.GetStrokePoints(input, in options, points);

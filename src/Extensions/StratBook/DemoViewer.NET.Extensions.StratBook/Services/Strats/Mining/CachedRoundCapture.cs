@@ -27,7 +27,8 @@ public static class CachedRoundCapture
     /// <param name="tickRate">The demo's tick rate.</param>
     /// <param name="windowEndTick">The last tick to capture.</param>
     public static RoundCapture Build(RoundPositionsDocument positions, RoundPositionsRound stored, RoundFacts facts,
-        IReadOnlyList<GrenadeRow> grenades, IReadOnlyDictionary<int, (ulong SteamId, string Name)> players, int tickRate,
+        IReadOnlyList<GrenadeRow> grenades, IReadOnlyDictionary<int, (ulong SteamId, string Name)> players,
+        int tickRate,
         int windowEndTick)
     {
         ArgumentNullException.ThrowIfNull(positions);
@@ -50,13 +51,15 @@ public static class CachedRoundCapture
                 .. stored.At(step).OrderBy(p => p.Slot).Select(p =>
                 {
                     (ulong id, string name) = players.GetValueOrDefault(p.Slot);
-                    return new CapturedPawn(p.Slot, ct.Contains(p.Slot) ? 3 : 2, id, name, p.X, p.Y, p.Z, 0, positions.PlaceOf(p.PlaceId));
+                    return new CapturedPawn(p.Slot, ct.Contains(p.Slot) ? 3 : 2, id, name, p.X, p.Y, p.Z, 0,
+                        positions.PlaceOf(p.PlaceId));
                 })
             ];
         }
 
         List<CaptureMoment> stops = [];
-        foreach (GrenadeRow row in grenades.OrderBy(g => g.DetonationTick ?? g.EndTick).ThenBy(g => g.Id, StringComparer.Ordinal))
+        foreach (GrenadeRow row in grenades.OrderBy(g => g.DetonationTick ?? g.EndTick)
+                     .ThenBy(g => g.Id, StringComparer.Ordinal))
         {
             int tick = row.DetonationTick ?? row.EndTick;
             if (tick < freezeEnd || tick > end || KindOf(row.Kind) is not { } kind
@@ -65,13 +68,15 @@ public static class CachedRoundCapture
                 continue;
             }
 
-            stops.Add(new CaptureMoment(tick, CaptureTrigger.Utility, PawnsAt(tick), kind, row.ThrowerSlot, row.ThrowerTeam,
+            stops.Add(new CaptureMoment(tick, CaptureTrigger.Utility, PawnsAt(tick), kind, row.ThrowerSlot,
+                row.ThrowerTeam,
                 landing.ToVector(), row.ReleasePosition?.ToVector(), row.ThrowerSteamId ?? 0));
         }
 
         if (facts.PlantTick is { } plant && plant >= freezeEnd && plant <= end)
         {
-            stops.Add(new CaptureMoment(plant, CaptureTrigger.Plant, PawnsAt(plant), ActorSlot: facts.PlanterSlot ?? -1, ActorTeam: 2));
+            stops.Add(new CaptureMoment(plant, CaptureTrigger.Plant, PawnsAt(plant), ActorSlot: facts.PlanterSlot ?? -1,
+                ActorTeam: 2));
         }
 
         int sweep = RoundCaptureWalker.SweepSeconds * tickRate;

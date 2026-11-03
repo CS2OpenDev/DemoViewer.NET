@@ -108,7 +108,8 @@ public class DemoProcessingQueueTests
 
         ParsedDemo result = await open.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(result).IsNotNull();
-        await Assert.That(parser.ByteCalls).IsEqualTo(1).Because("the finalizing entry is not coalesceable — the open parsed its own bytes");
+        await Assert.That(parser.ByteCalls).IsEqualTo(1)
+            .Because("the finalizing entry is not coalesceable — the open parsed its own bytes");
     }
 
 
@@ -150,7 +151,8 @@ public class DemoProcessingQueueTests
 
             // Two owners, one entry.
             await Assert.That(q.Snapshot().Count).IsEqualTo(1).Because("same path coalesces to one item");
-            await Assert.That(q.Snapshot()[0].Owners).IsEquivalentTo(["library", "highlights"], CollectionOrdering.Matching);
+            await Assert.That(q.Snapshot()[0].Owners)
+                .IsEquivalentTo(["library", "highlights"], CollectionOrdering.Matching);
 
             q.Resume();
             await WaitForAsync(() => libRan == 1 && hlRan == 1, "both owners' handlers ran");
@@ -161,10 +163,7 @@ public class DemoProcessingQueueTests
     [Test]
     public async Task MaxQueueSize_RejectsOverflow_CapacityAvailableRefeedsAll()
     {
-        RecordingParser parser = new()
-        {
-            SleepMs = 15
-        };
+        RecordingParser parser = new() { SleepMs = 15 };
         using DemoProcessingQueue q = NewQueue(parser, out HeavyJobGate gate);
         using (gate)
         {
@@ -303,10 +302,7 @@ public class DemoProcessingQueueTests
             await Task.Delay(150);
             await Assert.That(parser.Processed.Count).IsEqualTo(0).Because("background disabled → nothing runs");
 
-            ParsedDemo fg = await q.RequestForegroundAsync("/d/open.dem", new byte[]
-            {
-                1, 2, 3
-            });
+            ParsedDemo fg = await q.RequestForegroundAsync("/d/open.dem", new byte[] { 1, 2, 3 });
             await Assert.That(fg).IsSameReferenceAs(parser.ForegroundDemo)
                 .Because("foreground bypasses the disable switch");
         }
@@ -329,12 +325,10 @@ public class DemoProcessingQueueTests
             await Assert.That(rejected.State).IsEqualTo(DemoQueueItemState.Rejected).Because("tier full");
 
             using CancellationTokenSource cts = new(TimeSpan.FromSeconds(2));
-            ParsedDemo fg = await q.RequestForegroundAsync("/d/open.dem", new byte[]
-            {
-                9
-            }, cts.Token);
+            ParsedDemo fg = await q.RequestForegroundAsync("/d/open.dem", new byte[] { 9 }, cts.Token);
             await Assert.That(fg).IsSameReferenceAs(parser.ForegroundDemo);
-            await Assert.That(parser.Processed.Count).IsEqualTo(0).Because("no background ran; foreground is the fast-path");
+            await Assert.That(parser.Processed.Count).IsEqualTo(0)
+                .Because("no background ran; foreground is the fast-path");
         }
     }
 
@@ -353,10 +347,7 @@ public class DemoProcessingQueueTests
                     "background parse running");
 
                 // A user opens X while it is in flight → coalesces onto that parse (best-effort reuse).
-                Task<ParsedDemo> fg = q.RequestForegroundAsync("/d/x.dem", new byte[]
-                {
-                    1
-                });
+                Task<ParsedDemo> fg = q.RequestForegroundAsync("/d/x.dem", new byte[] { 1 });
                 await Task.Delay(50);
                 await Assert.That(fg.IsCompleted).IsFalse().Because("still waiting on the in-flight parse");
 
@@ -444,18 +435,13 @@ public class DemoProcessingQueueTests
         using DemoProcessingQueue q = NewQueue(parser, out HeavyJobGate gate);
         using (gate)
         {
-            ParsedDemo fg = await q.RequestForegroundAsync(null, new byte[]
-            {
-                1, 2
-            });
+            ParsedDemo fg = await q.RequestForegroundAsync(null, new byte[] { 1, 2 });
             await Assert.That(fg).IsSameReferenceAs(parser.ForegroundDemo);
 
             using CancellationTokenSource cts = new();
             cts.Cancel();
-            await AssertThrowsAsync<OperationCanceledException>(async () => await q.RequestForegroundAsync(null, new byte[]
-            {
-                3
-            }, cts.Token));
+            await AssertThrowsAsync<OperationCanceledException>(async () =>
+                await q.RequestForegroundAsync(null, new byte[] { 3 }, cts.Token));
         }
     }
 
@@ -499,7 +485,8 @@ public class DemoProcessingQueueTests
     {
         RecordingParser parser = new();
         int compactions = 0;
-        using DemoProcessingQueue queue = CountingQueue(parser, new ManualClock(), () => Interlocked.Increment(ref compactions));
+        using DemoProcessingQueue queue =
+            CountingQueue(parser, new ManualClock(), () => Interlocked.Increment(ref compactions));
         using ManualResetEventSlim block = new(false);
 
         queue.SubmitJob(Job("a", _ => Task.Run(block.Wait)));
@@ -665,7 +652,8 @@ public class DemoProcessingQueueTests
 
     private static bool HasUserCommands(DecodePlan plan) => (plan.Categories & MessageCategories.UserCmds) != 0;
 
-    private static DemoProcessingQueue PlanQueue(Dictionary<string, DecodePlan> plans, ManualResetEventSlim? block = null,
+    private static DemoProcessingQueue PlanQueue(Dictionary<string, DecodePlan> plans,
+        ManualResetEventSlim? block = null,
         Func<ReadOnlyMemory<byte>, ParsedDemo>? parseBytes = null) =>
         new(new HeavyJobGate(), a => a(), parseBytes: parseBytes ?? (_ => SyntheticDemo()), compactHeap: NoCompact,
             timeProvider: new ManualClock(), parseFileWithPlan: (path, plan) =>
@@ -688,8 +676,14 @@ public class DemoProcessingQueueTests
 
         queue.SubmitBackground(Req("hold.dem", "o", DemoJobPriority.Background, 9));
         await WaitForAsync(() => queue.RunningCount == 1, "hold running");
-        queue.SubmitBackground(Req("narrow.dem", "library", DemoJobPriority.Background, 3) with { NeedsUserCommands = false });
-        queue.SubmitBackground(Req("mixed.dem", "library", DemoJobPriority.Background, 2) with { NeedsUserCommands = false });
+        queue.SubmitBackground(Req("narrow.dem", "library", DemoJobPriority.Background, 3) with
+        {
+            NeedsUserCommands = false
+        });
+        queue.SubmitBackground(Req("mixed.dem", "library", DemoJobPriority.Background, 2) with
+        {
+            NeedsUserCommands = false
+        });
         queue.SubmitBackground(Req("mixed.dem", "grenades", DemoJobPriority.Background, 2));
         queue.SubmitBackground(Req("full.dem", "grenades", DemoJobPriority.Background, 1));
         block.Set();
@@ -698,7 +692,8 @@ public class DemoProcessingQueueTests
         using (Assert.Multiple())
         {
             await Assert.That(HasUserCommands(plans["narrow.dem"])).IsFalse();
-            await Assert.That(plans["narrow.dem"].Categories).IsEqualTo(MessageCategories.All & ~MessageCategories.UserCmds);
+            await Assert.That(plans["narrow.dem"].Categories)
+                .IsEqualTo(MessageCategories.All & ~MessageCategories.UserCmds);
             await Assert.That(plans["mixed.dem"].DecodesEverything).IsTrue().Because("a queued entry takes the union");
             await Assert.That(plans["full.dem"].DecodesEverything).IsTrue();
             await Assert.That(plans["hold.dem"].DecodesEverything).IsTrue().Because("requests default to needing them");
@@ -719,7 +714,10 @@ public class DemoProcessingQueueTests
         List<DecodePlan> seen = [];
 
         IDemoQueueHandle narrow = queue.SubmitBackground(
-            Req("a.dem", "library", DemoJobPriority.Background, 1, p => seen.Add(p.Plan)) with { NeedsUserCommands = false });
+            Req("a.dem", "library", DemoJobPriority.Background, 1, p => seen.Add(p.Plan)) with
+            {
+                NeedsUserCommands = false
+            });
         await WaitForAsync(() => queue.RunningCount == 1, "a running");
 
         IDemoQueueHandle reader = queue.SubmitBackground(

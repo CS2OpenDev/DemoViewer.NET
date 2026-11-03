@@ -85,7 +85,12 @@ public static class GrenadeRules
     // The held weapons whose m_flThrowStrength means anything.
     private static readonly HashSet<string> _grenadeWeaponClasses = new(StringComparer.Ordinal)
     {
-        "CSmokeGrenade", "CFlashbang", "CHEGrenade", "CMolotovGrenade", "CIncendiaryGrenade", "CDecoyGrenade"
+        "CSmokeGrenade",
+        "CFlashbang",
+        "CHEGrenade",
+        "CMolotovGrenade",
+        "CIncendiaryGrenade",
+        "CDecoyGrenade"
     };
 
     /// <summary>The held-weapon classes a throw strength is read from.</summary>
@@ -244,7 +249,8 @@ public static class GrenadeConsole
     public static string? Format(GrenadeRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        if (row.ReleasePosition is not { } p || row.ReleaseEyePitch is not { } pitch || row.ReleaseEyeYaw is not { } yaw)
+        if (row.ReleasePosition is not { } p || row.ReleaseEyePitch is not { } pitch
+                                             || row.ReleaseEyeYaw is not { } yaw)
         {
             return null;
         }

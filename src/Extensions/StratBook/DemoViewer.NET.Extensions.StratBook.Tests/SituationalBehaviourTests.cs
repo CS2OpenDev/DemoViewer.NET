@@ -73,8 +73,22 @@ public class SituationalBehaviourTests
             Round(4, TeamBSlots, TeamASlots, 2, BuyType.Full, BuyType.Full,
                 kills:
                 [
-                    new KillStep { Tick = At(Freeze(4), 10), AttackerSlot = 0, VictimSlot = 5, CtAlive = 4, TAlive = 5 },
-                    new KillStep { Tick = At(Freeze(4), 15), AttackerSlot = 1, VictimSlot = 6, CtAlive = 3, TAlive = 5 }
+                    new KillStep
+                    {
+                        Tick = At(Freeze(4), 10),
+                        AttackerSlot = 0,
+                        VictimSlot = 5,
+                        CtAlive = 4,
+                        TAlive = 5
+                    },
+                    new KillStep
+                    {
+                        Tick = At(Freeze(4), 15),
+                        AttackerSlot = 1,
+                        VictimSlot = 6,
+                        CtAlive = 3,
+                        TAlive = 5
+                    }
                 ]),
             Round(5, TeamBSlots, TeamASlots, 3, BuyType.Full, BuyType.Full),
             Round(6, TeamASlots, TeamBSlots, 3, BuyType.Eco, BuyType.Full),
@@ -129,31 +143,38 @@ public class SituationalBehaviourTests
 
             await Assert.That(t.Map).IsEqualTo("de_nuke");
             await Assert.That(t.Side).IsEqualTo(2);
-            await Assert.That(t.SideRounds.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1, 2, 3, 4, 5], CollectionOrdering.Matching);
+            await Assert.That(t.SideRounds.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([1, 2, 3, 4, 5], CollectionOrdering.Matching);
 
-            await Assert.That(t.PistolRounds.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1], CollectionOrdering.Matching);
+            await Assert.That(t.PistolRounds.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([1], CollectionOrdering.Matching);
             await Assert.That(Shape(t.PistolOutcomes)).IsEqualTo(Joined("won: elimination:1"));
             await Assert.That(Shape(t.PistolFollowUp)).IsEqualTo(Joined("won pistol, lost the bonus:1"));
 
-            await Assert.That(t.AntiEcoRounds.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([3], CollectionOrdering.Matching);
+            await Assert.That(t.AntiEcoRounds.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([3], CollectionOrdering.Matching);
             await Assert.That(Shape(t.AntiEcoBuyTypes)).IsEqualTo(Joined("eco:1"));
             await Assert.That(Shape(t.AntiEcoOutcomes)).IsEqualTo(Joined("won: elimination:1"));
             await Assert.That(Shape(t.AntiEcoContactClock)).IsEqualTo(Joined("0-5 s:0", "5-10 s:1"));
 
-            await Assert.That(t.ManAdvantageRounds.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([4], CollectionOrdering.Matching);
+            await Assert.That(t.ManAdvantageRounds.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([4], CollectionOrdering.Matching);
             await Assert.That(Shape(t.ManAdvantage)).IsEqualTo(Joined("2-up:1"));
             await Assert.That(Shape(t.ManAdvantageOutcomes)).IsEqualTo(Joined("closed it out:1"));
 
-            await Assert.That(t.RoundsLost.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([2, 5], CollectionOrdering.Matching);
+            await Assert.That(t.RoundsLost.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([2, 5], CollectionOrdering.Matching);
             await Assert.That(Shape(t.SaveDiscipline)).IsEqualTo(Joined("eco next:1", "full buy next:1"))
-                .Because("round 2's loss carries into round 3's own buy, round 5's into round 6's across the half swap");
+                .Because(
+                    "round 2's loss carries into round 3's own buy, round 5's into round 6's across the half swap");
 
             await Assert.That(ct.Side).IsEqualTo(3);
             await Assert.That(ct.SideRounds.Count).IsEqualTo(2);
             await Assert.That(ct.PistolRounds.Count).IsEqualTo(0);
             await Assert.That(ct.AntiEcoRounds.Count).IsEqualTo(0);
             await Assert.That(ct.ManAdvantageRounds.Count).IsEqualTo(0);
-            await Assert.That(ct.RoundsLost.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([7], CollectionOrdering.Matching);
+            await Assert.That(ct.RoundsLost.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([7], CollectionOrdering.Matching);
             await Assert.That(ct.SaveDiscipline.Count).IsEqualTo(0).Because("round 7 has no following round to pair");
         }
     }
@@ -214,8 +235,10 @@ public class SituationalBehaviourTests
         // Every number of every block is a link to exactly the rounds it counts.
         IEnumerable<TendencyLinkViewModel> numbers = vm.Situational.Blocks.SelectMany(b =>
             b.PistolOutcomes.Concat(b.PistolFollowUp).Concat(b.AntiEcoBuyTypes).Concat(b.AntiEcoOutcomes)
-                .Concat(b.AntiEcoContactClock).Concat(b.ManAdvantage).Concat(b.ManAdvantageOutcomes).Concat(b.SaveDiscipline)
-                .Append(b.RoundsLink).Append(b.PistolLink).Append(b.AntiEcoLink).Append(b.ManAdvantageLink).Append(b.RoundsLostLink));
+                .Concat(b.AntiEcoContactClock).Concat(b.ManAdvantage).Concat(b.ManAdvantageOutcomes)
+                .Concat(b.SaveDiscipline)
+                .Append(b.RoundsLink).Append(b.PistolLink).Append(b.AntiEcoLink).Append(b.ManAdvantageLink)
+                .Append(b.RoundsLostLink));
         await Assert.That(numbers.All(n => n.Bucket.Rounds.Count == n.Count && n.CanOpen == n.Count > 0)).IsTrue();
 
         TendencyLinkViewModel manAdvantage = t.ManAdvantage.Single();
@@ -224,7 +247,8 @@ public class SituationalBehaviourTests
         {
             await Assert.That(queue.ClipCount).IsEqualTo(1);
             await Assert.That(queue.Clips[0].Source).IsEqualTo(ReviewSources.Dossier);
-            await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue().Because("a Dossier clip carries its team");
+            await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
+                .Because("a Dossier clip carries its team");
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke T · led 2-up · round 4");
             await Assert.That(vm.Situational.ReviewLine).IsEqualTo("1 round sent to Review");
             await Assert.That(shown).IsEquivalentTo(["review.queue"], CollectionOrdering.Matching);
@@ -247,7 +271,8 @@ public class SituationalBehaviourTests
 
     private sealed class Harness : IDisposable
     {
-        private Harness(DemoCacheStore cache, TeamIdentityService teams, SituationalBehaviourService service, Guid teamA)
+        private Harness(DemoCacheStore cache, TeamIdentityService teams, SituationalBehaviourService service,
+            Guid teamA)
         {
             Cache = cache;
             Teams = teams;

@@ -70,11 +70,7 @@ public class HighlightsTabViewModelTests
         TickRate = 64,
         TickCount = 120_000,
         ModifiedTicks = modified,
-        Analysis = new TierStamp
-        {
-            Schema = DemoCacheRecord.AnalysisSchema,
-            ComputedAtTicks = 1
-        },
+        Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
         AnalysisState = state,
         ConfigFingerprint = "fp@64",
         Sha256 = "sha-" + Path.GetFileName(path),
@@ -82,19 +78,12 @@ public class HighlightsTabViewModelTests
         [
             .. players.Select(p => new CachedPlayerInfo
             {
-                Name = p.Name,
-                SteamId64 = p.Steam,
-                Team = p.Team,
-                Slot = p.Slot
+                Name = p.Name, SteamId64 = p.Steam, Team = p.Team, Slot = p.Slot
             })
         ],
         Rounds =
         [
-            new CachedRound
-            {
-                Number = 1,
-                StartTickFrameClock = 1000
-            }
+            new CachedRound { Number = 1, StartTickFrameClock = 1000 }
         ],
         Highlights = [.. events]
     };
@@ -464,7 +453,8 @@ public class HighlightsTabViewModelTests
 
         HighlightsTabViewModel restored = Vm(store, scanner);
         restored.RestoreState(blob);
-        await Assert.That(restored.StagedSelections.Select(s => s.Record.Path)).IsEquivalentTo(_pathsBA, CollectionOrdering.Matching);
+        await Assert.That(restored.StagedSelections.Select(s => s.Record.Path))
+            .IsEquivalentTo(_pathsBA, CollectionOrdering.Matching);
         await Assert.That(restored.TrayColumnWidth.Value).IsEqualTo(2d);
 
         // AND THE SAME PAYLOAD IN camelCase. Today the write path sets no naming policy, so both halves
@@ -474,15 +464,13 @@ public class HighlightsTabViewModelTests
         // that pins it; without it the test above only proves our two halves agree with each other.
         HighlightsTabViewModel webCase = Vm(store, scanner);
         webCase.RestoreState(JsonSerializer.SerializeToElement(vm.SnapshotState(), _webCase));
-        await Assert.That(webCase.StagedSelections.Select(s => s.Record.Path)).IsEquivalentTo(_pathsBA, CollectionOrdering.Matching);
+        await Assert.That(webCase.StagedSelections.Select(s => s.Record.Path))
+            .IsEquivalentTo(_pathsBA, CollectionOrdering.Matching);
 
         // A session file outlives app versions and is user-writable: a shape that no longer matches must
         // degrade to "restore nothing", never throw away the whole tab restore.
         HighlightsTabViewModel garbage = Vm(store, scanner);
-        garbage.RestoreState(JsonSerializer.SerializeToElement(new
-        {
-            StagedClips = "not-an-array"
-        }));
+        garbage.RestoreState(JsonSerializer.SerializeToElement(new { StagedClips = "not-an-array" }));
         await Assert.That(garbage.StagedCount).IsEqualTo(0);
     }
 
@@ -559,7 +547,8 @@ public class HighlightsTabViewModelTests
         await Assert.That(withLibrary.ShowEmptyTray).IsTrue();
         await Assert.That(withLibrary.AnyHighlightsIndexed).IsTrue();
         await Assert.That(withLibrary.ShowLibraryNotIndexedLine).IsFalse()
-            .Because("sending a user who HAS highlights to a full library re-scan is the exact trap this flow exists to avoid");
+            .Because(
+                "sending a user who HAS highlights to a full library re-scan is the exact trap this flow exists to avoid");
 
         StageAll(withLibrary, a);
         await Assert.That(withLibrary.ShowEmptyTray).IsFalse();

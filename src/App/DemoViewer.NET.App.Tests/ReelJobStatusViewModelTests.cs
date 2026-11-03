@@ -151,10 +151,7 @@ public class ReelJobStatusViewModelTests
         foreach (ReelJobPhase phase in Enum.GetValues<ReelJobPhase>())
         {
             job.Raise(Status(phase, 1, 3, failed: phase == ReelJobPhase.Failed ? [1] : null));
-            int visible = new[]
-            {
-                vm.IsRunning, vm.IsCompleted, vm.IsFailed, vm.IsCancelled
-            }.Count(b => b);
+            int visible = new[] { vm.IsRunning, vm.IsCompleted, vm.IsFailed, vm.IsCancelled }.Count(b => b);
             await Assert.That(visible).IsLessThanOrEqualTo(1).Because($"at most one section for {phase}");
         }
     }

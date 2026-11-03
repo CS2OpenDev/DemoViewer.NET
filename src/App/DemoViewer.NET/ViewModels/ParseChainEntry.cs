@@ -41,12 +41,7 @@ public sealed partial class ParseChainEntry
 
     /// <summary>Creates a non-clickable informational row.</summary>
     public static ParseChainEntry Info(string label, string? detail = null, int indent = 0) =>
-        new()
-        {
-            Label = label,
-            Detail = detail,
-            IndentLevel = indent
-        };
+        new() { Label = label, Detail = detail, IndentLevel = indent };
 
     /// <summary>Creates a row linked to a local file (opens in VS Code) with a web URL fallback.</summary>
     public static ParseChainEntry Linked(
@@ -92,10 +87,7 @@ public sealed partial class ParseChainEntry
             // Fallback: open the file with the OS default handler
             try
             {
-                Process.Start(new ProcessStartInfo(localPath)
-                {
-                    UseShellExecute = true
-                });
+                Process.Start(new ProcessStartInfo(localPath) { UseShellExecute = true });
                 return;
             }
             catch
@@ -107,10 +99,7 @@ public sealed partial class ParseChainEntry
         {
             try
             {
-                Process.Start(new ProcessStartInfo(webUrl)
-                {
-                    UseShellExecute = true
-                });
+                Process.Start(new ProcessStartInfo(webUrl) { UseShellExecute = true });
             }
             catch
             {

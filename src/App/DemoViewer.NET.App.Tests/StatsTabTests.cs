@@ -125,7 +125,8 @@ public class StatsTabTests
 
         await Assert.That(vm.HasStats).IsTrue();
         // Columns are in catalogue display order now: assert membership, then index by label.
-        await Assert.That(vm.Columns.Select(c => c.Label).Order()).IsEquivalentTo(_expectedColumns.Order(), CollectionOrdering.Matching);
+        await Assert.That(vm.Columns.Select(c => c.Label).Order())
+            .IsEquivalentTo(_expectedColumns.Order(), CollectionOrdering.Matching);
         await Assert.That(vm.GameRows.Count).IsEqualTo(2);
         // Final snapshot kills: Alice 20, Bob 21 → Bob first under kills-desc.
         int killsIdx = vm.Columns.Single(c => c.Label == "TotalK").Index;
@@ -211,16 +212,8 @@ public class StatsTabTests
         {
             StatsTabViewModel vm = BuildUpdatedVm();
 
-            StatsTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1100,
-                Height = 600,
-                Content = view
-            };
+            StatsTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1100, Height = 600, Content = view };
             window.Show();
 
             Dispatcher.UIThread.RunJobs();

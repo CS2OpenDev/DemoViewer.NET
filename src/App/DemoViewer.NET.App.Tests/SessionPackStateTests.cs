@@ -46,15 +46,15 @@ public class SessionPackStateTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), """
-                {
-                  "Session": {
-                    "DebuggerVisible": false,
-                    "OutputVisible": false,
-                    "ActiveTabId": "stratbook.browser",
-                    "StratBook": { "RailCollapsed": true, "ListCollapsed": false }
-                  }
-                }
-                """);
+                                                                             {
+                                                                               "Session": {
+                                                                                 "DebuggerVisible": false,
+                                                                                 "OutputVisible": false,
+                                                                                 "ActiveTabId": "stratbook.browser",
+                                                                                 "StratBook": { "RailCollapsed": true, "ListCollapsed": false }
+                                                                               }
+                                                                             }
+                                                                             """);
 
             SessionPayload? loaded = new SettingsService(dir).LoadSession();
 
@@ -79,15 +79,15 @@ public class SessionPackStateTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), """
-                {
-                  "Session": {
-                    "DebuggerVisible": false,
-                    "OutputVisible": false,
-                    "StratBook": { "RailCollapsed": true, "ListCollapsed": true },
-                    "Packs": { "net.demoviewer.pack.stratbook": { "RailCollapsed": false, "ListCollapsed": false } }
-                  }
-                }
-                """);
+                                                                             {
+                                                                               "Session": {
+                                                                                 "DebuggerVisible": false,
+                                                                                 "OutputVisible": false,
+                                                                                 "StratBook": { "RailCollapsed": true, "ListCollapsed": true },
+                                                                                 "Packs": { "net.demoviewer.pack.stratbook": { "RailCollapsed": false, "ListCollapsed": false } }
+                                                                               }
+                                                                             }
+                                                                             """);
 
             SessionPayload? loaded = new SettingsService(dir).LoadSession();
 
@@ -108,7 +108,8 @@ public class SessionPackStateTests
         {
             Dictionary<string, JsonElement> packs = new(StringComparer.Ordinal)
             {
-                [StratBookPack.PackId] = JsonSerializer.SerializeToElement(new { RailCollapsed = true, ListCollapsed = false }),
+                [StratBookPack.PackId] =
+                    JsonSerializer.SerializeToElement(new { RailCollapsed = true, ListCollapsed = false }),
                 // An id no pack in this build owns: must survive untouched, the way a pack that has not
                 // shipped yet (or one this build does not have) still round-trips.
                 ["net.demoviewer.pack.future"] = JsonSerializer.SerializeToElement(new { Anything = 1 })
@@ -122,8 +123,11 @@ public class SessionPackStateTests
             await Assert.That(loaded!.Packs!.Keys).IsEquivalentTo(packs.Keys, CollectionOrdering.Matching);
             using (Assert.Multiple())
             {
-                await Assert.That(JsonElement.DeepEquals(loaded.Packs[StratBookPack.PackId], packs[StratBookPack.PackId])).IsTrue();
-                await Assert.That(JsonElement.DeepEquals(loaded.Packs["net.demoviewer.pack.future"], packs["net.demoviewer.pack.future"])).IsTrue();
+                await Assert
+                    .That(JsonElement.DeepEquals(loaded.Packs[StratBookPack.PackId], packs[StratBookPack.PackId]))
+                    .IsTrue();
+                await Assert.That(JsonElement.DeepEquals(loaded.Packs["net.demoviewer.pack.future"],
+                    packs["net.demoviewer.pack.future"])).IsTrue();
             }
         }
         finally
@@ -139,23 +143,24 @@ public class SessionPackStateTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), """
-                {
-                  "Session": {
-                    "DebuggerVisible": true,
-                    "OutputVisible": true,
-                    "ActiveTabId": "stratbook.browser",
-                    "ModuleTabs": { "builtin.parser": { "Hex": true } },
-                    "Window": { "Width": 1280.0, "Height": 720.0, "X": null, "Y": null, "Maximized": false },
-                    "StratBook": { "RailCollapsed": true, "ListCollapsed": false }
-                  }
-                }
-                """);
+                                                                             {
+                                                                               "Session": {
+                                                                                 "DebuggerVisible": true,
+                                                                                 "OutputVisible": true,
+                                                                                 "ActiveTabId": "stratbook.browser",
+                                                                                 "ModuleTabs": { "builtin.parser": { "Hex": true } },
+                                                                                 "Window": { "Width": 1280.0, "Height": 720.0, "X": null, "Y": null, "Maximized": false },
+                                                                                 "StratBook": { "RailCollapsed": true, "ListCollapsed": false }
+                                                                               }
+                                                                             }
+                                                                             """);
 
             SettingsService svc = new(dir);
             SessionPayload? loaded = svc.LoadSession();
             svc.SaveSession(loaded!);
 
-            using JsonDocument doc = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(dir, "settings.json")));
+            using JsonDocument doc =
+                JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(dir, "settings.json")));
             JsonElement session = doc.RootElement.GetProperty("Session");
 
             using (Assert.Multiple())
@@ -183,14 +188,14 @@ public class SessionPackStateTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), """
-                {
-                  "Session": {
-                    "DebuggerVisible": false,
-                    "OutputVisible": false,
-                    "StratBook": null
-                  }
-                }
-                """);
+                                                                             {
+                                                                               "Session": {
+                                                                                 "DebuggerVisible": false,
+                                                                                 "OutputVisible": false,
+                                                                                 "StratBook": null
+                                                                               }
+                                                                             }
+                                                                             """);
 
             SessionPayload? loaded = new SettingsService(dir).LoadSession();
 
@@ -210,14 +215,14 @@ public class SessionPackStateTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), """
-                {
-                  "Session": {
-                    "DebuggerVisible": false,
-                    "OutputVisible": false,
-                    "StratBook": 42
-                  }
-                }
-                """);
+                                                                             {
+                                                                               "Session": {
+                                                                                 "DebuggerVisible": false,
+                                                                                 "OutputVisible": false,
+                                                                                 "StratBook": 42
+                                                                               }
+                                                                             }
+                                                                             """);
 
             SessionPayload? loaded = new SettingsService(dir).LoadSession();
 

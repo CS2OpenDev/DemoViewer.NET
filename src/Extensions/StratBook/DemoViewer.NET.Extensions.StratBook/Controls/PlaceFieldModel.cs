@@ -44,7 +44,10 @@ public sealed class PlaceFieldOptions
         [
             .. resolver.CanonicalNames
                 .Select(p => new PlaceOption(p, resolver.Display(p),
-                    [CalloutResolver.Fold(resolver.Display(p)), CalloutResolver.Fold(p), .. aliases.GetValueOrDefault(p) ?? []]))
+                [
+                    CalloutResolver.Fold(resolver.Display(p)), CalloutResolver.Fold(p),
+                    .. aliases.GetValueOrDefault(p) ?? []
+                ]))
                 .OrderBy(o => o.Display, StringComparer.OrdinalIgnoreCase)
         ];
     }
@@ -243,7 +246,8 @@ public sealed class PlaceFieldModel
         }
 
         _moved = true;
-        Highlight = Math.Clamp(Highlight < 0 ? (delta > 0 ? 0 : Items.Count - 1) : Highlight + delta, 0, Items.Count - 1);
+        Highlight = Math.Clamp(Highlight < 0 ? (delta > 0 ? 0 : Items.Count - 1) : Highlight + delta, 0,
+            Items.Count - 1);
         Raise();
         return true;
     }
@@ -252,7 +256,8 @@ public sealed class PlaceFieldModel
     ///     Enter on the open list: the highlighted callout is stored (a multi field appends it), the list closes, and
     ///     the new value is returned. Null when the list is closed or nothing is highlighted.
     /// </summary>
-    public IReadOnlyList<PlaceRef>? Accept() => IsOpen && Highlight >= 0 && Highlight < Items.Count ? Choose(Items[Highlight]) : null;
+    public IReadOnlyList<PlaceRef>? Accept() =>
+        IsOpen && Highlight >= 0 && Highlight < Items.Count ? Choose(Items[Highlight]) : null;
 
     /// <summary>A click on a list row: as <see cref="Accept" /> for that row.</summary>
     /// <param name="option">The row.</param>
@@ -389,7 +394,8 @@ public sealed class PlaceFieldModel
     /// <param name="current">The stored value.</param>
     /// <param name="callouts">The owner's words, or null.</param>
     /// <param name="levelMinZ">The level key a typed coordinate takes when no stored point gives one; null for none.</param>
-    public static List<PlaceRef> Parse(string text, IReadOnlyList<PlaceRef> current, CalloutResolver? callouts, double? levelMinZ = null)
+    public static List<PlaceRef> Parse(string text, IReadOnlyList<PlaceRef> current, CalloutResolver? callouts,
+        double? levelMinZ = null)
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(current);
@@ -417,7 +423,9 @@ public sealed class PlaceFieldModel
         }
 
         // Numbers that are not a point are never a place.
-        return !NumberOnly.IsMatch(part) && StratLocations.Typed(stored, callouts?.Resolve(part) ?? part) is { } typed ? [typed] : [];
+        return !NumberOnly.IsMatch(part) && StratLocations.Typed(stored, callouts?.Resolve(part) ?? part) is { } typed
+            ? [typed]
+            : [];
     }
 
     /// <summary>
@@ -429,17 +437,23 @@ public sealed class PlaceFieldModel
     /// <param name="current">The list it joins.</param>
     /// <param name="callouts">The owner's words, or null.</param>
     /// <param name="levelMinZ">The level key a coordinate takes when the list holds no point; null for none.</param>
-    public static PlaceRef? ParseEntry(string text, IReadOnlyList<PlaceRef> current, CalloutResolver? callouts, double? levelMinZ = null)
+    public static PlaceRef? ParseEntry(string text, IReadOnlyList<PlaceRef> current, CalloutResolver? callouts,
+        double? levelMinZ = null)
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(current);
         string part = text.Trim();
         if (TryParsePoint(part, out double x, out double y))
         {
-            return new PlaceRef { X = x, Y = y, LevelMinZ = current.FirstOrDefault(StratLocations.HasPoint)?.LevelMinZ ?? levelMinZ };
+            return new PlaceRef
+            {
+                X = x, Y = y, LevelMinZ = current.FirstOrDefault(StratLocations.HasPoint)?.LevelMinZ ?? levelMinZ
+            };
         }
 
-        return part.Length == 0 || NumberOnly.IsMatch(part) ? null : new PlaceRef { Place = callouts?.Resolve(part) ?? part };
+        return part.Length == 0 || NumberOnly.IsMatch(part)
+            ? null
+            : new PlaceRef { Place = callouts?.Resolve(part) ?? part };
     }
 
     private static string BeforeComma(string text)
@@ -490,7 +504,9 @@ public sealed class PlaceFieldModel
         IReadOnlyList<PlaceOption> items = Options.Filter(_typed ? Text : "");
         Items = IsMulti ? [.. items.Where(o => !IsChosen(o.Place))] : items;
         string? current = !_typed && !IsMulti && _value.Count > 0 ? _value[0].Place : null;
-        int index = current is null ? -1 : Items.ToList().FindIndex(o => string.Equals(o.Place, current, StringComparison.Ordinal));
+        int index = current is null
+            ? -1
+            : Items.ToList().FindIndex(o => string.Equals(o.Place, current, StringComparison.Ordinal));
 
         // Text naming a callout already chosen highlights nothing, so Enter refuses it instead of adding a neighbour.
         bool namesChosen = IsMulti && _typed && IsChosen(Options.Resolver.Resolve(Text));

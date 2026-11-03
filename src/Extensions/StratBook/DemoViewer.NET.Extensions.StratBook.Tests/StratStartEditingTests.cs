@@ -29,25 +29,33 @@ public class StratStartEditingTests
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(10 + 10 * i, 10, Floor, "Hut"))],
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(400 + 10 * i, 300, Floor, "Ramp"))]);
 
-    private static StepPosition At(string slot, double x, double y) => new() { Slot = slot, X = x, Y = y, LevelMinZ = Floor };
+    private static StepPosition At(string slot, double x, double y) =>
+        new() { Slot = slot, X = x, Y = y, LevelMinZ = Floor };
 
     // An older file's round-start step: five distinct authored spots, each player sent somewhere by its line.
     private static StratDocument SeedWithSpots(string verb)
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "default", "spots", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "default", "spots", Created);
         document.Canvas = new StratCanvas { DefaultLevelMinZ = Floor };
         StratStep seed = Step(1, 115, StratVocabulary.ActorAll, verb);
         seed.Positions = [.. StratVocabulary.Slots.Select((s, i) => At(s, 100 + 200 * i, 600))];
-        seed.Assignments = [.. StratVocabulary.Slots.Select(s => new StepAssignment { Slot = s, To = new PlaceRef { Place = "Mid" } })];
+        seed.Assignments =
+        [
+            .. StratVocabulary.Slots.Select(s => new StepAssignment { Slot = s, To = new PlaceRef { Place = "Mid" } })
+        ];
         document.Steps = [seed, Step(2, 100, StratVocabulary.ActorAll, "wait")];
         return document;
     }
 
     private static StratSceneProjection Project(StratDocument document) =>
-        StratSceneProjection.Build(document, StratPath.MainLine(document), null, (place, _) => place == "Mid" ? (2000, 2000) : null);
+        StratSceneProjection.Build(document, StratPath.MainLine(document), null,
+            (place, _) => place == "Mid" ? (2000, 2000) : null);
 
     private static TokenKeyframe Sample(StratSceneProjection projection, string slot, int tick) =>
-        projection.Tracks.Single(t => t.Slot == slot).TrySample(tick, out TokenKeyframe k) ? k : throw new InvalidOperationException($"no {slot} at {tick}");
+        projection.Tracks.Single(t => t.Slot == slot).TrySample(tick, out TokenKeyframe k)
+            ? k
+            : throw new InvalidOperationException($"no {slot} at {tick}");
 
     [Test]
     [Arguments("hold")]
@@ -68,7 +76,8 @@ public class StratStartEditingTests
                     foreach (int tick in StartTicks)
                     {
                         TokenKeyframe at = Sample(projection, slot, tick);
-                        await Assert.That((at.X, at.Y)).IsEqualTo(((float)(100 + 200 * i), 600f)).Because($"{slot} stands on its spot at {tick}");
+                        await Assert.That((at.X, at.Y)).IsEqualTo(((float)(100 + 200 * i), 600f))
+                            .Because($"{slot} stands on its spot at {tick}");
                     }
                 }
             }
@@ -86,7 +95,8 @@ public class StratStartEditingTests
             {
                 await Assert.That((start.X, start.Y)).IsEqualTo((500f, 600f));
                 await Assert.That(later.Y).IsGreaterThan(600f).Because("C runs from its spot to Mid");
-                await Assert.That(Sample(projection, "C", 2000).X).IsGreaterThan(1800f).Because("C arrives at Mid, fanned out");
+                await Assert.That(Sample(projection, "C", 2000).X).IsGreaterThan(1800f)
+                    .Because("C arrives at Mid, fanned out");
             }
         });
     }
@@ -111,13 +121,16 @@ public class StratStartEditingTests
 
     private static StratCanvasViewModel Canvas(StratSession session, Func<string, Task<StratSpawns?>>? spawns = null) =>
         new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
-            placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()), post: a => a(), spawnsFor: spawns);
+            placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()), post: a => a(),
+            spawnsFor: spawns);
 
     private static StratEditorViewModel Editor(StratSession session, StratCanvasViewModel canvas)
     {
         StratEditorViewModel editor = new(session)
         {
-            Spawns = () => canvas.CurrentSpawns, LegacyCarriedFor = canvas.LegacyCarried, StartRefusal = canvas.StartRefusal
+            Spawns = () => canvas.CurrentSpawns,
+            LegacyCarriedFor = canvas.LegacyCarried,
+            StartRefusal = canvas.StartRefusal
         };
         editor.Project();
         return editor;
@@ -167,7 +180,8 @@ public class StratStartEditingTests
                 await Assert.That(loaded).IsEqualTo(1).Because("the strat open when they landed takes them");
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
                 await Assert.That(StratStartBlock.For(written, "A")!.Place).IsEqualTo("Ramp");
-                await Assert.That(StratStartBlock.For(written, "D")!.X).IsEqualTo(40).Because("the first write took D's spawn");
+                await Assert.That(StratStartBlock.For(written, "D")!.X).IsEqualTo(40)
+                    .Because("the first write took D's spawn");
                 await Assert.That(editor.Start.Note).IsEqualTo("");
             }
         });
@@ -196,22 +210,47 @@ public class StratStartEditingTests
 
             session.Open(older.Id);
             await Assert.That(canvas.SpawnsPending).IsFalse();
-            await Assert.That(StratStartBlock.For(StratStartBlock.Effective(session.Document!, canvas.CurrentSpawns), "A")).IsNotNull();
+            await Assert
+                .That(StratStartBlock.For(StratStartBlock.Effective(session.Document!, canvas.CurrentSpawns), "A"))
+                .IsNotNull();
         });
     }
 
     // A capture: a captured start and the freeze-end step on its tick holding the same observed spots.
     private static StratDocument Captured()
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "default", "captured", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "default", "captured", Created);
         document.Origin = new StratOrigin { DemoSha256 = "ab", Round = 5 };
         document.Start = new StratStart
         {
             Kind = StratStart.CapturedKind,
-            Positions = [.. StratVocabulary.Slots.Select((s, i) => new StartPosition { Slot = s, X = 100 + 50 * i, Y = 50, LevelMinZ = Floor, Observed = true })]
+            Positions =
+            [
+                .. StratVocabulary.Slots.Select((s, i) =>
+                    new StartPosition
+                    {
+                        Slot = s,
+                        X = 100 + 50 * i,
+                        Y = 50,
+                        LevelMinZ = Floor,
+                        Observed = true
+                    })
+            ]
         };
         StratStep freeze = Step(1, 115, StratVocabulary.ActorAll, "hold");
-        freeze.Positions = [.. StratVocabulary.Slots.Select((s, i) => new StepPosition { Slot = s, X = 100 + 50 * i, Y = 50, LevelMinZ = Floor, Observed = true })];
+        freeze.Positions =
+        [
+            .. StratVocabulary.Slots.Select((s, i) =>
+                new StepPosition
+                {
+                    Slot = s,
+                    X = 100 + 50 * i,
+                    Y = 50,
+                    LevelMinZ = Floor,
+                    Observed = true
+                })
+        ];
         document.Steps = [freeze, Step(2, 100, "A", "move", to: "Ramp")];
         return document;
     }
@@ -240,7 +279,8 @@ public class StratStartEditingTests
                 await Assert.That(rowNote).IsEqualTo("step 1 places B at the start: edit it there");
                 await Assert.That(editor.Start.Note).StartsWith("step 1 places A at the start");
                 await Assert.That(session.UndoDepth).IsEqualTo(0);
-                await Assert.That(StratHistory.ToNode(session.Document!).ToJsonString()).IsEqualTo(before).Because("still captured, every mark kept");
+                await Assert.That(StratHistory.ToNode(session.Document!).ToJsonString()).IsEqualTo(before)
+                    .Because("still captured, every mark kept");
             }
         });
     }
@@ -250,9 +290,13 @@ public class StratStartEditingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "default", "drag", Created);
+            StratDocument document =
+                StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "default", "drag", Created);
             document.Canvas = new StratCanvas { DefaultLevelMinZ = Floor };
-            document.Start = new StratStart { Positions = [new StartPosition { Slot = "A", X = 10, Y = 10, LevelMinZ = Floor }] };
+            document.Start = new StratStart
+            {
+                Positions = [new StartPosition { Slot = "A", X = 10, Y = 10, LevelMinZ = Floor }]
+            };
             document.Steps = [Step(1, 115, "A", "move", to: "Ramp")];
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             using StratCanvasViewModel canvas = Canvas(session);
@@ -266,7 +310,8 @@ public class StratStartEditingTests
             {
                 await Assert.That((marker.WorldX, marker.WorldY)).IsEqualTo((50f, 70f));
                 await Assert.That(canvas.Guides.GhostRoute.Count).IsGreaterThanOrEqualTo(2);
-                await Assert.That(canvas.Guides.GhostRoute[0].X).IsEqualTo(50f).Because("the way shown leaves from the new start");
+                await Assert.That(canvas.Guides.GhostRoute[0].X).IsEqualTo(50f)
+                    .Because("the way shown leaves from the new start");
             }
 
             canvas.CancelDrag();

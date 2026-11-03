@@ -41,11 +41,7 @@ public class ExportRequestValidationTests
     [Test]
     public async Task AnEmptyRange_IsRefused()
     {
-        ExportRequest request = ExportFixtures.Request(10) with
-        {
-            StartFrame = 8,
-            EndFrame = 4
-        };
+        ExportRequest request = ExportFixtures.Request(10) with { StartFrame = 8, EndFrame = 4 };
         await Assert.That(Refusal(request)).IsNotNull();
     }
 
@@ -61,7 +57,8 @@ public class ExportRequestValidationTests
     [Test]
     public async Task SupportedFps_ForGif_IsTheDivisorsOfOneHundred()
     {
-        await Assert.That(SceneExportSession.SupportedFps(ExportFormats.Gif)).IsEquivalentTo(_gifFps, CollectionOrdering.Matching);
+        await Assert.That(SceneExportSession.SupportedFps(ExportFormats.Gif))
+            .IsEquivalentTo(_gifFps, CollectionOrdering.Matching);
 
         foreach (int fps in SceneExportSession.SupportedFps(ExportFormats.Gif))
         {
@@ -140,10 +137,7 @@ public class SceneExportSessionLoopTests
         using CpuSurfaceProvider surfaces = new();
         RecordingFrameSink sink = new();
 
-        HashSet<string> only = new(StringComparer.Ordinal)
-        {
-            SceneLayerIds.Markers
-        };
+        HashSet<string> only = new(StringComparer.Ordinal) { SceneLayerIds.Markers };
         ExportRequest request = ExportFixtures.Request(2, layerIds: only);
 
         bool[] before = [.. compositor.Layers.Select(l => l.IsEnabled)];
@@ -187,9 +181,7 @@ public class SceneExportSessionLoopTests
 
         HashSet<string> ids = new(StringComparer.Ordinal)
         {
-            SceneLayerIds.Markers,
-            SceneLayerIds.HudClock,
-            SceneLayerIds.HudKillFeed
+            SceneLayerIds.Markers, SceneLayerIds.HudClock, SceneLayerIds.HudKillFeed
         };
 
         await new SceneExportSession(compositor).RunAsync(ExportFixtures.Request(3, layerIds: ids),
@@ -507,11 +499,7 @@ public class ExportOptInLayerTests
 
     private static async Task<IReadOnlyList<string>> Export(AnnotationSession ink)
     {
-        HashSet<string> ids = new(StringComparer.Ordinal)
-        {
-            SceneLayerIds.Markers,
-            SceneLayerIds.Annotations
-        };
+        HashSet<string> ids = new(StringComparer.Ordinal) { SceneLayerIds.Markers, SceneLayerIds.Annotations };
 
         using SceneCompositor compositor =
             SceneLayerCatalog.CreateSceneStack([.. ids], null, null, null, ink);

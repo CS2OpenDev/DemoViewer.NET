@@ -54,16 +54,8 @@ public class TutorialDeferredSegmentTests
             MainViewModel vm = new(null, registry, TestLibraries.Empty());
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 // First-run run: welcome → tabs → library → open-demo gateway. With no demo open the gateway

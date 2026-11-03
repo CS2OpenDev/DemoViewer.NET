@@ -80,7 +80,8 @@ public sealed class IdentityService : IDisposable
     /// <summary>Whether <paramref name="steamId64" /> is one of the user's accounts.</summary>
     /// <param name="steamId64">A decimal SteamID64.</param>
     public bool IsMine(string? steamId64) =>
-        steamId64 is not null && Snapshot().Accounts.Any(a => string.Equals(a.SteamId64, steamId64, StringComparison.Ordinal));
+        steamId64 is not null
+        && Snapshot().Accounts.Any(a => string.Equals(a.SteamId64, steamId64, StringComparison.Ordinal));
 
     /// <summary>Whether <paramref name="steamId64" /> is one of the user's accounts.</summary>
     /// <param name="steamId64">A SteamID64.</param>
@@ -97,7 +98,8 @@ public sealed class IdentityService : IDisposable
         List<IdentityAccount> kept = [];
         foreach (IdentityAccount account in accounts)
         {
-            if (IsSteamId64(account.SteamId64) && !kept.Any(k => string.Equals(k.SteamId64, account.SteamId64, StringComparison.Ordinal)))
+            if (IsSteamId64(account.SteamId64)
+                && !kept.Any(k => string.Equals(k.SteamId64, account.SteamId64, StringComparison.Ordinal)))
             {
                 kept.Add(account with { AddedUtc = Utc(account.AddedUtc) });
             }
@@ -134,13 +136,13 @@ public sealed class IdentityService : IDisposable
         int demos = _directory.DemoCount;
         string id = top.SteamId64.ToString(CultureInfo.InvariantCulture);
         State state = Snapshot();
-        if (demos < SuggestionMinDemos || (double) top.DemoCount / demos <= 0.5 || IsMine(id)
+        if (demos < SuggestionMinDemos || (double)top.DemoCount / demos <= 0.5 || IsMine(id)
             || state.Dismissed.Contains(id, StringComparer.Ordinal))
         {
             return null;
         }
 
-        return new IdentitySuggestion(id, top.Name, top.DemoCount, (double) top.DemoCount / demos);
+        return new IdentitySuggestion(id, top.Name, top.DemoCount, (double)top.DemoCount / demos);
     }
 
     /// <summary>Adds the suggested account. It becomes active only when the user had no account.</summary>
@@ -195,7 +197,8 @@ public sealed class IdentityService : IDisposable
                 "A custom profile link needs the Online Connectivity extension to look up; paste the /profiles/ link or the SteamID instead."),
             { SteamId64: { } id } parse when SteamIdParser.IsIndividual(id) =>
                 new AccountInput(id.ToString(CultureInfo.InvariantCulture), parse.IsFlagged, null),
-            _ when input.All(char.IsAsciiDigit) => new AccountInput(null, false, "That number is not an individual account's SteamID64."),
+            _ when input.All(char.IsAsciiDigit) => new AccountInput(null, false,
+                "That number is not an individual account's SteamID64."),
             _ => new AccountInput(null, false, $"\"{input}\" is not a SteamID.")
         };
     }
@@ -254,11 +257,11 @@ public sealed class IdentityService : IDisposable
         JsonNode? root;
         try
         {
-            root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
-            {
-                AllowTrailingCommas = true,
-                CommentHandling = JsonCommentHandling.Skip
-            });
+            root = JsonNode.Parse(json,
+                documentOptions: new JsonDocumentOptions
+                {
+                    AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip
+                });
         }
         catch (JsonException)
         {
@@ -270,7 +273,8 @@ public sealed class IdentityService : IDisposable
         {
             foreach (JsonNode? node in array)
             {
-                if (node is JsonValue value && value.TryGetValue(out string? id) && IsSteamId64(id) && !ids.Contains(id))
+                if (node is JsonValue value && value.TryGetValue(out string? id) && IsSteamId64(id)
+                    && !ids.Contains(id))
                 {
                     ids.Add(id);
                 }
@@ -280,16 +284,19 @@ public sealed class IdentityService : IDisposable
         return ids;
 
         static JsonNode? Child(JsonNode? node, string name) =>
-            node is JsonObject obj ? obj.FirstOrDefault(kv => string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase)).Value : null;
+            node is JsonObject obj
+                ? obj.FirstOrDefault(kv => string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase)).Value
+                : null;
     }
 
     // What the directory counts as an account: a non-zero SteamID64 in plain decimal.
     private static bool IsSteamId64(string? id) =>
         ulong.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out ulong value) && value != 0
-                                                                                           && value.ToString(CultureInfo.InvariantCulture) == id;
+        && value.ToString(CultureInfo.InvariantCulture) == id;
 
     private static string? ActiveOf(List<IdentityAccount> accounts, string? active) =>
-        accounts.Any(a => string.Equals(a.SteamId64, active, StringComparison.Ordinal)) ? active : accounts.Count > 0 ? accounts[0].SteamId64 : null;
+        accounts.Any(a => string.Equals(a.SteamId64, active, StringComparison.Ordinal)) ? active :
+        accounts.Count > 0 ? accounts[0].SteamId64 : null;
 
     // The binder reads "…Z" as local time; a value with no zone is taken as UTC.
     private static DateTime Utc(DateTime time) => time.Kind switch
@@ -306,13 +313,16 @@ public sealed class IdentityService : IDisposable
         List<IdentityAccount> accounts = [];
         foreach (IdentityAccountSettings account in identity.Accounts)
         {
-            if (IsSteamId64(account.SteamId64) && !accounts.Any(a => string.Equals(a.SteamId64, account.SteamId64, StringComparison.Ordinal)))
+            if (IsSteamId64(account.SteamId64) && !accounts.Any(a =>
+                    string.Equals(a.SteamId64, account.SteamId64, StringComparison.Ordinal)))
             {
-                accounts.Add(new IdentityAccount(account.SteamId64, string.IsNullOrEmpty(account.Label) ? null : account.Label, Utc(account.AddedUtc)));
+                accounts.Add(new IdentityAccount(account.SteamId64,
+                    string.IsNullOrEmpty(account.Label) ? null : account.Label, Utc(account.AddedUtc)));
             }
         }
 
-        return new State(accounts, ActiveOf(accounts, identity.ActiveSteamId64), [.. identity.DismissedSuggestions.Distinct(StringComparer.Ordinal)]);
+        return new State(accounts, ActiveOf(accounts, identity.ActiveSteamId64),
+            [.. identity.DismissedSuggestions.Distinct(StringComparer.Ordinal)]);
     }
 
     private State Snapshot()
@@ -342,7 +352,11 @@ public sealed class IdentityService : IDisposable
         {
             _settings.Write(s =>
             {
-                s.Identity.Accounts = [.. next.Accounts.Select(a => new IdentityAccountSettings { SteamId64 = a.SteamId64, Label = a.Label, AddedUtc = a.AddedUtc })];
+                s.Identity.Accounts =
+                [
+                    .. next.Accounts.Select(a =>
+                        new IdentityAccountSettings { SteamId64 = a.SteamId64, Label = a.Label, AddedUtc = a.AddedUtc })
+                ];
                 s.Identity.ActiveSteamId64 = next.Active;
                 s.Identity.DismissedSuggestions = [.. next.Dismissed];
             });
@@ -383,6 +397,7 @@ public sealed class IdentityService : IDisposable
     private sealed record State(List<IdentityAccount> Accounts, string? Active, List<string> Dismissed)
     {
         public bool SameAs(State other) =>
-            Accounts.SequenceEqual(other.Accounts) && Active == other.Active && Dismissed.SequenceEqual(other.Dismissed);
+            Accounts.SequenceEqual(other.Accounts) && Active == other.Active
+                                                   && Dismissed.SequenceEqual(other.Dismissed);
     }
 }

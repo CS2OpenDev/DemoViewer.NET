@@ -20,7 +20,8 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class SituationIndexEquivalenceTests
 {
-    private static readonly string Fingerprint = "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + RoundIndexTestData.SamplerTerm;
+    private static readonly string Fingerprint =
+        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + RoundIndexTestData.SamplerTerm;
 
     private static readonly string[] Maps = ["de_nuke", "de_mirage", "de_inferno"];
 
@@ -39,7 +40,8 @@ public class SituationIndexEquivalenceTests
     private static string Token(Random random, int alive, int spread) =>
         PlaceCountToken.EncodePlaces(Enumerable.Range(0, alive).Select(_ => Places[random.Next(spread)]));
 
-    internal static RoundIndexDocument SyntheticDocument(Random random, string map, int rounds, int runsPerRound, int spread)
+    internal static RoundIndexDocument SyntheticDocument(Random random, string map, int rounds, int runsPerRound,
+        int spread)
     {
         List<(int, int, int, RoundIndexRun[])> list = [];
         for (int r = 1; r <= rounds; r++)
@@ -67,21 +69,25 @@ public class SituationIndexEquivalenceTests
                 Count = random.Next(1, 40),
                 Buckets =
                 [
-                    new PlaceZBucketSum(random.Next(-2, 3) * 64, random.Next(1, 20), random.Next(-3000, 3000), random.Next(-3000, 3000)),
-                    new PlaceZBucketSum(random.Next(-2, 3) * 64, random.Next(1, 20), random.Next(-3000, 3000), random.Next(-3000, 3000))
+                    new PlaceZBucketSum(random.Next(-2, 3) * 64, random.Next(1, 20), random.Next(-3000, 3000),
+                        random.Next(-3000, 3000)),
+                    new PlaceZBucketSum(random.Next(-2, 3) * 64, random.Next(1, 20), random.Next(-3000, 3000),
+                        random.Next(-3000, 3000))
                 ]
             };
         }
 
         for (int t = 0; t < 8; t++)
         {
-            document.Transitions.Add(new PlaceTransition(Places[random.Next(spread)], Places[random.Next(spread)], random.Next(1, 5)));
+            document.Transitions.Add(new PlaceTransition(Places[random.Next(spread)], Places[random.Next(spread)],
+                random.Next(1, 5)));
         }
 
         return document;
     }
 
-    private static List<(string Path, RoundIndexDocument Document, long Computed, long Modified)> Library(int demos, int seed)
+    private static List<(string Path, RoundIndexDocument Document, long Computed, long Modified)> Library(int demos,
+        int seed)
     {
         Random random = new(seed);
         return
@@ -100,7 +106,8 @@ public class SituationIndexEquivalenceTests
             Indexed(cache, sidecars, path, document, computed, modified);
         }
 
-        SituationIndex index = new(cache.Library(), sidecars, new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn));
+        SituationIndex index = new(cache.Library(), sidecars,
+            new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn));
         index.Load();
         return index;
     }
@@ -111,14 +118,16 @@ public class SituationIndexEquivalenceTests
     {
         Random random = new(99);
         StringBuilder text = new();
-        HashSet<string> someDemos = [.. Enumerable.Range(0, 400).Where(n => n % 3 == 0).Select(n => DemoCacheStore.StableKey(DemoPath(n)))];
+        HashSet<string> someDemos =
+            [.. Enumerable.Range(0, 400).Where(n => n % 3 == 0).Select(n => DemoCacheStore.StableKey(DemoPath(n)))];
         foreach (string map in Maps)
         {
             for (int q = 0; q < 60; q++)
             {
                 PlaceQuery[] Pairs() =>
                 [
-                    .. Enumerable.Range(0, random.Next(1, 3)).Select(_ => new PlaceQuery(Places[random.Next(14)], random.Next(1, 4)))
+                    .. Enumerable.Range(0, random.Next(1, 3))
+                        .Select(_ => new PlaceQuery(Places[random.Next(14)], random.Next(1, 4)))
                 ];
 
                 int shape = q % 4;
@@ -129,7 +138,8 @@ public class SituationIndexEquivalenceTests
                     Demos: q % 7 == 3 ? someDemos : null,
                     IndexedAfterTicks: q % 11 == 5 ? 120 : null);
                 IReadOnlyList<SituationHit> hits = index.Query(query);
-                text.Append(CultureInfo.InvariantCulture, $"{map} q{q} {tolerance} n={hits.Count} c={index.Count(query)}\n");
+                text.Append(CultureInfo.InvariantCulture,
+                    $"{map} q{q} {tolerance} n={hits.Count} c={index.Count(query)}\n");
                 foreach (SituationHit h in hits)
                 {
                     text.Append(CultureInfo.InvariantCulture,
@@ -142,7 +152,8 @@ public class SituationIndexEquivalenceTests
                 text.Append(CultureInfo.InvariantCulture, $"{map} place {summary.Place} {summary.SampleCount}:");
                 foreach (PlaceZBucket b in summary.Buckets)
                 {
-                    text.Append(CultureInfo.InvariantCulture, $" {b.ZBucket}/{b.Count}/{b.CentroidX:R}/{b.CentroidY:R}");
+                    text.Append(CultureInfo.InvariantCulture,
+                        $" {b.ZBucket}/{b.Count}/{b.CentroidX:R}/{b.CentroidY:R}");
                 }
 
                 text.Append('\n');
@@ -153,7 +164,8 @@ public class SituationIndexEquivalenceTests
                 text.Append(CultureInfo.InvariantCulture, $"{map} graph {adjacency.Source}\n");
                 foreach (string place in Places)
                 {
-                    text.Append(CultureInfo.InvariantCulture, $"  {place}: {string.Join(",", adjacency.Neighbours(place).Order(StringComparer.Ordinal))}\n");
+                    text.Append(CultureInfo.InvariantCulture,
+                        $"  {place}: {string.Join(",", adjacency.Neighbours(place).Order(StringComparer.Ordinal))}\n");
                 }
             }
         }
@@ -162,7 +174,8 @@ public class SituationIndexEquivalenceTests
         return text.ToString();
     }
 
-    private static string Digest(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+    private static string Digest(string text) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
     [Test]
     public async Task TheBattery_AnswersAsBefore_AndARemovalLeavesExactlyTheRemainingDemos()
@@ -200,9 +213,11 @@ public class SituationIndexEquivalenceTests
         Console.WriteLine($"[situation] full={Digest(full)} removed={Digest(afterRemoval)}");
         using (Assert.Multiple())
         {
-            await Assert.That(afterRemoval).IsEqualTo(remaining).Because("a removal subtracts exactly what the demo added");
+            await Assert.That(afterRemoval).IsEqualTo(remaining)
+                .Because("a removal subtracts exactly what the demo added");
             await Assert.That(reloaded).IsEqualTo(full).Because("a re-added demo answers as it did on the first load");
-            await Assert.That(tokensAfterRemoval).IsEquivalentTo(tokensFresh, CollectionOrdering.Matching).Because("a token no remaining demo uses leaves the table");
+            await Assert.That(tokensAfterRemoval).IsEquivalentTo(tokensFresh, CollectionOrdering.Matching)
+                .Because("a token no remaining demo uses leaves the table");
             if (FullDigest.Length > 0)
             {
                 await Assert.That(Digest(full)).IsEqualTo(FullDigest);
@@ -231,7 +246,8 @@ public class SituationIndexEquivalenceTests
         {
             await Assert.That(before.tokens).IsGreaterThan(0);
             await Assert.That(index.TokenTable("de_nuke")).IsEqualTo((0, 0));
-            await Assert.That(index.TokenTable("de_mirage").Tokens).IsGreaterThan(0).Because("another map's table is untouched");
+            await Assert.That(index.TokenTable("de_mirage").Tokens).IsGreaterThan(0)
+                .Because("another map's table is untouched");
         }
     }
 
@@ -250,10 +266,12 @@ public class SituationIndexEquivalenceTests
         RoundIndexStore sidecars = new(cache.Data());
         for (int n = 0; n < demos; n++)
         {
-            Indexed(cache, sidecars, DemoPath(n), SyntheticDocument(random, Maps[n % Maps.Length], 24, 14, Places.Length), 100, 1000 + n);
+            Indexed(cache, sidecars, DemoPath(n),
+                SyntheticDocument(random, Maps[n % Maps.Length], 24, 14, Places.Length), 100, 1000 + n);
         }
 
-        using SituationIndex index = new(cache.Library(), sidecars, new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn));
+        using SituationIndex index = new(cache.Library(), sidecars,
+            new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn));
         long before = GC.GetTotalMemory(true);
         index.Load();
         long after = GC.GetTotalMemory(true);

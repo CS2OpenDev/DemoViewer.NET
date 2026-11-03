@@ -27,9 +27,7 @@ public class GoldenPerceptualToleranceTests
     private static readonly GoldenTolerance _openGlyphTier =
         GoldenTolerance.DefaultPerceptual with
         {
-            GlyphOutlierChannelDelta = 96,
-            MaxGlyphOutlierFraction = 0.0001,
-            MinWindowSsim = 0.90
+            GlyphOutlierChannelDelta = 96, MaxGlyphOutlierFraction = 0.0001, MinWindowSsim = 0.90
         };
 
     [Test]
@@ -304,11 +302,7 @@ public class GoldenPerceptualToleranceTests
     // ALonePixelUnderBothChannelRules_StillFailsOnWindowedSsim exists to catch, so SSIM is stood down
     // here to keep each case about one rule.
     private static GoldenTolerance ChannelRulesOnly(GoldenTolerance tolerance) =>
-        tolerance with
-        {
-            MinSsim = 0,
-            MinWindowSsim = 0
-        };
+        tolerance with { MinSsim = 0, MinWindowSsim = 0 };
 
     /// <summary>
     ///     <b>The Windows gate is unchanged.</b> Every stock tolerance keeps the glyph tier shut, which

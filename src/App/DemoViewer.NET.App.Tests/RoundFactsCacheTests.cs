@@ -25,13 +25,7 @@ public class RoundFactsCacheTests
     private static RoundFactsRows Rows(int schema = RoundFactsRecords.Schema) => new()
     {
         Schema = schema,
-        Clock = new RoundFactsClock
-        {
-            TickRate = 64,
-            FrameCount = 1000,
-            FirstTick = 1,
-            LastTick = 1000
-        },
+        Clock = new RoundFactsClock { TickRate = 64, FrameCount = 1000, FirstTick = 1, LastTick = 1000 },
         Rounds =
         [
             new RoundFacts
@@ -71,10 +65,7 @@ public class RoundFactsCacheTests
                         TAlive = 4
                     }
                 ],
-                Extra = new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["my_column"] = 5L
-                },
+                Extra = new Dictionary<string, object?>(StringComparer.Ordinal) { ["my_column"] = 5L },
                 Sources = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     [RoundFactsColumns.Money] = RoundFactsSourceKind.Unavailable
@@ -89,16 +80,8 @@ public class RoundFactsCacheTests
         Size = 1000,
         ModifiedTicks = 2000,
         Map = "de_nuke",
-        Parse = new TierStamp
-        {
-            Schema = DemoCacheRecord.ParseSchema,
-            ComputedAtTicks = 1
-        },
-        Analysis = new TierStamp
-        {
-            Schema = DemoCacheRecord.AnalysisSchema,
-            ComputedAtTicks = 1
-        },
+        Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 },
+        Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
         AnalysisState = DemoAnalysisState.Indexed,
         ConfigFingerprint = "highlights-fp"
     };
@@ -151,17 +134,17 @@ public class RoundFactsCacheTests
     public async Task AnOldSidecarWithoutTheField_Deserializes_WithNoRows()
     {
         const string oldSidecar = """
-            {
-              "Path": "/d/old.dem",
-              "Size": 10,
-              "ModifiedTicks": 20,
-              "Parse": { "Schema": 1, "ComputedAtTicks": 5 },
-              "Rounds": [ { "Number": 1, "StartTickFrameClock": 100 } ],
-              "Analysis": { "Schema": 1, "ComputedAtTicks": 6 },
-              "AnalysisState": 1,
-              "ConfigFingerprint": "fp"
-            }
-            """;
+                                  {
+                                    "Path": "/d/old.dem",
+                                    "Size": 10,
+                                    "ModifiedTicks": 20,
+                                    "Parse": { "Schema": 1, "ComputedAtTicks": 5 },
+                                    "Rounds": [ { "Number": 1, "StartTickFrameClock": 100 } ],
+                                    "Analysis": { "Schema": 1, "ComputedAtTicks": 6 },
+                                    "AnalysisState": 1,
+                                    "ConfigFingerprint": "fp"
+                                  }
+                                  """;
 
         DemoCacheRecord? deserialized = JsonSerializer.Deserialize<DemoCacheRecord>(oldSidecar);
         await Assert.That(deserialized).IsNotNull();

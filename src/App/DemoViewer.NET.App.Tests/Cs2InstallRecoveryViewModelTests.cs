@@ -76,10 +76,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task FailedAutoRestore_FallsBackToTheBanner()
     {
-        FakeLiveSync svc = new(SafeLeftovers)
-        {
-            RestoreFailure = new IOException("in use")
-        };
+        FakeLiveSync svc = new(SafeLeftovers) { RestoreFailure = new IOException("in use") };
         Cs2InstallRecoveryViewModel vm = new(svc, () => false);
 
         await vm.CheckAsync();
@@ -108,10 +105,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task RestoreCommand_Fails_KeepsTheBanner_WithTheReasonAndSteamFallback()
     {
-        FakeLiveSync svc = new(Leftovers)
-        {
-            RestoreFailure = new FileNotFoundException("no backup")
-        };
+        FakeLiveSync svc = new(Leftovers) { RestoreFailure = new FileNotFoundException("no backup") };
         Cs2InstallRecoveryViewModel vm = new(svc, () => false);
         await vm.CheckAsync();
 

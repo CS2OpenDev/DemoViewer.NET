@@ -178,7 +178,8 @@ public static class StratEvidence
         List<StratRun> runs = [];
         if (spellings.Count > 0)
         {
-            TagSlice slice = new(null, null, [new LabelPredicate(LabelNamespace.Human, TagStore.StratGroup, spellings)], null, null, null);
+            TagSlice slice = new(null, null, [new LabelPredicate(LabelNamespace.Human, TagStore.StratGroup, spellings)],
+                null, null, null);
             IReadOnlyList<TagInstanceRef> refs = TagQuery.Find(documents, slice);
 
             Dictionary<(string, Guid), TagInstance> instances = [];
@@ -190,8 +191,9 @@ public static class StratEvidence
                 }
             }
 
-            IReadOnlyDictionary<string, string?> labels = provenance?.Invoke(refs.Select(r => r.Sha256).Distinct(StringComparer.Ordinal))
-                                                          ?? new Dictionary<string, string?>();
+            IReadOnlyDictionary<string, string?> labels =
+                provenance?.Invoke(refs.Select(r => r.Sha256).Distinct(StringComparer.Ordinal))
+                ?? new Dictionary<string, string?>();
             foreach (TagInstanceRef found in refs)
             {
                 if (!instances.TryGetValue((found.Sha256, found.Id), out TagInstance? instance))
@@ -293,14 +295,18 @@ public static class StratEvidence
 
         bool oneStrat = labels.Where(l => IsGroup(l, TagStore.StratGroup)).All(l => IsStratLabelFor(l, stratId));
         return oneStrat
-            ? labels.Where(l => IsGroup(l, RevisionGroup)).Select(l => ParseRevision(l.Value)).FirstOrDefault(r => r is not null) ?? 0
+            ? labels.Where(l => IsGroup(l, RevisionGroup)).Select(l => ParseRevision(l.Value))
+                .FirstOrDefault(r => r is not null) ?? 0
             : 0;
     }
 
     private static int? ParseRevision(string value) =>
-        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int revision) && revision > 0 ? revision : null;
+        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int revision) && revision > 0
+            ? revision
+            : null;
 
-    private static bool IsGroup(TagLabel label, string group) => string.Equals(label.Group, group, StringComparison.Ordinal);
+    private static bool IsGroup(TagLabel label, string group) =>
+        string.Equals(label.Group, group, StringComparison.Ordinal);
 
     private static bool IsStratLabelFor(TagLabel label, Guid stratId) =>
         IsGroup(label, TagStore.StratGroup) && Guid.TryParse(label.Value, out Guid id) && id == stratId;
@@ -338,7 +344,8 @@ public sealed class StratEvidenceService
     {
         ArgumentNullException.ThrowIfNull(strat);
         Guid id = strat.Id;
-        List<TagDocument> documents = _tags.LoadDocuments(e => e.StratIds.Any(v => Guid.TryParse(v, out Guid g) && g == id));
+        List<TagDocument> documents =
+            _tags.LoadDocuments(e => e.StratIds.Any(v => Guid.TryParse(v, out Guid g) && g == id));
         return StratEvidence.Build(id, strat.Revision, strat.Side, documents,
             _provenance is null ? null : _provenance.LabelsFor);
     }
@@ -351,7 +358,8 @@ public sealed class StratEvidenceService
         ArgumentNullException.ThrowIfNull(strat);
         StratDocument snapshot = strat.Clone();
         cancellationToken.ThrowIfCancellationRequested();
-        return StratBookJobs.RunAsync<StratRecord?>(_jobs, "Strats: record", () => Compute(snapshot), null, new JobOptions())
+        return StratBookJobs
+            .RunAsync<StratRecord?>(_jobs, "Strats: record", () => Compute(snapshot), null, new JobOptions())
             .ContinueWith(t => t.Result ?? throw new OperationCanceledException(cancellationToken), cancellationToken,
                 TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
@@ -390,7 +398,10 @@ public sealed class StratRecordPane
             .. record.ByProvenance.Keys
                 .OrderBy(k => ProvenanceRank(k)).ThenBy(k => k, StringComparer.Ordinal)
                 .Select(k => new StratRecordRow(k, k, record.ByProvenance[k],
-                    [.. record.Runs.Where(r => string.Equals(r.Provenance ?? StratEvidence.Unlabeled, k, StringComparison.Ordinal))]))
+                [
+                    .. record.Runs.Where(r =>
+                        string.Equals(r.Provenance ?? StratEvidence.Unlabeled, k, StringComparison.Ordinal))
+                ]))
         ];
 
         ByRevision =
@@ -406,7 +417,10 @@ public sealed class StratRecordPane
             .. record.FailureBreakdown.Keys
                 .OrderBy(FailureRank).ThenBy(k => k, StringComparer.Ordinal)
                 .Select(f => new StratFailureRow(f, record.FailureBreakdown[f],
-                    [.. record.Runs.Where(r => r.Outcome != RunOutcome.Won && r.Failures.Contains(f, StringComparer.Ordinal))]))
+                [
+                    .. record.Runs.Where(r =>
+                        r.Outcome != RunOutcome.Won && r.Failures.Contains(f, StringComparer.Ordinal))
+                ]))
         ];
     }
 

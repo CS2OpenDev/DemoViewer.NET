@@ -46,7 +46,8 @@ public class ExtensionPackagingTests
         string merged = ExtensionFeedMerge.Merge(existing, EntryJson("1.1.0"), FakeFeeds.Id, allowDowngrade: false);
 
         ExtensionFeed feed = ExtensionFeed.Parse(merged);
-        await Assert.That(feed.Entries.Select(e => e.Version.ToString())).IsEquivalentTo(["1.1.0", "1.0.0", "0.9.0"], CollectionOrdering.Matching);
+        await Assert.That(feed.Entries.Select(e => e.Version.ToString()))
+            .IsEquivalentTo(["1.1.0", "1.0.0", "0.9.0"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -58,14 +59,17 @@ public class ExtensionPackagingTests
 
         // Replacing 1.0.0 (not the latest) with a corrected build never needs --allow-downgrade: it is
         // not publishing anything older than 2.0.0, it is correcting a line that already shipped.
-        string merged = ExtensionFeedMerge.Merge(existing, EntryJson("1.0.0", sha256: new string('b', 64)), FakeFeeds.Id, allowDowngrade: false);
+        string merged = ExtensionFeedMerge.Merge(existing, EntryJson("1.0.0", sha256: new string('b', 64)),
+            FakeFeeds.Id, allowDowngrade: false);
 
         ExtensionFeed feed = ExtensionFeed.Parse(merged);
         using (Assert.Multiple())
         {
             await Assert.That(feed.Entries.Count).IsEqualTo(2);
-            await Assert.That(feed.Entries.Select(e => e.Version.ToString())).IsEquivalentTo(["2.0.0", "1.0.0"], CollectionOrdering.Matching);
-            await Assert.That(feed.Entries.Single(e => e.Version.ToString() == "1.0.0").Sha256).IsEqualTo(new string('b', 64));
+            await Assert.That(feed.Entries.Select(e => e.Version.ToString()))
+                .IsEquivalentTo(["2.0.0", "1.0.0"], CollectionOrdering.Matching);
+            await Assert.That(feed.Entries.Single(e => e.Version.ToString() == "1.0.0").Sha256)
+                .IsEqualTo(new string('b', 64));
         }
     }
 
@@ -74,13 +78,14 @@ public class ExtensionPackagingTests
     {
         string existing = FakeFeeds.Json(new FakeFeeds.Entry("2.0.0"));
 
-        ExtensionFeedMergeException ex = Assert.Throws<ExtensionFeedMergeException>(
-            () => ExtensionFeedMerge.Merge(existing, EntryJson("1.5.0"), FakeFeeds.Id, allowDowngrade: false));
+        ExtensionFeedMergeException ex = Assert.Throws<ExtensionFeedMergeException>(() =>
+            ExtensionFeedMerge.Merge(existing, EntryJson("1.5.0"), FakeFeeds.Id, allowDowngrade: false));
         await Assert.That(ex.Message).Contains("not newer than the current latest 2.0.0");
 
         string merged = ExtensionFeedMerge.Merge(existing, EntryJson("1.5.0"), FakeFeeds.Id, allowDowngrade: true);
         ExtensionFeed feed = ExtensionFeed.Parse(merged);
-        await Assert.That(feed.Entries.Select(e => e.Version.ToString())).IsEquivalentTo(["2.0.0", "1.5.0"], CollectionOrdering.Matching);
+        await Assert.That(feed.Entries.Select(e => e.Version.ToString()))
+            .IsEquivalentTo(["2.0.0", "1.5.0"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -89,8 +94,8 @@ public class ExtensionPackagingTests
         string existing = FakeFeeds.Json(new FakeFeeds.Entry("1.0.0"));
         string otherEntry = EntryJson("1.1.0", id: "net.demoviewer.pack.other");
 
-        ExtensionFeedMergeException ex = Assert.Throws<ExtensionFeedMergeException>(
-            () => ExtensionFeedMerge.Merge(existing, otherEntry, FakeFeeds.Id, allowDowngrade: false));
+        ExtensionFeedMergeException ex = Assert.Throws<ExtensionFeedMergeException>(() =>
+            ExtensionFeedMerge.Merge(existing, otherEntry, FakeFeeds.Id, allowDowngrade: false));
         await Assert.That(ex.Message).Contains("not '" + FakeFeeds.Id + "'");
     }
 
@@ -99,8 +104,8 @@ public class ExtensionPackagingTests
     {
         string existing = FakeFeeds.Json("net.demoviewer.pack.other", new FakeFeeds.Entry("1.0.0"));
 
-        ExtensionFeedMergeException ex = Assert.Throws<ExtensionFeedMergeException>(
-            () => ExtensionFeedMerge.Merge(existing, EntryJson("1.1.0"), FakeFeeds.Id, allowDowngrade: false));
+        ExtensionFeedMergeException ex = Assert.Throws<ExtensionFeedMergeException>(() =>
+            ExtensionFeedMerge.Merge(existing, EntryJson("1.1.0"), FakeFeeds.Id, allowDowngrade: false));
         await Assert.That(ex.Message).Contains("the existing feed is for 'net.demoviewer.pack.other'");
     }
 
@@ -110,28 +115,29 @@ public class ExtensionPackagingTests
     // size and publishedAt will drift as the repo moves; only the shape (every member, the manifest
     // nested and verbatim) is what this test leans on.
     private const string RealScriptOutputFixture = """
-        {
-          "version": "1.0.0",
-          "manifest": {
-            "id": "net.demoviewer.pack.stratbook",
-            "name": "Strat Book",
-            "version": "1.0.0",
-            "assembly": "DemoViewer.NET.Extensions.StratBook.dll",
-            "entryType": "DemoViewer.NET.Extensions.StratBook.StratBookPack",
-            "requiresHost": "^1.0",
-            "requiresCs2DemoKit": "0.14.0"
-          },
-          "url": "https://github.com/CS2OpenDev/DemoViewer.NET/releases/download/net.demoviewer.pack.stratbook-v1.0.0/DemoViewer.NET.Extensions.StratBook-1.0.0.zip",
-          "sha256": "093341e647d88aa621ddcd199c4f6c0fb4e874a9ed4882d46a1406ab75946723",
-          "size": 1535538,
-          "publishedAt": "2026-10-04T03:08:44Z"
-        }
-        """;
+                                                   {
+                                                     "version": "1.0.0",
+                                                     "manifest": {
+                                                       "id": "net.demoviewer.pack.stratbook",
+                                                       "name": "Strat Book",
+                                                       "version": "1.0.0",
+                                                       "assembly": "DemoViewer.NET.Extensions.StratBook.dll",
+                                                       "entryType": "DemoViewer.NET.Extensions.StratBook.StratBookPack",
+                                                       "requiresHost": "^1.0",
+                                                       "requiresCs2DemoKit": "0.14.0"
+                                                     },
+                                                     "url": "https://github.com/CS2OpenDev/DemoViewer.NET/releases/download/net.demoviewer.pack.stratbook-v1.0.0/DemoViewer.NET.Extensions.StratBook-1.0.0.zip",
+                                                     "sha256": "093341e647d88aa621ddcd199c4f6c0fb4e874a9ed4882d46a1406ab75946723",
+                                                     "size": 1535538,
+                                                     "publishedAt": "2026-10-04T03:08:44Z"
+                                                   }
+                                                   """;
 
     [Test]
     public async Task Merge_TheScriptsOwnFeedEntryFixture_MergesAndParses()
     {
-        string merged = ExtensionFeedMerge.Merge(null, RealScriptOutputFixture, "net.demoviewer.pack.stratbook", allowDowngrade: false);
+        string merged = ExtensionFeedMerge.Merge(null, RealScriptOutputFixture, "net.demoviewer.pack.stratbook",
+            allowDowngrade: false);
 
         ExtensionFeed feed = ExtensionFeed.Parse(merged);
         using (Assert.Multiple())

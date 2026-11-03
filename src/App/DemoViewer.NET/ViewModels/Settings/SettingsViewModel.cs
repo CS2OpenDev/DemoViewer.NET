@@ -62,8 +62,10 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     [
         ("UserCategory", "user category consumer power-user developer tier show hide"),
         ("Theme", "theme dark light high contrast egirl colors appearance reload drop-in"),
-        ("Identity", "identity me my accounts steam steamid steamid64 profile who am i active account smurf suggestion"),
-        ("Updates", "updates version check release notes update restart beta prerelease subscribe channel automatic network offline"),
+        ("Identity",
+            "identity me my accounts steam steamid steamid64 profile who am i active account smurf suggestion"),
+        ("Updates",
+            "updates version check release notes update restart beta prerelease subscribe channel automatic network offline"),
         ("Folders", "library folders scan demos dem watch add remove folder"),
         ("Processing", "background processing queue max demos concurrency parse ram"),
         ("Idle", "idle timeout auto close memory ram resume inactivity"),
@@ -443,7 +445,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     public SettingsViewModel(
         SettingsService settings, IOptionsMonitor<AppSettings> monitor, IFeatureGate gate, ThemeRegistry themes,
         Action? replayWalkthrough = null, IReadOnlyList<SettingsPageContribution>? settingsPages = null,
-        IReadOnlyList<IReindexEstimate>? reindexEstimates = null, IReadOnlyList<IExtensionDataRemoval>? dataRemovals = null,
+        IReadOnlyList<IReindexEstimate>? reindexEstimates = null,
+        IReadOnlyList<IExtensionDataRemoval>? dataRemovals = null,
         IReadOnlyList<PackStatus>? packStatuses = null, ExtensionUpdateService? extensionUpdates = null)
         : this(settings, monitor, gate, themes, OperatingSystem.IsBrowser, replayWalkthrough, settingsPages,
             reindexEstimates, dataRemovals, packStatuses, extensionUpdates)
@@ -509,7 +512,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         _reindexEstimate = reindexEstimates is { Count: > 0 } estimates ? estimates[0] : null;
         foreach (IExtensionDataRemoval removal in dataRemovals ?? [])
         {
-            string label = FeatureCatalog.All.FirstOrDefault(d => d.Id == removal.FeatureId)?.Label ?? removal.FeatureId;
+            string label = FeatureCatalog.All.FirstOrDefault(d => d.Id == removal.FeatureId)?.Label
+                           ?? removal.FeatureId;
             ExtensionDataActions.Add(new ExtensionDataActionViewModel(removal, label));
         }
 
@@ -525,7 +529,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         AppSettings current = settings.Current;
         _allowUnverifiedExtensions = current.Extensions.AllowUnverified;
         _allowUnverifiedAtOpen = current.Extensions.AllowUnverified;
-        ExternalExtensionRows = ExternalExtensionRow.Build(StatusesOrProcess(packStatuses), FeaturePacks.ExternalRejected);
+        ExternalExtensionRows =
+            ExternalExtensionRow.Build(StatusesOrProcess(packStatuses), FeaturePacks.ExternalRejected);
         _selectedCategoryOption = OptionFor(current.UserCategory);
         _selectedTheme = ThemeFor(current.Theme);
         UpdateSelectedThemeMissing();
@@ -594,7 +599,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
         // The feeds are asked on open, at most once an hour, unless automatic checks are off; the per-row
         // button always asks.
-        if (current.Updates.CheckAutomatically && ShouldAutoCheckExtensionUpdates(current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
+        if (current.Updates.CheckAutomatically
+            && ShouldAutoCheckExtensionUpdates(current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
         {
             _ = CheckExtensionUpdatesAsync();
         }
@@ -881,10 +887,12 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         {
             _faults.Changed -= RefreshFaultNotices;
         }
+
         if (_identity is not null)
         {
             _identity.Changed -= RefreshIdentity;
         }
+
         _onChange?.Dispose();
         _extensionUpdatesCts.Cancel();
         _extensionUpdatesCts.Dispose();
@@ -1233,7 +1241,10 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     // Matched by current id, so a row written under an action's old id goes with it.
     private static string[] WithoutAction(string[] rows, string actionId) =>
-        [.. rows.Where(r => !string.Equals(Playback2DKeymapProfile.ActionIdOfRow(r), actionId, StringComparison.OrdinalIgnoreCase))];
+    [
+        .. rows.Where(r =>
+            !string.Equals(Playback2DKeymapProfile.ActionIdOfRow(r), actionId, StringComparison.OrdinalIgnoreCase))
+    ];
 
     // A modifier's own key event carries the modifier in neither Key nor KeyModifiers reliably across
     // platforms, so they are matched by key identity rather than by inspecting the flags.
@@ -1741,11 +1752,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select the reel output folder",
-                AllowMultiple = false
-            });
+            new FolderPickerOpenOptions { Title = "Select the reel output folder", AllowMultiple = false });
         string? path = picked.Count > 0 ? picked[0].TryGetLocalPath() : null;
         if (!string.IsNullOrEmpty(path))
         {
@@ -1766,11 +1773,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select your CS2 install folder",
-                AllowMultiple = false
-            });
+            new FolderPickerOpenOptions { Title = "Select your CS2 install folder", AllowMultiple = false });
         string? path = picked.Count > 0 ? picked[0].TryGetLocalPath() : null;
         if (!string.IsNullOrEmpty(path))
         {
@@ -1795,11 +1798,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Add demo folder",
-                AllowMultiple = true
-            });
+            new FolderPickerOpenOptions { Title = "Add demo folder", AllowMultiple = true });
 
         List<string> paths = picked
             .Select(f => f.TryGetLocalPath())
@@ -1983,7 +1982,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         if (_identity is { } identity && row is not null)
         {
-            identity.SetAccounts(identity.Accounts.Where(a => !string.Equals(a.SteamId64, row.SteamId64, StringComparison.Ordinal)));
+            identity.SetAccounts(identity.Accounts.Where(a =>
+                !string.Equals(a.SteamId64, row.SteamId64, StringComparison.Ordinal)));
         }
     }
 
@@ -2026,10 +2026,12 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         IdentityAccounts.Clear();
         foreach (IdentityAccount account in accounts)
         {
-            PlayerEntry? entry = ulong.TryParse(account.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
-                ? _identityDirectory?.Get(id)
-                : null;
-            IdentityAccounts.Add(new IdentityAccountRow(account.SteamId64, account.Label, entry?.Name, entry?.DemoCount ?? 0,
+            PlayerEntry? entry =
+                ulong.TryParse(account.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+                    ? _identityDirectory?.Get(id)
+                    : null;
+            IdentityAccounts.Add(new IdentityAccountRow(account.SteamId64, account.Label, entry?.Name,
+                entry?.DemoCount ?? 0,
                 string.Equals(account.SteamId64, active, StringComparison.Ordinal)));
         }
 
@@ -2180,7 +2182,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
             foreach (FeatureDescriptor sub in FeatureCatalog.All)
             {
                 if (sub.Scope == FeatureScope.SubFeature && sub.OwnerPackId == pack.Id
-                    && !ownTabIds.Contains(sub.ParentId!))
+                                                         && !ownTabIds.Contains(sub.ParentId!))
                 {
                     AddFeatureRow(ExtensionsFeatureRows, sub, 1);
                 }
@@ -2255,7 +2257,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task CheckExtensionUpdatesAsync()
     {
-        if (_extensionUpdates is null || ExtensionUpdateRows.Count == 0 || _disposed || ExtensionUpdateRows.Any(r => r.IsChecking))
+        if (_extensionUpdates is null || ExtensionUpdateRows.Count == 0 || _disposed
+            || ExtensionUpdateRows.Any(r => r.IsChecking))
         {
             return;
         }
@@ -2330,7 +2333,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         bool platformUnavailable =
             _isBrowser() && ShellModuleFeatureGate.DesktopOnlyIds.Contains(descriptor.Id);
 
-        FeatureToggleRow row = new(this, _gate, descriptor, indentLevel, platformUnavailable, version, incompatibility, source, loadNote, update);
+        FeatureToggleRow row = new(this, _gate, descriptor, indentLevel, platformUnavailable, version, incompatibility,
+            source, loadNote, update);
         group.Add(row);
         _featureRows.Add(row);
     }
@@ -2605,7 +2609,9 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         IReadOnlyList<ThemeLoadProblem> problems = _registry.LoadProblems;
         ThemeLoadProblemsText = problems.Count == 0
             ? null
-            : (problems.Count == 1 ? "1 theme file couldn't be loaded:\n" : $"{problems.Count} theme files couldn't be loaded:\n")
+            : (problems.Count == 1
+                  ? "1 theme file couldn't be loaded:\n"
+                  : $"{problems.Count} theme files couldn't be loaded:\n")
               + string.Join("\n", problems.Select(p => $"{p.FileName}: {p.Reason}"));
     }
 

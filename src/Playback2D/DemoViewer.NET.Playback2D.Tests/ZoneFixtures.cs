@@ -156,7 +156,8 @@ internal static class ZoneFixtures
     }
 
     /// <summary>An axis-aligned rectangle area.</summary>
-    public static ZoneArea Rect(int id, int place, double floor, double z, double x0, double y0, double x1, double y1) =>
+    public static ZoneArea Rect(int id, int place, double floor, double z, double x0, double y0, double x1,
+        double y1) =>
         new(id, place, floor, place >= 0, z, [x0, y0, x1, y0, x1, y1, x0, y1]);
 
     /// <summary>An axis-aligned box volume as six planes, inside being <c>n·p - d &lt;= 0</c>.</summary>

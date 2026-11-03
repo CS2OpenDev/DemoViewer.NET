@@ -31,10 +31,7 @@ public class ModuleTabPersistenceTests
 {
     private static WorkspaceTabDescriptor Descriptor(Func<IWorkspaceTabViewModel> factory, string id) => new()
     {
-        TabId = id,
-        Header = id,
-        ViewModelFactory = factory,
-        ViewFactory = () => new ContentControl()
+        TabId = id, Header = id, ViewModelFactory = factory, ViewFactory = () => new ContentControl()
     };
 
     /// <summary>
@@ -84,11 +81,8 @@ public class ModuleTabPersistenceTests
             {
                 await Assert.That(created).IsNotNull();
                 await Assert.That(created!.RestoreCalls).IsEqualTo(1);
-                await Assert.That(created.State.Items).IsEquivalentTo(new List<string>
-                {
-                    "alpha",
-                    "bravo"
-                }, CollectionOrdering.Matching);
+                await Assert.That(created.State.Items)
+                    .IsEquivalentTo(new List<string> { "alpha", "bravo" }, CollectionOrdering.Matching);
                 await Assert.That(created.State.Version).IsEqualTo(3);
                 await Assert.That(tab.PendingRestoreState).IsNull()
                     .Because("the snapshot is consumed once");
@@ -116,10 +110,8 @@ public class ModuleTabPersistenceTests
             using (Assert.Multiple())
             {
                 await Assert.That(created.RestoreCalls).IsEqualTo(1);
-                await Assert.That(created.State.Items).IsEquivalentTo(new List<string>
-                {
-                    "user-changed-this"
-                }, CollectionOrdering.Matching);
+                await Assert.That(created.State.Items).IsEquivalentTo(new List<string> { "user-changed-this" },
+                    CollectionOrdering.Matching);
             }
         });
 
@@ -127,10 +119,7 @@ public class ModuleTabPersistenceTests
     [Test]
     public async Task ModuleState_RoundTripsThroughTheSessionPayload()
     {
-        FakeTabViewModel vm = new()
-        {
-            State = new FakeState(["one", "two"], 7)
-        };
+        FakeTabViewModel vm = new() { State = new FakeState(["one", "two"], 7) };
 
         SessionPayload written = new(null, null, null, false, false, "fake.rt",
             new Dictionary<string, JsonElement>
@@ -146,11 +135,8 @@ public class ModuleTabPersistenceTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(restored.State.Items).IsEquivalentTo(new List<string>
-            {
-                "one",
-                "two"
-            }, CollectionOrdering.Matching);
+            await Assert.That(restored.State.Items)
+                .IsEquivalentTo(new List<string> { "one", "two" }, CollectionOrdering.Matching);
             await Assert.That(restored.State.Version).IsEqualTo(7);
         }
     }
@@ -207,10 +193,7 @@ public class ModuleTabPersistenceTests
                 ["fake.removed-module"] = JsonSerializer.SerializeToElement(new FakeState(["orphan"], 1))
             };
 
-            foreach (WorkspaceTabDescriptor tab in new[]
-                     {
-                         present
-                     })
+            foreach (WorkspaceTabDescriptor tab in new[] { present })
             {
                 if (states.TryGetValue(tab.TabId, out JsonElement state))
                 {
@@ -221,10 +204,7 @@ public class ModuleTabPersistenceTests
             present.Activate(null!);
 
             await Assert.That(((FakeTabViewModel)present.TabViewModel!).State.Items)
-                .IsEquivalentTo(new List<string>
-                {
-                    "mine"
-                }, CollectionOrdering.Matching);
+                .IsEquivalentTo(new List<string> { "mine" }, CollectionOrdering.Matching);
         });
 
     private sealed record FakeState(List<string> Items, int Version);

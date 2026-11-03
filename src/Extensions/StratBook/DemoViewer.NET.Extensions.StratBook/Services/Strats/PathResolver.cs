@@ -23,7 +23,8 @@ public abstract class PathResolver
     /// <param name="toY">End Y.</param>
     /// <param name="toLevel">The end's level key.</param>
     /// <param name="toPlace">The place the end is in, which picks the level where two overlap; null for a bare point.</param>
-    public abstract IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX, double toY,
+    public abstract IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX,
+        double toY,
         double toLevel, string? toPlace);
 
     /// <summary>
@@ -64,7 +65,8 @@ public abstract class PathResolver
     /// <param name="x">World X.</param>
     /// <param name="y">World Y.</param>
     /// <param name="level">The level key.</param>
-    public bool OnMesh(double x, double y, double level) => Snap(x, y, level, null, 0) is { } at && at.X == x && at.Y == y;
+    public bool OnMesh(double x, double y, double level) =>
+        Snap(x, y, level, null, 0) is { } at && at.X == x && at.Y == y;
 }
 
 /// <summary>
@@ -93,7 +95,8 @@ public sealed class NavPathResolver : PathResolver
     public NavPathfinder Graph => _nav;
 
     /// <inheritdoc />
-    public override IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX, double toY, double toLevel,
+    public override IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX,
+        double toY, double toLevel,
         string? toPlace)
     {
         int start = Area(fromX, fromY, fromLevel, null);
@@ -107,7 +110,9 @@ public sealed class NavPathResolver : PathResolver
         int? id = place is not null && _places.TryGetValue(place, out int known) ? known : null;
         return place is not null && id is null
             ? null
-            : _nav.Snap(x, y, level, id, maxDistance) is { } at ? (at.X, at.Y) : null;
+            : _nav.Snap(x, y, level, id, maxDistance) is { } at
+                ? (at.X, at.Y)
+                : null;
     }
 
     // On the level, in the place when there is one; then on the level; then anywhere, since a level key that is not a

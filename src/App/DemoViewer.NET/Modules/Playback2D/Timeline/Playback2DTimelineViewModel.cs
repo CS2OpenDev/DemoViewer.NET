@@ -513,7 +513,8 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     public static bool IsRoundBand(TimelineBandViewModel band)
     {
         ArgumentNullException.ThrowIfNull(band);
-        return band.TrackId == "round" && int.TryParse(band.Label, NumberStyles.None, CultureInfo.InvariantCulture, out _);
+        return band.TrackId == "round"
+               && int.TryParse(band.Label, NumberStyles.None, CultureInfo.InvariantCulture, out _);
     }
 
     /// <summary>
@@ -564,7 +565,8 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     public double EditX => EditingLane?.EditSpan is { } span ? XForFrame(span.Start) : 0;
 
     /// <summary>The edit band's width, px; never narrower than its two handles.</summary>
-    public double EditWidth => EditingLane?.EditSpan is { } span ? Math.Max(8, XForFrame(span.End) - XForFrame(span.Start)) : 0;
+    public double EditWidth =>
+        EditingLane?.EditSpan is { } span ? Math.Max(8, XForFrame(span.End) - XForFrame(span.Start)) : 0;
 
     /// <summary>
     ///     A handle dragged to a pixel: moves that end of the edit band and tells its lane, which moves the
@@ -642,7 +644,10 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     }
 
     /// <summary>A lane's registration: the handle a contribution holds, and the lane's state the row folds in.</summary>
-    private sealed class TimelineLane(Playback2DTimelineViewModel owner, ITimelineTrack track, IHostLaneBehaviour? behaviour)
+    private sealed class TimelineLane(
+        Playback2DTimelineViewModel owner,
+        ITimelineTrack track,
+        IHostLaneBehaviour? behaviour)
         : IHostLaneHandle
     {
         private (int Start, int End)? _editSpan;

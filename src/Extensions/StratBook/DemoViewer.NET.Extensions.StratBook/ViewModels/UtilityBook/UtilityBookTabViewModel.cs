@@ -264,7 +264,9 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
             ? null
             : new GrenadeQuery(map,
                 SelectedKind?.Value is { } kind ? new HashSet<GrenadeKind> { kind } : null,
-                SelectedPlace is { } place && place != AnyPlace ? new HashSet<string>(StringComparer.Ordinal) { place } : null,
+                SelectedPlace is { } place && place != AnyPlace
+                    ? new HashSet<string>(StringComparer.Ordinal) { place }
+                    : null,
                 SelectedSide?.Value);
 
     /// <summary>
@@ -287,7 +289,8 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
         int version = ++_refreshVersion;
         string? map = SelectedMap;
         string? place = SelectedPlace;
-        IReadOnlySet<GrenadeKind>? kinds = _queryKinds ?? (SelectedKind?.Value is { } k ? new HashSet<GrenadeKind> { k } : null);
+        IReadOnlySet<GrenadeKind>? kinds =
+            _queryKinds ?? (SelectedKind?.Value is { } k ? new HashSet<GrenadeKind> { k } : null);
         int? side = SelectedSide?.Value;
         _background(() =>
         {
@@ -313,14 +316,23 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
         });
     }
 
-    private sealed record RefreshResult(IReadOnlyList<string> Maps, string? Map, IReadOnlyList<string> Places, string Place,
-        IReadOnlyList<GrenadeCluster> Clusters, bool Ready, int Demos, int Grenades);
+    private sealed record RefreshResult(
+        IReadOnlyList<string> Maps,
+        string? Map,
+        IReadOnlyList<string> Places,
+        string Place,
+        IReadOnlyList<GrenadeCluster> Clusters,
+        bool Ready,
+        int Demos,
+        int Grenades);
 
     // Everything Refresh reads from the index. Takes the index's lock, so the app runs it off the UI thread.
-    private RefreshResult Compute(string? selectedMap, string? selectedPlace, IReadOnlySet<GrenadeKind>? kinds, int? side)
+    private RefreshResult Compute(string? selectedMap, string? selectedPlace, IReadOnlySet<GrenadeKind>? kinds,
+        int? side)
     {
         IReadOnlyList<string> maps = _lockedMap is { } locked ? [locked] : _index.Maps();
-        string? map = _lockedMap ?? (selectedMap is not null && maps.Contains(selectedMap) ? selectedMap : maps.Count > 0 ? maps[0] : null);
+        string? map = _lockedMap ?? (selectedMap is not null && maps.Contains(selectedMap) ? selectedMap :
+            maps.Count > 0 ? maps[0] : null);
         JobScope.ThrowIfStopped();
         List<string> places = [AnyPlace, .. map is not null ? _index.LandingPlaces(map) : []];
         JobScope.ThrowIfStopped();
@@ -331,7 +343,8 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
                 kinds,
                 place != AnyPlace ? new HashSet<string>(StringComparer.Ordinal) { place } : null,
                 side));
-        return new RefreshResult(maps, map, places, place, clusters, _index.IsReady, _index.DemoCount, _index.GrenadeCount);
+        return new RefreshResult(maps, map, places, place, clusters, _index.IsReady, _index.DemoCount,
+            _index.GrenadeCount);
     }
 
     private void Apply(RefreshResult result)
@@ -366,7 +379,8 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     }
 
     private static bool NeedsSingles(IReadOnlyList<GrenadeCluster> clusters, Guid lineupId) =>
-        Named([.. clusters.SelectMany(c => c.Lineups)], lineupId) is { } lineup && lineup.Throws.Count < LineupMinThrows;
+        Named([.. clusters.SelectMany(c => c.Lineups)], lineupId) is { } lineup
+        && lineup.Throws.Count < LineupMinThrows;
 
     // The lineup whose own id this is, else one that absorbed it: LineupOriginSource.ByAnyId's precedence.
     private static GrenadeLineup? Named(IReadOnlyList<GrenadeLineup> lineups, Guid id) =>
@@ -381,7 +395,9 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
         }
 
         _focusedId = group.Id;
-        _selectedLineupId = GrenadeLineups.TechniqueFor(lineup, technique) is { } chosen ? PositionKey(lineup, chosen) : LineupKey(lineup);
+        _selectedLineupId = GrenadeLineups.TechniqueFor(lineup, technique) is { } chosen
+            ? PositionKey(lineup, chosen)
+            : LineupKey(lineup);
         Project();
     }
 
@@ -439,11 +455,12 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     /// <param name="grenades">Grenades across them.</param>
     /// <param name="hasMap">Whether any map has grenades.</param>
     public static string StatusFor(bool ready, int demos, int grenades, bool hasMap) =>
-        !ready ? "Reading the grenade index…"
-        : demos == 0 || !hasMap
-            ? "No grenades indexed yet. Use Index grenades on Match Overview, or turn on background grenade indexing in Settings."
-            : string.Create(CultureInfo.InvariantCulture,
-                $"{grenades} {(grenades == 1 ? "grenade" : "grenades")} from {demos} {(demos == 1 ? "demo" : "demos")}");
+        !ready
+            ? "Reading the grenade index…"
+            : demos == 0 || !hasMap
+                ? "No grenades indexed yet. Use Index grenades on Match Overview, or turn on background grenade indexing in Settings."
+                : string.Create(CultureInfo.InvariantCulture,
+                    $"{grenades} {(grenades == 1 ? "grenade" : "grenades")} from {demos} {(demos == 1 ? "demo" : "demos")}");
 
     /// <summary>The baked icon key for a grenade kind.</summary>
     /// <param name="kind">What is thrown.</param>
@@ -588,7 +605,8 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
             :
             [
                 .. Positions(focused).OrderBy(p => p.Throws.Count)
-                    .Select(p => new UtilityMapThrow(p.Key, p.Origin.X, p.Origin.Y, p.Origin.Z, TeamOf(p.Throws), p.JumpThrow,
+                    .Select(p => new UtilityMapThrow(p.Key, p.Origin.X, p.Origin.Y, p.Origin.Z, TeamOf(p.Throws),
+                        p.JumpThrow,
                         p.Key == selected?.Key, Flight(p, focused.Landing)))
             ];
         Document.Set(landings, throws);
@@ -599,7 +617,8 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
                 $"{focused.Title}: {focused.ThrowCount} {(focused.ThrowCount == 1 ? "throw" : "throws")} from {focused.Lineups.Count} {(focused.Lineups.Count == 1 ? "lineup" : "lineups")}. Click a position for its details; Escape steps back.");
         Detail = selected is null
             ? null
-            : new LineupDetail(focused!, selected.Lineup, _demoDate, WatchAsync, CopyAsync, selected.Technique, _clipDirectory);
+            : new LineupDetail(focused!, selected.Lineup, _demoDate, WatchAsync, CopyAsync, selected.Technique,
+                _clipDirectory);
         OnPropertyChanged(nameof(FocusedGroup));
         OnPropertyChanged(nameof(HasFocus));
     }
@@ -607,7 +626,9 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     /// <summary>The key the lineup's most thrown position is clicked by.</summary>
     /// <param name="lineup">The lineup.</param>
     public static string LineupKey(GrenadeLineup lineup) =>
-        lineup.Techniques.Count > 0 ? PositionKey(lineup, lineup.Techniques[0]) : lineup.Id.ToString("N", CultureInfo.InvariantCulture);
+        lineup.Techniques.Count > 0
+            ? PositionKey(lineup, lineup.Techniques[0])
+            : lineup.Id.ToString("N", CultureInfo.InvariantCulture);
 
     /// <summary>The key one technique of a lineup is clicked by: the lineup's stable id and the technique.</summary>
     public static string PositionKey(GrenadeLineup lineup, LineupTechnique technique) =>
@@ -621,14 +642,17 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
         {
             if (lineup.Techniques.Count == 0)
             {
-                yield return new ThrowPosition(LineupKey(lineup), lineup, null, lineup.Origin, lineup.JumpThrow, lineup.Throws,
+                yield return new ThrowPosition(LineupKey(lineup), lineup, null, lineup.Origin, lineup.JumpThrow,
+                    lineup.Throws,
                     lineup.Representative);
+
                 continue;
             }
 
             foreach (LineupTechnique technique in lineup.Techniques)
             {
-                yield return new ThrowPosition(PositionKey(lineup, technique), lineup, technique, technique.Origin, technique.JumpThrow,
+                yield return new ThrowPosition(PositionKey(lineup, technique), lineup, technique, technique.Origin,
+                    technique.JumpThrow,
                     technique.Throws, technique.Representative);
             }
         }
@@ -640,13 +664,19 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     // The representative throw's recorded flight, else the stored one, else a straight line to the group's landing.
     private IReadOnlyList<GrenadeTrailPoint> Flight(ThrowPosition position, WorldPoint landing)
     {
-        if ((position.Representative.Row.Trajectory is { Count: >= 2 } own ? own : _index.PathFor(position.Lineup, position.Technique))
+        if ((position.Representative.Row.Trajectory is { Count: >= 2 } own
+                ? own
+                : _index.PathFor(position.Lineup, position.Technique))
             is { Count: >= 2 } path)
         {
             return [.. path.Select(p => new GrenadeTrailPoint(p.X, p.Y, p.Z))];
         }
 
-        return [new GrenadeTrailPoint(position.Origin.X, position.Origin.Y, position.Origin.Z), new GrenadeTrailPoint(landing.X, landing.Y, landing.Z)];
+        return
+        [
+            new GrenadeTrailPoint(position.Origin.X, position.Origin.Y, position.Origin.Z),
+            new GrenadeTrailPoint(landing.X, landing.Y, landing.Z)
+        ];
     }
 
     private async Task WatchAsync(IndexedGrenade grenade)
@@ -710,7 +740,8 @@ public sealed class LandingGroup
         Cluster = cluster;
         Lineups = lineups;
         List<IndexedGrenade> throws = [.. lineups.SelectMany(l => l.Throws)];
-        Landing = new WorldPoint(throws.Average(t => t.Landing.X), throws.Average(t => t.Landing.Y), throws.Average(t => t.Landing.Z));
+        Landing = new WorldPoint(throws.Average(t => t.Landing.X), throws.Average(t => t.Landing.Y),
+            throws.Average(t => t.Landing.Z));
         // Not the landing cell: several landing groups can seed in one 256-unit cell.
         Id = string.Create(CultureInfo.InvariantCulture, $"{cluster.Kind}:{cluster.Lineups[0].Id:N}");
     }
@@ -762,7 +793,9 @@ public sealed partial class LineupDetail : ObservableObject
         UsedLine = string.Create(CultureInfo.InvariantCulture,
             $"Used {lineup.Throws.Count} {(lineup.Throws.Count == 1 ? "time" : "times")} in {lineup.DemoCount} {(lineup.DemoCount == 1 ? "demo" : "demos")}");
         TechniquesLine = lineup.Techniques.Count > 1
-            ? string.Join(" · ", lineup.Techniques.Select(t => string.Create(CultureInfo.InvariantCulture, $"{t.Label} {t.Throws.Count}")))
+            ? string.Join(" · ",
+                lineup.Techniques.Select(t =>
+                    string.Create(CultureInfo.InvariantCulture, $"{t.Label} {t.Throws.Count}")))
             : "";
         if (clipDirectory is not null)
         {
@@ -782,7 +815,8 @@ public sealed partial class LineupDetail : ObservableObject
                      .ThenBy(t => t.Demo.Path, StringComparer.OrdinalIgnoreCase)
                      .ThenBy(t => t.Row.ReleaseTick))
         {
-            Instances.Add(new LineupInstanceRow(grenade, demoDate(grenade.Demo.Path), new AsyncRelayCommand(() => watch(grenade))));
+            Instances.Add(new LineupInstanceRow(grenade, demoDate(grenade.Demo.Path),
+                new AsyncRelayCommand(() => watch(grenade))));
         }
     }
 
@@ -844,7 +878,8 @@ public sealed class LineupInstanceRow(IndexedGrenade grenade, DateTime? date, IA
     public string DemoName { get; } = Path.GetFileNameWithoutExtension(grenade.Demo.Path);
 
     /// <summary>Who threw it: the name at the time, sanitised; empty when the walk read no player.</summary>
-    public string PlayerText { get; } = grenade.Row.ThrowerName is { Length: > 0 } name ? DisplayText.Sanitize(name) : "";
+    public string PlayerText { get; } =
+        grenade.Row.ThrowerName is { Length: > 0 } name ? DisplayText.Sanitize(name) : "";
 
     public string RoundText { get; } = grenade.Row.RoundNumber > 0
         ? string.Create(CultureInfo.InvariantCulture, $"round {grenade.Row.RoundNumber}")

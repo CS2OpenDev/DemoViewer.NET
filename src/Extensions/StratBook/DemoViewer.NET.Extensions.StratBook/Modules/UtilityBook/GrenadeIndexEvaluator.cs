@@ -41,7 +41,10 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     private readonly IExtensionLibrary _library;
     private readonly Func<bool> _enabled;
     private readonly HashSet<string> _forcedPaths = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Dictionary<string, List<TrajectoryPoint>>> _flights = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly Dictionary<string, Dictionary<string, List<TrajectoryPoint>>> _flights =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private readonly object _gate = new();
     private readonly Func<string?> _openDemo;
     private readonly Action<Action> _post;
@@ -162,7 +165,8 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
 
     /// <inheritdoc />
     public DemoInterest Interest(string demoPath) =>
-        Wants(demoPath) ? DemoInterest.Yes : WantsAfterUpstream(demoPath) ? DemoInterest.AfterUpstream : DemoInterest.No;
+        Wants(demoPath) ? DemoInterest.Yes :
+        WantsAfterUpstream(demoPath) ? DemoInterest.AfterUpstream : DemoInterest.No;
 
     /// <inheritdoc />
     public PassRead Read => PassRead.Forward;
@@ -181,7 +185,8 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
             FirstTick = context.FirstServerTick,
             LastTick = context.LastServerTick
         };
-        Refresh(context.DemoPath, () => GrenadeWalker.Assemble(GrenadeWalkInputs.Read(context), GrenadeWalkInputs.Rounds(context),
+        Refresh(context.DemoPath, () => GrenadeWalker.Assemble(GrenadeWalkInputs.Read(context),
+            GrenadeWalkInputs.Rounds(context),
             demo.Players.Values, tickRate, demo.ServerStartTick), clock, demo.BuildNumber);
     }
 
@@ -214,7 +219,8 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
             }
 
             GrenadeWalkInputs read = inputs ?? Run(parsed, Math.Max(1, _stride()));
-            return GrenadeWalker.Assemble(read, ClipRounds.Derive(parsed), parsed.Players.Values, tickRate, parsed.ServerStartTick);
+            return GrenadeWalker.Assemble(read, ClipRounds.Derive(parsed), parsed.Players.Values, tickRate,
+                parsed.ServerStartTick);
         }, RoundFactsClock.For(parsed), parsed.BuildNumber);
     }
 
@@ -225,12 +231,13 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     {
         ArgumentNullException.ThrowIfNull(parsed);
         GrenadeTrajectoryObserver observer = new(trajectoryStride);
-        AnalysisRun run = DemoAnalysis.Run(parsed, GrenadeTables.LoadRulesets(), new AnalysisOptions
-        {
-            CaptureSnapshots = false,
-            FrameObserver = observer,
-            ObservedProjectileClasses = GrenadeProjectileClasses.All
-        });
+        AnalysisRun run = DemoAnalysis.Run(parsed, GrenadeTables.LoadRulesets(),
+            new AnalysisOptions
+            {
+                CaptureSnapshots = false,
+                FrameObserver = observer,
+                ObservedProjectileClasses = GrenadeProjectileClasses.All
+            });
         return new GrenadeWalkInputs(GrenadeTables.Read(run, parsed.ServerStartTick), observer.Flights());
     }
 
@@ -405,7 +412,8 @@ internal static partial class GrenadeIndexLog
         Message = "{fileName}: grenade rows ignored by the index (missing, unreadable or another demo's)")]
     public static partial void RowsIgnored(ILogger logger, string fileName);
 
-    [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "grenade index loaded {demos} demos in {ms} ms")]
+    [LoggerMessage(EventId = 4, Level = LogLevel.Information,
+        Message = "grenade index loaded {demos} demos in {ms} ms")]
     public static partial void Loaded(ILogger logger, int demos, long ms);
 
     [LoggerMessage(EventId = 5, Level = LogLevel.Information, Message = "lineup clips: {line}")]
@@ -418,6 +426,7 @@ internal static partial class GrenadeIndexLog
     [LoggerMessage(EventId = 8, Level = LogLevel.Warning, Message = "the lineup store was not saved")]
     public static partial void LineupsNotSaved(ILogger logger, Exception exception);
 
-    [LoggerMessage(EventId = 9, Level = LogLevel.Warning, Message = "{fileName}: a handler of the walked grenades failed")]
+    [LoggerMessage(EventId = 9, Level = LogLevel.Warning,
+        Message = "{fileName}: a handler of the walked grenades failed")]
     public static partial void WalkedHandlerFailed(ILogger logger, string fileName, Exception exception);
 }

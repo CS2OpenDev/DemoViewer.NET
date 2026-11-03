@@ -115,12 +115,7 @@ public sealed class SituationThumbnailRenderer : IDisposable
         // The fixture time is the matched tick with a discontinuity, so no layer smooths from a
         // previous frame it never saw.
         SceneTime time = new(tick, 0, 0, 1.0 / 64, true);
-        return new Scene2DFrame
-        {
-            Time = time,
-            Markers = markers,
-            Map = MapInfoFor(map, asset, markers)
-        };
+        return new Scene2DFrame { Time = time, Markers = markers, Map = MapInfoFor(map, asset, markers) };
     }
 
     /// <summary>The camera a thumbnail uses: the whole map, the way <c>dv2d render</c> fits a frame with no camera spec.</summary>
@@ -153,10 +148,7 @@ public sealed class SituationThumbnailRenderer : IDisposable
             WorldBounds bounds = asset.RadarBounds;
             return new SceneMapInfo
             {
-                MapName = map,
-                NetworkedBounds = bounds,
-                ObservedBounds = bounds,
-                Radars = asset.DescribeRadars()
+                MapName = map, NetworkedBounds = bounds, ObservedBounds = bounds, Radars = asset.DescribeRadars()
             };
         }
 
@@ -166,11 +158,7 @@ public sealed class SituationThumbnailRenderer : IDisposable
         double minY = markers.Min(m => m.WorldY) - 512;
         double maxX = markers.Max(m => m.WorldX) + 512;
         double maxY = markers.Max(m => m.WorldY) + 512;
-        return new SceneMapInfo
-        {
-            MapName = map,
-            ObservedBounds = new WorldBounds(minX, minY, maxX, maxY)
-        };
+        return new SceneMapInfo { MapName = map, ObservedBounds = new WorldBounds(minX, minY, maxX, maxY) };
     }
 
     private IMapAssetLease? AssetFor(string map)

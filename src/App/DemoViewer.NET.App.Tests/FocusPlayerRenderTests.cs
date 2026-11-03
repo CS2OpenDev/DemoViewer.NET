@@ -36,15 +36,7 @@ public class FocusPlayerRenderTests
 
     private static Window Show(StatsTabViewModel vm)
     {
-        Window window = new()
-        {
-            Width = 1200,
-            Height = 700,
-            Content = new StatsTabView
-            {
-                DataContext = vm
-            }
-        };
+        Window window = new() { Width = 1200, Height = 700, Content = new StatsTabView { DataContext = vm } };
         window.Show();
         Pump();
         return window;
@@ -61,7 +53,8 @@ public class FocusPlayerRenderTests
     private static MenuItem RowEntry(Window window, string player)
     {
         Border row = window.GetVisualDescendants().OfType<Border>()
-            .First(b => b.Classes.Contains("statsRow") && b.DataContext is StatsRow { IsTotals: false } r && r.PlayerName == player);
+            .First(b => b.Classes.Contains("statsRow") && b.DataContext is StatsRow { IsTotals: false } r
+                                                       && r.PlayerName == player);
         ContextMenu menu = row.ContextMenu!;
         menu.Open(row);
         Pump();
@@ -107,17 +100,20 @@ public class FocusPlayerRenderTests
             {
                 vm.OpenPlayerDetailsCommand.Execute(vm.GameRows.Single(r => r.PlayerName == "Bob"));
                 Pump();
-                Button button = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Player overview"));
+                Button button = window.GetVisualDescendants().OfType<Button>()
+                    .Single(b => Equals(b.Content, "Player overview"));
                 await Assert.That(button.IsVisible).IsTrue();
                 await Assert.That(button.IsEnabled).IsFalse();
                 await Assert.That(ToolTip.GetTip(button)).IsEqualTo(PlayerOverviewLink.NoSteamIdTip);
 
                 vm.FocusPlayer(FocusPlayerTests.Alice);
                 Pump();
-                button = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Player overview"));
+                button = window.GetVisualDescendants().OfType<Button>()
+                    .Single(b => Equals(b.Content, "Player overview"));
                 await Assert.That(button.IsEnabled).IsTrue();
                 button.Command!.Execute(button.CommandParameter);
-                await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (FocusPlayerTests.Alice, "Alice") }, CollectionOrdering.Matching);
+                await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (FocusPlayerTests.Alice, "Alice") },
+                    CollectionOrdering.Matching);
             }
             finally
             {

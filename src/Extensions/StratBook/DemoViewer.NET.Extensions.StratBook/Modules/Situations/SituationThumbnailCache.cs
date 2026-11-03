@@ -25,7 +25,10 @@ public sealed class SituationThumbnailCache
     public const int DefaultCapacity = 256;
 
     private readonly int _capacity;
-    private readonly Dictionary<SituationThumbnailKey, LinkedListNode<(SituationThumbnailKey Key, byte[] Png)>> _map = [];
+
+    private readonly Dictionary<SituationThumbnailKey, LinkedListNode<(SituationThumbnailKey Key, byte[] Png)>> _map =
+        [];
+
     private readonly LinkedList<(SituationThumbnailKey Key, byte[] Png)> _order = [];
     private readonly object _gate = new();
 

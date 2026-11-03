@@ -410,16 +410,8 @@ public class TabFeatureGatingTests
             // Sanity: the affordance note is populated (a Consumer hides gated features).
             await Assert.That(vm.HiddenFeatureNote).IsNotEqualTo("");
 
-            MainView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1280,
-                Height = 800,
-                Content = view
-            };
+            MainView view = new() { DataContext = vm };
+            Window window = new() { Width = 1280, Height = 800, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -475,13 +467,15 @@ public class TabFeatureGatingTests
             await Assert.That(vm.IsHexPaneEnabled).IsFalse();
             await Assert.That(vm.IsParseChainEnabled).IsFalse();
             await Assert.That(vm.IsDebuggerChromeEnabled).IsFalse();
-            await Assert.That(vm.IsOutputChromeEnabled).IsFalse().Because("Output chrome is power-user+, off for consumer");
+            await Assert.That(vm.IsOutputChromeEnabled).IsFalse()
+                .Because("Output chrome is power-user+, off for consumer");
             await Assert.That(vm.IsBreakpointNavEnabled).IsFalse();
             await Assert.That(vm.IsSerializerSchemaEnabled).IsFalse();
             await Assert.That(vm.IsAnalysisBreakpointsEnabled).IsFalse();
 
             await Assert.That(vm.HiddenFeatureCount).IsGreaterThan(0);
-            await Assert.That(vm.HiddenFeatureNote).IsNotEqualTo("").Because("a positive hidden count surfaces the affordance");
+            await Assert.That(vm.HiddenFeatureNote).IsNotEqualTo("")
+                .Because("a positive hidden count surfaces the affordance");
         });
     }
 
@@ -541,8 +535,10 @@ public class TabFeatureGatingTests
             svc.Write(s => s.UserCategory = UserCategory.Consumer);
 
             await Assert.That(vm.IsDebuggerChromeEnabled).IsFalse().Because("the chrome gate re-resolved off");
-            await Assert.That(vm.IsDebuggerPanelVisible).IsFalse().Because("the open panel is force-closed when its chrome hides");
-            await Assert.That(shimRaised).IsTrue().Because("the shim re-raises PropertyChanged so bound chrome reflows");
+            await Assert.That(vm.IsDebuggerPanelVisible).IsFalse()
+                .Because("the open panel is force-closed when its chrome hides");
+            await Assert.That(shimRaised).IsTrue()
+                .Because("the shim re-raises PropertyChanged so bound chrome reflows");
         });
     }
 

@@ -55,7 +55,8 @@ public sealed class RoundIndexStore
     /// <summary>Is the demo's index current under <paramref name="fingerprint" />?</summary>
     /// <param name="demoPath">The demo's path.</param>
     /// <param name="fingerprint">The fingerprint in force for the demo's map.</param>
-    public bool IsCurrent(string demoPath, string fingerprint) => Stamp(demoPath)?.IsCurrent(Schema, fingerprint) ?? false;
+    public bool IsCurrent(string demoPath, string fingerprint) =>
+        Stamp(demoPath)?.IsCurrent(Schema, fingerprint) ?? false;
 
     /// <summary>Does the demo want indexing? A failed demo does not: retry is the user's call.</summary>
     /// <param name="demoPath">The demo's path.</param>
@@ -80,15 +81,18 @@ public sealed class RoundIndexStore
     /// <param name="positions">The positions the cards draw.</param>
     /// <param name="fingerprint">The fingerprint the index was built under.</param>
     /// <returns>The new stamp, or null when nothing is kept.</returns>
-    public DemoDataStamp? Write(string demoPath, RoundIndexDocument document, RoundPositionsDocument positions, string fingerprint)
+    public DemoDataStamp? Write(string demoPath, RoundIndexDocument document, RoundPositionsDocument positions,
+        string fingerprint)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(positions);
-        return Data.Write(demoPath, new DemoDataWrite(Facet, Schema, fingerprint, Encoding.UTF8.GetBytes(document.Serialize()))
-        {
-            Parts = new Dictionary<string, ReadOnlyMemory<byte>> { [PositionsPart] = positions.SerializeUtf8() },
-            Count = document.RowCount
-        });
+        return Data.Write(demoPath,
+            new DemoDataWrite(Facet, Schema, fingerprint, Encoding.UTF8.GetBytes(document.Serialize()))
+            {
+                Parts =
+                    new Dictionary<string, ReadOnlyMemory<byte>> { [PositionsPart] = positions.SerializeUtf8() },
+                Count = document.RowCount
+            });
     }
 
     /// <summary>A demo's index whatever fingerprint it was built under, or null when there is none or it does not parse.</summary>
@@ -110,7 +114,8 @@ public sealed class RoundIndexStore
     /// <param name="demoPath">The demo's path.</param>
     /// <param name="expectedFingerprint">The fingerprint in force, or null to accept any.</param>
     /// <param name="sha256">The record's hash, or null when neither side has one.</param>
-    public RoundPositionsDocument? TryReadPositions(string demoPath, string? expectedFingerprint = null, string? sha256 = null)
+    public RoundPositionsDocument? TryReadPositions(string demoPath, string? expectedFingerprint = null,
+        string? sha256 = null)
     {
         if (Data.ReadAny(demoPath, Facet, PositionsPart) is not { Schema: Schema } record
             || RoundPositionsDocument.TryDeserialize(record.Content) is not { } positions)
@@ -118,12 +123,14 @@ public sealed class RoundIndexStore
             return null;
         }
 
-        if (expectedFingerprint is not null && !string.Equals(positions.Fingerprint, expectedFingerprint, StringComparison.Ordinal))
+        if (expectedFingerprint is not null
+            && !string.Equals(positions.Fingerprint, expectedFingerprint, StringComparison.Ordinal))
         {
             return null;
         }
 
-        if (sha256 is not null && positions.Demo.Sha256 is { } written && !string.Equals(written, sha256, StringComparison.OrdinalIgnoreCase))
+        if (sha256 is not null && positions.Demo.Sha256 is { } written
+                               && !string.Equals(written, sha256, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }

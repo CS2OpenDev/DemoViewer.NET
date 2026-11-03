@@ -114,7 +114,8 @@ public sealed partial class HighlightsSectionViewModel : PlayerOverviewSection
         Loading = LoadAsync(facts, context.Matches, unread, load, quiet);
     }
 
-    private async Task LoadAsync(IAnalysisFacts facts, IReadOnlyList<PlayerMatch> matches, List<PlayerMatch> unread, int load,
+    private async Task LoadAsync(IAnalysisFacts facts, IReadOnlyList<PlayerMatch> matches, List<PlayerMatch> unread,
+        int load,
         bool quiet)
     {
         if (!quiet)
@@ -196,7 +197,8 @@ public sealed partial class HighlightsSectionViewModel : PlayerOverviewSection
             .Select(g => string.Create(CultureInfo.InvariantCulture, $"{g.Count()} {KindLabel(g.Key, g.Count())}")));
     }
 
-    private static int KindOrder(string kind) => kind switch { "Highlight" => 0, "Funny" => 1, "Lowlight" => 2, _ => 3 };
+    private static int KindOrder(string kind) =>
+        kind switch { "Highlight" => 0, "Funny" => 1, "Lowlight" => 2, _ => 3 };
 
     private static string KindLabel(string kind, int count) => kind switch
     {
@@ -248,10 +250,14 @@ public sealed partial class PlayerHighlightItem : ObservableObject
         Match = match ?? throw new ArgumentNullException(nameof(match));
         Highlight = highlight ?? throw new ArgumentNullException(nameof(highlight));
         // The title embeds the player's name as it was at the scan: raw, so sanitized here.
-        Title = DisplayText.Sanitize(string.IsNullOrEmpty(highlight.Title) ? highlight.HighlightId.Replace('_', ' ') : highlight.Title);
+        Title = DisplayText.Sanitize(string.IsNullOrEmpty(highlight.Title)
+            ? highlight.HighlightId.Replace('_', ' ')
+            : highlight.Title);
         MapText = DemoEntry.PrettifyMap(match.Row.Map);
         DateText = HistoryRowItem.DateOf(match);
-        RoundText = highlight.RoundNumber > 0 ? string.Create(CultureInfo.InvariantCulture, $"R{highlight.RoundNumber}") : "";
+        RoundText = highlight.RoundNumber > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"R{highlight.RoundNumber}")
+            : "";
         KindText = highlight.Kind;
         ScoreText = highlight.Score.ToString(CultureInfo.InvariantCulture);
     }

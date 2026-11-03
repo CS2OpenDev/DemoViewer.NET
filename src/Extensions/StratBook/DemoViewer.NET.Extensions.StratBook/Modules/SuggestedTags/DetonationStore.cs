@@ -32,7 +32,10 @@ public sealed class DetonationDocument
 
     /// <summary>The events as the detectors take them.</summary>
     public List<PlacedEvent> ToEvents() =>
-        [.. Events.Select(e => new PlacedEvent(e.Tick, e.Kind, e.ThrowerSlot, 0, new Vector3(e.X, e.Y, e.Z), null, e.ThrowerSteamId, e.ThrowerName))];
+    [
+        .. Events.Select(e => new PlacedEvent(e.Tick, e.Kind, e.ThrowerSlot, 0, new Vector3(e.X, e.Y, e.Z), null,
+            e.ThrowerSteamId, e.ThrowerName))
+    ];
 
     /// <summary>A document over unplaced events.</summary>
     /// <param name="map">The map.</param>
@@ -126,7 +129,9 @@ public sealed class DetonationStore
     public void Write(string demoPath, DetonationDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        byte[] payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(document, SuggestedTagsJsonContext.Default.DetonationDocument));
+        byte[] payload =
+            Encoding.UTF8.GetBytes(JsonSerializer.Serialize(document,
+                SuggestedTagsJsonContext.Default.DetonationDocument));
         Data.Write(demoPath, new DemoDataWrite(Facet, Schema, Fingerprint, payload) { Count = document.Events.Count });
     }
 

@@ -301,7 +301,6 @@ internal interface ISceneViewBackend
 /// <summary>Where the app installs the scene renderer every <see cref="SceneView" /> is built over.</summary>
 internal static class SceneViewHost
 {
-
     /// <summary>Builds a renderer; null before the app installs one.</summary>
     internal static Func<ISceneViewBackend>? Factory { get; set; }
 

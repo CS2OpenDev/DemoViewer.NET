@@ -233,10 +233,7 @@ internal sealed class DemoSceneProvider : SceneProvider
         double speed = args.Double("speed", 1.0);
 
         TrackerFrameSource source = new(demo.Frames, new SceneFrameBuilder(), start,
-            demo.Frames.Count - 1, fps, speed, tickRate)
-        {
-            MapName = demo.MapName
-        };
+            demo.Frames.Count - 1, fps, speed, tickRate) { MapName = demo.MapName };
         source.Prepare(CancellationToken.None);
 
         return new DemoSceneProvider(demo, source, Path.GetFileName(demoPath), start, parseMs);

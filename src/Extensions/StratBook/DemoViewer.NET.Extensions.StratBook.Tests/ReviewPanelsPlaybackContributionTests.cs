@@ -42,7 +42,8 @@ public class ReviewPanelsPlaybackContributionTests
     private static (Playback2DTabViewModel Vm, Playback2DFakeContext Ctx, ReviewPanelsPlaybackContribution Review) Tab(
         IFeatureGate? gate = null, Action<Playback2DFakeContext>? configure = null,
         Func<string, string?, Task<DemoIdentity?>>? identity = null) =>
-        ReviewPanelsHarness.Tab(gate, configure: configure, post: ReviewPanelsHarness.SynchronousPost, identity: identity);
+        ReviewPanelsHarness.Tab(gate, configure: configure, post: ReviewPanelsHarness.SynchronousPost,
+            identity: identity);
 
     [Test]
     public async Task PackOff_BuildsNothing_AndTheToggleAddsTheSessionTheLanesTheToggleAndThePanels()
@@ -59,7 +60,8 @@ public class ReviewPanelsPlaybackContributionTests
                 await Assert.That(vm.Surface.ModeToggles).IsEmpty();
                 await Assert.That(review.Session).IsNull().Because("no session is constructed while the pack is off");
                 await Assert.That(review.ReviewMode).IsNull();
-                await Assert.That(review.Palette).IsNull().Because("no view model is constructed while the pack is off");
+                await Assert.That(review.Palette).IsNull()
+                    .Because("no view model is constructed while the pack is off");
                 await Assert.That(review.Queue).IsNull();
                 await Assert.That(review.Review).IsNull();
                 await Assert.That(vm.IsReviewAvailable).IsFalse();
@@ -75,21 +77,30 @@ public class ReviewPanelsPlaybackContributionTests
             using (Assert.Multiple())
             {
                 await Assert.That(review.Session).IsNotNull();
-                await Assert.That(lane.Session).IsSameReferenceAs(review.Session).Because("the lane reads the contribution's session");
-                await Assert.That(vm.Timeline.Tracks.Select(t => t.Id)).IsEquivalentTo([.. coreTracks, tagId, proposalId], CollectionOrdering.Matching)
+                await Assert.That(lane.Session).IsSameReferenceAs(review.Session)
+                    .Because("the lane reads the contribution's session");
+                await Assert.That(vm.Timeline.Tracks.Select(t => t.Id))
+                    .IsEquivalentTo([.. coreTracks, tagId, proposalId], CollectionOrdering.Matching)
                     .Because("the tag lane comes first, then the suggestions, after the tab's own tracks");
-                await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id)).IsEquivalentTo([tagId, proposalId], CollectionOrdering.Matching);
+                await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id))
+                    .IsEquivalentTo([tagId, proposalId], CollectionOrdering.Matching);
                 await Assert.That(coreTracks).DoesNotContain(tagId);
                 await Assert.That(coreTracks).DoesNotContain(proposalId);
-                await Assert.That(vm.Surface.ModeToggles.Select(t => t.Id)).IsEquivalentTo([ReviewPanelsPlaybackContribution.ReviewModeId], CollectionOrdering.Matching);
+                await Assert.That(vm.Surface.ModeToggles.Select(t => t.Id))
+                    .IsEquivalentTo([ReviewPanelsPlaybackContribution.ReviewModeId], CollectionOrdering.Matching);
                 await Assert.That(review.ReviewMode!.ActionId).IsEqualTo(StratBookActions.ToggleReviewMode);
                 await Assert.That(review.ReviewMode.IsOn).IsFalse();
                 await Assert.That(vm.Timeline.IsTrackSuppressed(tagId)).IsTrue().Because("the lanes are the mode's");
                 await Assert.That(vm.Surface.Panels.Select(p => p.Content!.GetType()))
-                    .IsEquivalentTo([typeof(TagPaletteViewModel), typeof(ReviewPanelViewModel), typeof(SuggestionQueueViewModel)], CollectionOrdering.Matching);
-                await Assert.That(vm.Surface.Panels.Select(p => p.IsShown)).IsEquivalentTo([false, false, false], CollectionOrdering.Matching);
-                await Assert.That(((Playback2DPanel)review.PalettePanel!).FeatureId).IsEqualTo(RoundTaggerModule.PaletteFeatureId);
-                await Assert.That(((Playback2DPanel)review.QueuePanel!).FeatureId).IsEqualTo(SuggestedTagsService.FeatureId);
+                    .IsEquivalentTo(
+                        [typeof(TagPaletteViewModel), typeof(ReviewPanelViewModel), typeof(SuggestionQueueViewModel)],
+                        CollectionOrdering.Matching);
+                await Assert.That(vm.Surface.Panels.Select(p => p.IsShown))
+                    .IsEquivalentTo([false, false, false], CollectionOrdering.Matching);
+                await Assert.That(((Playback2DPanel)review.PalettePanel!).FeatureId)
+                    .IsEqualTo(RoundTaggerModule.PaletteFeatureId);
+                await Assert.That(((Playback2DPanel)review.QueuePanel!).FeatureId)
+                    .IsEqualTo(SuggestedTagsService.FeatureId);
                 await Assert.That(vm.Surface.Panels.All(p => ReferenceEquals(p.Mode, review.ReviewMode))).IsTrue()
                     .Because("every panel is bound to the Review toggle");
                 await Assert.That(lane.CodeColour).IsNotNull().Because("the palette colours the lane's bands");
@@ -100,14 +111,16 @@ public class ReviewPanelsPlaybackContributionTests
             review.ReviewMode.IsOn = true;
             using (Assert.Multiple())
             {
-                await Assert.That(vm.Surface.Panels.Select(p => p.IsShown)).IsEquivalentTo([true, true, true], CollectionOrdering.Matching);
+                await Assert.That(vm.Surface.Panels.Select(p => p.IsShown))
+                    .IsEquivalentTo([true, true, true], CollectionOrdering.Matching);
                 await Assert.That(vm.IsCardStrip).IsTrue();
                 await Assert.That(vm.Timeline.IsTrackSuppressed(tagId)).IsFalse();
                 await Assert.That(vm.Timeline.IsTrackSuppressed(proposalId)).IsFalse();
             }
 
             review.ReviewMode.IsOn = false;
-            await Assert.That(vm.Surface.Panels.Select(p => p.IsShown)).IsEquivalentTo([false, false, false], CollectionOrdering.Matching);
+            await Assert.That(vm.Surface.Panels.Select(p => p.IsShown))
+                .IsEquivalentTo([false, false, false], CollectionOrdering.Matching);
 
             vm.Dispose();
         });
@@ -120,18 +133,20 @@ public class ReviewPanelsPlaybackContributionTests
         await HeadlessSession.RunOnUi(async () =>
         {
             TagStore store = new(null);
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab(
-                configure: c =>
-                {
-                    c.SetService(store);
-                    c.DemoPath = DemoPath;
-                    c.DemoSha256 = Sha;
-                });
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab(
+                    configure: c =>
+                    {
+                        c.SetService(store);
+                        c.DemoPath = DemoPath;
+                        c.DemoSha256 = Sha;
+                    });
             TagSession session = review.Session!;
             await AttachedAsync(session, DemoPath);
             using (Assert.Multiple())
             {
-                await Assert.That(session.Document!.Demo.Sha256).IsEqualTo(Sha).Because("attached on the activation's demo change");
+                await Assert.That(session.Document!.Demo.Sha256).IsEqualTo(Sha)
+                    .Because("attached on the activation's demo change");
                 await Assert.That(review.Queue!.DemoPath).IsEqualTo(DemoPath);
             }
 
@@ -143,7 +158,12 @@ public class ReviewPanelsPlaybackContributionTests
 
             session.Apply(new TagDelta.Add(new TagInstance
             {
-                Id = Guid.NewGuid(), Code = "Default", FromTick = 100, ToTick = 200, CreatedUtc = Created, ModifiedUtc = Created
+                Id = Guid.NewGuid(),
+                Code = "Default",
+                FromTick = 100,
+                ToTick = 200,
+                CreatedUtc = Created,
+                ModifiedUtc = Created
             }));
             ctx.DemoPath = OtherPath;
             ctx.DemoSha256 = OtherSha;
@@ -153,7 +173,8 @@ public class ReviewPanelsPlaybackContributionTests
             {
                 await Assert.That(session.Document!.Demo.Sha256).IsEqualTo(OtherSha);
                 await Assert.That(session.Document.Instances).IsEmpty();
-                await Assert.That(store.TryLoad(Sha)!.Instances.Select(i => i.Code)).IsEquivalentTo(["Default"], CollectionOrdering.Matching)
+                await Assert.That(store.TryLoad(Sha)!.Instances.Select(i => i.Code))
+                    .IsEquivalentTo(["Default"], CollectionOrdering.Matching)
                     .Because("the swap flushed the old document to the store the contribution resolved");
             }
 
@@ -176,7 +197,8 @@ public class ReviewPanelsPlaybackContributionTests
                 });
 
             // Attach and the activation's demo-change signal both asked for this demo; one identity is in flight.
-            await Assert.That(asked).IsEquivalentTo([DemoPath], CollectionOrdering.Matching).Because("the second request sees the first still attaching");
+            await Assert.That(asked).IsEquivalentTo([DemoPath], CollectionOrdering.Matching)
+                .Because("the second request sees the first still attaching");
 
             ctx.RaiseDemoReset(); // the same demo again, still in flight
             await Assert.That(asked.Count).IsEqualTo(1);
@@ -203,7 +225,8 @@ public class ReviewPanelsPlaybackContributionTests
             (Playback2DTabViewModel vm, _, ReviewPanelsPlaybackContribution review) = Tab();
             await review.Session!.AttachAsync(Demo, Clock, DemoPath);
 
-            await Assert.That(ReviewPanelsHarness.Press(vm, Key.C)).IsFalse().Because("outside Review mode the palette is not on screen");
+            await Assert.That(ReviewPanelsHarness.Press(vm, Key.C)).IsFalse()
+                .Because("outside Review mode the palette is not on screen");
 
             review.ReviewMode!.IsOn = true;
             await Assert.That(ReviewPanelsHarness.Press(vm, Key.C)).IsTrue();
@@ -221,7 +244,8 @@ public class ReviewPanelsPlaybackContributionTests
             {
                 await Assert.That(review.IsPaletteFocused).IsFalse();
                 await Assert.That(vm.Surface.HasKeyboard).IsFalse();
-                await Assert.That(vm.Surface.TryHandleKey(Key.Escape, KeyModifiers.None)).IsFalse().Because("unfocused, Esc is the tab's");
+                await Assert.That(vm.Surface.TryHandleKey(Key.Escape, KeyModifiers.None)).IsFalse()
+                    .Because("unfocused, Esc is the tab's");
             }
 
             // Leaving Review mode takes the keyboard back and writes a tag still being made.
@@ -231,7 +255,8 @@ public class ReviewPanelsPlaybackContributionTests
             using (Assert.Multiple())
             {
                 await Assert.That(review.IsPaletteFocused).IsFalse();
-                await Assert.That(review.Session.Document!.Instances.Select(i => i.Code)).IsEquivalentTo(["A execute"], CollectionOrdering.Matching);
+                await Assert.That(review.Session.Document!.Instances.Select(i => i.Code))
+                    .IsEquivalentTo(["A execute"], CollectionOrdering.Matching);
                 await Assert.That(vm.Timeline.IsLaneEditable).IsFalse();
             }
 
@@ -254,7 +279,8 @@ public class ReviewPanelsPlaybackContributionTests
             using (Assert.Multiple())
             {
                 await Assert.That(review.PalettePanel!.IsShown).IsFalse();
-                await Assert.That(review.IsPaletteFocused).IsFalse().Because("gated off, the palette gives the keyboard back");
+                await Assert.That(review.IsPaletteFocused).IsFalse()
+                    .Because("gated off, the palette gives the keyboard back");
                 await Assert.That(review.Review!.IsLabelsAvailable).IsFalse();
                 await Assert.That(review.Review.IsSuggestedAvailable).IsTrue();
                 await Assert.That(review.QueuePanel!.IsShown).IsTrue();
@@ -266,14 +292,18 @@ public class ReviewPanelsPlaybackContributionTests
             ctx.Gate.SetEnabled(SuggestedTagsService.FeatureId, false);
             using (Assert.Multiple())
             {
-                await Assert.That(review.Review).IsNull().Because("the shared editor's panel exists while either gate is on");
+                await Assert.That(review.Review).IsNull()
+                    .Because("the shared editor's panel exists while either gate is on");
                 await Assert.That(review.ReviewPanel!.IsOpen).IsFalse();
                 await Assert.That(vm.Surface.Panels.Count(p => p.IsShown)).IsEqualTo(0);
                 await Assert.That(vm.IsReviewAvailable).IsFalse();
-                await Assert.That(review.ReviewMode.IsAvailable).IsFalse().Because("the toolbar hides the toggle with nothing to show");
-                await Assert.That(vm.ExecuteAction(StratBookActions.ToggleReviewMode)).IsTrue().Because("a mode that is on can still be left");
+                await Assert.That(review.ReviewMode.IsAvailable).IsFalse()
+                    .Because("the toolbar hides the toggle with nothing to show");
+                await Assert.That(vm.ExecuteAction(StratBookActions.ToggleReviewMode)).IsTrue()
+                    .Because("a mode that is on can still be left");
                 await Assert.That(review.ReviewMode.IsOn).IsFalse();
-                await Assert.That(vm.ExecuteAction(StratBookActions.ToggleReviewMode)).IsFalse().Because("off with nothing to show, Shift+R is nobody's");
+                await Assert.That(vm.ExecuteAction(StratBookActions.ToggleReviewMode)).IsFalse()
+                    .Because("off with nothing to show, Shift+R is nobody's");
             }
 
             ctx.Gate.SetEnabled(RoundTaggerModule.PaletteFeatureId, true);
@@ -297,7 +327,8 @@ public class ReviewPanelsPlaybackContributionTests
         {
             FakeGate gate = new() { On = true };
             TagStore store = new(null);
-            (Playback2DTabViewModel vm, _, ReviewPanelsPlaybackContribution review) = Tab(gate, c => c.SetService(store));
+            (Playback2DTabViewModel vm, _, ReviewPanelsPlaybackContribution review) =
+                Tab(gate, c => c.SetService(store));
             TagSession session = review.Session!;
             await session.AttachAsync(Demo, Clock, DemoPath);
             review.ReviewMode!.IsOn = true;
@@ -326,7 +357,8 @@ public class ReviewPanelsPlaybackContributionTests
             gate.Raise();
             using (Assert.Multiple())
             {
-                await Assert.That(store.TryLoad(Sha)!.Instances.Select(i => i.Code)).IsEquivalentTo(["A execute"], CollectionOrdering.Matching)
+                await Assert.That(store.TryLoad(Sha)!.Instances.Select(i => i.Code))
+                    .IsEquivalentTo(["A execute"], CollectionOrdering.Matching)
                     .Because("the pending tag is written before the session goes");
                 await Assert.That(vm.Surface.Panels).IsEmpty();
                 await Assert.That(vm.Surface.ModeToggles).IsEmpty();
@@ -345,8 +377,10 @@ public class ReviewPanelsPlaybackContributionTests
                 await Assert.That(lane.Session.Document).IsNull().Because("the session went with the pack");
                 await Assert.That(vm.IsReviewAvailable).IsFalse();
                 await Assert.That(vm.IsCardStrip).IsFalse();
-                await Assert.That(vm.ExecuteAction(StratBookActions.FocusTagPalette)).IsFalse().Because("no handler is registered");
-                await Assert.That(vm.ExecuteAction(StratBookActions.ToggleReviewMode)).IsFalse().Because("no toggle is registered");
+                await Assert.That(vm.ExecuteAction(StratBookActions.FocusTagPalette)).IsFalse()
+                    .Because("no handler is registered");
+                await Assert.That(vm.ExecuteAction(StratBookActions.ToggleReviewMode)).IsFalse()
+                    .Because("no toggle is registered");
                 await Assert.That(vm.Surface.TryHandleKey(Key.D1, KeyModifiers.None)).IsFalse();
             }
 
@@ -354,7 +388,8 @@ public class ReviewPanelsPlaybackContributionTests
             gate.On = true;
             gate.Raise();
             await review.Session!.AttachAsync(Demo, Clock, DemoPath);
-            await Assert.That(review.Session.Document!.Instances.Select(i => i.Code)).IsEquivalentTo(["A execute"], CollectionOrdering.Matching);
+            await Assert.That(review.Session.Document!.Instances.Select(i => i.Code))
+                .IsEquivalentTo(["A execute"], CollectionOrdering.Matching);
 
             vm.Dispose();
         });
@@ -369,18 +404,23 @@ public class ReviewPanelsPlaybackContributionTests
             try
             {
                 StratBookSettings settings = new(new ExtensionSettingsStore(StratBookPack.PackId, dir, a => a()));
-                (Playback2DTabViewModel vm, _, ReviewPanelsPlaybackContribution review) = Tab(configure: c => c.SetService(settings));
+                (Playback2DTabViewModel vm, _, ReviewPanelsPlaybackContribution review) =
+                    Tab(configure: c => c.SetService(settings));
                 await Assert.That(review.ReviewMode!.IsOn).IsFalse();
 
                 review.ReviewMode.IsOn = true;
-                await Assert.That(new StratBookSettings(new ExtensionSettingsStore(StratBookPack.PackId, dir, a => a())).ReviewMode).IsTrue()
+                await Assert
+                    .That(new StratBookSettings(new ExtensionSettingsStore(StratBookPack.PackId, dir, a => a()))
+                        .ReviewMode).IsTrue()
                     .Because("the mode is in the Strat Book's own settings file");
 
                 StratBookSettings reopened = new(new ExtensionSettingsStore(StratBookPack.PackId, dir, a => a()));
-                (Playback2DTabViewModel second, _, ReviewPanelsPlaybackContribution again) = Tab(configure: c => c.SetService(reopened));
+                (Playback2DTabViewModel second, _, ReviewPanelsPlaybackContribution again) =
+                    Tab(configure: c => c.SetService(reopened));
                 using (Assert.Multiple())
                 {
-                    await Assert.That(again.ReviewMode!.IsOn).IsTrue().Because("a new attachment starts as the user left it");
+                    await Assert.That(again.ReviewMode!.IsOn).IsTrue()
+                        .Because("a new attachment starts as the user left it");
                     await Assert.That(again.PalettePanel!.IsShown).IsTrue();
                     await Assert.That(second.IsCardStrip).IsTrue();
                 }
@@ -415,7 +455,8 @@ public class ReviewPanelsPlaybackContributionTests
             {
                 await Assert.That(review.IsPaletteFocused).IsFalse();
                 await Assert.That(vm.Surface.HasKeyboard).IsFalse();
-                await Assert.That(vm.Surface.TryHandleKey(Key.D1, KeyModifiers.None)).IsFalse().Because("unfocused, 1 is nobody's key");
+                await Assert.That(vm.Surface.TryHandleKey(Key.D1, KeyModifiers.None)).IsFalse()
+                    .Because("unfocused, 1 is nobody's key");
                 await Assert.That(review.Session.Document!.Instances).IsEmpty();
             }
 
@@ -429,12 +470,13 @@ public class ReviewPanelsPlaybackContributionTests
     public async Task ADemoSwap_WritesThePendingTagToTheOldDocument_DropsTheNote_AndTakesTheKeyboardBack() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab(
-                configure: c =>
-                {
-                    c.DemoPath = DemoPath;
-                    c.DemoSha256 = Sha;
-                });
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab(
+                    configure: c =>
+                    {
+                        c.DemoPath = DemoPath;
+                        c.DemoSha256 = Sha;
+                    });
             TagSession session = review.Session!;
             await AttachedAsync(session, DemoPath);
             review.ReviewMode!.IsOn = true;
@@ -456,13 +498,15 @@ public class ReviewPanelsPlaybackContributionTests
             await AttachedAsync(session, OtherPath);
             using (Assert.Multiple())
             {
-                await Assert.That(old.Instances.Select(i => i.Code)).IsEquivalentTo(["A execute"], CollectionOrdering.Matching).Because("written before the swap");
+                await Assert.That(old.Instances.Select(i => i.Code))
+                    .IsEquivalentTo(["A execute"], CollectionOrdering.Matching).Because("written before the swap");
                 await Assert.That(old.Instances[0].Note).IsNull().Because("the note was never kept");
                 await Assert.That(session.Document!.Instances).IsEmpty().Because("the new document starts clean");
                 await Assert.That(review.Palette.IsEditingNote).IsFalse();
                 await Assert.That(review.IsPaletteFocused).IsFalse();
                 await Assert.That(vm.Surface.HasKeyboard).IsFalse();
-                await Assert.That(vm.Surface.TryHandleKey(Key.D1, KeyModifiers.None)).IsFalse().Because("unfocused, 1 is nobody's key");
+                await Assert.That(vm.Surface.TryHandleKey(Key.D1, KeyModifiers.None)).IsFalse()
+                    .Because("unfocused, 1 is nobody's key");
             }
 
             vm.Dispose();
@@ -496,7 +540,8 @@ public class ReviewPanelsPlaybackContributionTests
         await Assert.That(session.DemoPath).IsEqualTo(demoPath);
         await Assert.That(session.Document).IsNotNull();
 
-        bool Landed() => string.Equals(session.DemoPath, demoPath, StringComparison.Ordinal) && session.Document is not null;
+        bool Landed() => string.Equals(session.DemoPath, demoPath, StringComparison.Ordinal)
+                         && session.Document is not null;
     }
 
     private sealed class FakeGate : IFeatureGate

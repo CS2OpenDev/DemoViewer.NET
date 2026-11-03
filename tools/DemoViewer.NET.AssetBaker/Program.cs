@@ -472,10 +472,7 @@ void BakeMap(string map)
 {
     string suffix = lower ? "_lower_radar" : "_radar";
     string png = lower ? $"{map}_lower.png" : $"{map}.png";
-    foreach (string kind in new[]
-             {
-                 "psd", "tga"
-             })
+    foreach (string kind in new[] { "psd", "tga" })
     {
         string candidate = Path.Combine(radarDir, $"{map}{suffix}_{kind}.vtex_c");
         if (File.Exists(candidate))

@@ -26,7 +26,8 @@ public class HttpExtensionFeedClientTests
         byte[] chunk = new byte[1024];
         using PacedHandler handler = new(chunks: 12, chunk, pace: TimeSpan.FromMilliseconds(1), stallAfter: null,
             onChunk: () => clock.Advance(TimeSpan.FromMilliseconds(50)));
-        using HttpExtensionFeedClient client = new(handler, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(400), clock);
+        using HttpExtensionFeedClient client = new(handler, TimeSpan.FromMilliseconds(100),
+            TimeSpan.FromMilliseconds(400), clock);
         using MemoryStream destination = new();
         List<long> progress = [];
 
@@ -49,8 +50,8 @@ public class HttpExtensionFeedClientTests
         using HttpExtensionFeedClient client = new(handler, TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(300));
         using MemoryStream destination = new();
 
-        ExtensionDownloadException? ex = await Assert.ThrowsAsync<ExtensionDownloadException>(
-            () => client.DownloadAsync(Url, destination, 20 * 1024, null, CancellationToken.None));
+        ExtensionDownloadException? ex = await Assert.ThrowsAsync<ExtensionDownloadException>(() =>
+            client.DownloadAsync(Url, destination, 20 * 1024, null, CancellationToken.None));
 
         using (Assert.Multiple())
         {
@@ -66,13 +67,15 @@ public class HttpExtensionFeedClientTests
         using PacedHandler over = new(chunks: 4, chunk, pace: TimeSpan.Zero, stallAfter: null);
         using HttpExtensionFeedClient client = new(over, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
         using MemoryStream destination = new();
-        ExtensionDownloadException? tooMany = await Assert.ThrowsAsync<ExtensionDownloadException>(
-            () => client.DownloadAsync(Url, destination, 2 * 1024, null, CancellationToken.None));
+        ExtensionDownloadException? tooMany = await Assert.ThrowsAsync<ExtensionDownloadException>(() =>
+            client.DownloadAsync(Url, destination, 2 * 1024, null, CancellationToken.None));
 
-        using PacedHandler slow = new(chunks: 1, chunk, pace: TimeSpan.Zero, stallAfter: null, headerDelay: TimeSpan.FromSeconds(2));
+        using PacedHandler slow = new(chunks: 1, chunk, pace: TimeSpan.Zero, stallAfter: null,
+            headerDelay: TimeSpan.FromSeconds(2));
         using HttpExtensionFeedClient impatient = new(slow, TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(5));
-        ExtensionDownloadException? noHeaders = await Assert.ThrowsAsync<ExtensionDownloadException>(
-            () => impatient.GetFeedAsync(Url, CancellationToken.None));
+        ExtensionDownloadException? noHeaders =
+            await Assert.ThrowsAsync<ExtensionDownloadException>(() =>
+                impatient.GetFeedAsync(Url, CancellationToken.None));
 
         using (Assert.Multiple())
         {
@@ -91,8 +94,8 @@ public class HttpExtensionFeedClientTests
         using CancellationTokenSource cts = new();
         cts.CancelAfter(TimeSpan.FromMilliseconds(120));
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            () => client.DownloadAsync(Url, destination, 100 * 1024, null, cts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            client.DownloadAsync(Url, destination, 100 * 1024, null, cts.Token));
         await Assert.That(destination.Length).IsLessThan(100 * 1024);
     }
 
@@ -103,8 +106,8 @@ public class HttpExtensionFeedClientTests
         using StatusHandler handler = new(HttpStatusCode.NotFound);
         using HttpExtensionFeedClient client = new(handler, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
 
-        HttpRequestException? ex = await Assert.ThrowsAsync<HttpRequestException>(
-            () => client.GetFeedAsync(new Uri("https://example.invalid/extensions.json"), CancellationToken.None));
+        HttpRequestException? ex = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            client.GetFeedAsync(new Uri("https://example.invalid/extensions.json"), CancellationToken.None));
 
         using (Assert.Multiple())
         {
@@ -117,7 +120,8 @@ public class HttpExtensionFeedClientTests
     {
         public int Requests { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
         {
             Requests++;
             return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent("Not Found") });
@@ -127,10 +131,16 @@ public class HttpExtensionFeedClientTests
     // Serves chunks at a fixed pace from a stream that waits between them, after an optional header delay;
     // with stallAfter set, the read after that many chunks never returns. onChunk runs after the pace wait, so
     // the caller's read is already pending when it does.
-    private sealed class PacedHandler(int chunks, byte[] chunk, TimeSpan pace, int? stallAfter, TimeSpan? headerDelay = null,
+    private sealed class PacedHandler(
+        int chunks,
+        byte[] chunk,
+        TimeSpan pace,
+        int? stallAfter,
+        TimeSpan? headerDelay = null,
         Action? onChunk = null) : HttpMessageHandler
     {
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
         {
             if (headerDelay is { } delay)
             {
@@ -152,9 +162,15 @@ public class HttpExtensionFeedClientTests
         public override bool CanSeek => false;
         public override bool CanWrite => false;
         public override long Length => throw new NotSupportedException();
-        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
 
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
         {
             if (_served >= chunks)
             {
@@ -178,10 +194,13 @@ public class HttpExtensionFeedClientTests
             return n;
         }
 
-        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count,
+            CancellationToken cancellationToken) =>
             ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
 
-        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
+        public override int Read(byte[] buffer, int offset, int count) =>
+            ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
+
         public override void Flush()
         {
         }

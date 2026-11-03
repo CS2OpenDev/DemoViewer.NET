@@ -20,7 +20,8 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
     private Func<LibraryDemo, string, bool> _matches;
     private bool _suppress;
 
-    internal LibraryFilterViewModel(LibraryFilter filter, Action onSelectionChanged, Func<DemoEntry, LibraryDemo>? demoOf = null)
+    internal LibraryFilterViewModel(LibraryFilter filter, Action onSelectionChanged,
+        Func<DemoEntry, LibraryDemo>? demoOf = null)
     {
         _demoOf = demoOf ?? (static e => e.ToLibraryDemo());
         ArgumentNullException.ThrowIfNull(filter);
@@ -80,7 +81,8 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
         }
 
         _suppress = false;
-        Selected = Items.FirstOrDefault(i => i.Key == keepKey) ?? Items.FirstOrDefault() ?? new LibraryFilterItem("", "All");
+        Selected = Items.FirstOrDefault(i => i.Key == keepKey)
+                   ?? Items.FirstOrDefault() ?? new LibraryFilterItem("", "All");
     }
 
     /// <summary>Resets the selection to the "" (All) choice without firing <see cref="OnSelectionChanged" />.</summary>

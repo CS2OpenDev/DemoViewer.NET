@@ -132,7 +132,8 @@ public class StratHistoryTests
     public async Task Apply_RefusesAPathThatDoesNotResolve()
     {
         InvalidOperationException thrown =
-            Assert.Throws<InvalidOperationException>(() => StratHistory.Apply(Minimal(), [Replace("/steps/9/atSeconds", 1, 2)]));
+            Assert.Throws<InvalidOperationException>(() =>
+                StratHistory.Apply(Minimal(), [Replace("/steps/9/atSeconds", 1, 2)]));
         await Assert.That(thrown.Message).Contains("/steps/9/atSeconds");
     }
 
@@ -197,7 +198,8 @@ public class StratHistoryTests
             await Assert.That(ops.Single(o => o.Path == "/economy").Op).IsEqualTo(PatchOp.Add);
             await Assert.That(ops.Single(o => o.Path == "/steps").Op).IsEqualTo(PatchOp.Replace)
                 .Because("an array whose length changed is replaced whole");
-            await Assert.That(StratHistory.Diff(StratHistory.ToNode(before), StratHistory.ToNode(before.Clone()))).IsEmpty();
+            await Assert.That(StratHistory.Diff(StratHistory.ToNode(before), StratHistory.ToNode(before.Clone())))
+                .IsEmpty();
         }
     }
 

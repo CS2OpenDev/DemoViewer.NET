@@ -34,7 +34,8 @@ public class EngineRoundFactsRowSourceTests
         }
 
         string path = Path.Combine(root, "rules", "round_facts.rules.yaml");
-        RuleConfigLoadResult loaded = YamlConfigLoader.LoadDocuments([(Path.GetFileName(path), File.ReadAllText(path))]);
+        RuleConfigLoadResult loaded =
+            YamlConfigLoader.LoadDocuments([(Path.GetFileName(path), File.ReadAllText(path))]);
         return loaded.Rulesets.Single();
     }
 
@@ -63,7 +64,8 @@ public class EngineRoundFactsRowSourceTests
     [Test]
     public async Task TheShippedParameters_AreTheClassifierDefaults()
     {
-        BuyThresholds thresholds = RoundFactsProjection.ThresholdsFrom(EngineRoundFactsRowSource.ParametersOf(ShippedDoc()));
+        BuyThresholds thresholds =
+            RoundFactsProjection.ThresholdsFrom(EngineRoundFactsRowSource.ParametersOf(ShippedDoc()));
 
         await Assert.That(thresholds).IsEqualTo(BuyThresholds.Default);
     }
@@ -82,12 +84,14 @@ public class EngineRoundFactsRowSourceTests
     [Test]
     public async Task NoTable_IsUnavailable_WithNoRows()
     {
-        RoundFactsTable table = EngineRoundFactsRowSource.FromTable(null, new Dictionary<string, object?>(), [new ClipRound(1, 1000)]);
+        RoundFactsTable table =
+            EngineRoundFactsRowSource.FromTable(null, new Dictionary<string, object?>(), [new ClipRound(1, 1000)]);
 
         using (Assert.Multiple())
         {
             await Assert.That(table.Rows).IsEmpty();
-            await Assert.That(table.UnavailableColumns).IsEquivalentTo(RoundFactsColumns.Known, CollectionOrdering.Matching);
+            await Assert.That(table.UnavailableColumns)
+                .IsEquivalentTo(RoundFactsColumns.Known, CollectionOrdering.Matching);
         }
     }
 
@@ -95,8 +99,10 @@ public class EngineRoundFactsRowSourceTests
     // decided in freeze time: the engine opened it at tick 8000, and the wire has no freeze end there.
     private static MetricTable EngineTable()
     {
-        MetricRow Row(int round, int side, string slots, int freezeEnd, int winner, int plantTick = 0, string? site = null,
-            int siteEntity = 0, int planter = 0, string kills = "", string victims = "", string teamAlive = "", string enemyAlive = "")
+        MetricRow Row(int round, int side, string slots, int freezeEnd, int winner, int plantTick = 0,
+            string? site = null,
+            int siteEntity = 0, int planter = 0, string kills = "", string victims = "", string teamAlive = "",
+            string enemyAlive = "")
         {
             Dictionary<string, object?> dimensions = new()
             {
@@ -147,7 +153,8 @@ public class EngineRoundFactsRowSourceTests
             rows);
     }
 
-    private static readonly IReadOnlyList<ClipRound> _clipRounds = [new ClipRound(1, 1000), new ClipRound(2, 5000), new ClipRound(3, 9000)];
+    private static readonly IReadOnlyList<ClipRound> _clipRounds =
+        [new ClipRound(1, 1000), new ClipRound(2, 5000), new ClipRound(3, 9000)];
 
     private static IReadOnlyDictionary<string, object?> Cell(RoundFactsTable table, int round, int side) =>
         table.Rows.Single(r => RoundFactsValues.ToInt(r[RoundFactsColumns.RoundNumber]) == round
@@ -156,7 +163,8 @@ public class EngineRoundFactsRowSourceTests
     [Test]
     public async Task TheEngineTable_MapsOntoTheClipRounds_AndNullsWhatDidNotHappen()
     {
-        RoundFactsTable table = EngineRoundFactsRowSource.FromTable(EngineTable(), new Dictionary<string, object?>(), _clipRounds);
+        RoundFactsTable table =
+            EngineRoundFactsRowSource.FromTable(EngineTable(), new Dictionary<string, object?>(), _clipRounds);
 
         using (Assert.Multiple())
         {
@@ -170,7 +178,8 @@ public class EngineRoundFactsRowSourceTests
             await Assert.That(noPlant[RoundFactsColumns.PlantTick]).IsNull();
             await Assert.That(noPlant[RoundFactsColumns.PlantSite]).IsNull();
             await Assert.That(noPlant[RoundFactsColumns.PlantSiteEntity]).IsNull();
-            await Assert.That(noPlant[RoundFactsColumns.PlanterSlot]).IsNull().Because("slot 0 is a real player; the plant tick decides");
+            await Assert.That(noPlant[RoundFactsColumns.PlanterSlot]).IsNull()
+                .Because("slot 0 is a real player; the plant tick decides");
             await Assert.That(noPlant[RoundFactsColumns.DefuseTick]).IsNull();
             await Assert.That(noPlant[RoundFactsColumns.EndTick]).IsEqualTo(3000);
 
@@ -188,8 +197,11 @@ public class EngineRoundFactsRowSourceTests
     [Test]
     public async Task ScoresFollowTheTeamsAcrossTheSwap_AndCountADroppedRoundsWinner()
     {
-        RoundFactsTable table = EngineRoundFactsRowSource.FromTable(EngineTable(), new Dictionary<string, object?>(), _clipRounds);
-        int Score(int round, int side) => RoundFactsValues.ToInt(Cell(table, round, side)[RoundFactsColumns.ScoreBefore])!.Value;
+        RoundFactsTable table =
+            EngineRoundFactsRowSource.FromTable(EngineTable(), new Dictionary<string, object?>(), _clipRounds);
+
+        int Score(int round, int side) =>
+            RoundFactsValues.ToInt(Cell(table, round, side)[RoundFactsColumns.ScoreBefore])!.Value;
 
         using (Assert.Multiple())
         {
@@ -204,7 +216,8 @@ public class EngineRoundFactsRowSourceTests
     [Test]
     public async Task TheRows_ProjectOntoTheRecord()
     {
-        RoundFactsTable table = EngineRoundFactsRowSource.FromTable(EngineTable(), new Dictionary<string, object?>(), _clipRounds);
+        RoundFactsTable table =
+            EngineRoundFactsRowSource.FromTable(EngineTable(), new Dictionary<string, object?>(), _clipRounds);
         RoundFactsRows rows = RoundFactsProjection.Project(_clipRounds, table);
         RoundFacts first = rows.Rounds[0];
 
@@ -215,8 +228,10 @@ public class EngineRoundFactsRowSourceTests
             await Assert.That(first.Ct.Slots).IsEquivalentTo([0, 1, 2, 3, 4], CollectionOrdering.Matching);
             await Assert.That(first.PlantTick).IsNull();
             await Assert.That(first.PlantSite).IsEqualTo(BombSite.Unknown);
-            await Assert.That(first.Kills.Select(k => k.VictimSide)).IsEquivalentTo([2, 3], CollectionOrdering.Matching);
-            await Assert.That(first.Kills.Select(k => (k.CtAlive, k.TAlive))).IsEquivalentTo([(5, 4), (4, 4)], CollectionOrdering.Matching);
+            await Assert.That(first.Kills.Select(k => k.VictimSide))
+                .IsEquivalentTo([2, 3], CollectionOrdering.Matching);
+            await Assert.That(first.Kills.Select(k => (k.CtAlive, k.TAlive)))
+                .IsEquivalentTo([(5, 4), (4, 4)], CollectionOrdering.Matching);
             await Assert.That(rows.Rounds[1].PlantSite).IsEqualTo(BombSite.A);
             await Assert.That(rows.Rounds[1].PlanterSlot).IsEqualTo(0);
             await Assert.That(rows.Rounds[2].T.ScoreBefore).IsEqualTo(2);

@@ -37,10 +37,10 @@ public class PackOffCompositionTests
                 provider.Dispose();
             }
         }), seedSettingsJson: """
-                                {
-                                  "Features": { "Overrides": { "pack.stratbook": false } }
-                                }
-                                """);
+                              {
+                                "Features": { "Overrides": { "pack.stratbook": false } }
+                              }
+                              """);
 
     [Test]
     public async Task PackOff_PackGateIsOff()
@@ -119,7 +119,9 @@ public class PackOffCompositionTests
         {
             DemoScheduler coordinator = provider.GetRequiredService<DemoScheduler>();
 
-            await Assert.That(coordinator.PassIds).IsEquivalentTo(["library", "highlights", "roundfacts", "facts", "matchrank"], CollectionOrdering.Matching)
+            await Assert.That(coordinator.PassIds)
+                .IsEquivalentTo(["library", "highlights", "roundfacts", "facts", "matchrank"],
+                    CollectionOrdering.Matching)
                 .Because("the pack is off: its three evaluators are never in the fan-out");
 
             StratBookPackInstances instances = provider.GetRequiredService<StratBookPackInstances>();
@@ -156,10 +158,19 @@ public class PackOffCompositionTests
 
             // When the pack is off, these evaluators want nothing because their Wants() predicate
             // gates on the feature flag; Round Facts is the host's, gated on the pack's claim of its ruleset.
-            DemoViewer.NET.Services.Facts.RoundFactsEvaluator roundFacts = provider.GetRequiredService<DemoViewer.NET.Services.Facts.RoundFactsEvaluator>();
-            DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator roundIndex = provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator>();
-            DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService suggestedTags = provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService>();
-            DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator grenades = provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator>();
+            DemoViewer.NET.Services.Facts.RoundFactsEvaluator roundFacts =
+                provider.GetRequiredService<DemoViewer.NET.Services.Facts.RoundFactsEvaluator>();
+            DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator roundIndex =
+                provider
+                    .GetRequiredService<DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator>();
+            DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService suggestedTags =
+                provider
+                    .GetRequiredService<
+                        DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService>();
+            DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator grenades =
+                provider
+                    .GetRequiredService<
+                        DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator>();
 
             using (Assert.Multiple())
             {
@@ -183,7 +194,8 @@ public class PackOffCompositionTests
             IDemoProcessingQueue queue = provider.GetRequiredService<IDemoProcessingQueue>();
 
             // These are the pack job kinds from QueueJobKind. Only core kinds should be in the queue.
-            string[] packKinds = ["StratMining", "StratPreview", "LineupClips", "SuggestionsInbox", "SectionCompute", "TeamsCommand"];
+            string[] packKinds =
+                ["StratMining", "StratPreview", "LineupClips", "SuggestionsInbox", "SectionCompute", "TeamsCommand"];
 
             var queuedItems = queue.Items.ToList();
             foreach (var item in queuedItems)

@@ -46,16 +46,19 @@ public static class StratStartBlock
     /// <param name="document">The strat.</param>
     /// <param name="sources">Where each entry was read from, in the start's order; a spawn has none.</param>
     /// <param name="spawns">The map's spawns; null gives no token a spawn.</param>
-    public static StratStart? Legacy(StratDocument document, out IReadOnlyList<StartSource> sources, StratSpawns? spawns = null)
+    public static StratStart? Legacy(StratDocument document, out IReadOnlyList<StartSource> sources,
+        StratSpawns? spawns = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         sources = [];
-        if (document.Start is not null || document.Origin is not null || document.Tags.Contains(MinedStratBuilder.Tag, StringComparer.Ordinal))
+        if (document.Start is not null || document.Origin is not null
+                                       || document.Tags.Contains(MinedStratBuilder.Tag, StringComparer.Ordinal))
         {
             return null;
         }
 
-        bool seeded = document.Steps.Count > 0 && StratClock.StratTickOf(document.Clock, document.Steps[0].AtSeconds) == 0;
+        bool seeded = document.Steps.Count > 0
+                      && StratClock.StratTickOf(document.Clock, document.Steps[0].AtSeconds) == 0;
         bool unmarkedCopies = !document.Steps.Any(s => s.Positions.Any(p => p.Carried is not null));
         Dictionary<string, StartSource> found = new(StringComparer.Ordinal);
         foreach (string slot in seeded ? Tokens : [])
@@ -68,7 +71,9 @@ public static class StratStartBlock
 
         // Only a round-start step that still places someone is a seed, and only our five are recovered from copies:
         // an opponent is placed by hand, never sent anywhere, so one missing from the seed was taken out on purpose.
-        foreach (string slot in found.Count == 0 ? [] : StratVocabulary.Slots.Where(s => !found.ContainsKey(s)).ToList())
+        foreach (string slot in found.Count == 0
+                     ? []
+                     : StratVocabulary.Slots.Where(s => !found.ContainsKey(s)).ToList())
         {
             if (LastFor(document.Steps[0], slot) is not null)
             {
@@ -84,7 +89,8 @@ public static class StratStartBlock
 
                 StepPosition position = document.Steps[k].Positions[entry];
                 bool names = StratVocabulary.Slots.Contains(slot) && StratStepLines.Involves(document.Steps[k], slot);
-                if (position.Carried == true || (unmarkedCopies && position.Carried is null && position.Observed != true && !names))
+                if (position.Carried == true
+                    || (unmarkedCopies && position.Carried is null && position.Observed != true && !names))
                 {
                     found[slot] = new StartSource(k, entry);
                 }
@@ -99,7 +105,8 @@ public static class StratStartBlock
         StratStart? spawnStart = spawns?.StartFor(document);
         if (seeded && spawnStart is not null)
         {
-            foreach (StartPosition spot in spawnStart.Positions.Where(p => StratVocabulary.Slots.Contains(p.Slot) && !found.ContainsKey(p.Slot)))
+            foreach (StartPosition spot in spawnStart.Positions.Where(p =>
+                         StratVocabulary.Slots.Contains(p.Slot) && !found.ContainsKey(p.Slot)))
             {
                 spawned[spot.Slot] = spot;
             }
@@ -122,7 +129,8 @@ public static class StratStartBlock
 
         // Spawn only when every entry stands on the map's spawn spot for its token; anything else was moved by hand.
         bool atSpawns = spawnStart is not null && positions.All(p => For(spawnStart, p.Slot) is { X: { } sx, Y: { } sy }
-                                                                     && Math.Abs(sx - (p.X ?? double.NaN)) <= 1 && Math.Abs(sy - (p.Y ?? double.NaN)) <= 1);
+                                                                     && Math.Abs(sx - (p.X ?? double.NaN)) <= 1
+                                                                     && Math.Abs(sy - (p.Y ?? double.NaN)) <= 1);
         return new StratStart { Kind = atSpawns ? StratStart.SpawnKind : StratStart.CustomKind, Positions = positions };
     }
 
@@ -133,7 +141,11 @@ public static class StratStartBlock
         ArgumentNullException.ThrowIfNull(position);
         return new StartPosition
         {
-            Slot = position.Slot, X = position.X, Y = position.Y, LevelMinZ = position.LevelMinZ, YawDegrees = position.YawDegrees
+            Slot = position.Slot,
+            X = position.X,
+            Y = position.Y,
+            LevelMinZ = position.LevelMinZ,
+            YawDegrees = position.YawDegrees
         };
     }
 
@@ -203,7 +215,8 @@ public static class StratStartBlock
             return [];
         }
 
-        return Write(document, new StratStart { Kind = StratStart.CustomKind, Positions = next, Extra = current.Extra }, legacyCarried);
+        return Write(document, new StratStart { Kind = StratStart.CustomKind, Positions = next, Extra = current.Extra },
+            legacyCarried);
     }
 
     /// <summary>
@@ -213,7 +226,8 @@ public static class StratStartBlock
     /// <param name="document">The strat.</param>
     /// <param name="written">The whole start.</param>
     /// <param name="legacyCarried">As <see cref="Ops" />.</param>
-    public static List<PatchOp> Write(StratDocument document, StratStart written, IReadOnlyCollection<StartSource>? legacyCarried = null)
+    public static List<PatchOp> Write(StratDocument document, StratStart written,
+        IReadOnlyCollection<StartSource>? legacyCarried = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(written);
@@ -228,7 +242,8 @@ public static class StratStartBlock
 
             if (!string.Equals(existing.Kind, written.Kind, StringComparison.Ordinal))
             {
-                edit.Add(PatchOp.ReplaceOp("/start/kind", JsonValue.Create(existing.Kind), JsonValue.Create(written.Kind)));
+                edit.Add(PatchOp.ReplaceOp("/start/kind", JsonValue.Create(existing.Kind),
+                    JsonValue.Create(written.Kind)));
             }
 
             return edit;
@@ -238,18 +253,22 @@ public static class StratStartBlock
     }
 
     // The block, then the step entries it replaces and the marks the legacy rule stood for.
-    private static List<PatchOp> FirstWrite(StratDocument document, StratStart written, IReadOnlyCollection<StartSource>? legacyCarried)
+    private static List<PatchOp> FirstWrite(StratDocument document, StratStart written,
+        IReadOnlyCollection<StartSource>? legacyCarried)
     {
         Legacy(document, out IReadOnlyList<StartSource> sources);
 
-        List<PatchOp> ops = [PatchOp.AddOp("/start", JsonSerializer.SerializeToNode(written, StratJsonContext.Default.StratStart))];
+        List<PatchOp> ops =
+            [PatchOp.AddOp("/start", JsonSerializer.SerializeToNode(written, StratJsonContext.Default.StratStart))];
         bool unmarked = !document.Steps.Any(s => s.Positions.Any(p => p.Carried is not null));
         if (unmarked && legacyCarried is not null)
         {
             HashSet<StartSource> removed = [.. sources];
-            foreach (StartSource copy in legacyCarried.Where(c => !removed.Contains(c)).OrderBy(c => c.Step).ThenBy(c => c.Position))
+            foreach (StartSource copy in legacyCarried.Where(c => !removed.Contains(c)).OrderBy(c => c.Step)
+                         .ThenBy(c => c.Position))
             {
-                ops.Add(PatchOp.AddOp(Invariant($"/steps/{copy.Step}/positions/{copy.Position}/carried"), JsonValue.Create(true)));
+                ops.Add(PatchOp.AddOp(Invariant($"/steps/{copy.Step}/positions/{copy.Position}/carried"),
+                    JsonValue.Create(true)));
             }
         }
 
@@ -293,7 +312,8 @@ public static class StratStartBlock
 
         // The same spot written back (a field losing focus, the same pick) is no edit: it would drop a capture's mark.
         if (current is not null && location is not null && StratLocations.IsSet(location)
-            && string.Equals(current.Place, location.Place, StringComparison.Ordinal) && current.X == location.X && current.Y == location.Y
+            && string.Equals(current.Place, location.Place, StringComparison.Ordinal) && current.X == location.X
+            && current.Y == location.Y
             && current.LevelMinZ == location.LevelMinZ && (yawDegrees is null || current.YawDegrees == yawDegrees))
         {
             return [];
@@ -303,15 +323,21 @@ public static class StratStartBlock
             ? null
             : new StartPosition
             {
-                Slot = slot, Place = location.Place, X = location.X, Y = location.Y, LevelMinZ = location.LevelMinZ,
-                YawDegrees = yawDegrees ?? current?.YawDegrees, Extra = current?.Extra
+                Slot = slot,
+                Place = location.Place,
+                X = location.X,
+                Y = location.Y,
+                LevelMinZ = location.LevelMinZ,
+                YawDegrees = yawDegrees ?? current?.YawDegrees,
+                Extra = current?.Extra
             };
         return Ops(document, new Dictionary<string, StartPosition?> { [slot] = next }, legacyCarried, spawns);
     }
 
     /// <summary>A copy, unknown fields included.</summary>
     public static StratStart Clone(StratStart start) =>
-        JsonSerializer.Deserialize(JsonSerializer.Serialize(start, StratJsonContext.Default.StratStart), StratJsonContext.Default.StratStart)!;
+        JsonSerializer.Deserialize(JsonSerializer.Serialize(start, StratJsonContext.Default.StratStart),
+            StratJsonContext.Default.StratStart)!;
 
     private static StartPosition Clone(StartPosition position) =>
         JsonSerializer.Deserialize(JsonSerializer.Serialize(position, StratJsonContext.Default.StartPosition),
@@ -383,7 +409,8 @@ public static class StratStartPhrasing
     {
         ArgumentNullException.ThrowIfNull(document);
         StratStart? start = StratStartBlock.Effective(document);
-        return document.Start is null && start is { Kind: StratStart.CustomKind } && StratStartBlock.For(start, slot) is not null
+        return document.Start is null && start is { Kind: StratStart.CustomKind }
+                                      && StratStartBlock.For(start, slot) is not null
             ? FromStepOne
             : SlotText(start, slot, callouts);
     }

@@ -71,10 +71,7 @@ public sealed class OverlayHeatmapLayer : ISceneLayer
     {
         ArgumentNullException.ThrowIfNull(document);
         _document = document;
-        _paint = new SKPaint
-        {
-            IsAntialias = false
-        };
+        _paint = new SKPaint { IsAntialias = false };
     }
 
     /// <summary>The document being drawn.</summary>

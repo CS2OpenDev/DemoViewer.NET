@@ -12,9 +12,7 @@ public sealed class FakeTabViewModel : ExtensionViewModel, IWorkspaceTabViewMode
 
     public StatusChipViewModel Status { get; } = new()
     {
-        DotState = StatusChipDotState.Good,
-        Label = "Fake · ready",
-        Tooltip = "The third-party fake's own chip"
+        DotState = StatusChipDotState.Good, Label = "Fake · ready", Tooltip = "The third-party fake's own chip"
     };
 
     public IReadOnlyList<KvpRow> Rows { get; } =

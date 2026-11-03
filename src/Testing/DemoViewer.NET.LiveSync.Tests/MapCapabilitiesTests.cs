@@ -37,10 +37,7 @@ public class MapCapabilitiesTests
     {
         foreach ((string token, _, string flagName) in _matrix)
         {
-            LiveSyncCapabilities mapped = LiveSyncService.MapCapabilities(new HashSet<string>
-            {
-                token
-            });
+            LiveSyncCapabilities mapped = LiveSyncService.MapCapabilities(new HashSet<string> { token });
             foreach ((string otherToken, Func<LiveSyncCapabilities, bool> flag, string otherName) in _matrix)
             {
                 await Assert.That(flag(mapped)).IsEqualTo(otherToken == token)
@@ -61,15 +58,8 @@ public class MapCapabilitiesTests
     public async Task UnknownTokens_AreIgnored()
     {
         LiveSyncCapabilities mapped = LiveSyncService.MapCapabilities(
-            new HashSet<string>
-            {
-                "some-future-capability",
-                CsvgCapabilities.SeekAck
-            });
+            new HashSet<string> { "some-future-capability", CsvgCapabilities.SeekAck });
         await Assert.That(mapped.SeekAck).IsTrue();
-        await Assert.That(mapped with
-        {
-            SeekAck = false
-        }).IsEqualTo(LiveSyncCapabilities.None);
+        await Assert.That(mapped with { SeekAck = false }).IsEqualTo(LiveSyncCapabilities.None);
     }
 }

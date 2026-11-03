@@ -87,7 +87,8 @@
                                     <TextBlock Text="{Binding NewLine}" FontSize="10"
                                                Foreground="{DynamicResource TextMid}" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top">
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                            VerticalAlignment="Top">
                                     <Button Content="Run" Classes="ghost" FontSize="11" Padding="10 5"
                                             Command="{Binding RunCommand}"
                                             ToolTip.Tip="Put this query back on the canvas and search it" />

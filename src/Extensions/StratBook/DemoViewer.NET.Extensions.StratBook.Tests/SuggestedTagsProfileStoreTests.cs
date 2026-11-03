@@ -44,8 +44,10 @@ public class SuggestedTagsProfileStoreTests
             using (Assert.Multiple())
             {
                 await Assert.That(current.ToJson()).IsEqualTo(DetectorProfile.Default.ToJson());
-                await Assert.That(File.Exists(file)).IsTrue().Because("the first read seeds the file, the way a theme drop-in folder is seeded");
-                await Assert.That(DetectorProfile.Parse(File.ReadAllText(file)).ToJson()).IsEqualTo(DetectorProfile.Default.ToJson());
+                await Assert.That(File.Exists(file)).IsTrue()
+                    .Because("the first read seeds the file, the way a theme drop-in folder is seeded");
+                await Assert.That(DetectorProfile.Parse(File.ReadAllText(file)).ToJson())
+                    .IsEqualTo(DetectorProfile.Default.ToJson());
             }
         }
         finally

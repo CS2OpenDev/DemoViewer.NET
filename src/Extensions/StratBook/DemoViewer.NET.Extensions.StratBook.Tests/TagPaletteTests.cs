@@ -45,24 +45,25 @@ public class TagPaletteTests
     private static readonly string[] LostB = ["lost", "B"];
 
     private const string StickyPalette = """
-        { "schemaVersion": 1, "id": "scrim", "name": "Scrim",
-          "panels": [
-            { "id": "root", "buttons": [
-                { "code": "Push", "hotkey": "1", "leadSeconds": 1, "lagSeconds": 1, "then": "opponent" },
-                { "code": "Hold", "hotkey": "2", "leadSeconds": 0, "lagSeconds": 1 } ] },
-            { "id": "opponent", "kind": "labels", "group": "opponent", "then": "outcome", "buttons": [
-                { "value": "Vitality", "hotkey": "V" }, { "value": "NaVi", "hotkey": "N" } ] },
-            { "id": "outcome", "kind": "labels", "group": "outcome", "buttons": [
-                { "value": "won", "hotkey": "W" }, { "value": "lost", "hotkey": "L" } ] } ],
-          "stickyGroups": ["opponent"] }
-        """;
+                                         { "schemaVersion": 1, "id": "scrim", "name": "Scrim",
+                                           "panels": [
+                                             { "id": "root", "buttons": [
+                                                 { "code": "Push", "hotkey": "1", "leadSeconds": 1, "lagSeconds": 1, "then": "opponent" },
+                                                 { "code": "Hold", "hotkey": "2", "leadSeconds": 0, "lagSeconds": 1 } ] },
+                                             { "id": "opponent", "kind": "labels", "group": "opponent", "then": "outcome", "buttons": [
+                                                 { "value": "Vitality", "hotkey": "V" }, { "value": "NaVi", "hotkey": "N" } ] },
+                                             { "id": "outcome", "kind": "labels", "group": "outcome", "buttons": [
+                                                 { "value": "won", "hotkey": "W" }, { "value": "lost", "hotkey": "L" } ] } ],
+                                           "stickyGroups": ["opponent"] }
+                                         """;
 
     private static async Task<TagSession> Attached()
     {
-        TagSession session = new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        TagSession session =
+            new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
+            {
+                AutoSaveDelay = TimeSpan.FromHours(1)
+            };
         await session.AttachAsync(Demo, Clock, DemoPath);
         return session;
     }
@@ -136,15 +137,18 @@ public class TagPaletteTests
             using (Assert.Multiple())
             {
                 await Assert.That(palette.PanelTitle).IsEqualTo("outcome");
-                await Assert.That(palette.Buttons.Select(b => b.Caption)).IsEquivalentTo(OutcomeValues, CollectionOrdering.Matching)
+                await Assert.That(palette.Buttons.Select(b => b.Caption))
+                    .IsEquivalentTo(OutcomeValues, CollectionOrdering.Matching)
                     .Because("the code reveals only the panel its then names, not every panel");
-                await Assert.That(session.Document!.Instances).IsEmpty().Because("the tag is pending until the flow ends");
+                await Assert.That(session.Document!.Instances).IsEmpty()
+                    .Because("the tag is pending until the flow ends");
                 await Assert.That(Hit(palette, Key.D2)).IsFalse()
                     .Because("the codes are not showing, so their hotkeys are not live");
             }
 
             await Assert.That(Hit(palette, Key.W)).IsTrue();
-            await Assert.That(palette.Buttons.Select(b => b.Caption)).IsEquivalentTo(SiteValues, CollectionOrdering.Matching);
+            await Assert.That(palette.Buttons.Select(b => b.Caption))
+                .IsEquivalentTo(SiteValues, CollectionOrdering.Matching);
 
             await Assert.That(Hit(palette, Key.A)).IsTrue();
             TagInstance tag = session.Document!.Instances.Single();
@@ -155,14 +159,17 @@ public class TagPaletteTests
                 await Assert.That(tag.ToTick).IsEqualTo(15_640);
                 await Assert.That(tag.Round).IsEqualTo(2);
                 await Assert.That(tag.Source).IsEqualTo(TagSources.Human);
-                await Assert.That(tag.Labels.Select(l => $"{l.Group}={l.Value}")).IsEquivalentTo(WonAtA, CollectionOrdering.Matching);
+                await Assert.That(tag.Labels.Select(l => $"{l.Group}={l.Value}"))
+                    .IsEquivalentTo(WonAtA, CollectionOrdering.Matching);
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
                 await Assert.That(session.Document.Palette).IsEqualTo(TagPaletteStore.DefaultId);
-                await Assert.That(palette.PanelTitle).IsEqualTo("codes").Because("the flow ran out, so tagging starts again");
+                await Assert.That(palette.PanelTitle).IsEqualTo("codes")
+                    .Because("the flow ran out, so tagging starts again");
             }
 
             session.Undo();
-            await Assert.That(session.Document!.Instances).IsEmpty().Because("one Ctrl+Z removes the code and its labels");
+            await Assert.That(session.Document!.Instances).IsEmpty()
+                .Because("one Ctrl+Z removes the code and its labels");
         });
     }
 
@@ -201,7 +208,8 @@ public class TagPaletteTests
             playhead = 16_000;
             Hit(palette, Key.D3); // Default: no then, written at once
 
-            await Assert.That(session.Document!.Instances.Select(i => i.Code)).IsEquivalentTo(ExecuteThenDefault, CollectionOrdering.Matching);
+            await Assert.That(session.Document!.Instances.Select(i => i.Code))
+                .IsEquivalentTo(ExecuteThenDefault, CollectionOrdering.Matching);
             await Assert.That(session.Document.Instances[1].FromTick).IsEqualTo(16_000);
             await Assert.That(session.Document.Instances[1].ToTick).IsEqualTo(16_000 + 20 * 64);
         });
@@ -237,14 +245,17 @@ public class TagPaletteTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(tags.Count).IsEqualTo(3);
-                    await Assert.That(tags.All(t => t.Labels.Count(l => l is { Group: "opponent", Value: "Vitality" }) == 1)).IsTrue();
+                    await Assert
+                        .That(tags.All(t => t.Labels.Count(l => l is { Group: "opponent", Value: "Vitality" }) == 1))
+                        .IsTrue();
                     await Assert.That(tags[1].Labels.Single(l => l.Group == "outcome").Value).IsEqualTo("lost");
                 }
 
                 await Assert.That(Hit(palette, Key.Back, KeyModifiers.Control)).IsTrue();
                 await Assert.That(palette.HasSticky).IsFalse();
                 Hit(palette, Key.D1);
-                await Assert.That(palette.PanelTitle).IsEqualTo("opponent").Because("cleared, the group is asked again");
+                await Assert.That(palette.PanelTitle).IsEqualTo("opponent")
+                    .Because("cleared, the group is asked again");
             }
             finally
             {
@@ -272,7 +283,8 @@ public class TagPaletteTests
 
             TagInstance tag = session.Document!.Instances.Single();
             await Assert.That(tag.Note).IsEqualTo("smokes late");
-            await Assert.That(session.UndoDepth).IsEqualTo(1).Because("a note typed mid-gesture is part of the gesture");
+            await Assert.That(session.UndoDepth).IsEqualTo(1)
+                .Because("a note typed mid-gesture is part of the gesture");
 
             Hit(palette, Key.M, KeyModifiers.Control);
             await Assert.That(palette.NoteDraft).IsEqualTo("smokes late");
@@ -301,11 +313,15 @@ public class TagPaletteTests
                 (Key.Y, KeyModifiers.Control)
             ];
             string[] palette =
-                [StratBookActions.FocusTagPalette, StratBookActions.TagPaletteBack, StratBookActions.TagNote, StratBookActions.TagClearSticky];
+            [
+                StratBookActions.FocusTagPalette, StratBookActions.TagPaletteBack, StratBookActions.TagNote,
+                StratBookActions.TagClearSticky
+            ];
 
             // These four are Strat Book extension commands, not core rows; the merged table is what has to
             // be checked for them to be checked at all.
-            foreach (Playback2DBinding row in CommandRegistry.Default.EffectiveBindings.Where(b => palette.Contains(b.ActionId)))
+            foreach (Playback2DBinding row in CommandRegistry.Default.EffectiveBindings.Where(b =>
+                         palette.Contains(b.ActionId)))
             {
                 await Assert.That(claimed.Contains((row.Key, row.Modifiers))).IsFalse()
                     .Because($"{row.ActionId} must not take a key Ctrl+F or the Suggested Tags queue claimed");
@@ -313,8 +329,10 @@ public class TagPaletteTests
 
             Playback2DKeymapProfile profile = Playback2DKeymapProfile.Default;
             await Assert.That(profile.TryResolve(Key.Escape, KeyModifiers.None, false, out string? outside)).IsTrue();
-            await Assert.That(outside).IsEqualTo(nameof(Playback2DAction.ClearFollow)).Because("unfocused, Esc is still the tab's");
-            await Assert.That(profile.TryResolveInScope(new Playback2DBindingScope(StratBookActions.PaletteScope), Key.Escape,
+            await Assert.That(outside).IsEqualTo(nameof(Playback2DAction.ClearFollow))
+                .Because("unfocused, Esc is still the tab's");
+            await Assert.That(profile.TryResolveInScope(new Playback2DBindingScope(StratBookActions.PaletteScope),
+                Key.Escape,
                 KeyModifiers.None, out string? inside)).IsTrue();
             await Assert.That(inside).IsEqualTo(StratBookActions.TagPaletteBack);
         });
@@ -327,11 +345,13 @@ public class TagPaletteTests
         {
             using TagSession session = await Attached();
             using TagPaletteViewModel palette = Palette(session, () => 15_000);
-            palette.ApplyKeymap(PaletteKeymaps.From(Playback2DKeymapProfile.FromOverrides(["TagNote=Ctrl+Shift+M"], out IReadOnlyList<string> rejected)));
+            palette.ApplyKeymap(PaletteKeymaps.From(
+                Playback2DKeymapProfile.FromOverrides(["TagNote=Ctrl+Shift+M"], out IReadOnlyList<string> rejected)));
             await Assert.That(rejected).IsEmpty();
 
             Hit(palette, Key.D3);
-            await Assert.That(Hit(palette, Key.M, KeyModifiers.Control)).IsFalse().Because("the vacated gesture reaches nothing");
+            await Assert.That(Hit(palette, Key.M, KeyModifiers.Control)).IsFalse()
+                .Because("the vacated gesture reaches nothing");
             await Assert.That(Hit(palette, Key.M, KeyModifiers.Control | KeyModifiers.Shift)).IsTrue();
             await Assert.That(palette.IsEditingNote).IsTrue();
             await Assert.That(palette.HintText).Contains("Ctrl+Shift+M note");
@@ -341,7 +361,8 @@ public class TagPaletteTests
     [Test]
     public async Task WithNoDemoAttached_ThePaletteTakesNoFocus()
     {
-        using TagSession session = new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created);
+        using TagSession session = new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false,
+            () => Created);
         using TagPaletteViewModel palette = new(session, null, () => 0);
 
         await Assert.That(palette.Focus()).IsFalse();
@@ -361,7 +382,8 @@ public class TagPaletteTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             review.ReviewMode!.IsOn = true; // tagging and its lanes live in Review mode
             TagSession tags = review.Session!;
             await tags.AttachAsync(Demo, Clock, DemoPath);
@@ -391,7 +413,8 @@ public class TagPaletteTests
             using (Assert.Multiple())
             {
                 await Assert.That(written.Select(t => t.Code)).IsEquivalentTo(ThreeCodes, CollectionOrdering.Matching);
-                await Assert.That(written[0].Labels.Select(l => l.Value)).IsEquivalentTo(WonA, CollectionOrdering.Matching);
+                await Assert.That(written[0].Labels.Select(l => l.Value))
+                    .IsEquivalentTo(WonA, CollectionOrdering.Matching);
                 await Assert.That(written[1].Labels.Single().Value).IsEqualTo("B");
                 await Assert.That(written[1].FromTick).IsEqualTo(30_000 - 3 * 64);
                 await Assert.That(written[2].Note).IsEqualTo("slow default");
@@ -423,7 +446,8 @@ public class TagPaletteTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             review.ReviewMode!.IsOn = true; // tagging and its lanes live in Review mode
             TagSession tags = review.Session!;
             await tags.AttachAsync(Demo, Clock, DemoPath);

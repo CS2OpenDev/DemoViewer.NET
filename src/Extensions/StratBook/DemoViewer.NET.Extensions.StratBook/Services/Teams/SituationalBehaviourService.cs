@@ -125,12 +125,7 @@ public sealed class SituationalBehaviourService
                     .Select(c => c.Value.ToBlock(c.Key.Map, c.Key.Side)))
         ];
 
-        return new SituationalBehaviourSet
-        {
-            TeamId = teamId,
-            Blocks = blocks,
-            DemosRead = read
-        };
+        return new SituationalBehaviourSet { TeamId = teamId, Blocks = blocks, DemosRead = read };
     }
 
     /// <summary>"won"/"lost"/"no result" for the side in the round, the vocabulary <see cref="PistolFollowUpLabel" /> combines.</summary>
@@ -162,7 +157,8 @@ public sealed class SituationalBehaviourService
     };
 
     private static TendencyRound FullRoundClip(DemoContext demo, RoundFacts round) =>
-        ClipRange(demo, round, round.FreezeEndTick, round.EndTick ?? round.FreezeEndTick + FallbackRoundSeconds * demo.Rate);
+        ClipRange(demo, round, round.FreezeEndTick,
+            round.EndTick ?? round.FreezeEndTick + FallbackRoundSeconds * demo.Rate);
 
     private static TendencyRound MomentClip(DemoContext demo, RoundFacts round, int tick) =>
         ClipRange(demo, round, tick - ClipLeadSeconds * demo.Rate, tick + ClipTailSeconds * demo.Rate);
@@ -198,9 +194,12 @@ public sealed class SituationalBehaviourService
         public List<TendencyBucket> Clock(string none)
         {
             int last = -1;
-            for (int bin = 0; bin <= OpeningTendenciesService.ClockCapSeconds / OpeningTendenciesService.ClockBinSeconds; bin++)
+            for (int bin = 0;
+                 bin <= OpeningTendenciesService.ClockCapSeconds / OpeningTendenciesService.ClockBinSeconds;
+                 bin++)
             {
-                if (_rounds.ContainsKey(OpeningTendenciesService.ClockLabel(bin * OpeningTendenciesService.ClockBinSeconds)))
+                if (_rounds.ContainsKey(
+                        OpeningTendenciesService.ClockLabel(bin * OpeningTendenciesService.ClockBinSeconds)))
                 {
                     last = bin;
                 }
@@ -344,7 +343,9 @@ public sealed class SituationalBehaviourService
             TendencyRound clip = MomentClip(demo, round, bestTick);
             _manAdvantageRounds.Add(clip);
             _manAdvantage.Add($"{best}-up", clip);
-            _manAdvantageOutcomes.Add(round.WinnerSide == side ? "closed it out" : round.WinnerSide is 2 or 3 ? "lead given back" : "no result", clip);
+            _manAdvantageOutcomes.Add(
+                round.WinnerSide == side ? "closed it out" :
+                round.WinnerSide is 2 or 3 ? "lead given back" : "no result", clip);
         }
 
         private void AddSaveDiscipline(DemoContext demo, RoundFacts round, int side, RoundFacts? next, int? nextSide,

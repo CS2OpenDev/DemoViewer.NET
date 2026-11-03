@@ -37,10 +37,12 @@ public class BackgroundPlanRealDemoTests
 
     internal static string SmallestDemo(int which)
     {
-        List<FileInfo> demos = [.. DemoTestHelper.RequireReplayDemos().Select(f => new FileInfo(f)).OrderBy(f => f.Length)];
+        List<FileInfo> demos =
+            [.. DemoTestHelper.RequireReplayDemos().Select(f => new FileInfo(f)).OrderBy(f => f.Length)];
         return which < demos.Count
             ? demos[which].FullName
-            : throw new SkipTestException($"fewer than {which + 1} demos in the {DemoTestHelper.DemoPathEnvVar} folder");
+            : throw new SkipTestException(
+                $"fewer than {which + 1} demos in the {DemoTestHelper.DemoPathEnvVar} folder");
     }
 
     internal static ParsedDemo ParseMapped(string path, DecodePlan plan) =>
@@ -72,7 +74,8 @@ public class BackgroundPlanRealDemoTests
             }
         }
 
-        Console.WriteLine($"{Path.GetFileName(path)}: " + string.Join(", ", full.Select(kv => $"{kv.Key} {kv.Value.Length}")));
+        Console.WriteLine($"{Path.GetFileName(path)}: "
+                          + string.Join(", ", full.Select(kv => $"{kv.Key} {kv.Value.Length}")));
     }
 
     // One parse per call; the parse is dropped before the next plan runs.
@@ -108,14 +111,20 @@ public class BackgroundPlanRealDemoTests
         outputs["suggested tags"] = JsonSerializer.Serialize(
             tags.Load(path).Entries.Select(e => e.Proposal).ToList(), Json);
 
-        RuleConfigLoadResult rules = YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null);
-        BuildResult build = DemoAnalysis.Build(parsed, [.. rules.Rulesets.Where(r => r.Id != RoundFactsFingerprint.RulesetId)]);
+        RuleConfigLoadResult rules =
+            YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null);
+        BuildResult build = DemoAnalysis.Build(parsed,
+            [.. rules.Rulesets.Where(r => r.Id != RoundFactsFingerprint.RulesetId)]);
         AnalysisRun run = DemoAnalysis.Evaluate(parsed, build, new AnalysisOptions { CaptureSnapshots = false });
         outputs["highlights"] = JsonSerializer.Serialize(run.Highlights, Json);
 
-        List<string> players = [.. parsed.Players.Values
-            .Where(p => !p.IsBot && !p.IsHltv && !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct()];
-        (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coaches) = DemoLibraryService.ExtractFinalState(parsed);
+        List<string> players =
+        [
+            .. parsed.Players.Values
+                .Where(p => !p.IsBot && !p.IsHltv && !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct()
+        ];
+        (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coaches) =
+            DemoLibraryService.ExtractFinalState(parsed);
         outputs["library"] = JsonSerializer.Serialize(new
         {
             players,

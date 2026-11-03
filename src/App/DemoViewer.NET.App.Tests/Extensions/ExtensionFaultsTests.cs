@@ -147,7 +147,8 @@ public class ExtensionFaultsTests
         faults.FailStartup(scope, "register", new InvalidOperationException("no"));
         RecordingSwitch gate = new();
         faults.AttachSwitch(gate);
-        await Assert.That(gate.Suspensions).IsEquivalentTo(["pack.fake"], CollectionOrdering.Matching).Because("attaching applies it before anything reads");
+        await Assert.That(gate.Suspensions).IsEquivalentTo(["pack.fake"], CollectionOrdering.Matching)
+            .Because("attaching applies it before anything reads");
 
         faults.Resume("pack.fake");
         using (Assert.Multiple())
@@ -187,7 +188,8 @@ public class ExtensionFaultsTests
         rig.Posts.Drain();
 
         string line = logs.WithEvent(23).Single();
-        await Assert.That(line).IsEqualTo("Extension Fake turned off for this session after 3 errors (last: settings page)");
+        await Assert.That(line)
+            .IsEqualTo("Extension Fake turned off for this session after 3 errors (last: settings page)");
     }
 
     [Test]
@@ -223,6 +225,7 @@ public class ExtensionFaultsTests
         // List<int>.RemoveAt lives in the runtime, not in any extension: a host handler.
         Action<int> hostThrows = new List<int>().RemoveAt;
         hostThrows += seen.Add;
-        Assert.Throws<ArgumentOutOfRangeException>(() => guard.Invoke(rig.Faults, hostThrows, 1, static (h, v) => h(v)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            guard.Invoke(rig.Faults, hostThrows, 1, static (h, v) => h(v)));
     }
 }

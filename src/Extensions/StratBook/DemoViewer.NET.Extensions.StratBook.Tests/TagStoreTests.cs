@@ -164,7 +164,8 @@ public class TagStoreTests
             File.Delete(TagStore.SidecarPathFor(root, ShaOf(1)));
 
             TagStore reopened = new(PackStores.At(root));
-            await Assert.That(reopened.Index.Select(e => e.Sha256)).IsEquivalentTo(new[] { ShaOf(2) }, CollectionOrdering.Matching);
+            await Assert.That(reopened.Index.Select(e => e.Sha256))
+                .IsEquivalentTo(new[] { ShaOf(2) }, CollectionOrdering.Matching);
         }
         finally
         {

@@ -61,15 +61,7 @@ public class ModuleFrameworkPhase3Tests
         {
             MainViewModel vm = new(library: TestLibraries.Empty());
 
-            Window window = new()
-            {
-                Width = 1280,
-                Height = 720,
-                Content = new MainView
-                {
-                    DataContext = vm
-                }
-            };
+            Window window = new() { Width = 1280, Height = 720, Content = new MainView { DataContext = vm } };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -85,15 +77,7 @@ public class ModuleFrameworkPhase3Tests
         await HeadlessSession.RunOnUi(async () =>
         {
             MainViewModel vm = new(library: TestLibraries.Empty());
-            Window window = new()
-            {
-                Width = 1280,
-                Height = 720,
-                Content = new MainView
-                {
-                    DataContext = vm
-                }
-            };
+            Window window = new() { Width = 1280, Height = 720, Content = new MainView { DataContext = vm } };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();

@@ -73,19 +73,25 @@ public class MapAssetsTests
         Scene2DFrame frame = new()
         {
             Time = new SceneTime(0, 0, 0, 1.0 / 64, true),
-            Markers = [new PlayerMarker(0, 2, (float)((bounds.MinX + bounds.MaxX) / 2), (float)((bounds.MinY + bounds.MaxY) / 2), 0, 0, RingState.Team, 1.0, "", true)],
+            Markers =
+            [
+                new PlayerMarker(0, 2, (float)((bounds.MinX + bounds.MaxX) / 2),
+                    (float)((bounds.MinY + bounds.MaxY) / 2), 0, 0, RingState.Team, 1.0, "", true)
+            ],
             Map = new SceneMapInfo
             {
                 MapName = Map, NetworkedBounds = bounds, ObservedBounds = bounds, Radars = map.DescribeRadars()
             }
         };
-        ViewportTransform camera = ViewportTransform.Fit(Size.Width, Size.Height, bounds.MinX, bounds.MinY, bounds.MaxX, bounds.MaxY);
+        ViewportTransform camera =
+            ViewportTransform.Fit(Size.Width, Size.Height, bounds.MinX, bounds.MinY, bounds.MaxX, bounds.MaxY);
 
         byte[] viaKit = MapAssets.RenderPng(frame, map, [SceneLayerIds.Radar, SceneLayerIds.Markers], camera, Size);
 
         byte[] direct;
         using (CpuSurfaceProvider provider = new())
-        using (SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack([SceneLayerIds.Radar, SceneLayerIds.Markers]))
+        using (SceneCompositor compositor =
+               SceneLayerCatalog.CreateSceneStack([SceneLayerIds.Radar, SceneLayerIds.Markers]))
         using (HeadlessSceneRenderer renderer = new(provider, compositor)
                {
                    Palette = ScenePalette.Dark, Purpose = RenderPurpose.Export, Camera = camera

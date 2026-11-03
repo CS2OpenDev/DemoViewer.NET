@@ -38,11 +38,16 @@ public class StratMiningCacheTests
                 $"{s.Key} {s.Sha256} {s.Map} {s.Site} {s.Buy} {s.Won} {s.TeamId} {s.TickRate} {s.FreezeEndTick} {s.AnchorTick}");
             foreach (IReadOnlyList<MinedPawn> anchor in s.Anchors)
             {
-                text.Append(" [").Append(string.Join(";", anchor.Select(p => $"{p.Slot},{p.X:R},{p.Y:R},{p.Z:R},{p.Place}"))).Append(']');
+                text.Append(" [")
+                    .Append(string.Join(";", anchor.Select(p => $"{p.Slot},{p.X:R},{p.Y:R},{p.Z:R},{p.Place}")))
+                    .Append(']');
             }
 
-            text.Append(s.Throws is null ? " no-rows" : " throws " + string.Join(";", s.Throws.Select(t =>
-                string.Create(CultureInfo.InvariantCulture, $"{t.Kind},{t.Seconds:R},{t.Landing.X},{t.LineupId}"))));
+            text.Append(s.Throws is null
+                ? " no-rows"
+                : " throws " + string.Join(";", s.Throws.Select(t =>
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"{t.Kind},{t.Seconds:R},{t.Landing.X},{t.LineupId}"))));
             text.Append('\n');
         }
 
@@ -50,7 +55,9 @@ public class StratMiningCacheTests
     }
 
     private static MiningGrenade Grenade(int demo, Guid lineup) =>
-        new(new IndexedGrenade(new global::DemoViewer.NET.Extensions.StratBook.DemoRef($"/d/m{demo}.dem", global::DemoViewer.NET.Extensions.StratBook.DemoKeys.StableKey($"/d/m{demo}.dem"), null), Map,
+        new(new IndexedGrenade(
+            new global::DemoViewer.NET.Extensions.StratBook.DemoRef($"/d/m{demo}.dem",
+                global::DemoViewer.NET.Extensions.StratBook.DemoKeys.StableKey($"/d/m{demo}.dem"), null), Map,
             new GrenadeRow
             {
                 Id = "g1",
@@ -122,10 +129,12 @@ public class StratMiningCacheTests
         Rig rig = new() { Teams = teams };
         SignatureCache cache = new(null);
         await Assert.That(await BuildsAsUncached(rig, library, cache)).IsEqualTo((0, 4));
-        await Assert.That(rig.Builder(library, cache).Build().Any(s => s.TeamId is not null)).IsTrue().Because("the rig has a team");
+        await Assert.That(rig.Builder(library, cache).Build().Any(s => s.TeamId is not null)).IsTrue()
+            .Because("the rig has a team");
 
         teams.Override("/d/m2.dem", 2, null);
-        await Assert.That(await BuildsAsUncached(rig, library, cache)).IsEqualTo((3, 1)).Because("m2's T side left the team");
+        await Assert.That(await BuildsAsUncached(rig, library, cache)).IsEqualTo((3, 1))
+            .Because("m2's T side left the team");
 
         teams.ClearOverride("/d/m2.dem", 2);
         await Assert.That(await BuildsAsUncached(rig, library, cache)).IsEqualTo((3, 1)).Because("and came back");
@@ -177,13 +186,17 @@ public class StratMiningCacheTests
         Rig rig = new();
         string file = Path.Combine(library.Root, "strat-mining", "signatures.json.gz");
 
-        await Assert.That(await BuildsAsUncached(rig, library, new SignatureCache(StoredFile.At(file)))).IsEqualTo((0, 4));
+        await Assert.That(await BuildsAsUncached(rig, library, new SignatureCache(StoredFile.At(file))))
+            .IsEqualTo((0, 4));
         await Assert.That(File.Exists(file)).IsTrue();
-        await Assert.That(await BuildsAsUncached(rig, library, new SignatureCache(StoredFile.At(file)))).IsEqualTo((4, 0)).Because("read back from disk");
+        await Assert.That(await BuildsAsUncached(rig, library, new SignatureCache(StoredFile.At(file))))
+            .IsEqualTo((4, 0)).Because("read back from disk");
 
         await File.WriteAllTextAsync(file, "not gzip");
-        await Assert.That(await BuildsAsUncached(rig, library, new SignatureCache(StoredFile.At(file)))).IsEqualTo((0, 4)).Because("unreadable is empty");
-        await Assert.That(await BuildsAsUncached(rig, library, new SignatureCache(StoredFile.At(file)))).IsEqualTo((4, 0)).Because("and rewritten");
+        await Assert.That(await BuildsAsUncached(rig, library, new SignatureCache(StoredFile.At(file))))
+            .IsEqualTo((0, 4)).Because("unreadable is empty");
+        await Assert.That(await BuildsAsUncached(rig, library, new SignatureCache(StoredFile.At(file))))
+            .IsEqualTo((4, 0)).Because("and rewritten");
     }
 
     [Test]
@@ -200,8 +213,10 @@ public class StratMiningCacheTests
         using (Assert.Multiple())
         {
             await Assert.That(restarted.Signatures.LastBuild).IsEqualTo((4, 0));
-            await Assert.That(restarted.Patterns.Select(p => p.Pattern.Key)).IsEquivalentTo(first, CollectionOrdering.Matching);
-            await Assert.That(File.Exists(Path.Combine(library.Root, "cache", "strat-mining", "signatures.json.gz"))).IsTrue();
+            await Assert.That(restarted.Patterns.Select(p => p.Pattern.Key))
+                .IsEquivalentTo(first, CollectionOrdering.Matching);
+            await Assert.That(File.Exists(Path.Combine(library.Root, "cache", "strat-mining", "signatures.json.gz")))
+                .IsTrue();
         }
     }
 
@@ -211,7 +226,8 @@ public class StratMiningCacheTests
         using Library library = Library.Create();
         InlineJobs jobs = new();
         FakePasses passes = new() { Busy = true };
-        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions, StratMiningServiceTests._sources.FingerprintFor, null, null,
+        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
+            StratMiningServiceTests._sources.FingerprintFor, null, null,
             library.Strats, library.Tags, null, run: a =>
             {
                 a();
@@ -224,7 +240,8 @@ public class StratMiningCacheTests
         await Assert.That(Mines()).IsEqualTo(1).Because("a user mine is submitted while the passes are busy");
 
         service.OnQuiet();
-        await Assert.That(Mines()).IsEqualTo(1).Because("the quiet re-mine holds while a pass it reads has a demo in flight");
+        await Assert.That(Mines()).IsEqualTo(1)
+            .Because("the quiet re-mine holds while a pass it reads has a demo in flight");
 
         service.QuietDelay = TimeSpan.FromMilliseconds(20);
         passes.Busy = false;
@@ -257,7 +274,8 @@ public class StratMiningCacheTests
         using Library library = Library.Create();
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = RealQueue(gate);
-        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions, StratMiningServiceTests._sources.FingerprintFor, null, null,
+        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
+            StratMiningServiceTests._sources.FingerprintFor, null, null,
             library.Strats, library.Tags, null, jobs: Jobs(queue)) { QuietDelay = Timeout.InfiniteTimeSpan };
 
         Task mine;
@@ -288,7 +306,8 @@ public class StratMiningCacheTests
         using Library library = Library.Create();
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = RealQueue(gate);
-        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions, StratMiningServiceTests._sources.FingerprintFor, null, null,
+        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
+            StratMiningServiceTests._sources.FingerprintFor, null, null,
             library.Strats, library.Tags, null, jobs: Jobs(queue)) { QuietDelay = Timeout.InfiniteTimeSpan };
         await service.MineAsync().WaitAsync(TimeSpan.FromSeconds(10));
         MinedPattern execute = service.Patterns.Select(p => p.Pattern).Single(p => p.Kind == PatternKind.Execute);
@@ -324,7 +343,8 @@ public class StratMiningCacheTests
         TaskCompletionSource inBatch = new(TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource proceed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         int steps = 0;
-        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions, StratMiningServiceTests._sources.FingerprintFor, null, null,
+        using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
+            StratMiningServiceTests._sources.FingerprintFor, null, null,
             library.Strats, library.Tags, null, jobs: Jobs(queue), run: a => Task.Run(async () =>
             {
                 a();
@@ -336,7 +356,7 @@ public class StratMiningCacheTests
                 }
             })) { QuietDelay = Timeout.InfiniteTimeSpan, BatchSize = 1 };
 
-        foreach (bool user in (bool[]) [false, true])
+        foreach (bool user in (bool[])[false, true])
         {
             steps = 0;
             inBatch = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -351,7 +371,8 @@ public class StratMiningCacheTests
             using (await open.WaitAsync(TimeSpan.FromSeconds(10)))
             {
                 await Task.Delay(300);
-                await Assert.That(mine.IsCompleted).IsFalse().Because($"the open took the gate between batches (user={user})");
+                await Assert.That(mine.IsCompleted).IsFalse()
+                    .Because($"the open took the gate between batches (user={user})");
             }
 
             await mine.WaitAsync(TimeSpan.FromSeconds(10));

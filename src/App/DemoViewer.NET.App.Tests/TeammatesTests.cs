@@ -55,7 +55,10 @@ public class TeammatesTests
                 new CachedPlayerInfo { Slot = 3, Name = i == 3 ? "mate2" : "mate", SteamId64 = Id(Mate), Team = 3 },
                 new CachedPlayerInfo { Slot = 7, Name = "rival", SteamId64 = Id(Rival), Team = i == 3 ? 3 : 2 }
             ],
-            MatchMeta = new DemoMatchMeta { MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo }
+            MatchMeta = new DemoMatchMeta
+            {
+                MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo
+            }
         };
         DemoCacheStore.StampHeader(record);
         DemoCacheStore.StampParse(record);
@@ -68,11 +71,22 @@ public class TeammatesTests
     }
 
     private static FactRow Row(long slot, ulong steamId, long team, long rounds, double hltv, long won, long lost) =>
-        new(new Dictionary<string, FactValue> { ["player_slot"] = FactValue.Of(slot), ["steam_id"] = FactValue.Of(Id(steamId)), ["team"] = FactValue.Of(team) },
+        new(
             new Dictionary<string, FactValue>
             {
-                ["rounds"] = FactValue.Of(rounds), ["HLTV"] = FactValue.Of(hltv), ["TotalK"] = FactValue.Of(15L), ["TotalD"] = FactValue.Of(15L),
-                ["Shots"] = FactValue.Of(200L), ["CTW"] = FactValue.Of(won), ["CTL"] = FactValue.Of(lost)
+                ["player_slot"] = FactValue.Of(slot),
+                ["steam_id"] = FactValue.Of(Id(steamId)),
+                ["team"] = FactValue.Of(team)
+            },
+            new Dictionary<string, FactValue>
+            {
+                ["rounds"] = FactValue.Of(rounds),
+                ["HLTV"] = FactValue.Of(hltv),
+                ["TotalK"] = FactValue.Of(15L),
+                ["TotalD"] = FactValue.Of(15L),
+                ["Shots"] = FactValue.Of(200L),
+                ["CTW"] = FactValue.Of(won),
+                ["CTL"] = FactValue.Of(lost)
             });
 
     // Grim wins demo 0 and loses 1 and 3. Mate rates 1.0 + 0.1 i over 20 + i rounds; Rival 0.8.
@@ -80,7 +94,8 @@ public class TeammatesTests
     {
         long rounds = 20 + i;
         (long won, long lost) = i == 0 ? (13L, rounds - 13) : (rounds - 13, 13L);
-        return new FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match", ["player_slot", "steam_id", "team"], [],
+        return new FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
+            ["player_slot", "steam_id", "team"], [],
             new Dictionary<string, string>(),
             [
                 Row(2, Grim, 3, rounds, 1.2, won, lost),
@@ -100,7 +115,8 @@ public class TeammatesTests
         return store;
     }
 
-    internal static int IndexOf(string path) => int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
+    internal static int IndexOf(string path) =>
+        int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
 
     private sealed class Rig : IDisposable
     {
@@ -114,7 +130,8 @@ public class TeammatesTests
                 Reads.Enqueue(path);
                 return Facet(IndexOf(path));
             });
-            Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(Directory, Identity, Cache, _ => { }, _ => { }, (_, _) => { }, _ => { }));
+            Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(Directory, Identity, Cache, _ => { },
+                _ => { }, (_, _) => { }, _ => { }));
             Tab.OnActivated(null!);
         }
 
@@ -153,11 +170,13 @@ public class TeammatesTests
         {
             await Assert.That(first.Others!.Keys.Order()).IsEquivalentTo([Rival, Mate], CollectionOrdering.Matching)
                 .Because("the subject is not among the others");
-            await Assert.That(first.Others![Mate].Keys.Order(StringComparer.Ordinal)).IsEquivalentTo(["HLTV", "rounds"], CollectionOrdering.Matching)
+            await Assert.That(first.Others![Mate].Keys.Order(StringComparer.Ordinal))
+                .IsEquivalentTo(["HLTV", "rounds"], CollectionOrdering.Matching)
                 .Because("only the rating's inputs are kept");
             await Assert.That(first.Others![Mate]["HLTV"]).IsEqualTo(1.0);
             await Assert.That(pending.Others).IsNull();
-            await Assert.That(reads.Count).IsEqualTo(3).Because("one read per written facet serves the subject and everyone in it");
+            await Assert.That(reads.Count).IsEqualTo(3)
+                .Because("one read per written facet serves the subject and everyone in it");
         }
     }
 
@@ -181,7 +200,7 @@ public class TeammatesTests
             await Assert.That(mate.Name).IsEqualTo("mate2").Because("the newest demo's name");
             await Assert.That(mate.Hltv!.Value).IsEqualTo(((1.0 * 20) + (1.1 * 21) + (1.3 * 23)) / 64).Within(1e-9);
             await Assert.That(mate.WinRate!.Value).IsEqualTo(100.0 / 3).Within(1e-9);
-            await Assert.That((rival.Matches, rival.Wins, rival.Losses, rival.Hltv)).IsEqualTo((1, 0, 1, (double?) 0.8));
+            await Assert.That((rival.Matches, rival.Wins, rival.Losses, rival.Hltv)).IsEqualTo((1, 0, 1, (double?)0.8));
         }
     }
 
@@ -224,7 +243,9 @@ public class TeammatesTests
             await Assert.That(rig.Section.CountText).IsEqualTo("2 players");
             await Assert.That((mate.Name, mate.MatchesText, mate.RecordText, mate.WinRateText, mate.HltvText))
                 .IsEqualTo(("mate2", "4", "1-2", "33%", "1.14"));
-            await Assert.That(allNote).IsEqualTo("Win rates and ratings from the 3 of 4 matches with stats; the library is computing the rest");
+            await Assert.That(allNote)
+                .IsEqualTo(
+                    "Win rates and ratings from the 3 of 4 matches with stats; the library is computing the rest");
             await Assert.That(windowed.Select(r => (r.SteamId64, r.MatchesText, r.HltvText)))
                 .IsEquivalentTo([(Mate, "1", "1.30"), (Rival, "1", "0.80")], CollectionOrdering.Matching);
             await Assert.That(rig.Reads.Count).IsEqualTo(reads).Because("a filter change reads no file");
@@ -242,13 +263,14 @@ public class TeammatesTests
         solo.Players.RemoveAll(p => p.SteamId64 == Id(Mate));
         store.Upsert(solo);
         PlayerDirectory directory = new(store, _ => true);
-        using IdentityService identity = new(new SettingsService((string?) null));
+        using IdentityService identity = new(new SettingsService((string?)null));
         PlayerOverviewServices services = new(directory, identity, null, _ => { }, _ => { }, (_, _) => { }, _ => { });
         TeammatesSectionViewModel section = new(services);
         IReadOnlyList<PlayerMatch> matches = directory.Matches(Grim);
         PlayerDemo[] demos = [.. matches.Select(m => new PlayerDemo(m, false, null))];
 
-        section.Update(new PlayerOverviewContext(Grim, directory.Get(Grim), matches, 0, false, services, demos, PlayerFilter.All, demos, false, null,
+        section.Update(new PlayerOverviewContext(Grim, directory.Get(Grim), matches, 0, false, services, demos,
+            PlayerFilter.All, demos, false, null,
             false));
 
         using (Assert.Multiple())
@@ -271,16 +293,20 @@ public class TeammatesRenderTests
         {
             DemoCacheStore store = TeammatesTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?) null));
+            using IdentityService identity = new(new SettingsService((string?)null));
             PlayerRowCache rows = new(store, directory, path => TeammatesTests.Facet(TeammatesTests.IndexOf(path)));
             await rows.LoadAsync(TeammatesTests.Grim);
-            using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { }));
+            using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows, _ => { },
+                _ => { }, (_, _) => { }, _ => { }));
             vm.OnActivated(null!);
             vm.OpenPlayer(TeammatesTests.Grim);
             await vm.Loading;
 
             vm.ShowPage(PlayerOverviewPageKind.History);
-            Window window = new() { Width = 1300, Height = 4000, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1300, Height = 4000, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -292,8 +318,11 @@ public class TeammatesRenderTests
             {
                 await Assert.That(view.IsVisible).IsTrue();
                 await Assert.That(list.GetVisualDescendants().OfType<ListBoxItem>().Count()).IsEqualTo(2);
-                await Assert.That(view.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? "")).Contains("1.14");
-                await Assert.That(list.GetVisualDescendants().OfType<Button>().Count(b => b.Content as string == "Open")).IsEqualTo(2);
+                await Assert.That(view.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? ""))
+                    .Contains("1.14");
+                await Assert
+                    .That(list.GetVisualDescendants().OfType<Button>().Count(b => b.Content as string == "Open"))
+                    .IsEqualTo(2);
             }
 
             window.Close();

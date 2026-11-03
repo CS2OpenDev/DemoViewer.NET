@@ -163,7 +163,8 @@ public class SemanticNavigatorRealDemoTests
             string.Equals(gem.DecodedEvent.Name, omitted, StringComparison.OrdinalIgnoreCase));
 
         Console.WriteLine($"[nav] demo={Path.GetFileName(path)} rounds={navigator.RoundBoundaryFrames.Count} " +
-                          $"ticks={navigator.TickBoundaryFrames.Count} eventNames={navigator.EventBoundaryFramesByName.Count} " +
+                          $"ticks={navigator.TickBoundaryFrames.Count} eventNames={navigator.EventBoundaryFramesByName.Count} "
+                          +
                           $"omittedEvent='{omitted}' reachedAtFrame={omittedFrame}");
 
         await Assert.That(reachedOmitted).IsTrue();

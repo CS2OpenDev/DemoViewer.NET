@@ -99,10 +99,7 @@ public class LevelCrossingTrackerTests
     {
         MapSpace space = Two();
         LevelCrossingTracker tracker = new();
-        MarkerSmoother smoother = new()
-        {
-            LevelCrossings = tracker
-        };
+        MarkerSmoother smoother = new() { LevelCrossings = tracker };
 
         PlayerMarker[] onLower = [Marker(0, 0, 0, -300)];
         tracker.Update(0, -300, space);

@@ -28,7 +28,8 @@ public class AtomicFileTests
             using (Assert.Multiple())
             {
                 await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("two");
-                await Assert.That(Directory.GetFiles(Path.GetDirectoryName(path)!)).IsEquivalentTo([path], CollectionOrdering.Matching);
+                await Assert.That(Directory.GetFiles(Path.GetDirectoryName(path)!))
+                    .IsEquivalentTo([path], CollectionOrdering.Matching);
             }
         }
         finally
@@ -58,7 +59,8 @@ public class AtomicFileTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(await File.ReadAllBytesAsync(path)).IsEquivalentTo(new byte[] { 1, 2, 3 }, CollectionOrdering.Matching);
+                await Assert.That(await File.ReadAllBytesAsync(path))
+                    .IsEquivalentTo(new byte[] { 1, 2, 3 }, CollectionOrdering.Matching);
                 await Assert.That(Directory.GetFiles(root)).IsEquivalentTo([path], CollectionOrdering.Matching);
             }
         }

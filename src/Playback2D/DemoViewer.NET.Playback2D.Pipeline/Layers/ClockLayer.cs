@@ -64,11 +64,7 @@ public sealed class ClockLayer : ISceneLayer
         _style = style ?? new HudStyle();
         _ownsText = text is null;
         _text = text ?? new TextBlobCache();
-        _paint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+        _paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
     }
 
     /// <inheritdoc />
@@ -186,6 +182,7 @@ public sealed class ClockLayer : ISceneLayer
             {
                 canvas.DrawText(roundCaption.Blob, rx, ry, _paint);
             }
+
             below += roundCaption.Height;
         }
 

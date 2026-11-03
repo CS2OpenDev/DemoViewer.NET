@@ -122,21 +122,21 @@ internal sealed class WuColorQuantizer
     private static long Bottom(in Box c, Axis axis, long[] m) => axis switch
     {
         Axis.Red => -m[Index(c.R0, c.G1, c.B1)] + m[Index(c.R0, c.G1, c.B0)] +
-                    m[Index(c.R0, c.G0, c.B1)] - m[Index(c.R0, c.G0, c.B0)],
+            m[Index(c.R0, c.G0, c.B1)] - m[Index(c.R0, c.G0, c.B0)],
         Axis.Green => -m[Index(c.R1, c.G0, c.B1)] + m[Index(c.R1, c.G0, c.B0)] +
-                      m[Index(c.R0, c.G0, c.B1)] - m[Index(c.R0, c.G0, c.B0)],
+            m[Index(c.R0, c.G0, c.B1)] - m[Index(c.R0, c.G0, c.B0)],
         _ => -m[Index(c.R1, c.G1, c.B0)] + m[Index(c.R1, c.G0, c.B0)] +
-             m[Index(c.R0, c.G1, c.B0)] - m[Index(c.R0, c.G0, c.B0)]
+            m[Index(c.R0, c.G1, c.B0)] - m[Index(c.R0, c.G0, c.B0)]
     };
 
     private static long Top(in Box c, Axis axis, int position, long[] m) => axis switch
     {
         Axis.Red => m[Index(position, c.G1, c.B1)] - m[Index(position, c.G1, c.B0)] -
-                    m[Index(position, c.G0, c.B1)] + m[Index(position, c.G0, c.B0)],
+            m[Index(position, c.G0, c.B1)] + m[Index(position, c.G0, c.B0)],
         Axis.Green => m[Index(c.R1, position, c.B1)] - m[Index(c.R1, position, c.B0)] -
-                      m[Index(c.R0, position, c.B1)] + m[Index(c.R0, position, c.B0)],
+            m[Index(c.R0, position, c.B1)] + m[Index(c.R0, position, c.B0)],
         _ => m[Index(c.R1, c.G1, position)] - m[Index(c.R1, c.G0, position)] -
-             m[Index(c.R0, c.G1, position)] + m[Index(c.R0, c.G0, position)]
+            m[Index(c.R0, c.G1, position)] + m[Index(c.R0, c.G0, position)]
     };
 
     // Turns the per-bin histogram into cumulative moments, so any box's totals are eight lookups.

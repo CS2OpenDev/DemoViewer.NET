@@ -63,9 +63,7 @@ public sealed class TagDocument
         {
             Demo = new TagDemoHeader
             {
-                Sha256 = demo.Sha256.ToLowerInvariant(),
-                FileName = demo.FileName,
-                SizeBytes = demo.SizeBytes
+                Sha256 = demo.Sha256.ToLowerInvariant(), FileName = demo.FileName, SizeBytes = demo.SizeBytes
             },
             Clock = TagClockHeader.From(clock)
         };
@@ -303,7 +301,10 @@ public sealed class TagIndexEntry
             Sha256 = document.Demo.Sha256,
             FileName = document.Demo.FileName,
             InstanceCount = document.Instances.Count,
-            Codes = [.. document.Instances.Select(i => i.Code).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)],
+            Codes =
+            [
+                .. document.Instances.Select(i => i.Code).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
+            ],
             StratIds =
             [
                 .. document.Instances.SelectMany(i => i.Labels)

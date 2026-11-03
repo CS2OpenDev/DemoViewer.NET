@@ -46,7 +46,8 @@ public sealed partial class StratPreviewViewModel : ObservableObject, IDisposabl
     /// <param name="post">UI-thread marshal for the canvas session.</param>
     /// <param name="lineupOrigins">Puts a throw's actor at its lineup's throw origin; null projects none.</param>
     /// <param name="canvasServices">The canvas's gate, zone resolver and settings fallback; see <see cref="StratCanvasServices" />.</param>
-    public StratPreviewViewModel(MinedPattern pattern, string title, Func<string?, IMapAssetLease?>? mapLoader, Action<Action> post,
+    public StratPreviewViewModel(MinedPattern pattern, string title, Func<string?, IMapAssetLease?>? mapLoader,
+        Action<Action> post,
         LineupOriginSource? lineupOrigins = null, StratCanvasServices? canvasServices = null)
     {
         _canvasServices = canvasServices;
@@ -76,7 +77,8 @@ public sealed partial class StratPreviewViewModel : ObservableObject, IDisposabl
 
     public bool IsMissing => State == StratPreviewState.Missing;
 
-    public static string MissingLine => "Could not build this strat: the round's cached files are gone. Find strats again.";
+    public static string MissingLine =>
+        "Could not build this strat: the round's cached files are gone. Find strats again.";
 
     /// <summary>The built document exactly as Build returned it; null until ready.</summary>
     public StratDocument? Document { get; private set; }
@@ -124,7 +126,12 @@ public sealed partial class StratPreviewViewModel : ObservableObject, IDisposabl
                 (string.IsNullOrWhiteSpace(s.Role) ? "no role" : s.Role)
                 + (s.SteamId is { } id ? " · pinned to " + id : "")))
         ];
-        Steps = [.. built.Steps.Select((s, i) => new StratPreviewStepRow(s.Id, i + 1, StratClock.Format(built.Clock, s.AtSeconds), StratStepPhrasing.PhraseWithLines(s, null, null, built.Clock), s.Note))];
+        Steps =
+        [
+            .. built.Steps.Select((s, i) => new StratPreviewStepRow(s.Id, i + 1,
+                StratClock.Format(built.Clock, s.AtSeconds),
+                StratStepPhrasing.PhraseWithLines(s, null, null, built.Clock), s.Note))
+        ];
         Notes = built.Notes;
 
         // A copy into a private store: Save stamps the instance it is given, and the session plays only what a store holds.
@@ -134,7 +141,8 @@ public sealed partial class StratPreviewViewModel : ObservableObject, IDisposabl
         {
             _session = new StratSession(_store, _post);
             _session.Open(copy.Id);
-            Canvas = new StratCanvasViewModel(_session, _mapLoader, readOnly: true, lineupOrigins: _lineupOrigins, lookups: _canvasServices);
+            Canvas = new StratCanvasViewModel(_session, _mapLoader, readOnly: true, lineupOrigins: _lineupOrigins,
+                lookups: _canvasServices);
             Canvas.PropertyChanged += OnCanvasChanged;
         }
 
@@ -208,7 +216,8 @@ public sealed partial class StratPreviewViewModel : ObservableObject, IDisposabl
 public sealed record StratPreviewField(string Label, string Value);
 
 /// <summary>One step of a previewed strat; the canvas's active step is marked by <see cref="Marker" />.</summary>
-public sealed partial class StratPreviewStepRow(Guid id, int number, string atText, string text, string? note) : ObservableObject
+public sealed partial class StratPreviewStepRow(Guid id, int number, string atText, string text, string? note)
+    : ObservableObject
 {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Marker))]

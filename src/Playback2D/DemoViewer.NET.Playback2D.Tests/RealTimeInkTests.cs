@@ -227,11 +227,7 @@ public class RealTimeInkTests
     [Test]
     public async Task RevealOnFadeIn_StillSweepsLinearly_WithNoCadence()
     {
-        AnnotationStyle style = AnnotationStyle.Default with
-        {
-            RevealOnFadeIn = true,
-            WidthWorld = 20f
-        };
+        AnnotationStyle style = AnnotationStyle.Default with { RevealOnFadeIn = true, WidthWorld = 20f };
 
         // A 100-tick lead-in before tick 200. No Timing set: an element authored before the cadence
         // feature existed must still render correctly.
@@ -386,21 +382,12 @@ public class RealTimeInkTests
 
     private static SceneRenderContext Context(int tick)
     {
-        MapLevel level = new()
-        {
-            Id = new MapLevelId(0),
-            Name = "floor 0",
-            ZMin = -1000,
-            ZMax = 1000
-        };
+        MapLevel level = new() { Id = new MapLevelId(0), Name = "floor 0", ZMin = -1000, ZMax = 1000 };
 
         ViewportTransform transform = ViewportTransform.Fit(_size.Width, _size.Height,
             -500, -500, 500, 500);
 
-        return new SceneRenderContext(Scene2DFrame.Empty, Scene2DFrame.Empty.Time with
-            {
-                Tick = tick
-            },
+        return new SceneRenderContext(Scene2DFrame.Empty, Scene2DFrame.Empty.Time with { Tick = tick },
             transform, SKRect.Create(_size.Width, _size.Height), -1, level.ZMin, level.ZMax,
             RenderPurpose.Export, ScenePalette.Dark, 1f)
         {
@@ -414,21 +401,12 @@ public class RealTimeInkTests
     // outliner and nothing of the rasterizer.
     private static SceneRenderContext HdContext(int tick)
     {
-        MapLevel level = new()
-        {
-            Id = new MapLevelId(0),
-            Name = "floor 0",
-            ZMin = -1000,
-            ZMax = 1000
-        };
+        MapLevel level = new() { Id = new MapLevelId(0), Name = "floor 0", ZMin = -1000, ZMax = 1000 };
 
         ViewportTransform transform = ViewportTransform.Fit(_hd.Width, _hd.Height,
             -1000, -1000, 1000, 1000);
 
-        return new SceneRenderContext(Scene2DFrame.Empty, Scene2DFrame.Empty.Time with
-            {
-                Tick = tick
-            },
+        return new SceneRenderContext(Scene2DFrame.Empty, Scene2DFrame.Empty.Time with { Tick = tick },
             transform, SKRect.Create(_hd.Width, _hd.Height), -1, level.ZMin, level.ZMax,
             RenderPurpose.Export, ScenePalette.Dark, 1f)
         {

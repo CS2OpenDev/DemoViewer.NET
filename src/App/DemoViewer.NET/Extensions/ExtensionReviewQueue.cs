@@ -196,22 +196,23 @@ internal sealed class ExtensionReviewQueue : IExtensionReviewQueue
         return _queue.SetQuestion(id, question);
     }
 
-    private ReviewClip Project(ReviewEntry entry) => _projected.GetValue(entry, static e => new ReviewClip
-    {
-        Id = e.Id,
-        Kind = e.Kind == ReviewEntryKind.Section ? ReviewClipKind.Section : ReviewClipKind.Clip,
-        Title = e.Title,
-        DemoPath = e.DemoPath,
-        Sha256 = e.Sha256,
-        FromTick = e.FromTick,
-        ToTick = e.ToTick,
-        TickRate = e.TickRate,
-        Note = e.Note,
-        Question = e.Question,
-        Source = e.Source,
-        TeamId = e.TeamId,
-        Reviewed = e.Reviewed
-    });
+    private ReviewClip Project(ReviewEntry entry) => _projected.GetValue(entry,
+        static e => new ReviewClip
+        {
+            Id = e.Id,
+            Kind = e.Kind == ReviewEntryKind.Section ? ReviewClipKind.Section : ReviewClipKind.Clip,
+            Title = e.Title,
+            DemoPath = e.DemoPath,
+            Sha256 = e.Sha256,
+            FromTick = e.FromTick,
+            ToTick = e.ToTick,
+            TickRate = e.TickRate,
+            Note = e.Note,
+            Question = e.Question,
+            Source = e.Source,
+            TeamId = e.TeamId,
+            Reviewed = e.Reviewed
+        });
 
     // The one translation that goes the other way, and only for a row being added: the persisted fields a
     // ReviewClip does not carry (the highlight ref, the lineup id, the file's extension data) have no
@@ -223,13 +224,10 @@ internal sealed class ExtensionReviewQueue : IExtensionReviewQueue
         return clip.Kind == ReviewClipKind.Section
             ? ReviewEntry.Section(clip.Title, clip.Note) with { Id = id }
             : ReviewEntry.Clip(clip.DemoPath, clip.FromTick, clip.ToTick, clip.Note, clip.Source, clip.TickRate,
-                clip.Sha256) with
-            {
-                Id = id,
-                Question = clip.Question,
-                TeamId = clip.TeamId,
-                Reviewed = clip.Reviewed
-            };
+                    clip.Sha256) with
+                {
+                    Id = id, Question = clip.Question, TeamId = clip.TeamId, Reviewed = clip.Reviewed
+                };
     }
 
     private void Raise()

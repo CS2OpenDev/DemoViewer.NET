@@ -92,7 +92,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // friend); without it they'd collapse and a breakpoint would track the wrong fire set. ONLY
     // contains edges with a backing StateEdge (trigger edges); logic/conjunction edges are absent,
     // which is how the menu gates them out. A backed-but-never-fired edge has an empty list.
-    private Dictionary<(string Source, string Dest, string Label, string? Condition), IReadOnlyList<int>> _appliedByEdgeKey = new();
+    private Dictionary<(string Source, string Dest, string Label, string? Condition), IReadOnlyList<int>>
+        _appliedByEdgeKey = new();
 
     // Referenceable identifiers for the editor's autocomplete (tracked node names + value/active),
     // built once per evaluation in RunAsync. The code-behind filters this by the token at the caret.
@@ -205,7 +206,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // (their Label isn't a registry event), so they stay default-only: that's the second gate
     // (SupportsCondition), independent of IsBreakpointable.
     private Dictionary<(string Source, string Dest, string Label, string? Condition),
-        (Type EventType, Type? ParameterType, IReadOnlyDictionary<string, EventFieldAccessor> Fields)> _eventMetaByEdgeKey = new();
+            (Type EventType, Type? ParameterType, IReadOnlyDictionary<string, EventFieldAccessor> Fields)>
+        _eventMetaByEdgeKey = new();
 
     private Dictionary<int, int>? _firstMessageByFrame; // frameIdx → first global msg idx
 
@@ -672,7 +674,9 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         _trackedNodesByColumn = [];
         _availableConditionIdentifiers = [];
         _appliedByEdgeKey = new Dictionary<(string, string, string, string?), IReadOnlyList<int>>();
-        _eventMetaByEdgeKey = new Dictionary<(string, string, string, string?), (Type, Type?, IReadOnlyDictionary<string, EventFieldAccessor>)>();
+        _eventMetaByEdgeKey =
+            new Dictionary<(string, string, string, string?), (Type, Type?,
+                IReadOnlyDictionary<string, EventFieldAccessor>)>();
         CloseConditionEditor();
         _firstMessageByFrame = null;
         _currentFrameIndex = -1;
@@ -802,7 +806,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             IReadOnlySet<string>? stale = path is not null && MergedRules() is { } planning
                 ? await Task.Run(() => planning.StaleOutputs(path), runToken)
                 : null;
-            (BuildResult build, RuleConfigLoadResult loadedRules, OpenRunPlan? plan) = BuildFromConfig(demo, visibility, path, clock, stale);
+            (BuildResult build, RuleConfigLoadResult loadedRules, OpenRunPlan? plan) =
+                BuildFromConfig(demo, visibility, path, clock, stale);
             if (MergedRules() is { } merged)
             {
                 merged.ReportExclusions(build);
@@ -827,12 +832,9 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             // Created on the UI thread so Progress<T>.Report marshals the per-frame eval progress
             // back here off the background evaluation thread (determinate progress bar).
             Progress<double> evalProgress = new(p => EvaluationProgress = p);
-            (AnalysisOptions evalOptions, CollectorObserver? observer) = (plan?.Collectors ?? CollectorSet.Empty).Declare(
-                new AnalysisOptions
-                {
-                    Progress = evalProgress,
-                    CancellationToken = runToken
-                });
+            (AnalysisOptions evalOptions, CollectorObserver? observer) =
+                (plan?.Collectors ?? CollectorSet.Empty).Declare(
+                    new AnalysisOptions { Progress = evalProgress, CancellationToken = runToken });
             AnalysisRun run = await Task.Run(() =>
             {
                 DecodeSites.Enter(8);
@@ -895,7 +897,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             // breakpoint uses. Only trigger-backed descriptors are present: that's the gate that
             // keeps logic/conjunction edges (no StateEdge) from arming a never-firing breakpoint.
             Dictionary<(string, string, string, string?), IReadOnlyList<int>> appliedByEdgeKey = new();
-            Dictionary<(string, string, string, string?), (Type, Type?, IReadOnlyDictionary<string, EventFieldAccessor>)> eventMetaByEdgeKey = new();
+            Dictionary<(string, string, string, string?), (Type, Type?, IReadOnlyDictionary<string, EventFieldAccessor>
+                )> eventMetaByEdgeKey = new();
             if (build.EdgeBacking is not null)
             {
                 EventRegistry registry = EventRegistry.Build(); // cheap reflection over the fixed event set
@@ -1309,7 +1312,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     }
 
     private static (BuildResult Build, RuleConfigLoadResult Rules, OpenRunPlan? Plan) BuildFromConfig(
-        ParsedDemo demo, VisibilityEngine? visibility, string? path, GameClockSource? clock, IReadOnlySet<string>? stale)
+        ParsedDemo demo, VisibilityEngine? visibility, string? path, GameClockSource? clock,
+        IReadOnlySet<string>? stale)
     {
         string shippedDir = RuleSetLocator.ResolveShippedRulesDirectory();
         // The user overlay needs a writable filesystem; the WASM host has none worth provisioning.
@@ -1322,11 +1326,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         // The builder double-gates on this: the enemy_spotted event is synthesized only when an
         // engine is present AND some ruleset subscribes to it, so handing it over unconditionally
         // costs nothing for the rulesets that never ask.
-        AnalysisOptions options = new()
-        {
-            VisibilityEngine = visibility,
-            EntityProviders = clock?.Providers()
-        };
+        AnalysisOptions options = new() { VisibilityEngine = visibility, EntityProviders = clock?.Providers() };
         // Stamped rulesets join the open run only when it can serve the open's visit; nothing else reads them.
         if (merged is null)
         {
@@ -1385,7 +1385,12 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         return MergedRules()?.Seed(parsed, path, seed.Plan, seed.Run, seed.Collected) ?? false;
     }
 
-    private sealed record OpenSeed(ParsedDemo Demo, string Path, OpenRunPlan Plan, AnalysisRun Run, CollectorResults? Collected);
+    private sealed record OpenSeed(
+        ParsedDemo Demo,
+        string Path,
+        OpenRunPlan Plan,
+        AnalysisRun Run,
+        CollectorResults? Collected);
 
     /// <summary>
     ///     Loads the baked collision geometry for this demo's map, off the UI thread.
@@ -1674,7 +1679,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         // "All players" (or a slot that materialized nothing) keeps the currently drawn player rather
         // than emptying the graph of every rule node: the graph can only ever show one, and showing
         // none would be the very defect this change exists to fix.
-        List<PerPlayerNodeTemplate.MaterializedPlayer> target = MaterializationsForSlot(result.MaterializedPlayers, slot);
+        List<PerPlayerNodeTemplate.MaterializedPlayer> target =
+            MaterializationsForSlot(result.MaterializedPlayers, slot);
         if (target.Count == 0)
         {
             return false;
@@ -1920,7 +1926,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         HashSet<StateNode> lifecycleNodes = new(lifecycleNodeList, ReferenceEqualityComparer.Instance);
 
         List<PlayerTableViewModel> tables = new();
-        IOrderedEnumerable<IGrouping<int, PerPlayerNodeTemplate.MaterializedPlayer>> byTemplate = result.MaterializedPlayers
+        IOrderedEnumerable<IGrouping<int, PerPlayerNodeTemplate.MaterializedPlayer>> byTemplate = result
+            .MaterializedPlayers
             .GroupBy(p => p.TemplateIndex)
             .OrderBy(g => g.Key);
 
@@ -1970,7 +1977,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                         cells.Add(new TableCellViewModel(snapshotIndexByNode.GetValueOrDefault(assignment.Node, -1)));
                     }
 
-                    rows.Add(new TableRowViewModel(player.PlayerName, player.PlayerSlot, $"slot == {player.PlayerSlot}", cells));
+                    rows.Add(new TableRowViewModel(player.PlayerName, player.PlayerSlot, $"slot == {player.PlayerSlot}",
+                        cells));
                 }
 
                 PlayerTableViewModel table = new(columnNames, rows, columnChainIds);
@@ -2315,7 +2323,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
     // The node editor hint: what `value` means for the node's kind, plus the input events it can
     // condition on (input.<event>.<field>) when it has any.
-    private static string NodeValueHint(string kind, IReadOnlyDictionary<string, NodeBreakpointConditions.InputEventInfo> inputs)
+    private static string NodeValueHint(string kind,
+        IReadOnlyDictionary<string, NodeBreakpointConditions.InputEventInfo> inputs)
     {
         string baseHint = ValueHintFor(kind);
         if (inputs.Count == 0)
@@ -2460,7 +2469,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         string? existingCondition)
     {
         _editProviderOptions = _perPlayerProviders.All
-            .Select(p => new EntityCheckRowViewModel.Choice(ProviderLabel(p.Name), p.Name, p.ValueType == typeof(string)))
+            .Select(p =>
+                new EntityCheckRowViewModel.Choice(ProviderLabel(p.Name), p.Name, p.ValueType == typeof(string)))
             .ToList();
 
         if (edgeMeta is { } edge)
@@ -2491,7 +2501,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
         _editSubjectOptions = BuildSubjectOptions(_editSlotFields);
         EditingScopeLegend = EditingRowsApplicable
-            ? "in scope:  " + string.Join("  ·  ", _editSubjectOptions.Select(o => o.Label)) + "      (entities read pre-frame)"
+            ? "in scope:  " + string.Join("  ·  ", _editSubjectOptions.Select(o => o.Label))
+                            + "      (entities read pre-frame)"
             : "";
     }
 
@@ -2570,7 +2581,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
     private EntityCheckRowViewModel NewRow(
         EntityCheckRowViewModel.Choice? subject, EntityCheckRowViewModel.Choice? provider, string? op, string value) =>
-        new(_editSubjectOptions, _editProviderOptions, RecomposeAndValidate, RemoveEntityRow, subject, provider, op, value);
+        new(_editSubjectOptions, _editProviderOptions, RecomposeAndValidate, RemoveEntityRow, subject, provider, op,
+            value);
 
     private EntityCheckRowViewModel NewRowFrom(EntityCheckRow row) =>
         NewRow(
@@ -3032,7 +3044,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         // fires against the positioned accessor; the slot is already baked into the compiled predicate.
         Delegate predicate = compiled.Predicate;
         return ([], new PendingEntityHit(bp, applied,
-            acc => EdgeBreakpointConditions.FilterAppliedWithEntities(applied, predicate, PayloadAt, acc ?? _noAccessor)));
+            acc => EdgeBreakpointConditions.FilterAppliedWithEntities(applied, predicate, PayloadAt,
+                acc ?? _noAccessor)));
     }
 
     // The decoded subject backing message index i: a game event yields the FIRE. Breakpoint
@@ -3081,7 +3094,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // their fire sets (same event type/fields).
     private Dictionary<string, NodeBreakpointConditions.InputEventInfo> NodeInputEventsByKey(string nodeKey)
     {
-        Dictionary<string, (Type Type, Type? ParameterType, IReadOnlyDictionary<string, EventFieldAccessor> Fields, List<int> Fires)> acc =
+        Dictionary<string, (Type Type, Type? ParameterType, IReadOnlyDictionary<string, EventFieldAccessor> Fields,
+            List<int> Fires)> acc =
             new(StringComparer.OrdinalIgnoreCase);
 
         foreach (GraphEdgeViewModel e in _allGraphEdges)
@@ -3093,12 +3107,14 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
             (string, string, string, string?) key = EdgeKey(e);
             if (!_eventMetaByEdgeKey.TryGetValue(key,
-                    out (Type EventType, Type? ParameterType, IReadOnlyDictionary<string, EventFieldAccessor> Fields) meta))
+                    out (Type EventType, Type? ParameterType, IReadOnlyDictionary<string, EventFieldAccessor> Fields)
+                    meta))
             {
                 continue;
             }
 
-            if (!acc.TryGetValue(e.Label, out (Type, Type?, IReadOnlyDictionary<string, EventFieldAccessor>, List<int>) entry))
+            if (!acc.TryGetValue(e.Label,
+                    out (Type, Type?, IReadOnlyDictionary<string, EventFieldAccessor>, List<int>) entry))
             {
                 entry = (meta.EventType, meta.ParameterType, meta.Fields, new List<int>());
                 acc[e.Label] = entry;
@@ -3503,10 +3519,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 // whether the column exists.
                 ColumnEdges = table.ColumnEdges
                     .Where(ce => remap.ContainsKey(ce.ColumnIndex) && includedNodes.Contains(ce.SourceNode))
-                    .Select(ce => ce with
-                    {
-                        ColumnIndex = remap[ce.ColumnIndex]
-                    })
+                    .Select(ce => ce with { ColumnIndex = remap[ce.ColumnIndex] })
                     .ToList()
             };
             result.Add(projected);

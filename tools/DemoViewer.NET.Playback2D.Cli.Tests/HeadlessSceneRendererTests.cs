@@ -31,10 +31,7 @@ public class HeadlessSceneRendererTests
 
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
-        using HeadlessSceneRenderer renderer = new(provider, compositor)
-        {
-            Camera = fixture.Camera
-        };
+        using HeadlessSceneRenderer renderer = new(provider, compositor) { Camera = fixture.Camera };
 
         SceneTime time = fixture.Time;
         byte[] whole = renderer.RenderPng(fixture.Frame, in time, size);
@@ -51,7 +48,9 @@ public class HeadlessSceneRendererTests
     [Test]
     public async Task Catalog_RejectsAnUnknownLayerId()
     {
-        await Assert.That(Throws.Capture<ArgumentException>(() => SceneLayerCatalog.CreateSceneStack(["not-a-layer"]).Dispose())).IsNotNull();
+        await Assert
+            .That(Throws.Capture<ArgumentException>(() =>
+                SceneLayerCatalog.CreateSceneStack(["not-a-layer"]).Dispose())).IsNotNull();
     }
 
     /// <summary>
@@ -62,7 +61,9 @@ public class HeadlessSceneRendererTests
     [Test]
     public async Task Catalog_RejectsAnUnknownExcludeId()
     {
-        await Assert.That(Throws.Capture<ArgumentException>(() => SceneLayerCatalog.CreateSceneStack(null, ["not-a-layer"]).Dispose())).IsNotNull();
+        await Assert
+            .That(Throws.Capture<ArgumentException>(() =>
+                SceneLayerCatalog.CreateSceneStack(null, ["not-a-layer"]).Dispose())).IsNotNull();
     }
 
     /// <summary>
@@ -120,10 +121,7 @@ public class HeadlessSceneRendererTests
             [SceneLayerIds.Markers, SceneLayerIds.HudClock, SceneLayerIds.Annotations]);
 
         await Assert.That(starved.Layers.Select(l => l.Id).ToArray())
-            .IsEquivalentTo(new[]
-            {
-                SceneLayerIds.Markers
-            }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new[] { SceneLayerIds.Markers }, CollectionOrdering.Matching);
     }
 
     [Test]

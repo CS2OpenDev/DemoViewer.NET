@@ -32,7 +32,8 @@ public class OutputLogBridgeTests
     [Test]
     public async Task DropsRecordsBelowMinLevel()
     {
-        (OutputLogBridge bridge, List<(LogLevel Level, string Category, string Message)> sink) = Build(() => LogLevel.Information, () => false);
+        (OutputLogBridge bridge, List<(LogLevel Level, string Category, string Message)> sink) =
+            Build(() => LogLevel.Information, () => false);
         ILogger logger = bridge.CreateLogger("Cs2VideoGenerator.Core.Session");
 
         await Assert.That(logger.IsEnabled(LogLevel.Debug)).IsFalse();
@@ -49,7 +50,8 @@ public class OutputLogBridgeTests
     public async Task FrameworkCategoriesGatedByFlag()
     {
         bool capture = false;
-        (OutputLogBridge bridge, List<(LogLevel Level, string Category, string Message)> sink) = Build(() => LogLevel.Trace, () => capture);
+        (OutputLogBridge bridge, List<(LogLevel Level, string Category, string Message)> sink) =
+            Build(() => LogLevel.Trace, () => capture);
         ILogger csvg = bridge.CreateLogger("Cs2VideoGenerator.Core.Session");
         ILogger aspnet = bridge.CreateLogger("Microsoft.AspNetCore.Hosting.Diagnostics");
         ILogger grpc = bridge.CreateLogger("Grpc.AspNetCore.Server.ServerCallHandler");
@@ -81,7 +83,8 @@ public class OutputLogBridgeTests
     [Test]
     public async Task NoneNeverEmits()
     {
-        (OutputLogBridge bridge, List<(LogLevel Level, string Category, string Message)> sink) = Build(() => LogLevel.Trace, () => true);
+        (OutputLogBridge bridge, List<(LogLevel Level, string Category, string Message)> sink) =
+            Build(() => LogLevel.Trace, () => true);
         ILogger logger = bridge.CreateLogger("Cs2VideoGenerator.Core.Session");
 
         await Assert.That(logger.IsEnabled(LogLevel.None)).IsFalse();
@@ -92,7 +95,8 @@ public class OutputLogBridgeTests
     [Test]
     public async Task SinkReceivesLevelCategoryMessage()
     {
-        (OutputLogBridge bridge, List<(LogLevel Level, string Category, string Message)> sink) = Build(() => LogLevel.Trace, () => false);
+        (OutputLogBridge bridge, List<(LogLevel Level, string Category, string Message)> sink) =
+            Build(() => LogLevel.Trace, () => false);
         ILogger logger = bridge.CreateLogger("Cs2VideoGenerator.Core.Session");
 
         Emit(logger, LogLevel.Warning, "hello");

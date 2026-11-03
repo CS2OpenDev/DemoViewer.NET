@@ -348,11 +348,7 @@ public sealed partial class FirstRunWizardViewModel : ViewModelBase
         }
 
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Add demo folder",
-                AllowMultiple = true
-            });
+            new FolderPickerOpenOptions { Title = "Add demo folder", AllowMultiple = true });
 
         foreach (string path in picked
                      .Select(f => f.TryGetLocalPath())

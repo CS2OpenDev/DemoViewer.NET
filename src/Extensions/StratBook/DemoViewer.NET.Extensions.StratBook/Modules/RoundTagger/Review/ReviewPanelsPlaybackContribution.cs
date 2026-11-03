@@ -32,8 +32,10 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 /// <param name="post">Marshals change notifications onto the UI thread; synchronous when omitted (tests).</param>
 /// <param name="identity">Resolves a demo's identity for the session's attach; <see cref="TagSession.IdentityForAsync" /> when omitted (tests).</param>
 /// <param name="library">The library a tag's round bounds come from; none when omitted (tests).</param>
-public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null,
-    Func<string, string?, Task<DemoIdentity?>>? identity = null, IExtensionLibrary? library = null) : Sdk.Playback.IPlaybackContribution, IDisposable
+public sealed class ReviewPanelsPlaybackContribution(
+    Action<Action>? post = null,
+    Func<string, string?, Task<DemoIdentity?>>? identity = null,
+    IExtensionLibrary? library = null) : Sdk.Playback.IPlaybackContribution, IDisposable
 {
     /// <summary>The Review mode toggle's id.</summary>
     public const string ReviewModeId = "stratbook.review";
@@ -132,7 +134,8 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
         _proposalTrack = new ProposalTrack { StepColour = ProposalStepColour };
 
         // Review mode starts as the user left it (off on a first run). The lanes and the panels follow it.
-        ModeToggle mode = new(ReviewModeId, "Review", "Review mode (Shift+R): label rounds and review the suggested labels",
+        ModeToggle mode = new(ReviewModeId, "Review",
+            "Review mode (Shift+R): label rounds and review the suggested labels",
             StratBookActions.ToggleReviewMode) { IsOn = _settings?.ReviewMode ?? false };
         ReviewMode = mode;
         _registrations.Add(surface.AddModeToggle(mode));
@@ -149,7 +152,8 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
         _tagTrack.CodeColour = code => palette.Palette.ColourOf(code);
         Palette = palette;
 
-        Queue = new SuggestionQueueViewModel(context.GetService<SuggestedTagsService>(), _proposalTrack, Seek, TickRate, _post,
+        Queue = new SuggestionQueueViewModel(context.GetService<SuggestedTagsService>(), _proposalTrack, Seek, TickRate,
+            _post,
             () => _settings?.SuggestedTagsBackground ?? false, SaveBackgroundSetting);
 
         PalettePanel = surface.AddPanel(PaletteOrder, () => palette,
@@ -327,8 +331,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     {
         ReviewPanelViewModel panel = new(_session!, Queue!, Palette!, Playhead, TickRate, Seek)
         {
-            IsSuggestedAvailable = SuggestionsOn,
-            IsLabelsAvailable = TaggerOn
+            IsSuggestedAvailable = SuggestionsOn, IsLabelsAvailable = TaggerOn
         };
         panel.PropertyChanged += OnReviewChanged;
         Review = panel;
@@ -488,7 +491,8 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
 
     private void OnPaletteChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(TagPaletteViewModel.IsFocused) && PalettePanel is { } panel && Palette is { } palette)
+        if (e.PropertyName == nameof(TagPaletteViewModel.IsFocused) && PalettePanel is { } panel
+                                                                    && Palette is { } palette)
         {
             panel.HasKeyboard = palette.IsFocused;
         }
@@ -819,7 +823,10 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
             : levels.FirstOrDefault(l => string.Equals(l.Name, name, StringComparison.Ordinal));
         return floor is null
             ? null
-            : new MapLevel { Id = MapSpace.IdForZMin(floor.ZMin), Name = floor.Name, ZMin = floor.ZMin, ZMax = floor.ZMax };
+            : new MapLevel
+            {
+                Id = MapSpace.IdForZMin(floor.ZMin), Name = floor.Name, ZMin = floor.ZMin, ZMax = floor.ZMax
+            };
     }
 
     // The first tick at or after a frame: a binary search over the context's tick-to-frame map.

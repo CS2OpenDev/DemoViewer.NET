@@ -39,19 +39,25 @@ public class StratAssignmentsExportTests
                                             - D → Stairs, watching T Ramp
 
                                           """.Replace("\r\n", "\n", StringComparison.Ordinal));
-        await Assert.That(sheet).Contains("- **1:30** B throws T Ramp → Bombsite A\n").Because("a plain step prints as before");
+        await Assert.That(sheet).Contains("- **1:30** B throws T Ramp → Bombsite A\n")
+            .Because("a plain step prints as before");
     }
 
     [Test]
     public async Task AHoldLine_ReadsAt_AndFiveLinesReadAll()
     {
         StratStep step = Step(1, 115, StratVocabulary.ActorAll, "hold");
-        step.Assignments = [.. StratVocabulary.Slots.Select(s => new StepAssignment { Slot = s, To = s == "A" ? Place("BombsiteA") : null })];
+        step.Assignments =
+        [
+            .. StratVocabulary.Slots.Select(s =>
+                new StepAssignment { Slot = s, To = s == "A" ? Place("BombsiteA") : null })
+        ];
 
         using (Assert.Multiple())
         {
             await Assert.That(StratStepPhrasing.Phrase(step, null)).IsEqualTo("All hold");
-            await Assert.That(StratStepPhrasing.PhraseLine(step.Assignments[0], "hold", null)).IsEqualTo("A at Bombsite A");
+            await Assert.That(StratStepPhrasing.PhraseLine(step.Assignments[0], "hold", null))
+                .IsEqualTo("A at Bombsite A");
             await Assert.That(StratStepPhrasing.PhraseLine(step.Assignments[1], "hold", null)).IsEqualTo("B");
         }
     }
@@ -71,7 +77,8 @@ public class StratAssignmentsExportTests
                 "own: B throws T Ramp → Bombsite A",
                 "own: B moves T Ramp → Palace Interior, watching Bombsite A, CT Spawn"
             ], CollectionOrdering.Matching);
-            await Assert.That(d.Lines.Select(Line)).IsEquivalentTo(["own: D moves T Ramp → Stairs, watching T Ramp"], CollectionOrdering.Matching);
+            await Assert.That(d.Lines.Select(Line)).IsEquivalentTo(["own: D moves T Ramp → Stairs, watching T Ramp"],
+                CollectionOrdering.Matching);
             await Assert.That(d.Lines.Single().Actor).IsEqualTo("D");
             await Assert.That(a.Lines).IsEmpty().Because("A has no line, and the step's actor 'all' is only a summary");
         }
@@ -106,7 +113,8 @@ public class StratAssignmentsExportTests
     {
         StratDocument document = WithLines();
         JsonNode before = StratHistory.ToNode(document);
-        JsonNode line = JsonSerializer.SerializeToNode(new StepAssignment { Slot = "E", To = Place("Jungle") }, StratJsonContext.Default.StepAssignment)!;
+        JsonNode line = JsonSerializer.SerializeToNode(new StepAssignment { Slot = "E", To = Place("Jungle") },
+            StratJsonContext.Default.StepAssignment)!;
 
         using (Assert.Multiple())
         {
@@ -114,21 +122,32 @@ public class StratAssignmentsExportTests
                 .IsEqualTo("B, C, D's move: E added → Jungle");
             await Assert.That(StratDiffPhrasing.Summary(before, [PatchOp.RemoveOp("/steps/2/assignments/1", null)]))
                 .IsEqualTo("B, C, D's move: C removed");
-            await Assert.That(StratDiffPhrasing.Summary(before, [PatchOp.AddOp("/steps/2/assignments/0/watch/places/2", JsonValue.Create("Jungle"))]))
+            await Assert.That(StratDiffPhrasing.Summary(before,
+                    [PatchOp.AddOp("/steps/2/assignments/0/watch/places/2", JsonValue.Create("Jungle"))]))
                 .IsEqualTo("B, C, D's move: B watching added: Jungle");
-            await Assert.That(StratDiffPhrasing.Summary(before, [PatchOp.RemoveOp("/steps/2/assignments/0/watch/places/1", null)]))
+            await Assert.That(StratDiffPhrasing.Summary(before,
+                    [PatchOp.RemoveOp("/steps/2/assignments/0/watch/places/1", null)]))
                 .IsEqualTo("B, C, D's move: B watching removed: CT Spawn");
             await Assert.That(StratDiffPhrasing.Summary(before,
-                    [PatchOp.ReplaceOp("/steps/2/assignments/2/watch/yawDegrees", JsonValue.Create(135), JsonValue.Create(90))]))
+                [
+                    PatchOp.ReplaceOp("/steps/2/assignments/2/watch/yawDegrees", JsonValue.Create(135),
+                        JsonValue.Create(90))
+                ]))
                 .IsEqualTo("B, C, D's move: D view angle set to 90°");
             await Assert.That(StratDiffPhrasing.Summary(before,
                     [PatchOp.RemoveOp("/steps/2/assignments/2/watch/yawDegrees", JsonValue.Create(135))]))
                 .IsEqualTo("B, C, D's move: D view angle cleared");
             await Assert.That(StratDiffPhrasing.Summary(before,
-                    [PatchOp.ReplaceOp("/steps/2/assignments/0/to/place", JsonValue.Create("PalaceInterior"), JsonValue.Create("Jungle"))]))
+                [
+                    PatchOp.ReplaceOp("/steps/2/assignments/0/to/place", JsonValue.Create("PalaceInterior"),
+                        JsonValue.Create("Jungle"))
+                ]))
                 .IsEqualTo("B, C, D's move: B to Palace Interior → Jungle");
             await Assert.That(StratDiffPhrasing.Summary(null,
-                    [PatchOp.AddOp("/steps/0", JsonSerializer.SerializeToNode(document.Steps[2], StratJsonContext.Default.StratStep))]))
+                [
+                    PatchOp.AddOp("/steps/0",
+                        JsonSerializer.SerializeToNode(document.Steps[2], StratJsonContext.Default.StratStep))
+                ]))
                 .IsEqualTo("step added: B, C, D move from T Ramp at 1:05");
         }
     }

@@ -87,21 +87,10 @@ public class NavStripTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            MainViewModel vm = new(library: TestLibraries.Empty())
-            {
-                HasFile = true
-            };
+            MainViewModel vm = new(library: TestLibraries.Empty()) { HasFile = true };
 
-            NavStrip strip = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1280,
-                Height = 48,
-                Content = strip
-            };
+            NavStrip strip = new() { DataContext = vm };
+            Window window = new() { Width = 1280, Height = 48, Content = strip };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();

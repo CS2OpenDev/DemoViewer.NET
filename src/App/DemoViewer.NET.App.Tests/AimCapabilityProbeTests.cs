@@ -232,12 +232,12 @@ public class AimCapabilityProbeTests
                 allGameEvents: [.. Shots(40), .. Sounds(50), .. Rounds(4, closed: true)],
                 profile: profile));
 
-        bool overclaims = report.DeclarationDrift.Any(
-            line => line.Contains("HasPlayerBlind", StringComparison.Ordinal)
-                    && line.Contains("never fires", StringComparison.Ordinal));
-        bool underclaims = report.DeclarationDrift.Any(
-            line => line.Contains("HasPlayerSound", StringComparison.Ordinal)
-                    && line.Contains("is not declared", StringComparison.Ordinal));
+        bool overclaims = report.DeclarationDrift.Any(line => line.Contains("HasPlayerBlind", StringComparison.Ordinal)
+                                                              && line.Contains("never fires",
+                                                                  StringComparison.Ordinal));
+        bool underclaims = report.DeclarationDrift.Any(line => line.Contains("HasPlayerSound", StringComparison.Ordinal)
+                                                               && line.Contains("is not declared",
+                                                                   StringComparison.Ordinal));
 
         using (Assert.Multiple())
         {
@@ -251,12 +251,11 @@ public class AimCapabilityProbeTests
     [Test]
     public async Task Probe_WithANullDemo_Throws()
     {
-        ArgumentNullException? thrown = await Assert.ThrowsAsync<ArgumentNullException>(
-            () =>
-            {
-                AimCapabilityProbe.Scan(null!);
-                return Task.CompletedTask;
-            });
+        ArgumentNullException? thrown = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+        {
+            AimCapabilityProbe.Scan(null!);
+            return Task.CompletedTask;
+        });
 
         await Assert.That(thrown).IsNotNull();
     }
@@ -269,13 +268,7 @@ public class AimCapabilityProbeTests
         {
             yield return new GameEvent(
                 "weapon_fire", -1, i, i, i,
-                new WeaponFireEvent
-                {
-                    UserId = i % 10,
-                    UserIdPawn = 0,
-                    Weapon = "ak47",
-                    Silenced = false
-                });
+                new WeaponFireEvent { UserId = i % 10, UserIdPawn = 0, Weapon = "ak47", Silenced = false });
         }
     }
 
@@ -335,6 +328,7 @@ public class AimCapabilityProbeTests
         for (int i = 0; i < count; i++)
         {
             yield return TestGameEvents.RoundFreezeEnd(frameNumber: i * 100, serverTick: i * 100, gameTick: i * 100);
+
             if (closed)
             {
                 yield return TestGameEvents.RoundOfficiallyEnded(

@@ -29,22 +29,32 @@ public static partial class Variants
         PaneContext ctx = new();
         CreateStratPlaybackContribution contribution = new();
         StratBookPack pack = new();
-        PlaybackContributionHost host = new([(pack, [new SdkPlaybackContribution(contribution, ExtensionGuard.Standalone(pack))])], null);
+        PlaybackContributionHost host =
+            new([(pack, [new SdkPlaybackContribution(contribution, ExtensionGuard.Standalone(pack))])], null);
         Playback2DTabViewModel vm = new() { Contributions = host };
         vm.OnActivated(ctx);
 
         // Ours are slots 0 to 4 (T), theirs 5 to 9 (CT); a smoke from slot 1 at 12 s after it moved up.
         static CapturedPawn Pawn(int slot, float x, float y) =>
-            new(slot, slot < 5 ? 2 : 3, (ulong)(100 + slot), _paneNames[slot], x, y, 0, 90, slot < 5 ? "TSpawn" : "CTSpawn");
-        List<CapturedPawn> spawn = [.. Enumerable.Range(0, 10).Select(s => Pawn(s, s < 5 ? -1200 + s * 80 : 1400 + (s - 5) * 80, s < 5 ? -1900 : 2200))];
-        List<CapturedPawn> moved = [.. spawn.Select(p => p.PlayerSlot == 1 ? p with { X = -900, Y = -1500, Place = "OutsideLong" } : p)];
+            new(slot, slot < 5 ? 2 : 3, (ulong)(100 + slot), _paneNames[slot], x, y, 0, 90,
+                slot < 5 ? "TSpawn" : "CTSpawn");
+
+        List<CapturedPawn> spawn =
+        [
+            .. Enumerable.Range(0, 10)
+                .Select(s => Pawn(s, s < 5 ? -1200 + s * 80 : 1400 + (s - 5) * 80, s < 5 ? -1900 : 2200))
+        ];
+        List<CapturedPawn> moved =
+            [.. spawn.Select(p => p.PlayerSlot == 1 ? p with { X = -900, Y = -1500, Place = "OutsideLong" } : p)];
         RoundCapture capture = new(7, freeze, freeze + 100 * rate, rate,
         [
             new CaptureMoment(freeze, CaptureTrigger.FreezeEnd, spawn),
-            new CaptureMoment(freeze + 12 * rate, CaptureTrigger.Utility, moved, "smoke", 1, 2, new Vector3(-400, 1200, 0)),
+            new CaptureMoment(freeze + 12 * rate, CaptureTrigger.Utility, moved, "smoke", 1, 2,
+                new Vector3(-400, 1200, 0)),
             new CaptureMoment(freeze + 40 * rate, CaptureTrigger.Plant, moved, null, 3, 2)
         ]);
-        StratCaptureRequest request = new("de_dust2", 7, freeze, freeze + 120 * rate, "ab", "match730_capture_dust2.dem", null,
+        StratCaptureRequest request = new("de_dust2", 7, freeze, freeze + 120 * rate, "ab",
+            "match730_capture_dust2.dem", null,
             ["100", "101", "102"], StratOwner.Me(), "me", StratOwner.MeKind, StratFromRound.QuantizedLevel);
 
         contribution.OpenWith(request, (_, _) => capture, new StratCaptureHost(() => null, new StratStore(null), null));
@@ -78,8 +88,10 @@ public static partial class Variants
         public int FirstTick => 1;
         public int LastTick => 180_000;
         public IReadOnlyEntityView Entities { get; } = new NoEntities();
+
         public IReadOnlyList<PlayerRosterEntry> Players { get; } =
             [.. _paneNames.Select((n, i) => new PlayerRosterEntry { Slot = i, Name = n, SteamId = (ulong)(100 + i) })];
+
         public IReadOnlyList<IPlayerState> CurrentPlayers => [];
         public IReadOnlyCollection<string> AvailableEventNames => ["round_freeze_end"];
         public double CurtimeSeconds(int tick) => tick / 64.0;

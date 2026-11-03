@@ -55,7 +55,8 @@ internal sealed class HostStatusChip : IShellChip
     /// <param name="featureId">The feature the chip shows under, stamped by the collector.</param>
     /// <param name="guard">The owning extension's guard.</param>
     /// <param name="toUiThread">Runs the re-read on the UI thread.</param>
-    public HostStatusChip(StatusChipContribution contribution, string featureId, ExtensionGuard guard, Action<Action> toUiThread)
+    public HostStatusChip(StatusChipContribution contribution, string featureId, ExtensionGuard guard,
+        Action<Action> toUiThread)
     {
         ArgumentNullException.ThrowIfNull(contribution);
         ArgumentNullException.ThrowIfNull(guard);
@@ -156,12 +157,14 @@ internal sealed class HostStatusChip : IShellChip
         {
             this.inner = inner;
             this.guard = guard;
-            guard.Run("status chip command", () => inner.CanExecuteChanged += (_, e) => CanExecuteChanged?.Invoke(this, e));
+            guard.Run("status chip command",
+                () => inner.CanExecuteChanged += (_, e) => CanExecuteChanged?.Invoke(this, e));
         }
 
         public event EventHandler? CanExecuteChanged;
 
-        public bool CanExecute(object? parameter) => guard.Run("status chip command", () => inner.CanExecute(parameter), false);
+        public bool CanExecute(object? parameter) =>
+            guard.Run("status chip command", () => inner.CanExecute(parameter), false);
 
         public void Execute(object? parameter) => guard.Run("status chip command", () => inner.Execute(parameter));
     }

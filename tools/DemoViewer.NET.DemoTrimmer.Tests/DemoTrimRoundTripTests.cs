@@ -125,10 +125,7 @@ public sealed class DemoTrimRoundTripTests
         try
         {
             long previous = long.MaxValue;
-            foreach (TrimVariant variant in new[]
-                     {
-                         TrimVariant.V1, TrimVariant.V2, TrimVariant.V3
-                     })
+            foreach (TrimVariant variant in new[] { TrimVariant.V1, TrimVariant.V2, TrimVariant.V3 })
             {
                 TrimWindow window = WindowSelector.Select(demo, Rounds, variant.EnterAtCheckpoint);
                 TrimResult result = DemoTrimWriter.Write(

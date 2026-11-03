@@ -75,14 +75,17 @@ public sealed partial class HistorySectionViewModel : PlayerOverviewSection
                 state = reading ? HistoryStats.Loading : HistoryStats.Unread;
             }
 
-            rows.Add(new HistoryRowItem(demo.Match, player.SteamId64, state, demo.Stats, context.Ranks?.For(demo.Match.Row)));
+            rows.Add(new HistoryRowItem(demo.Match, player.SteamId64, state, demo.Stats,
+                context.Ranks?.For(demo.Match.Row)));
         }
 
         Rows = rows;
         int all = context.Matches.Count;
         CountText = rows.Count != all
             ? string.Create(CultureInfo.InvariantCulture, $"{rows.Count} of {all} matches")
-            : all == 1 ? "1 match" : string.Create(CultureInfo.InvariantCulture, $"{all} matches");
+            : all == 1
+                ? "1 match"
+                : string.Create(CultureInfo.InvariantCulture, $"{all} matches");
         IsVisible = true;
     }
 
@@ -148,7 +151,8 @@ public sealed partial class HistoryRowItem : ObservableObject
     /// <param name="stats">What the stat cells can show.</param>
     /// <param name="values">The subject's merged facet row when <paramref name="stats" /> is <see cref="HistoryStats.Ready" />.</param>
     /// <param name="rank">The subject's rank row in the demo, when the demo carries one and it is read.</param>
-    public HistoryRowItem(PlayerMatch match, ulong steamId64, HistoryStats stats, IReadOnlyDictionary<string, double>? values,
+    public HistoryRowItem(PlayerMatch match, ulong steamId64, HistoryStats stats,
+        IReadOnlyDictionary<string, double>? values,
         MatchRankRow? rank = null)
     {
         Match = match ?? throw new ArgumentNullException(nameof(match));
@@ -157,7 +161,8 @@ public sealed partial class HistoryRowItem : ObservableObject
         DemoCacheIndexEntry row = match.Row;
 
         DateText = DateOf(match);
-        IsApproximateTime = row.MatchTimeSource is not (MatchTimeSource.UserOverride or MatchTimeSource.ValveMatchInfo or MatchTimeSource.ExternalMetadata);
+        IsApproximateTime = row.MatchTimeSource is not (MatchTimeSource.UserOverride or MatchTimeSource.ValveMatchInfo
+            or MatchTimeSource.ExternalMetadata);
         TimeChip = IsApproximateTime ? "approx" : "exact";
         TimeTip = row.MatchTimeSource switch
         {
@@ -193,7 +198,10 @@ public sealed partial class HistoryRowItem : ObservableObject
         int lost = Whole(values.GetValueOrDefault("CTL") + values.GetValueOrDefault("TL"));
         ScoreText = won + lost == 0 ? None : string.Create(CultureInfo.InvariantCulture, $"{won}-{lost}");
         Outcome = PlayerAggregate.OutcomeOf(values);
-        ResultText = Outcome switch { MatchOutcome.Win => "W", MatchOutcome.Loss => "L", MatchOutcome.Tie => "T", _ => None };
+        ResultText = Outcome switch
+        {
+            MatchOutcome.Win => "W", MatchOutcome.Loss => "L", MatchOutcome.Tie => "T", _ => None
+        };
         KdaText = string.Create(CultureInfo.InvariantCulture,
             $"{Whole(values.GetValueOrDefault("TotalK"))}-{Whole(values.GetValueOrDefault("TotalD"))}-{Whole(values.GetValueOrDefault("TotalA"))}");
         IReadOnlyDictionary<string, double>[] one = [values];
@@ -316,7 +324,7 @@ public sealed partial class HistoryRowItem : ObservableObject
         };
     }
 
-    private static int Whole(double value) => (int) Math.Round(value);
+    private static int Whole(double value) => (int)Math.Round(value);
 
     private static string Format(double? value, string format) =>
         value is { } v ? v.ToString(format, CultureInfo.InvariantCulture) : None;

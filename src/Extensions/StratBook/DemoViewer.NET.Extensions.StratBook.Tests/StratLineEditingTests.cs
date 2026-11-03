@@ -57,7 +57,8 @@ public class StratLineEditingTests
             {
                 await Assert.That(two.Actor).IsEqualTo(StratVocabulary.ActorAll);
                 await Assert.That(two.To).IsNull();
-                await Assert.That(two.Assignments!.Select(l => l.Slot + ">" + l.To?.Place)).IsEquivalentTo(["A>BombsiteA", "B>"], CollectionOrdering.Matching);
+                await Assert.That(two.Assignments!.Select(l => l.Slot + ">" + l.To?.Place))
+                    .IsEquivalentTo(["A>BombsiteA", "B>"], CollectionOrdering.Matching);
                 await Assert.That(vm.Editor.Steps[step].CanEditActor).IsFalse();
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 2);
             }
@@ -91,20 +92,27 @@ public class StratLineEditingTests
             string plain = Shape(Doc(vm, step));
 
             StratLineRow line = vm.Editor.Steps[step].Lines.Single();
-            line.WatchValue = [new PlaceRef { Place = "BombsiteA" }, new PlaceRef { Place = "CTSpawn" }, new PlaceRef { Place = "Nowhere" }];
+            line.WatchValue =
+            [
+                new PlaceRef { Place = "BombsiteA" }, new PlaceRef { Place = "CTSpawn" },
+                new PlaceRef { Place = "Nowhere" }
+            ];
             StratStep watching = Doc(vm, step);
             using (Assert.Multiple())
             {
                 await Assert.That(watching.Actor).IsEqualTo("B");
                 await Assert.That(watching.To).IsNull().Because("the place moves into the line");
                 await Assert.That(watching.Assignments!.Single().To!.Place).IsEqualTo("BombsiteA");
-                await Assert.That(watching.Assignments!.Single().Watch!.Places).IsEquivalentTo(["BombsiteA", "CTSpawn", "Nowhere"], CollectionOrdering.Matching);
-                await Assert.That(vm.Editor.Steps[step].Lines.Single().WatchText).IsEqualTo("Bombsite A, CT Spawn, Nowhere");
+                await Assert.That(watching.Assignments!.Single().Watch!.Places)
+                    .IsEquivalentTo(["BombsiteA", "CTSpawn", "Nowhere"], CollectionOrdering.Matching);
+                await Assert.That(vm.Editor.Steps[step].Lines.Single().WatchText)
+                    .IsEqualTo("Bombsite A, CT Spawn, Nowhere");
                 await Assert.That(vm.Editor.Steps[step].Lines.Single().IsExplicit).IsTrue();
             }
 
             vm.Editor.Steps[step].Lines.Single().WatchValue = [];
-            await Assert.That(Shape(Doc(vm, step))).IsEqualTo(plain).Because("one player, no watch: the plain shape again");
+            await Assert.That(Shape(Doc(vm, step))).IsEqualTo(plain)
+                .Because("one player, no watch: the plain shape again");
         });
     }
 
@@ -125,7 +133,8 @@ public class StratLineEditingTests
             vm.Editor.Steps[step].Lines[1].Slot = "C";
             vm.Editor.Steps[step].Lines[1].Slot = "D";
             await Assert.That(Doc(vm, step).Assignments![1].Slot).IsEqualTo("D");
-            await Assert.That(vm.Editor.Steps[step].Lines[1].SlotOptions).Contains("A").Because("A has a line, and picking it swaps the two");
+            await Assert.That(vm.Editor.Steps[step].Lines[1].SlotOptions).Contains("A")
+                .Because("A has a line, and picking it swaps the two");
             vm.Editor.ChangeLineSlot(step, 1, "A");
             await Assert.That(Doc(vm, step).Assignments!.Select(l => l.Slot + ">" + l.To?.Place))
                 .IsEquivalentTo(["B>BombsiteA", "A>Connector"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
@@ -133,7 +142,8 @@ public class StratLineEditingTests
             using (Assert.Multiple())
             {
                 await Assert.That(Shape(Doc(vm, step))).IsEqualTo(before);
-                await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth).Because("the burst came back to where it began");
+                await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth)
+                    .Because("the burst came back to where it began");
             }
 
             vm.Editor.EndEditBurst();
@@ -186,8 +196,10 @@ public class StratLineEditingTests
             document.Steps[1].To = null;
             document.Steps[1].Assignments = [new StepAssignment { Slot = "A" }, new StepAssignment { Slot = "C" }];
             (StratStore _, StratSession session) = Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
-                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()), post: a => a());
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped,
+                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()),
+                post: a => a());
             canvas.LinesShownApart = _ => true;
             canvas.SelectStep(document.Steps[1].Id);
 
@@ -200,7 +212,8 @@ public class StratLineEditingTests
             StratStep written = session.Document!.Steps[1];
             using (Assert.Multiple())
             {
-                await Assert.That(written.Assignments!.Select(l => l.Slot + ">" + l.To?.Place)).IsEquivalentTo(["A>", "C>Ramp"], CollectionOrdering.Matching);
+                await Assert.That(written.Assignments!.Select(l => l.Slot + ">" + l.To?.Place))
+                    .IsEquivalentTo(["A>", "C>Ramp"], CollectionOrdering.Matching);
                 await Assert.That(written.To).IsNull();
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
             }
@@ -215,7 +228,8 @@ public class StratLineEditingTests
             StratDocument document = FiveSteps();
             document.Steps[0].Verb = "hold";
             (StratStore _, StratSession session) = Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped, post: a => a());
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped, post: a => a());
             canvas.SelectStep(document.Steps[0].Id);
 
             // B at (100, 0) facing 0: well inside its cone, off its stub, is a turn; the disc is a move.
@@ -237,7 +251,8 @@ public class StratLineEditingTests
                 await Assert.That(step.Assignments).IsNotNull().Because("a step for all expands to a line per slot");
                 await Assert.That(step.Assignments!.Count).IsEqualTo(5);
                 await Assert.That(step.Assignments!.Single(l => l.Slot == "B").Watch!.YawDegrees).IsEqualTo(90);
-                await Assert.That(step.Assignments!.Where(l => l.Slot != "B").All(l => l.To?.Place == "BombsiteA")).IsTrue();
+                await Assert.That(step.Assignments!.Where(l => l.Slot != "B").All(l => l.To?.Place == "BombsiteA"))
+                    .IsTrue();
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
             }
 
@@ -292,7 +307,8 @@ public class StratLineEditingTests
             StratDocument document = FiveSteps();
             document.Steps[0].Actor = "B";
             document.Steps[0].To = null;
-            document.Steps[0].Assignments = [new StepAssignment { Slot = "B", Watch = new StepWatch { Places = ["Ramp"] } }];
+            document.Steps[0].Assignments =
+                [new StepAssignment { Slot = "B", Watch = new StepWatch { Places = ["Ramp"] } }];
             (StratStore _, StratSession session) = Opened(document);
             StratEditorViewModel editor = new(session, placeCentres: (place, _) => place == "Ramp" ? (100, 100) : null);
             editor.Project();

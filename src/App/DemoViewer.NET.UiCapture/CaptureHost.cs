@@ -59,10 +59,7 @@ public static class CaptureHost
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<App>()
             .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions
-            {
-                UseHeadlessDrawing = false
-            })
+            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
             .WithInterFont();
 
     /// <summary>
@@ -174,11 +171,7 @@ public static class CaptureHost
     {
         static Control Column(string label, Control body, double w, double h)
         {
-            StackPanel stack = new()
-            {
-                Spacing = 6,
-                Margin = new Thickness(10)
-            };
+            StackPanel stack = new() { Spacing = 6, Margin = new Thickness(10) };
             stack.Children.Add(new TextBlock
             {
                 Text = label,
@@ -197,10 +190,7 @@ public static class CaptureHost
             return stack;
         }
 
-        Grid grid = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,*")
-        };
+        Grid grid = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto,*") };
         Control colA = Column(labelA, a, half.Width, half.Height);
         Control colB = Column(labelB, b, half.Width, half.Height);
         Border divider = new()
@@ -220,12 +210,7 @@ public static class CaptureHost
 
     private static void Render(Control content, Size size, string outPng, ThemeVariant? theme = null)
     {
-        Window window = new()
-        {
-            Width = size.Width,
-            Height = size.Height,
-            Content = content
-        };
+        Window window = new() { Width = size.Width, Height = size.Height, Content = content };
         if (theme is not null)
         {
             window.RequestedThemeVariant = theme; // drives ThemeDictionaries + DynamicResource resolution

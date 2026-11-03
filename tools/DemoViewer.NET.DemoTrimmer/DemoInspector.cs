@@ -16,7 +16,10 @@ internal static class DemoInspector
 {
     /// <summary>Round-lifecycle events worth listing before picking a cut point.</summary>
     private static readonly string[] RoundEventNames =
-        ["begin_new_match", "round_announce_match_start", "round_start", "round_freeze_end", "round_end", "round_officially_ended"];
+    [
+        "begin_new_match", "round_announce_match_start", "round_start", "round_freeze_end", "round_end",
+        "round_officially_ended"
+    ];
 
     public static void Inspect(ParsedDemo demo, byte[] raw, string path, int listBoundaries)
     {

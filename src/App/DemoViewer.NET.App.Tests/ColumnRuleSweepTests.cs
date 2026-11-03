@@ -22,9 +22,14 @@ public class ColumnRuleSweepTests
 
     private static IReadOnlyList<string> ShippedFacetColumns()
     {
-        RulesetDoc doc = new MergedRulesBuild(() => YamlConfigLoader.LoadWithOverlay(Shipped, null)).EnabledDoc(PlayerMatchFacet.RulesetId)
-                         ?? throw new InvalidOperationException("rules/ ships no player_match");
-        return [.. doc.Show!.Tables.Single(t => t.Name == PlayerMatchFacet.Table).Columns.Select(c => c.Label ?? c.Stat)];
+        RulesetDoc doc =
+            new MergedRulesBuild(() => YamlConfigLoader.LoadWithOverlay(Shipped, null)).EnabledDoc(PlayerMatchFacet
+                .RulesetId)
+            ?? throw new InvalidOperationException("rules/ ships no player_match");
+        return
+        [
+            .. doc.Show!.Tables.Single(t => t.Name == PlayerMatchFacet.Table).Columns.Select(c => c.Label ?? c.Stat)
+        ];
     }
 
     private static Dictionary<string, double> Row(params (string Column, double Value)[] cells) =>
@@ -53,8 +58,10 @@ public class ColumnRuleSweepTests
         {
             await Assert.That(sight.Count).IsEqualTo(17);
             await Assert.That(ColumnRules.For("Spot")).IsTypeOf<ColumnRule.NotAggregable>();
-            await Assert.That(sight.Where(m => m.Key != "Spot" && ColumnRules.For(m.Key) is ColumnRule.NotAggregable)).IsEmpty();
-            await Assert.That(sight.Where(m => m.Key != "Spot").SelectMany(m => ColumnRules.For(m.Key)!.Inputs).Except(facet)).IsEmpty();
+            await Assert.That(sight.Where(m => m.Key != "Spot" && ColumnRules.For(m.Key) is ColumnRule.NotAggregable))
+                .IsEmpty();
+            await Assert.That(sight.Where(m => m.Key != "Spot").SelectMany(m => ColumnRules.For(m.Key)!.Inputs)
+                .Except(facet)).IsEmpty();
             await Assert.That(facet).Contains(ColumnCatalogue.VisibilityAnchorColumn)
                 .Because("the contact count is what tells a facet with sight from one without");
         }
@@ -83,7 +90,8 @@ public class ColumnRuleSweepTests
         using (Assert.Multiple())
         {
             await Assert.That(facet.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(facet.Count);
-            await Assert.That(facet.Order(StringComparer.Ordinal)).IsEquivalentTo(ColumnRules.FacetColumns.Order(StringComparer.Ordinal), CollectionOrdering.Matching);
+            await Assert.That(facet.Order(StringComparer.Ordinal))
+                .IsEquivalentTo(ColumnRules.FacetColumns.Order(StringComparer.Ordinal), CollectionOrdering.Matching);
             await Assert.That(facet).Contains(ColumnRules.Rounds);
         }
     }
@@ -92,20 +100,26 @@ public class ColumnRuleSweepTests
     public async Task ARate_PoolsFromItsSummedComponents_NeverFromTheMeanOfRates()
     {
         // ADR 100 over 10 rounds and 50 over 30: the mean of rates is 75, the pool 2500 / 40.
-        Dictionary<string, double> shortGame = Row(("EnemyDmg", 1000), ("rounds", 10), ("HLTV", 1.5), ("TotalFK", 3), ("TotalFD", 1));
-        Dictionary<string, double> longGame = Row(("EnemyDmg", 1500), ("rounds", 30), ("HLTV", 0.9), ("TotalFK", 0), ("TotalFD", 4));
+        Dictionary<string, double> shortGame = Row(("EnemyDmg", 1000), ("rounds", 10), ("HLTV", 1.5), ("TotalFK", 3),
+            ("TotalFD", 1));
+        Dictionary<string, double> longGame = Row(("EnemyDmg", 1500), ("rounds", 30), ("HLTV", 0.9), ("TotalFK", 0),
+            ("TotalFD", 4));
 
         using (Assert.Multiple())
         {
             await Assert.That(ColumnRules.For("ADR")!.Pool([shortGame, longGame])).IsEqualTo(2500.0 / 40);
-            await Assert.That(ColumnRules.For("ADR")!.Pool([shortGame])).IsEqualTo(100.0).Because("one demo pools to its own value");
-            await Assert.That(Math.Abs(ColumnRules.For("HLTV")!.Pool([shortGame, longGame])!.Value - (((1.5 * 10) + (0.9 * 30)) / 40))).IsLessThan(1e-12)
+            await Assert.That(ColumnRules.For("ADR")!.Pool([shortGame])).IsEqualTo(100.0)
+                .Because("one demo pools to its own value");
+            await Assert
+                .That(Math.Abs(ColumnRules.For("HLTV")!.Pool([shortGame, longGame])!.Value
+                               - (((1.5 * 10) + (0.9 * 30)) / 40))).IsLessThan(1e-12)
                 .Because("HLTV pools as the rounds-weighted mean");
             await Assert.That(ColumnRules.For("FK±")!.Pool([shortGame, longGame])).IsEqualTo(-2.0);
             await Assert.That(ColumnRules.For("Duel%")!.Pool([shortGame, longGame])).IsEqualTo(3.0 / 8 * 100);
             await Assert.That(ColumnRules.For("Duel%")!.Pool([Row(("TotalFK", 0), ("TotalFD", 0))])).IsEqualTo(0.0)
                 .Because("the engine reads a rate over nothing as 0");
-            await Assert.That(ColumnRules.For("TotalK")!.Pool([shortGame, longGame])).IsEqualTo(0.0).Because("a missing cell reads as zero");
+            await Assert.That(ColumnRules.For("TotalK")!.Pool([shortGame, longGame])).IsEqualTo(0.0)
+                .Because("a missing cell reads as zero");
             await Assert.That(ColumnRules.For("Kills")!.Pool([shortGame])).IsNull();
         }
     }

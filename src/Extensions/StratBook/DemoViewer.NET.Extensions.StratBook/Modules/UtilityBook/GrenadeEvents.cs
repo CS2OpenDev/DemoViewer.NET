@@ -87,7 +87,8 @@ public sealed class GrenadeEventIndex
     ///     then in distance from <paramref name="lastPosition" />. The event names no thrower, so this is the
     ///     only way to tie a fire to its grenade.
     /// </summary>
-    public GrenadeDetonation? NearestInferno(int lastTick, int endTick, Vector3? lastPosition, IReadOnlySet<GrenadeDetonation> claimed)
+    public GrenadeDetonation? NearestInferno(int lastTick, int endTick, Vector3? lastPosition,
+        IReadOnlySet<GrenadeDetonation> claimed)
     {
         if (!_detonations.TryGetValue(InfernoStart, out List<GrenadeDetonation>? list))
         {

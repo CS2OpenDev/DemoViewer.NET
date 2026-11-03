@@ -25,8 +25,15 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 /// <param name="Place">The resolved place, or null when nothing was near enough.</param>
 /// <param name="ThrowerSteamId">The thrower's SteamID64 from the demo's player list, or 0.</param>
 /// <param name="ThrowerName">The thrower's name, or null.</param>
-public sealed record PlacedEvent(int Tick, string Kind, int ThrowerSlot, int Side, Vector3 Position, string? Place,
-    ulong ThrowerSteamId = 0, string? ThrowerName = null);
+public sealed record PlacedEvent(
+    int Tick,
+    string Kind,
+    int ThrowerSlot,
+    int Side,
+    Vector3 Position,
+    string? Place,
+    ulong ThrowerSteamId = 0,
+    string? ThrowerName = null);
 
 /// <summary>Reads the detonations out of a held parse.</summary>
 public static class DetonationEvents
@@ -57,14 +64,19 @@ public static class DetonationEvents
         {
             PlacedEvent? placed = fire.Payload switch
             {
-                SmokeGrenadeDetonateEvent e => new PlacedEvent(fire.GameTick, Smoke, e.UserId, 0, new Vector3(e.X, e.Y, e.Z), null),
-                FlashbangDetonateEvent e => new PlacedEvent(fire.GameTick, Flash, e.UserId, 0, new Vector3(e.X, e.Y, e.Z), null),
-                HegrenadeDetonateEvent e => new PlacedEvent(fire.GameTick, He, e.UserId, 0, new Vector3(e.X, e.Y, e.Z), null),
+                SmokeGrenadeDetonateEvent e => new PlacedEvent(fire.GameTick, Smoke, e.UserId, 0,
+                    new Vector3(e.X, e.Y, e.Z), null),
+                FlashbangDetonateEvent e => new PlacedEvent(fire.GameTick, Flash, e.UserId, 0,
+                    new Vector3(e.X, e.Y, e.Z), null),
+                HegrenadeDetonateEvent e => new PlacedEvent(fire.GameTick, He, e.UserId, 0, new Vector3(e.X, e.Y, e.Z),
+                    null),
                 InfernoStartburnEvent e => new PlacedEvent(fire.GameTick, Inferno,
-                    ThrowerSlotNear(projectiles, GrenadeProjectileClasses.Molotov, fire.GameTick, new Vector3(e.X, e.Y, e.Z)),
+                    ThrowerSlotNear(projectiles, GrenadeProjectileClasses.Molotov, fire.GameTick,
+                        new Vector3(e.X, e.Y, e.Z)),
                     0, new Vector3(e.X, e.Y, e.Z), null),
                 DecoyStartedEvent e => new PlacedEvent(fire.GameTick, Decoy,
-                    ThrowerSlotNear(projectiles, GrenadeProjectileClasses.Decoy, fire.GameTick, new Vector3(e.X, e.Y, e.Z)),
+                    ThrowerSlotNear(projectiles, GrenadeProjectileClasses.Decoy, fire.GameTick,
+                        new Vector3(e.X, e.Y, e.Z)),
                     0, new Vector3(e.X, e.Y, e.Z), null),
                 _ => null
             };
@@ -87,8 +99,10 @@ public static class DetonationEvents
     }
 
     // -1 with no projectiles offered or no match near the detonation; ProjectileThrowerMatch does the rest.
-    private static int ThrowerSlotNear(IReadOnlyList<RemovedProjectile>? projectiles, string className, int tick, Vector3 position) =>
-        projectiles is not null && ProjectileThrowerMatch.Nearest(projectiles, className, tick, position) is { ThrowerSlot: >= 0 } sample
+    private static int ThrowerSlotNear(IReadOnlyList<RemovedProjectile>? projectiles, string className, int tick,
+        Vector3 position) =>
+        projectiles is not null && ProjectileThrowerMatch.Nearest(projectiles, className, tick, position) is
+            { ThrowerSlot: >= 0 } sample
             ? sample.ThrowerSlot
             : -1;
 }
@@ -194,7 +208,8 @@ public sealed class DetonationPlaceResolver
     /// <param name="zones">The map's zone resolver, or null when the map has none.</param>
     /// <param name="places">The index's place summaries for the map, or null when nothing is indexed.</param>
     /// <param name="cloud">The sample cloud, or null when there are no positions to build one from.</param>
-    public DetonationPlaceResolver(IZonePlaceResolver? zones, IReadOnlyList<PlaceSummary>? places, DetonationCloud? cloud)
+    public DetonationPlaceResolver(IZonePlaceResolver? zones, IReadOnlyList<PlaceSummary>? places,
+        DetonationCloud? cloud)
     {
         _zones = zones;
         _places = places is { Count: > 0 } ? places : null;

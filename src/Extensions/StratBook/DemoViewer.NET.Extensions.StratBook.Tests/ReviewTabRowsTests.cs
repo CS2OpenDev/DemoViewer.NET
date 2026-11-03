@@ -41,7 +41,10 @@ public class ReviewTabRowsTests
         {
             await Assert.That(rows.ToList()).IsEquivalentTo([d, a, c, e], CollectionOrdering.Matching);
             await Assert.That(events.Select(x => x.Action)).IsEquivalentTo(
-                [NotifyCollectionChangedAction.Remove, NotifyCollectionChangedAction.Add, NotifyCollectionChangedAction.Add], CollectionOrdering.Matching);
+            [
+                NotifyCollectionChangedAction.Remove, NotifyCollectionChangedAction.Add,
+                NotifyCollectionChangedAction.Add
+            ], CollectionOrdering.Matching);
         }
 
         events.Clear();
@@ -92,7 +95,8 @@ public class ReviewTabRowsTests
             await Assert.That(tab.Rows.Count).IsEqualTo(5);
             await Assert.That(tab.Rows[1]).IsSameReferenceAs(untouched);
             await Assert.That(notified).IsEmpty()
-                .Because("a clip the send did not touch comes back as the same instance, so its row is never re-applied");
+                .Because(
+                    "a clip the send did not touch comes back as the same instance, so its row is never re-applied");
         }
     }
 
@@ -136,8 +140,10 @@ public class ReviewTabRowsTests
                 await Assert.That(marked).IsEqualTo(2).Because("a title card has no mark");
                 await Assert.That(changes).IsEqualTo(1);
                 await Assert.That(json.Split("\"reviewed\": true").Length - 1).IsEqualTo(2);
-                await Assert.That(json).DoesNotContain("\"reviewed\": false").Because("older files and builds see no new field");
-                await Assert.That(reread.Clips.Select(c => c.Reviewed)).IsEquivalentTo([true, true, false], CollectionOrdering.Matching);
+                await Assert.That(json).DoesNotContain("\"reviewed\": false")
+                    .Because("older files and builds see no new field");
+                await Assert.That(reread.Clips.Select(c => c.Reviewed))
+                    .IsEquivalentTo([true, true, false], CollectionOrdering.Matching);
                 await Assert.That(reread.UnreviewedCount).IsEqualTo(1);
             }
         }
@@ -153,12 +159,14 @@ public class ReviewTabRowsTests
         ReviewQueue queue = new(null);
         queue.Add([Clip("/d/a.dem", 100, "one"), Clip("/d/b.dem", 100, "two"), Clip("/d/c.dem", 100, "three")], "S");
         using ReviewQueueTabViewModel tab = new(new ExtensionReviewQueue(queue), isBrowser: false);
-        WorkspaceTabDescriptor badge = new ReviewQueueModule(() => tab, () => true, new ExtensionReviewQueue(queue)).CreateTabs(null!).Single();
+        WorkspaceTabDescriptor badge = new ReviewQueueModule(() => tab, () => true, new ExtensionReviewQueue(queue))
+            .CreateTabs(null!).Single();
 
         tab.Rows[1].ToggleReviewedCommand.Execute(null);
         using (Assert.Multiple())
         {
-            await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Note)).IsEquivalentTo(["two", "three"], CollectionOrdering.Matching);
+            await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Note))
+                .IsEquivalentTo(["two", "three"], CollectionOrdering.Matching);
             await Assert.That(tab.Rows[0].ClipCountText).IsEqualTo("2 of 3 clips unreviewed");
             await Assert.That(tab.Rows[1].Position).IsEqualTo(2).Because("positions count every clip");
             await Assert.That(badge.Badge).IsEqualTo("2");
@@ -171,7 +179,8 @@ public class ReviewTabRowsTests
         tab.Rows[0].ToggleReviewedCommand.Execute(null);
         using (Assert.Multiple())
         {
-            await Assert.That(queue.UnreviewedCount).IsEqualTo(0).Because("mark section reviewed marks every clip under the card");
+            await Assert.That(queue.UnreviewedCount).IsEqualTo(0)
+                .Because("mark section reviewed marks every clip under the card");
             await Assert.That(tab.Rows[0].ClipCountText).IsEqualTo("all 3 clips reviewed");
             await Assert.That(tab.Rows[0].ReviewText).IsEqualTo("Mark unreviewed");
             await Assert.That(badge.Badge).IsNull();
@@ -185,8 +194,10 @@ public class ReviewTabRowsTests
     public async Task MarkSectionReviewed_UnderAFilter_MarksOnlyTheClipsItShows()
     {
         ReviewQueue queue = new(null);
-        queue.Add([Clip("/d/a.dem", 100, "one", ReviewSources.Dossier), Clip("/d/b.dem", 100, "two", ReviewSources.Dossier),
-            Clip("/d/c.dem", 100, "three")], "S");
+        queue.Add([
+            Clip("/d/a.dem", 100, "one", ReviewSources.Dossier), Clip("/d/b.dem", 100, "two", ReviewSources.Dossier),
+            Clip("/d/c.dem", 100, "three")
+        ], "S");
         using ReviewQueueTabViewModel tab = new(new ExtensionReviewQueue(queue), isBrowser: false);
         tab.SelectedSource = ReviewSources.Dossier;
         await Assert.That(tab.Rows[0].ReviewText).IsEqualTo("Mark 2 shown reviewed");
@@ -195,7 +206,8 @@ public class ReviewTabRowsTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(queue.Clips.Select(c => c.Reviewed)).IsEquivalentTo([true, true, false], CollectionOrdering.Matching);
+            await Assert.That(queue.Clips.Select(c => c.Reviewed))
+                .IsEquivalentTo([true, true, false], CollectionOrdering.Matching);
             await Assert.That(tab.Rows.Count(r => r.IsClip)).IsEqualTo(0);
         }
 
@@ -230,23 +242,33 @@ public class ReviewTabRowsTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(tab.MapFilters).IsEquivalentTo([ReviewQueueTabViewModel.AllMaps, "de_mirage", "de_nuke", ReviewQueueTabViewModel.NoMap], CollectionOrdering.Matching);
+            await Assert.That(tab.MapFilters)
+                .IsEquivalentTo(
+                    [ReviewQueueTabViewModel.AllMaps, "de_mirage", "de_nuke", ReviewQueueTabViewModel.NoMap],
+                    CollectionOrdering.Matching);
             await Assert.That(tab.TeamFilters).IsEquivalentTo(
-                [ReviewQueueTabViewModel.AllTeams, "Spirit", ReviewQueueTabViewModel.NoTeam, ReviewQueueTabViewModel.UnknownTeam], CollectionOrdering.Matching);
+            [
+                ReviewQueueTabViewModel.AllTeams, "Spirit", ReviewQueueTabViewModel.NoTeam,
+                ReviewQueueTabViewModel.UnknownTeam
+            ], CollectionOrdering.Matching);
         }
 
         tab.SelectedMap = "de_nuke";
-        await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Note)).IsEquivalentTo(["spirit nuke", "old nuke"], CollectionOrdering.Matching);
+        await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Note))
+            .IsEquivalentTo(["spirit nuke", "old nuke"], CollectionOrdering.Matching);
         tab.SelectedTeam = "Spirit";
-        await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Note)).IsEquivalentTo(["spirit nuke"], CollectionOrdering.Matching);
+        await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Note))
+            .IsEquivalentTo(["spirit nuke"], CollectionOrdering.Matching);
         tab.SelectedMap = ReviewQueueTabViewModel.AllMaps;
         tab.SelectedTeam = ReviewQueueTabViewModel.NoTeam;
-        await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Note)).IsEquivalentTo(["old nuke", "no demo"], CollectionOrdering.Matching);
+        await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Note))
+            .IsEquivalentTo(["old nuke", "no demo"], CollectionOrdering.Matching);
         await Assert.That(lookups).IsEqualTo(5).Because("one lookup per demo, not per clip per reconcile");
 
         tab.SelectedMap = "de_mirage";
         queue.Remove([queue.Clips[1].Id]);
-        await Assert.That(tab.SelectedMap).IsEqualTo(ReviewQueueTabViewModel.AllMaps).Because("no clip is on that map any more");
+        await Assert.That(tab.SelectedMap).IsEqualTo(ReviewQueueTabViewModel.AllMaps)
+            .Because("no clip is on that map any more");
     }
 
     [Test]
@@ -265,7 +287,8 @@ public class ReviewTabRowsTests
             Settle();
 
             TextBox note = view.GetVisualDescendants().OfType<TextBox>()
-                .First(t => t.DataContext is ReviewRowViewModel { IsClip: true } r && r.Note == "two" && t.Text == "two" && t.IsEffectivelyVisible);
+                .First(t => t.DataContext is ReviewRowViewModel { IsClip: true } r && r.Note == "two" && t.Text == "two"
+                            && t.IsEffectivelyVisible);
             window.Activate();
             note.Focus();
             note.Text = "two, half typed";
@@ -279,7 +302,8 @@ public class ReviewTabRowsTests
             }
 
             Settle();
-            TextBox? after = view.GetVisualDescendants().OfType<TextBox>().FirstOrDefault(t => t.Text == "two, half typed");
+            TextBox? after = view.GetVisualDescendants().OfType<TextBox>()
+                .FirstOrDefault(t => t.Text == "two, half typed");
             using (Assert.Multiple())
             {
                 await Assert.That(after).IsSameReferenceAs(note);

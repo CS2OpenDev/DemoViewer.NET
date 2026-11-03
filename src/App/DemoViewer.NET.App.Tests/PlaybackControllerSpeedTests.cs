@@ -50,10 +50,7 @@ public class PlaybackControllerSpeedTests
     public async Task PlaybackRate_EqualsTickRate_AtOneX_ForAnyTickRate()
     {
         // 1× advances one demo-frame per server tick → frames/sec == tick rate, for any tick rate.
-        foreach (int tickRate in new[]
-                 {
-                     32, 64, 128
-                 })
+        foreach (int tickRate in new[] { 32, 64, 128 })
         {
             PlaybackController c = new();
             c.LoadDemo(Array.Empty<DemoFrame>(), tickRate);

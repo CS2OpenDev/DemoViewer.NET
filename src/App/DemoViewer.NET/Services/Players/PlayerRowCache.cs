@@ -18,7 +18,8 @@ public sealed record PlayerRows(ulong SteamId64, long IndexVersion, IReadOnlyLis
 {
     /// <summary>The pool of the demos that pass <paramref name="filter" />. Reads nothing: a filter change is free.</summary>
     /// <param name="filter">Which demos; all when null.</param>
-    public PlayerAggregate Aggregate(PlayerFilter? filter = null) => PlayerAggregate.Of(PlayerAggregate.Window(Demos, filter ?? PlayerFilter.All));
+    public PlayerAggregate Aggregate(PlayerFilter? filter = null) =>
+        PlayerAggregate.Of(PlayerAggregate.Window(Demos, filter ?? PlayerFilter.All));
 }
 
 /// <summary>Every account's demos with their stats, as <see cref="PlayerRowCache.LoadLibraryAsync" /> last filled them.</summary>
@@ -64,7 +65,8 @@ public sealed class PlayerRowCache
     /// <param name="directory">The player directory over <paramref name="store" />.</param>
     /// <param name="read">Reads a demo's <c>player_match</c> table by path, current or stale; null when none is written.</param>
     /// <param name="readRounds">Reads a demo's <c>player_round</c> table the same way; null reads none, so no demo has sides.</param>
-    public PlayerRowCache(DemoCacheStore store, PlayerDirectory directory, Func<string, FactTable?> read, Func<string, FactTable?>? readRounds = null)
+    public PlayerRowCache(DemoCacheStore store, PlayerDirectory directory, Func<string, FactTable?> read,
+        Func<string, FactTable?>? readRounds = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _directory = directory ?? throw new ArgumentNullException(nameof(directory));
@@ -90,7 +92,8 @@ public sealed class PlayerRowCache
     /// <param name="steamId64">The account.</param>
     /// <param name="progress">Told the count of sidecars to read, then each one read.</param>
     /// <param name="cancellationToken">Stops between reads; what was read is kept.</param>
-    public Task<PlayerRows> LoadAsync(ulong steamId64, IProgress<PlayerRowsProgress>? progress = null, CancellationToken cancellationToken = default) =>
+    public Task<PlayerRows> LoadAsync(ulong steamId64, IProgress<PlayerRowsProgress>? progress = null,
+        CancellationToken cancellationToken = default) =>
         TryGet(steamId64) is { } current
             ? Task.FromResult(current)
             : Task.Run(() => Fill(steamId64, progress, cancellationToken), cancellationToken);
@@ -112,7 +115,8 @@ public sealed class PlayerRowCache
     /// </summary>
     /// <param name="progress">Told the count of sidecars to read, then each one read.</param>
     /// <param name="cancellationToken">Stops between reads; what was read is kept.</param>
-    public Task<LibraryRows> LoadLibraryAsync(IProgress<PlayerRowsProgress>? progress = null, CancellationToken cancellationToken = default) =>
+    public Task<LibraryRows> LoadLibraryAsync(IProgress<PlayerRowsProgress>? progress = null,
+        CancellationToken cancellationToken = default) =>
         TryGetLibrary() is { } current
             ? Task.FromResult(current)
             : Task.Run(() => FillLibrary(progress, cancellationToken), cancellationToken);
@@ -149,7 +153,8 @@ public sealed class PlayerRowCache
     /// <summary>How many demo reads are held for the fills to share; a test seam.</summary>
     internal int HeldReads => _held.Count;
 
-    private PlayerRows Fill(ulong steamId64, IProgress<PlayerRowsProgress>? progress, CancellationToken cancellationToken)
+    private PlayerRows Fill(ulong steamId64, IProgress<PlayerRowsProgress>? progress,
+        CancellationToken cancellationToken)
     {
         Subject subject = Use(steamId64);
 
@@ -202,8 +207,11 @@ public sealed class PlayerRowCache
                 (PlayerMatch match, Stamps key) = toRead[i];
                 if (TryRead(match.Row, key) is { } held)
                 {
-                    entries[key.Id] = new Entry(key, held.HasFacet, held.HasSight, held.Stats?.GetValueOrDefault(steamId64),
-                        held.Stats is null ? null : PlayerAggregate.Others(held.Stats, steamId64, PlayerDemo.OtherColumns),
+                    entries[key.Id] = new Entry(key, held.HasFacet, held.HasSight,
+                        held.Stats?.GetValueOrDefault(steamId64),
+                        held.Stats is null
+                            ? null
+                            : PlayerAggregate.Others(held.Stats, steamId64, PlayerDemo.OtherColumns),
                         held.Sides?.GetValueOrDefault(steamId64));
                 }
 
@@ -217,7 +225,10 @@ public sealed class PlayerRowCache
             {
                 // A demo whose read threw has no entry: its stats read as unread, and the next fill tries it again.
                 demos.Add(entries.TryGetValue(match.Row.ContentId(), out Entry? entry)
-                    ? new PlayerDemo(match, entry.HasFacet, entry.Stats) { Others = entry.Others, HasSight = entry.HasSight, Sides = entry.Sides }
+                    ? new PlayerDemo(match, entry.HasFacet, entry.Stats)
+                    {
+                        Others = entry.Others, HasSight = entry.HasSight, Sides = entry.Sides
+                    }
                     : new PlayerDemo(match, false, null));
             }
 
@@ -377,7 +388,8 @@ public sealed class PlayerRowCache
             }
 
             FactTable? rounds = k.Rounds is { State: DemoAnalysisState.Indexed } ? _readRounds?.Invoke(row.Path) : null;
-            return new Held(true, k.Match?.HasVisibility == true, MergeAll(table.Rows), rounds is null ? null : PlayerRoundFacet.Sides(rounds.Rows));
+            return new Held(true, k.Match?.HasVisibility == true, MergeAll(table.Rows),
+                rounds is null ? null : PlayerRoundFacet.Sides(rounds.Rows));
         }));
         try
         {
@@ -396,7 +408,8 @@ public sealed class PlayerRowCache
         HashSet<ulong> ids = [];
         foreach (FactRow row in rows)
         {
-            if (ulong.TryParse(row.Dimensions.GetValueOrDefault("steam_id")?.AsText(), NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+            if (ulong.TryParse(row.Dimensions.GetValueOrDefault("steam_id")?.AsText(), NumberStyles.None,
+                    CultureInfo.InvariantCulture, out ulong id)
                 && id != 0)
             {
                 ids.Add(id);
@@ -415,15 +428,24 @@ public sealed class PlayerRowCache
         return merged;
     }
 
-    private static Stamps StampsOf(DemoCacheIndexEntry row) => new(row.ContentId(), row.Stamp(MatchStamp), row.Stamp(RoundStamp));
+    private static Stamps StampsOf(DemoCacheIndexEntry row) =>
+        new(row.ContentId(), row.Stamp(MatchStamp), row.Stamp(RoundStamp));
 
     // A demo's content id and the stamps of the two facets a read of it holds.
     private readonly record struct Stamps(string Id, PackStamp? Match, PackStamp? Rounds);
 
-    private sealed record Entry(Stamps Key, bool HasFacet, bool HasSight, IReadOnlyDictionary<string, double>? Stats,
-        IReadOnlyDictionary<ulong, IReadOnlyDictionary<string, double>>? Others, IReadOnlyDictionary<string, double>? Sides);
+    private sealed record Entry(
+        Stamps Key,
+        bool HasFacet,
+        bool HasSight,
+        IReadOnlyDictionary<string, double>? Stats,
+        IReadOnlyDictionary<ulong, IReadOnlyDictionary<string, double>>? Others,
+        IReadOnlyDictionary<string, double>? Sides);
 
-    private sealed record Held(bool HasFacet, bool HasSight, IReadOnlyDictionary<ulong, IReadOnlyDictionary<string, double>>? Stats,
+    private sealed record Held(
+        bool HasFacet,
+        bool HasSight,
+        IReadOnlyDictionary<ulong, IReadOnlyDictionary<string, double>>? Stats,
         IReadOnlyDictionary<ulong, Dictionary<string, double>>? Sides = null)
     {
         public static readonly Held None = new(false, false, null);

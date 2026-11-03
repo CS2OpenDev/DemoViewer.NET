@@ -49,7 +49,8 @@ public sealed class ThemeGradient : IEquatable<ThemeGradient>
     }
 
     public static ThemeGradient FromBrush(ILinearGradientBrush brush) =>
-        new(brush.StartPoint, brush.EndPoint, [.. brush.GradientStops.Select(s => new ThemeGradientStop(s.Offset, s.Color))]);
+        new(brush.StartPoint, brush.EndPoint,
+            [.. brush.GradientStops.Select(s => new ThemeGradientStop(s.Offset, s.Color))]);
 
     public bool Equals(ThemeGradient? other) =>
         other is not null && Start == other.Start && End == other.End && Stops.SequenceEqual(other.Stops);

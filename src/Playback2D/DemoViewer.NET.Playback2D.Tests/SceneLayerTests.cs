@@ -43,10 +43,7 @@ public class SceneLayerTests
     public async Task RadarLayer_DrawsTheLevelsImage_WhenOneIsBound()
     {
         using SKImage image = SolidImage(SKColors.Magenta, 64);
-        using RadarLayer layer = new()
-        {
-            RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500)
-        };
+        using RadarLayer layer = new() { RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500) };
 
         SKColor[] pixels = Render(layer, Frame(), image);
 
@@ -72,8 +69,7 @@ public class SceneLayerTests
         using SKImage image = SolidImage(SKColors.Magenta, 64);
         using RadarLayer layer = new()
         {
-            RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500),
-            UseRadarImage = false
+            RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500), UseRadarImage = false
         };
 
         SKColor[] pixels = Render(layer, Frame(), image);
@@ -130,14 +126,8 @@ public class SceneLayerTests
     [Test]
     public async Task MarkerLayer_DeadMarker_IsHollow()
     {
-        Scene2DFrame alive = new()
-        {
-            Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Team, 1, "AA", true)]
-        };
-        Scene2DFrame dead = new()
-        {
-            Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Dead, 1, "AA", false)]
-        };
+        Scene2DFrame alive = new() { Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Team, 1, "AA", true)] };
+        Scene2DFrame dead = new() { Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Dead, 1, "AA", false)] };
 
         using MarkerLayer layer = new();
         int aliveFill = CountColour(Render(layer, alive), ScenePalette.Dark.TeamT);
@@ -151,16 +141,10 @@ public class SceneLayerTests
     [Test]
     public async Task MarkerLayer_DrawLabelsOff_RemovesInkWithoutMovingTheDisc()
     {
-        Scene2DFrame frame = new()
-        {
-            Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Team, 1, "AA", true)]
-        };
+        Scene2DFrame frame = new() { Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Team, 1, "AA", true)] };
 
         using MarkerLayer withLabels = new();
-        using MarkerLayer withoutLabels = new()
-        {
-            DrawLabels = false
-        };
+        using MarkerLayer withoutLabels = new() { DrawLabels = false };
 
         SKColor[] labelled = Render(withLabels, frame);
         SKColor[] bare = Render(withoutLabels, frame);
@@ -229,10 +213,7 @@ public class SceneLayerTests
         (double discX, double discY) = camera.WorldToScreen(worldX, worldY);
 
         using MarkerLayer withLabels = new();
-        using MarkerLayer withoutLabels = new()
-        {
-            DrawLabels = false
-        };
+        using MarkerLayer withoutLabels = new() { DrawLabels = false };
 
         SKColor[] labelled = Render(withLabels, frame, null, camera);
         SKColor[] bare = Render(withoutLabels, frame, null, camera);
@@ -261,10 +242,7 @@ public class SceneLayerTests
     [Arguments(1.0, true)]
     public async Task BombLayer_ArcCollapsesBelowHalfADegree(double detonationFraction, bool expectArc)
     {
-        Scene2DFrame frame = new()
-        {
-            Bomb = new BombMarker(0, 0, 0, detonationFraction, false, 0)
-        };
+        Scene2DFrame frame = new() { Bomb = new BombMarker(0, 0, 0, detonationFraction, false, 0) };
 
         using BombLayer layer = new();
         int arc = CountColour(Render(layer, frame), ScenePalette.Dark.BombDetonation);
@@ -276,10 +254,7 @@ public class SceneLayerTests
     [Test]
     public async Task BombLayer_DefusingDrawsASecondArc()
     {
-        Scene2DFrame frame = new()
-        {
-            Bomb = new BombMarker(0, 0, 0, 0.6, true, 0.4)
-        };
+        Scene2DFrame frame = new() { Bomb = new BombMarker(0, 0, 0, 0.6, true, 0.4) };
 
         using BombLayer layer = new();
         SKColor[] pixels = Render(layer, frame);
@@ -364,10 +339,7 @@ public class SceneLayerTests
 
     private static Scene2DFrame Frame() => new()
     {
-        Map = new SceneMapInfo
-        {
-            ObservedBounds = new WorldBounds(-500, -500, 500, 500)
-        }
+        Map = new SceneMapInfo { ObservedBounds = new WorldBounds(-500, -500, 500, 500) }
     };
 
     private static int InkCount(ISceneLayer layer, Scene2DFrame frame) => InkPixels(Render(layer, frame));

@@ -213,7 +213,8 @@ public class AimCapabilityProbeRealDemoTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(report.Subtick.YieldPerMessage).IsGreaterThanOrEqualTo(AimCapabilityProbe.MinSubtickYield);
+            await Assert.That(report.Subtick.YieldPerMessage)
+                .IsGreaterThanOrEqualTo(AimCapabilityProbe.MinSubtickYield);
             await Assert.That(report.Verdict(AimMetric.SubtickAimTiming).Support)
                 .IsEqualTo(MetricSupport.Supported);
         }

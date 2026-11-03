@@ -11,7 +11,8 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///     stamp it to the owning pack's id. A caller that builds the shell directly (bypassing the pack)
 ///     names it explicitly, e.g. <c>StratBookPack.PackFeatureId</c>.
 /// </param>
-public sealed class TeamLibraryContribution(Func<TeamIdentityService> resolve, string? featureId = null) : ILibraryContribution
+public sealed class TeamLibraryContribution(Func<TeamIdentityService> resolve, string? featureId = null)
+    : ILibraryContribution
 {
     private TeamIdentityService? _teams;
 

@@ -119,19 +119,11 @@ public static class FreehandOutline
         StrokePoint head = output[0];
         if (output.Count > 1)
         {
-            output[0] = head with
-            {
-                VectorX = output[1].VectorX,
-                VectorY = output[1].VectorY
-            };
+            output[0] = head with { VectorX = output[1].VectorX, VectorY = output[1].VectorY };
         }
         else
         {
-            output[0] = head with
-            {
-                VectorX = 0,
-                VectorY = 0
-            };
+            output[0] = head with { VectorX = 0, VectorY = 0 };
         }
     }
 

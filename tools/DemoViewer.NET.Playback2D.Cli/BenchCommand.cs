@@ -235,29 +235,22 @@ internal static class BenchCommand
             ["command"] = "bench",
             ["ok"] = passed,
             ["backend"] = plan.Backend.Backend.ToString(),
-            ["source"] = new JsonObject
-            {
-                ["kind"] = source.Kind,
-                ["name"] = entry?.Name ?? source.Name
-            },
+            ["source"] = new JsonObject { ["kind"] = source.Kind, ["name"] = entry?.Name ?? source.Name },
             ["frames"] = frames,
             ["warmup"] = warmup,
-            ["size"] = new JsonObject
-            {
-                ["width"] = plan.Size.Width,
-                ["height"] = plan.Size.Height
-            },
+            ["size"] = new JsonObject { ["width"] = plan.Size.Width, ["height"] = plan.Size.Height },
             ["layers"] = RenderCommand.ToArray(plan.LayerIds),
             ["advance_ms"] = Percentiles(result.Advance),
             ["render_ms"] = Percentiles(result.Render),
             ["frame_ms"] = Percentiles(result.Total),
             ["allocated_bytes_per_frame"] = result.AllocatedBytesPerFrame,
-            ["gc"] = new JsonObject
-            {
-                ["gen0"] = result.Gen0Collections,
-                ["gen1"] = result.Gen1Collections,
-                ["gen2"] = result.Gen2Collections
-            },
+            ["gc"] =
+                new JsonObject
+                {
+                    ["gen0"] = result.Gen0Collections,
+                    ["gen1"] = result.Gen1Collections,
+                    ["gen2"] = result.Gen2Collections
+                },
             ["budget"] = new JsonObject
             {
                 ["scale"] = scale,
@@ -265,12 +258,7 @@ internal static class BenchCommand
                 ["advance_p99_ms"] = budget.AdvanceP99Ms,
                 ["bytes_per_frame"] = budget.BytesPerFrame
             },
-            ["gate"] = new JsonObject
-            {
-                ["enabled"] = gate,
-                ["passed"] = passed,
-                ["violations"] = violationArray
-            },
+            ["gate"] = new JsonObject { ["enabled"] = gate, ["passed"] = passed, ["violations"] = violationArray },
             ["metadata"] = Metadata()
         };
     }

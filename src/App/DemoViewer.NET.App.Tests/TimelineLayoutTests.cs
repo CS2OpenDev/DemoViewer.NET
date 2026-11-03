@@ -36,10 +36,7 @@ public class TimelineLayoutTests
     {
         Playback2DTimelineViewModel vm = Sized(2000, 800);
 
-        foreach (int frame in new[]
-                 {
-                     0, 1, 137, 999, 1500, 1999
-                 })
+        foreach (int frame in new[] { 0, 1, 137, 999, 1500, 1999 })
         {
             await Assert.That(vm.FrameIndexAt(vm.XForFrame(frame))).IsEqualTo(frame);
         }
@@ -326,7 +323,8 @@ public class TimelineLayoutTests
         vm.RegisterTrack(new BombTrack());
         vm.RegisterTrack(new AnnotationTrack(new AnnotationDocument()));
 
-        await Assert.That(vm.Tracks.Select(t => t.Id).ToArray()).IsEquivalentTo(_registeredTrackIds, CollectionOrdering.Matching);
+        await Assert.That(vm.Tracks.Select(t => t.Id).ToArray())
+            .IsEquivalentTo(_registeredTrackIds, CollectionOrdering.Matching);
 
         // And a restore against those ids actually lands, rather than being swallowed as unknown.
         foreach (string id in _persistedTrackIds)

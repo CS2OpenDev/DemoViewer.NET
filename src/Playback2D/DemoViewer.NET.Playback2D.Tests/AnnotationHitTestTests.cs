@@ -160,10 +160,7 @@ public class AnnotationHitTestTests
 
     private static AnnotationElement Line(float width) =>
         new(Guid.NewGuid(), AnnotationKind.Freehand,
-            AnnotationStyle.Default with
-            {
-                WidthWorld = width
-            },
+            AnnotationStyle.Default with { WidthWorld = width },
             new SpaceRef.World(0), TimeEnvelope.Static,
             [
                 new InkPoint(0, 0, 0.5f), new InkPoint(25, 0, 0.5f), new InkPoint(50, 0, 0.5f),

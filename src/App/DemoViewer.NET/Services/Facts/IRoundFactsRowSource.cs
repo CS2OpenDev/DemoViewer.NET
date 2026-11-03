@@ -94,15 +94,41 @@ public static class RoundFactsColumns
     /// <summary>Columns whose value is the round's, so the two rows of a pair must agree.</summary>
     public static IReadOnlySet<string> RoundLevel { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
-        RoundNumber, FreezeEndTick, EndTick, OfficiallyEndedTick, EndReason, WinnerSide, MatchRound,
-        GamePhase, RoundTime, PlantTick, PlantSite, PlantSiteEntity, PlanterSlot, DefuseTick, ExplodeTick,
-        FirstContactTick, OpeningKillTick, KillTicks, KillVictimSide, KillVictimSlot, KillAttackerSlot
+        RoundNumber,
+        FreezeEndTick,
+        EndTick,
+        OfficiallyEndedTick,
+        EndReason,
+        WinnerSide,
+        MatchRound,
+        GamePhase,
+        RoundTime,
+        PlantTick,
+        PlantSite,
+        PlantSiteEntity,
+        PlanterSlot,
+        DefuseTick,
+        ExplodeTick,
+        FirstContactTick,
+        OpeningKillTick,
+        KillTicks,
+        KillVictimSide,
+        KillVictimSlot,
+        KillAttackerSlot
     };
 
     /// <summary>Columns whose value belongs to the row's side.</summary>
     public static IReadOnlySet<string> SideLevel { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
-        Side, Slots, Players, ScoreBefore, Equipment, Money, MoneyReliable, BuyType, KillTeamAlive,
+        Side,
+        Slots,
+        Players,
+        ScoreBefore,
+        Equipment,
+        Money,
+        MoneyReliable,
+        BuyType,
+        KillTeamAlive,
         KillEnemyAlive
     };
 

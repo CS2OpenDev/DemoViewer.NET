@@ -44,7 +44,8 @@ public sealed partial class CategoriesSectionViewModel : PlayerOverviewSection
         new("Clutches", [], [new("Clutch", "0", PerMatch)]),
         new("Utility", [StatGroup.Utility],
         [
-            new("Flash", "0", PerRound), new("EFlash", "0", PerFlash), new("AvgBlind", "0.00"), new("FlashAst", "0", PerRound),
+            new("Flash", "0", PerRound), new("EFlash", "0", PerFlash), new("AvgBlind", "0.00"),
+            new("FlashAst", "0", PerRound),
             new("HE", "0", PerRound), new("Smokes", "0", PerRound), new("Molly", "0", PerRound)
         ]),
         new("Weapons", [StatGroup.Weapons],
@@ -86,11 +87,14 @@ public sealed partial class CategoriesSectionViewModel : PlayerOverviewSection
             return;
         }
 
-        IReadOnlyList<IReadOnlyDictionary<string, double>> rows = [.. context.Window.Select(d => d.Stats).OfType<IReadOnlyDictionary<string, double>>()];
+        IReadOnlyList<IReadOnlyDictionary<string, double>> rows =
+            [.. context.Window.Select(d => d.Stats).OfType<IReadOnlyDictionary<string, double>>()];
         Aggregate = window;
         Categories = [.. All.Select(c => c.Build(window, rows))];
         double rounds = rows.Sum(r => r.GetValueOrDefault(ColumnRules.Rounds));
-        string matches = window.WithStats == 1 ? "1 match" : string.Create(CultureInfo.InvariantCulture, $"{window.WithStats} matches");
+        string matches = window.WithStats == 1
+            ? "1 match"
+            : string.Create(CultureInfo.InvariantCulture, $"{window.WithStats} matches");
         ScopeText = string.Create(CultureInfo.InvariantCulture, $"{matches} · {rounds:0} rounds");
         IsVisible = true;
     }
@@ -114,12 +118,14 @@ public sealed partial class CategoriesSectionViewModel : PlayerOverviewSection
             double? value = window[Key];
             string detail = value is { } v && Rate?.Of(v, rows) is { } rate ? Rate.Text(rate) : "";
             return new CategoryStatItem(Key, meta.Display, Text(value), value,
-                value is null || OverNothing(rows) ? null : SummarySectionViewModel.AbsoluteScale(Key, window), detail, meta.Tooltip);
+                value is null || OverNothing(rows) ? null : SummarySectionViewModel.AbsoluteScale(Key, window), detail,
+                meta.Tooltip);
         }
 
         // A rate over a zero denominator pools to 0, as the engine divides; it measured nothing, so it takes no colour.
         private bool OverNothing(IReadOnlyList<IReadOnlyDictionary<string, double>> rows) =>
-            ColumnRules.For(Key) is ColumnRule.RatioOfSums ratio && rows.Sum(r => ratio.Denominator.Sum(c => r.GetValueOrDefault(c))) == 0;
+            ColumnRules.For(Key) is ColumnRule.RatioOfSums ratio
+            && rows.Sum(r => ratio.Denominator.Sum(c => r.GetValueOrDefault(c))) == 0;
 
         private string Text(double? value) => value is { } v ? v.ToString(Format, CultureInfo.InvariantCulture) : None;
     }
@@ -156,7 +162,14 @@ public sealed record CategoryItem(string Title, IReadOnlyList<CategoryStatItem> 
 /// <param name="Scale">The catalogue's fixed band, or null for a count or too thin a sample.</param>
 /// <param name="Detail">The rate beside the value ("0.12 per round", "34% of kills"), or empty.</param>
 /// <param name="Tooltip">What the column measures.</param>
-public sealed record CategoryStatItem(string Key, string Label, string Text, double? Value, StatScale? Scale, string Detail, string Tooltip)
+public sealed record CategoryStatItem(
+    string Key,
+    string Label,
+    string Text,
+    double? Value,
+    StatScale? Scale,
+    string Detail,
+    string Tooltip)
 {
     /// <summary>True when there is a rate to show.</summary>
     public bool HasDetail => Detail.Length > 0;

@@ -88,10 +88,7 @@ public sealed partial class Playback2DExportStatusViewModel : ViewModelBase, IDi
         _job = job;
         _openFolder = openFolder;
 
-        Chip = new StatusChipViewModel
-        {
-            FlyoutContent = this
-        };
+        Chip = new StatusChipViewModel { FlyoutContent = this };
 
         _job.StatusChanged += OnStatusChanged;
         Apply(_job.Status);

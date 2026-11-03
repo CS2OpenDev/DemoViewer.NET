@@ -89,14 +89,16 @@ public static class ForwardDemoPass
     public const string RoundFactsTable = "round_facts";
 
     private const string FreezeEndEvent = "round_freeze_end";
-    private static readonly IReadOnlySet<int> ConVarsOnly = new HashSet<int> { (int)NET_Messages.NetSetConVar, ServerRankCapture.MessageType };
+
+    private static readonly IReadOnlySet<int> ConVarsOnly =
+        new HashSet<int> { (int)NET_Messages.NetSetConVar, ServerRankCapture.MessageType };
+
     private const int CheckEveryFrames = 1024;
 
     /// <summary>The reader options <c>DemoAnalysis.Run(path)</c> uses: a 1024-frame parallel decode window.</summary>
     public static ParseOptions ReaderOptions(CancellationToken cancellationToken) => new()
     {
-        CancellationToken = cancellationToken,
-        ReadAheadFrames = 1024
+        CancellationToken = cancellationToken, ReadAheadFrames = 1024
     };
 
     /// <summary>
@@ -104,25 +106,29 @@ public static class ForwardDemoPass
     ///     every table a bare run records costs nodes and memory on every demo, so only the tables of rulesets
     ///     whose stored outputs are stale for this demo are kept. Null keeps <c>round_facts</c> alone.
     /// </summary>
-    public static BuildResult Build(DemoReader reader, IReadOnlyList<RulesetDoc> docs, IReadOnlySet<string>? outputs = null,
+    public static BuildResult Build(DemoReader reader, IReadOnlyList<RulesetDoc> docs,
+        IReadOnlySet<string>? outputs = null,
         CancellationToken cancellationToken = default) =>
         Build(reader, docs, outputs, CollectorSet.Empty, null, cancellationToken);
 
     /// <inheritdoc cref="Build(DemoReader, IReadOnlyList{RulesetDoc}, IReadOnlySet{string}, CancellationToken)" />
-    public static BuildResult Build(ParsedDemo parsed, IReadOnlyList<RulesetDoc> docs, IReadOnlySet<string>? outputs = null) =>
+    public static BuildResult Build(ParsedDemo parsed, IReadOnlyList<RulesetDoc> docs,
+        IReadOnlySet<string>? outputs = null) =>
         Build(parsed, docs, outputs, CollectorSet.Empty);
 
     // The observed reads must reach the build: it activates their columns, and the run's view refuses any other.
     // The geometry must too: the builder synthesizes enemy_spotted only when it has an engine.
     internal static BuildResult Build(DemoReader reader, IReadOnlyList<RulesetDoc> docs, IReadOnlySet<string>? outputs,
         CollectorSet collectors, VisibilityEngine? visibility = null, CancellationToken cancellationToken = default) =>
-        CutOutputs(DemoAnalysis.Build(reader, docs, collectors.DeclareReads(new AnalysisOptions
-        {
-            CancellationToken = cancellationToken,
-            VisibilityEngine = visibility
-        })), outputs);
+        CutOutputs(
+            DemoAnalysis.Build(reader, docs,
+                collectors.DeclareReads(new AnalysisOptions
+                {
+                    CancellationToken = cancellationToken, VisibilityEngine = visibility
+                })), outputs);
 
-    internal static BuildResult Build(ParsedDemo parsed, IReadOnlyList<RulesetDoc> docs, IReadOnlySet<string>? outputs, CollectorSet collectors) =>
+    internal static BuildResult Build(ParsedDemo parsed, IReadOnlyList<RulesetDoc> docs, IReadOnlySet<string>? outputs,
+        CollectorSet collectors) =>
         CutOutputs(DemoAnalysis.Build(parsed, docs, collectors.DeclareReads(new AnalysisOptions())), outputs);
 
     // The library tables are recorded on every read: they are two small tables, and the library pass
@@ -130,7 +136,8 @@ public static class ForwardDemoPass
     private static BuildResult CutOutputs(BuildResult build, IReadOnlySet<string>? outputs) => build with
     {
         Outputs = build.Outputs?.Where(o => LibraryTeamTables.Tables.Contains(o.Id)
-                                            || (outputs?.Contains(o.Id) ?? string.Equals(o.Id, RoundFactsTable, StringComparison.Ordinal))).ToList()
+                                            || (outputs?.Contains(o.Id) ?? string.Equals(o.Id, RoundFactsTable,
+                                                StringComparison.Ordinal))).ToList()
     };
 
     /// <summary>The build's own plan, widened to what the tap reads.</summary>
@@ -146,7 +153,10 @@ public static class ForwardDemoPass
             MessageCategories.Header | MessageCategories.StringTables | MessageCategories.GameEvents;
         DecodePlan plan = build is not null
             ? DemoAnalysis.PlanDecode(build)
-            : new DecodePlan { Categories = headerAndTables, GameEventNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) };
+            : new DecodePlan
+            {
+                Categories = headerAndTables, GameEventNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            };
 
         MessageCategories categories = plan.Categories | headerAndTables;
         if (TapReplays(needs, build))
@@ -220,17 +230,20 @@ public static class ForwardDemoPass
         ArgumentNullException.ThrowIfNull(reader);
         if (!collectors.IsEmpty && (needs & ForwardNeeds.Rules) == 0)
         {
-            throw new ArgumentException("collectors ride the rules run; the read does not make one", nameof(collectors));
+            throw new ArgumentException("collectors ride the rules run; the read does not make one",
+                nameof(collectors));
         }
 
         // Build before Configure: the build probes the dialect, which needs the reader unstarted.
         BuildResult? build = (needs & ForwardNeeds.Rules) != 0
-            ? Build(reader, docs ?? throw new ArgumentNullException(nameof(docs)), outputs, collectors, visibility, cancellationToken)
+            ? Build(reader, docs ?? throw new ArgumentNullException(nameof(docs)), outputs, collectors, visibility,
+                cancellationToken)
             : null;
         reader.Configure(PlanFor(build, needs, collectors.GameEvents));
 
         bool finalState = (needs & ForwardNeeds.FinalState) != 0;
-        Tap tap = new(reader, TapReplays(needs, build) ? LibraryFinalStateReplay.NewTracker() : null, finalState, ranks, progress,
+        Tap tap = new(reader, TapReplays(needs, build) ? LibraryFinalStateReplay.NewTracker() : null, finalState, ranks,
+            progress,
             cancellationToken);
         AnalysisRun? run = null;
         CollectorObserver? observer = null;
@@ -239,9 +252,7 @@ public static class ForwardDemoPass
             AnalysisOptions options;
             (options, observer) = collectors.Declare(new AnalysisOptions
             {
-                CaptureSnapshots = false,
-                CancellationToken = cancellationToken,
-                VisibilityEngine = visibility
+                CaptureSnapshots = false, CancellationToken = cancellationToken, VisibilityEngine = visibility
             });
             run = DemoAnalysis.Evaluate(tap, build, options);
         }
@@ -258,7 +269,8 @@ public static class ForwardDemoPass
         // a few ms against a replay that would cost the visit a sixth of its time.
         EntityTracker? rankState = tap.Tracker
                                    ?? (finalState && tap.LastFullPacket is { } full
-                                       ? LibraryFinalStateReplay.Checkpoint(reader.SignonPrefix, reader.LastInstanceBaselineFullPacket, full)
+                                       ? LibraryFinalStateReplay.Checkpoint(reader.SignonPrefix,
+                                           reader.LastInstanceBaselineFullPacket, full)
                                        : null);
         return new ForwardDemoResult
         {
@@ -347,7 +359,10 @@ public static class ForwardDemoPass
                     case GameEventMessage { DecodedEvent: { Name: FreezeEndEvent } evt }:
                         FreezeEnds.Add(evt);
                         break;
-                    case GameEventMessage { DecodedEvent.Name: LibraryFinalScore.MatchEndEvent or LibraryFinalScore.MatchRestartEvent } evt:
+                    case GameEventMessage
+                    {
+                        DecodedEvent.Name: LibraryFinalScore.MatchEndEvent or LibraryFinalScore.MatchRestartEvent
+                    } evt:
                         MatchEnded = LibraryFinalScore.FoldMatchEnded(MatchEnded, evt.DecodedEvent.Name);
                         break;
                     case { Payload: CSVCMsg_ServerInfo info }:

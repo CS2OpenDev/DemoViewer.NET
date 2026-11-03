@@ -171,7 +171,8 @@ public static class Zones
         string adjacencyText = FormatAdjacency(places, adjacency);
         string diagnostic =
             $"  zones: places={coverage.DistinctPlaces} volumes={volumes.Count} " +
-            $"(place {coverage.PlaceVolumes}, bombsite {bombsites}, buyzone {volumes.Count(v => v.Kind == "buyzone")}) " +
+            $"(place {coverage.PlaceVolumes}, bombsite {bombsites}, buyzone {volumes.Count(v => v.Kind == "buyzone")}) "
+            +
             $"areas={coverage.NavAreas} seeded={coverage.Seeded} flooded={coverage.Flooded} " +
             $"unreachable={coverage.Unreachable} multi={coverage.Multi} links={areaLinks.Count} " +
             $"adjacency={adjacency.Count}  version {zonesVersion}  {json.Length / 1024.0:F0} KiB";
@@ -218,6 +219,7 @@ public static class Zones
         }
 
         const int AreaTolerance = 16;
+
         void Exact(string column, int a, int e)
         {
             if (a != e)
@@ -339,7 +341,8 @@ public static class Zones
 
                 if (volume.Kind == "bombsite" && volume.Site is null)
                 {
-                    notes.Add($"  ! {label}: bomb_site_designation is {Str(entity, "bomb_site_designation") ?? "absent"}");
+                    notes.Add(
+                        $"  ! {label}: bomb_site_designation is {Str(entity, "bomb_site_designation") ?? "absent"}");
                 }
 
                 string? model = Str(entity, "model");
@@ -508,7 +511,9 @@ public static class Zones
     }
 
     private static string? Str(EntityLump.Entity entity, string key) =>
-        entity.TryGetValue(key, out KVObject? value) && !value.IsNull ? value.ToString(CultureInfo.InvariantCulture) : null;
+        entity.TryGetValue(key, out KVObject? value) && !value.IsNull
+            ? value.ToString(CultureInfo.InvariantCulture)
+            : null;
 
     // ── 2. areas ──────────────────────────────────────────────────────────────────────────────────
 

@@ -441,12 +441,14 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         }
 
         await Assert.That(cache.Builds).IsEqualTo(1).Because("the ask registered a build before honouring its token");
-        await WaitForAsync(() => Volatile.Read(ref entered) >= 1, "the build to be entered despite the cancelled waiter");
+        await WaitForAsync(() => Volatile.Read(ref entered) >= 1,
+            "the build to be entered despite the cancelled waiter");
         gate.Set();
 
         VisibilityEngine engine = await cache.GetOrLoadAsync(bake);
         await Assert.That(engine).IsNotNull();
-        await Assert.That(cache.Builds).IsEqualTo(1).Because("the next ask is a hit on the build the cancelled ask started");
+        await Assert.That(cache.Builds).IsEqualTo(1)
+            .Because("the next ask is a hit on the build the cancelled ask started");
         await Assert.That(entered).IsEqualTo(1);
     }
 

@@ -52,7 +52,8 @@ public sealed class SituationsModule : IWorkspaceModule
     ///     a live toggle clears the badge going off and recomputes it going on, instead of leaving the last
     ///     value stale until the next unrelated <c>watched.Changed</c>. Null skips that push.
     /// </param>
-    public SituationsModule(Func<SituationsTabViewModel> viewModelFactory, Func<bool> enabled, WatchedSituationsService? watched = null,
+    public SituationsModule(Func<SituationsTabViewModel> viewModelFactory, Func<bool> enabled,
+        WatchedSituationsService? watched = null,
         IExtensionFeatures? gate = null)
     {
         ArgumentNullException.ThrowIfNull(viewModelFactory);

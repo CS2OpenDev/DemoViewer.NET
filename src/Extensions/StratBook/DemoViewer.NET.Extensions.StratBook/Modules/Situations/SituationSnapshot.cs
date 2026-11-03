@@ -16,7 +16,12 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 /// <param name="WorldY">World Y.</param>
 /// <param name="WorldZ">World Z, raw; the canvas keys it to a floor when it places the token.</param>
 /// <param name="Place">The raw place name, or null when the source had none (the token writes <c>?</c>).</param>
-public readonly record struct SituationSnapshotPlayer(int Slot, float WorldX, float WorldY, float WorldZ, string? Place);
+public readonly record struct SituationSnapshotPlayer(
+    int Slot,
+    float WorldX,
+    float WorldY,
+    float WorldZ,
+    string? Place);
 
 /// <summary>
 ///     The 2D scene's current tick, cut down to what the Query Canvas places: the alive players per

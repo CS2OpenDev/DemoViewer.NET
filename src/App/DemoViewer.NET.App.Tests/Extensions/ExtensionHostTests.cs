@@ -22,7 +22,8 @@ public class ExtensionHostTests
     public async Task Cs2DemoKitVersion_EqualsTheDirectoryPackagesPropsPin()
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-            ?? throw new SkipTestException("repo root not found (no DemoViewer.NET.slnx above the test binary)");
+                          ?? throw new SkipTestException(
+                              "repo root not found (no DemoViewer.NET.slnx above the test binary)");
         XDocument props = XDocument.Load(Path.Combine(repoRoot, "Directory.Packages.props"));
         string pin = props.Descendants("PackageVersion")
             .Single(e => (string?)e.Attribute("Include") == "CS2DemoKit.Analysis")
@@ -44,14 +45,18 @@ public class ExtensionHostTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(ExtensionHost.ResolveVersion("0.13.0.1-beta0001+9f1e3e3b4a", new Version(0, 13, 0, 1)).ToString())
+            await Assert.That(ExtensionHost.ResolveVersion("0.13.0.1-beta0001+9f1e3e3b4a", new Version(0, 13, 0, 1))
+                    .ToString())
                 .IsEqualTo("0.13.0-beta0001");
-            await Assert.That(ExtensionHost.ResolveVersion(null, new Version(0, 13, 0, 1)).ToString()).IsEqualTo("0.13.0");
-            await Assert.That(ExtensionHost.ResolveVersion("not a version", new Version(1, 2, 3)).ToString()).IsEqualTo("1.2.3");
+            await Assert.That(ExtensionHost.ResolveVersion(null, new Version(0, 13, 0, 1)).ToString())
+                .IsEqualTo("0.13.0");
+            await Assert.That(ExtensionHost.ResolveVersion("not a version", new Version(1, 2, 3)).ToString())
+                .IsEqualTo("1.2.3");
             await Assert.That(ExtensionHost.ResolveVersion(null, new Version(1, 2)).ToString()).IsEqualTo("1.2.0")
                 .Because("a two-part Version reports Build as -1");
             await Assert.That(ExtensionHost.ResolveVersion(null, null).ToString()).IsEqualTo("0.0.0");
-            await Assert.That(VersionRange.Parse("0.13.0-beta0001").Satisfies(ExtensionHost.ResolveVersion(null, new Version(0, 13, 0, 1)))).IsFalse()
+            await Assert.That(VersionRange.Parse("0.13.0-beta0001")
+                    .Satisfies(ExtensionHost.ResolveVersion(null, new Version(0, 13, 0, 1)))).IsFalse()
                 .Because("the fallback cannot carry the prerelease, so an exact pin on it does not match");
         }
     }
@@ -63,7 +68,8 @@ public class ExtensionHostTests
         {
             // 1.1 and up: 1.0.0 is what an app from before the SDK reports for its internal contract.
             await Assert.That(ExtensionHost.ContractVersion).IsGreaterThanOrEqualTo(new SemVersion(1, 1, 0));
-            await Assert.That(ExtensionHost.ContractVersion.Major).IsEqualTo(typeof(IExtension).Assembly.GetName().Version!.Major);
+            await Assert.That(ExtensionHost.ContractVersion.Major)
+                .IsEqualTo(typeof(IExtension).Assembly.GetName().Version!.Major);
             await Assert.That(ExtensionHost.ContractVersion.IsPrerelease).IsFalse();
             await Assert.That(SemVersion.TryParse(ExtensionHost.ContractVersion.ToString(), out _)).IsTrue();
             await Assert.That(ExtensionHost.Current.ContractVersion).IsEqualTo(ExtensionHost.ContractVersion);

@@ -16,7 +16,12 @@ public enum StoreRoot
 /// <param name="Root">The root the paths are relative to.</param>
 /// <param name="Paths">Files or folders under the root.</param>
 /// <param name="IsUserWork">True for what the user made and cannot rebuild; the confirmation names these.</param>
-public sealed record StoreDescriptor(string Id, string Label, StoreRoot Root, IReadOnlyList<string> Paths, bool IsUserWork);
+public sealed record StoreDescriptor(
+    string Id,
+    string Label,
+    StoreRoot Root,
+    IReadOnlyList<string> Paths,
+    bool IsUserWork);
 
 /// <summary>What a store holds on disk now.</summary>
 /// <param name="Descriptor">The store.</param>
@@ -45,7 +50,11 @@ public sealed record ExtensionDataInventory(IReadOnlyList<StoreInventoryItem> It
 /// <param name="Skipped">Files it could not delete.</param>
 /// <param name="FirstSkippedPath">The first of those, for the message.</param>
 public sealed record ExtensionDataRemovalResult(
-    bool Ran, ExtensionDataInventory Removed, int RecordsUpdated, int Skipped = 0, string? FirstSkippedPath = null)
+    bool Ran,
+    ExtensionDataInventory Removed,
+    int RecordsUpdated,
+    int Skipped = 0,
+    string? FirstSkippedPath = null)
 {
     /// <summary>Did not run.</summary>
     public static readonly ExtensionDataRemovalResult NotRun = new(false, ExtensionDataInventory.Empty, 0);

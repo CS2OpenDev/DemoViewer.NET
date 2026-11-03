@@ -163,10 +163,12 @@ public class StratBookCommandsTests
             bool resolved = expectedScope == Playback2DBindingScope.Always
                 ? Playback2DKeymapProfile.Default.TryResolve(key, modifiers, toolActive, out string? resolvedAlways)
                   && resolvedAlways == action
-                : Playback2DKeymapProfile.Default.TryResolveInScope(expectedScope, key, modifiers, out string? resolvedScoped)
+                : Playback2DKeymapProfile.Default.TryResolveInScope(expectedScope, key, modifiers,
+                      out string? resolvedScoped)
                   && resolvedScoped == action;
 
-            await Assert.That(resolved).IsTrue().Because($"{action} should still resolve through the profile a tab routes through");
+            await Assert.That(resolved).IsTrue()
+                .Because($"{action} should still resolve through the profile a tab routes through");
             await Assert.That(Playback2DKeymapProfile.Default.GestureText(action))
                 .IsEqualTo(Playback2DKeymap.Format(key, modifiers));
         }
@@ -218,9 +220,12 @@ public class StratBookCommandsTests
     [Test]
     public async Task TheTwoFocusScopes_AreDeclared_AndLabelled()
     {
-        await Assert.That(StratBookCommands.Scopes.Select(s => s.Id)).IsEquivalentTo([Palette, Suggestion], CollectionOrdering.Matching);
-        await Assert.That(CommandRegistry.Default.ScopeLabel(new Playback2DBindingScope(StratBookActions.PaletteScope))).IsEqualTo("while tagging");
-        await Assert.That(CommandRegistry.Default.ScopeLabel(new Playback2DBindingScope(StratBookActions.SuggestionScope)))
+        await Assert.That(StratBookCommands.Scopes.Select(s => s.Id))
+            .IsEquivalentTo([Palette, Suggestion], CollectionOrdering.Matching);
+        await Assert.That(CommandRegistry.Default.ScopeLabel(new Playback2DBindingScope(StratBookActions.PaletteScope)))
+            .IsEqualTo("while tagging");
+        await Assert
+            .That(CommandRegistry.Default.ScopeLabel(new Playback2DBindingScope(StratBookActions.SuggestionScope)))
             .IsEqualTo("while reviewing suggestions");
     }
 
@@ -231,13 +236,16 @@ public class StratBookCommandsTests
     {
         string[] constants =
         [
-            .. typeof(StratBookActions).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .. typeof(StratBookActions)
+                .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
                 .Where(f => f.IsLiteral && f.Name != nameof(StratBookActions.Prefix)
-                            && f.Name != nameof(StratBookActions.PaletteScope) && f.Name != nameof(StratBookActions.SuggestionScope))
+                                        && f.Name != nameof(StratBookActions.PaletteScope)
+                                        && f.Name != nameof(StratBookActions.SuggestionScope))
                 .Select(f => (string)f.GetRawConstantValue()!)
         ];
 
-        await Assert.That(constants).IsEquivalentTo(StratBookCommands.All.Select(c => c.Id), CollectionOrdering.Matching);
+        await Assert.That(constants)
+            .IsEquivalentTo(StratBookCommands.All.Select(c => c.Id), CollectionOrdering.Matching);
     }
 
     // The canvas names core actions by string, so a renamed core action would leave its keys dead.
@@ -245,9 +253,13 @@ public class StratBookCommandsTests
     public async Task EveryCoreActionTheCanvasRuns_IsABindingInTheShippedKeymap()
     {
         System.Reflection.FieldInfo[] fields =
-            typeof(CoreActions).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            typeof(CoreActions).GetFields(System.Reflection.BindingFlags.Public
+                                          | System.Reflection.BindingFlags.Static);
         string[] scopes = [nameof(CoreActions.Scope), nameof(CoreActions.ToolScope)];
-        string[] actions = [.. fields.Where(f => f.IsLiteral && !scopes.Contains(f.Name)).Select(f => (string)f.GetRawConstantValue()!)];
+        string[] actions =
+        [
+            .. fields.Where(f => f.IsLiteral && !scopes.Contains(f.Name)).Select(f => (string)f.GetRawConstantValue()!)
+        ];
         HostKeymap keymap = HostKeymap.Instance;
 
         using (Assert.Multiple())

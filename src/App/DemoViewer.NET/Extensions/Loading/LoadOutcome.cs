@@ -79,7 +79,12 @@ public enum LoadFailure
 /// <param name="LogDetail">The exception message behind <paramref name="Detail" />, for the log only; null when there is none.</param>
 /// <param name="External">A third-party extension rather than an update of one this app ships.</param>
 public sealed record LoadOutcome(
-    string Directory, ExtensionManifest? Manifest, LoadFailure Failure, string Detail, string? LogDetail = null, bool External = false)
+    string Directory,
+    ExtensionManifest? Manifest,
+    LoadFailure Failure,
+    string Detail,
+    string? LogDetail = null,
+    bool External = false)
 {
     /// <summary>The staged version, when the manifest parsed.</summary>
     public SemVersion? Version => Manifest?.Version;

@@ -46,7 +46,8 @@ public class PassRegistryTests
             registry.AddPackPass("roundfacts", () => new Fake("roundfacts", "library"), ["library"], () => true);
             registry.AddPackPass("roundindex", () => new Fake("roundindex", "roundfacts"), ["roundfacts"], () => true);
             registry.AddPackPass("grenades", () => new Fake("grenades", "library"), ["library"], () => true);
-            registry.AddPackPass("suggestedtags", () => new Fake("suggestedtags", "roundindex"), ["roundindex"], () => true);
+            registry.AddPackPass("suggestedtags", () => new Fake("suggestedtags", "roundindex"), ["roundindex"],
+                () => true);
         });
 
         IReadOnlyList<IDemoPass> resolved = registry.Resolve();
@@ -65,7 +66,8 @@ public class PassRegistryTests
         registry.AddPacksLazily(() =>
         {
             taken = registry.TryAddPackPasses([("facts", () => new Fake("facts"), [])], () => true);
-            unknown = registry.TryAddPackPasses([("ext.a", () => new Fake("ext.a", "nowhere"), ["nowhere"])], () => true);
+            unknown = registry.TryAddPackPasses([("ext.a", () => new Fake("ext.a", "nowhere"), ["nowhere"])],
+                () => true);
             cycle = registry.TryAddPackPasses(
             [
                 ("ext.b", () => new Fake("ext.b", "ext.c"), ["ext.c"]),
@@ -191,16 +193,15 @@ public class PassRegistryTests
         PassRegistry registry = new();
         bool packOn = false;
         registry.AddCore("library", () => new Fake("library"));
-        registry.AddPacksLazily(() =>
-        {
-            registry.AddPackPass("pack", () => new Fake("pack"), [], () => packOn);
-        });
+        registry.AddPacksLazily(() => { registry.AddPackPass("pack", () => new Fake("pack"), [], () => packOn); });
 
-        await Assert.That(registry.Resolve().Select(e => e.Id)).IsEquivalentTo(["library"], CollectionOrdering.Matching);
+        await Assert.That(registry.Resolve().Select(e => e.Id))
+            .IsEquivalentTo(["library"], CollectionOrdering.Matching);
 
         packOn = true;
 
-        await Assert.That(registry.Resolve().Select(e => e.Id)).IsEquivalentTo(["library", "pack"], CollectionOrdering.Matching);
+        await Assert.That(registry.Resolve().Select(e => e.Id))
+            .IsEquivalentTo(["library", "pack"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -314,19 +315,25 @@ public class PassRegistryTests
     [Test]
     public async Task Adapter_MapsWantsToInterest_AndForwardForToNeeds()
     {
-        EvaluatorFake evaluator = new("e") { Wanted = ["/yes.dem"], Upstream = ["/later.dem"], Forward = ForwardNeeds.Rules };
+        EvaluatorFake evaluator =
+            new("e") { Wanted = ["/yes.dem"], Upstream = ["/later.dem"], Forward = ForwardNeeds.Rules };
         EvaluatorPassAdapter pass = new(evaluator, ["library"]);
 
         using (Assert.Multiple())
         {
             await Assert.That(pass.Id).IsEqualTo("e");
             await Assert.That(pass.After).IsEquivalentTo(["library"], CollectionOrdering.Matching);
-            await Assert.That(pass.Interest(new VisitedDemo("/yes.dem"), PassLevel.Background)).IsEqualTo(PassInterest.Yes);
-            await Assert.That(pass.Interest(new VisitedDemo("/later.dem"), PassLevel.Background)).IsEqualTo(PassInterest.IfUpstreamRuns);
-            await Assert.That(pass.Interest(new VisitedDemo("/no.dem"), PassLevel.Background)).IsEqualTo(PassInterest.No);
+            await Assert.That(pass.Interest(new VisitedDemo("/yes.dem"), PassLevel.Background))
+                .IsEqualTo(PassInterest.Yes);
+            await Assert.That(pass.Interest(new VisitedDemo("/later.dem"), PassLevel.Background))
+                .IsEqualTo(PassInterest.IfUpstreamRuns);
+            await Assert.That(pass.Interest(new VisitedDemo("/no.dem"), PassLevel.Background))
+                .IsEqualTo(PassInterest.No);
             await Assert.That(pass.Needs(new VisitedDemo("/yes.dem")))
                 .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules, false));
-            await Assert.That(new EvaluatorPassAdapter(new EvaluatorFake("r") { ReadsUserCommands = true }, []).Needs(new VisitedDemo("/x.dem")))
+            await Assert
+                .That(new EvaluatorPassAdapter(new EvaluatorFake("r") { ReadsUserCommands = true }, []).Needs(
+                    new VisitedDemo("/x.dem")))
                 .IsEqualTo(new PassNeeds(ParseMode.Retained, ForwardNeeds.None, true));
         }
     }
@@ -339,7 +346,8 @@ public class PassRegistryTests
         VisitedDemo demo = new("/x.dem");
         ForwardDemoResult forward = new()
         {
-            Demo = new DemoDescriptor("de_test", 64, 1f / 64, 1000, 0, "t", "t", 0, DemoProfile.Unknown, new Dictionary<int, PlayerInfo>()),
+            Demo = new DemoDescriptor("de_test", 64, 1f / 64, 1000, 0, "t", "t", 0, DemoProfile.Unknown,
+                new Dictionary<int, PlayerInfo>()),
             Rounds = [],
             FrameCount = 1,
             FirstServerTick = 0,

@@ -34,20 +34,8 @@ public class DemoCacheStoreTests
         [
             // A hostile RAW name: the cache stores names verbatim (the CSVG spec_player currency) and
             // sanitizes only at the render boundary.
-            new CachedPlayerInfo
-            {
-                Slot = 1,
-                Name = "s1mple‮",
-                SteamId64 = "7656119",
-                Team = 3
-            },
-            new CachedPlayerInfo
-            {
-                Slot = 2,
-                Name = "ZywOo",
-                SteamId64 = "7656120",
-                Team = 2
-            },
+            new CachedPlayerInfo { Slot = 1, Name = "s1mple‮", SteamId64 = "7656119", Team = 3 },
+            new CachedPlayerInfo { Slot = 2, Name = "ZywOo", SteamId64 = "7656120", Team = 2 },
             new CachedPlayerInfo
             {
                 Slot = 3,
@@ -56,21 +44,11 @@ public class DemoCacheStoreTests
                 Team = 3,
                 IsBot = true
             },
-            new CachedPlayerInfo
-            {
-                Slot = 9,
-                Name = "an observer",
-                SteamId64 = "7656199",
-                Team = 0
-            }
+            new CachedPlayerInfo { Slot = 9, Name = "an observer", SteamId64 = "7656199", Team = 0 }
         ],
         Rounds =
         [
-            new CachedRound
-            {
-                Number = 1,
-                StartTickFrameClock = 5000
-            }
+            new CachedRound { Number = 1, StartTickFrameClock = 5000 }
         ],
         CtScore = 13,
         TScore = 9,

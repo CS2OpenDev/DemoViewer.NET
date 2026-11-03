@@ -32,7 +32,8 @@ public class ExtensionShellViewTests
             using MainViewModel vm = new(library: TestLibraries.Empty());
             (IExtensionShell shell, _) = Attach(vm);
             List<(ParsedDemo? Demo, string? Hash, string? Path)> seen = [];
-            shell.CurrentDemoChanged += () => seen.Add((shell.CurrentDemo, shell.CurrentDemoHash, shell.CurrentDemoPath));
+            shell.CurrentDemoChanged +=
+                () => seen.Add((shell.CurrentDemo, shell.CurrentDemoHash, shell.CurrentDemoPath));
 
             await Assert.That(shell.CurrentDemo).IsNull();
             await Assert.That(shell.CurrentDemoHash).IsNull();
@@ -55,7 +56,8 @@ public class ExtensionShellViewTests
             using (Assert.Multiple())
             {
                 await Assert.That(seen[^1].Demo).IsNotNull();
-                await Assert.That(seen[^1].Demo).IsNotSameReferenceAs(first).Because("a reload hands out the new parse");
+                await Assert.That(seen[^1].Demo).IsNotSameReferenceAs(first)
+                    .Because("a reload hands out the new parse");
                 await Assert.That(seen[^1].Hash).IsEqualTo(hash);
             }
 
@@ -145,7 +147,8 @@ public class ExtensionShellViewTests
         try
         {
             Environment.SetEnvironmentVariable(TourDemoLocator.EnvVar, null);
-            return TourDemoLocator.FindSampleDemo() ?? throw new InvalidOperationException("the committed tour sample is missing");
+            return TourDemoLocator.FindSampleDemo()
+                   ?? throw new InvalidOperationException("the committed tour sample is missing");
         }
         finally
         {

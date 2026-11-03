@@ -89,7 +89,8 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
     public bool CanCheck => IsSupported && !IsChecking && !IsDownloading;
 
     /// <summary>The Update button shows while a version is offered and nothing is in flight.</summary>
-    public bool CanUpdate => IsSupported && !IsChecking && !IsDownloading && State?.Status == ExtensionUpdateStatus.UpdateAvailable;
+    public bool CanUpdate => IsSupported && !IsChecking && !IsDownloading
+                             && State?.Status == ExtensionUpdateStatus.UpdateAvailable;
 
     /// <summary>The offered version's text, for the Update button's tooltip; null when none.</summary>
     public string? OfferedVersion => State?.Offered?.Version.ToString();
@@ -206,9 +207,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
                 case StageOutcome.AlreadyInstalled:
                     State = State! with
                     {
-                        Status = ExtensionUpdateStatus.PendingRestart,
-                        Pending = offered.Version,
-                        Offered = null
+                        Status = ExtensionUpdateStatus.PendingRestart, Pending = offered.Version, Offered = null
                     };
                     break;
                 case StageOutcome.Refused:
@@ -248,12 +247,16 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
         string version = state.Latest?.Version.ToString() ?? "A newer version";
         return state.LatestCompatibility switch
         {
-            PackCompatibility.HostContractMismatch h => $"{version} available but needs app contract {h.Required} (this app provides {h.Actual}).",
-            PackCompatibility.Cs2DemoKitMismatch k => $"{version} available but needs CS2DemoKit {k.Required} (this app ships {k.Actual}).",
-            PackCompatibility.AppTooOld a => $"{version} available but needs app {a.Required} or newer (this is {a.Actual}).",
+            PackCompatibility.HostContractMismatch h =>
+                $"{version} available but needs app contract {h.Required} (this app provides {h.Actual}).",
+            PackCompatibility.Cs2DemoKitMismatch k =>
+                $"{version} available but needs CS2DemoKit {k.Required} (this app ships {k.Actual}).",
+            PackCompatibility.AppTooOld a =>
+                $"{version} available but needs app {a.Required} or newer (this is {a.Actual}).",
             _ => $"{version} available but cannot run on this app."
         };
     }
 
-    private static string Megabytes(long bytes) => (bytes / (1024.0 * 1024.0)).ToString("0.0", CultureInfo.InvariantCulture);
+    private static string Megabytes(long bytes) =>
+        (bytes / (1024.0 * 1024.0)).ToString("0.0", CultureInfo.InvariantCulture);
 }

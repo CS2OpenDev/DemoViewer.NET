@@ -27,7 +27,8 @@ public class Playback2DKeymapProfileTests
         await Assert.That(rejected).IsEmpty();
         // The shipped table is core (Playback2DKeymap) union every pack's commands (CommandRegistry):
         // with no overrides, the profile is exactly that, not the bare core table.
-        await Assert.That(profile.Bindings).IsEquivalentTo(CommandRegistry.Default.EffectiveBindings, CollectionOrdering.Matching);
+        await Assert.That(profile.Bindings)
+            .IsEquivalentTo(CommandRegistry.Default.EffectiveBindings, CollectionOrdering.Matching);
         await Assert.That(profile.IsOverridden(Playback2DAction.NextRound)).IsFalse();
     }
 
@@ -91,7 +92,8 @@ public class Playback2DKeymapProfileTests
             .Because("a rejection that names no row in the file is one the user cannot act on");
 
         await Assert.That(profile.Rejected).IsEquivalentTo(rejected, CollectionOrdering.Matching);
-        await Assert.That(profile.Bindings).IsEquivalentTo(CommandRegistry.Default.EffectiveBindings, CollectionOrdering.Matching)
+        await Assert.That(profile.Bindings)
+            .IsEquivalentTo(CommandRegistry.Default.EffectiveBindings, CollectionOrdering.Matching)
             .Because("no row survived, so the profile is the shipped table exactly");
 
         // Every shipped gesture still resolves, including the one all five rows were aiming at.
@@ -259,7 +261,8 @@ public class Playback2DKeymapProfileTests
 
         await Assert.That(rejected).IsEmpty()
             .Because("a row this type wrote must be a row this type can read: " + string.Join(",", rows));
-        await Assert.That(profile.Bindings).IsEquivalentTo(CommandRegistry.Default.EffectiveBindings, CollectionOrdering.Matching);
+        await Assert.That(profile.Bindings)
+            .IsEquivalentTo(CommandRegistry.Default.EffectiveBindings, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -308,13 +311,15 @@ public class Playback2DKeymapProfileTests
     [Arguments("tagnote=Ctrl+Shift+M")]
     public async Task AStratBookRowUnderItsOldId_StillApplies(string row)
     {
-        Playback2DKeymapProfile profile = Playback2DKeymapProfile.FromOverrides([row], out IReadOnlyList<string> rejected);
+        Playback2DKeymapProfile profile =
+            Playback2DKeymapProfile.FromOverrides([row], out IReadOnlyList<string> rejected);
 
         using (Assert.Multiple())
         {
             await Assert.That(rejected).IsEmpty();
             await Assert.That(profile.BindingFor(TagNote)!.Value.Key).IsEqualTo(Key.M);
-            await Assert.That(profile.BindingFor(TagNote)!.Value.Modifiers).IsEqualTo(KeyModifiers.Control | KeyModifiers.Shift);
+            await Assert.That(profile.BindingFor(TagNote)!.Value.Modifiers)
+                .IsEqualTo(KeyModifiers.Control | KeyModifiers.Shift);
             await Assert.That(profile.IsOverridden(TagNote)).IsTrue();
             await Assert.That(Playback2DKeymapProfile.Default.GestureText(TagNote)).IsEqualTo("Ctrl+M");
         }

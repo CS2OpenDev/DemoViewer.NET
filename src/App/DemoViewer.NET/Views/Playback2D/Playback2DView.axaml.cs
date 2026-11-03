@@ -543,10 +543,7 @@ public partial class Playback2DView : UserControl
         List<MenuItem> items = new();
         foreach (FollowablePlayer p in vm.FollowablePlayers)
         {
-            MenuItem item = new()
-            {
-                Header = p.Display
-            };
+            MenuItem item = new() { Header = p.Display };
             int slot = p.Slot;
             item.Click += (_, _) => FollowSlot(slot);
             items.Add(item);
@@ -554,11 +551,7 @@ public partial class Playback2DView : UserControl
 
         if (items.Count == 0)
         {
-            items.Add(new MenuItem
-            {
-                Header = "(no players)",
-                IsEnabled = false
-            });
+            items.Add(new MenuItem { Header = "(no players)", IsEnabled = false });
         }
 
         _followMenuItem.ItemsSource = items;
@@ -580,11 +573,7 @@ public partial class Playback2DView : UserControl
         {
             PlayerOverviewEntry entry = p.PlayerOverview;
             offers |= entry.Offers;
-            MenuItem item = new()
-            {
-                Header = p.Display,
-                IsEnabled = entry.CanOpen
-            };
+            MenuItem item = new() { Header = p.Display, IsEnabled = entry.CanOpen };
             ToolTip.SetTip(item, entry.Tip);
             ToolTip.SetShowOnDisabled(item, true);
             item.Click += (_, _) => entry.Open();

@@ -84,7 +84,8 @@ public class ShellModuleFeatureGateTests
             using FeatureGate gate = new(sp.GetRequiredService<IOptionsMonitor<AppSettings>>(), false);
             using ShellModuleFeatureGate projection = new(gate, static () => false);
             string sub = FeatureCatalog.All
-                .First(d => d.OwnerPackId == StratBookPack.PackFeatureId && d.Scope == FeatureScope.SubFeature && !d.Required).Id;
+                .First(d => d.OwnerPackId == StratBookPack.PackFeatureId && d.Scope == FeatureScope.SubFeature
+                                                                         && !d.Required).Id;
             int raised = 0;
             projection.Changed += () => raised++;
             await Assert.That(projection.IsEnabled(sub)).IsTrue();
@@ -146,10 +147,7 @@ public class ShellModuleFeatureGateTests
         using ShellModuleFeatureGate nullGate = new(null);
         await Assert.That(nullGate.IsEnabled("playback2d.export")).IsTrue();
 
-        Playback2DFakeContext ungated = new()
-        {
-            Gate = null
-        };
+        Playback2DFakeContext ungated = new() { Gate = null };
         await Assert.That(ungated.Features).IsNull()
             .Because("IModuleContext.Features is default-implemented as null so no test double broke");
         await Assert.That(ungated.Features?.IsEnabled("playback2d.annotations") ?? true).IsTrue()

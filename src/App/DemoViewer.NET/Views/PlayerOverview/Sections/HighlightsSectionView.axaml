@@ -66,13 +66,15 @@
             <TextBlock Text="No highlights for this player yet" IsVisible="{Binding ShowEmpty}" FontSize="12"
                        FontStyle="Italic" Foreground="{DynamicResource TextDim}" />
 
-            <Grid Classes="highlightRow" Margin="8 0" IsVisible="{Binding HasRows}" ColumnDefinitions="*,40,96,130,72,40,Auto">
+            <Grid Classes="highlightRow" Margin="8 0" IsVisible="{Binding HasRows}"
+                  ColumnDefinitions="*,40,96,130,72,40,Auto">
                 <TextBlock Grid.Column="0" Classes="col-label" Text="HIGHLIGHT" />
                 <TextBlock Grid.Column="1" Classes="col-label" Text="ROUND" />
                 <TextBlock Grid.Column="2" Classes="col-label" Text="MAP" />
                 <TextBlock Grid.Column="3" Classes="col-label" Text="DATE" />
                 <TextBlock Grid.Column="4" Classes="col-label" Text="KIND" />
-                <TextBlock Grid.Column="5" Classes="col-label num" Text="SCORE" ToolTip.Tip="The authored score, higher is rarer and cooler" />
+                <TextBlock Grid.Column="5" Classes="col-label num" Text="SCORE"
+                           ToolTip.Tip="The authored score, higher is rarer and cooler" />
             </Grid>
 
             <ListBox x:Name="HighlightList" Classes="data-list" MaxHeight="360" ItemsSource="{Binding Rows}"
@@ -95,9 +97,11 @@
                                 <TextBlock Text="{Binding KindText}" />
                             </Border>
                             <TextBlock Grid.Column="5" Classes="num" Text="{Binding ScoreText}" />
-                            <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                            <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="4"
+                                        HorizontalAlignment="Right">
                                 <TextBlock Text="file missing" FontSize="11" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource StatNegative}" IsVisible="{Binding IsFileMissing}" />
+                                           Foreground="{DynamicResource StatNegative}"
+                                           IsVisible="{Binding IsFileMissing}" />
                                 <Button Classes="ghost chip" Content="Open" IsVisible="{Binding !IsFileMissing}"
                                         ToolTip.Tip="Open this demo"
                                         Command="{Binding $parent[ListBox].((sections:HighlightsSectionViewModel)DataContext).OpenDemoCommand}"

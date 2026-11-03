@@ -85,6 +85,7 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
     /// </summary>
     [ObservableProperty]
     private object? _exportDialog;
+
     private bool _refreshing;
 
     // What the callouts editor was last pointed at, so a RefreshList that changed nothing about the
@@ -156,7 +157,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
     ///     with no Export button. Handed in rather than looked up by type: the export is built per extension
     ///     and carries this one's id, feature switch and fault guard.
     /// </param>
-    public StratBookTabViewModel(StratStore store, TeamIdentityService? teams = null, Action<Action>? post = null, bool? isBrowser = null,
+    public StratBookTabViewModel(StratStore store, TeamIdentityService? teams = null, Action<Action>? post = null,
+        bool? isBrowser = null,
         CalloutResolverSource? calloutResolvers = null, Func<string?, IMapAssetLease?>? canvasMapLoader = null,
         TagStore? tags = null, StratEvidenceService? evidence = null, IExtensionReviewQueue? review = null,
         Func<string, LibraryDemo?>? indexBySha = null, Func<string, bool>? selectTab = null,
@@ -183,16 +185,19 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
             : map => new UtilityBookTabViewModel(grenades, lockedMap: map,
                 background: work => Task.Run(work), post: _post));
         // A new step carries a thrower at the origin the canvas shows, on the canvas's floors.
-        Editor = new StratEditorViewModel(Session, _lineupOrigins is null ? null : new StratLineupCatalog(_lineupOrigins),
+        Editor = new StratEditorViewModel(Session,
+            _lineupOrigins is null ? null : new StratLineupCatalog(_lineupOrigins),
             _lineupOrigins is { } origins
-                ? (map, utility) => origins.Resolve(map, utility, StratFromRound.FloorLevelKeys(Canvas?.MapAsset?.Floors))
+                ? (map, utility) =>
+                    origins.Resolve(map, utility, StratFromRound.FloorLevelKeys(Canvas?.MapAsset?.Floors))
                 : null,
             (place, level) => Canvas?.CurrentPlaceCentres?.Invoke(place, level));
         if (_lineupOrigins is not null)
         {
             // A map not grouped yet answers null, so the validator keeps "not checked" until it is; For only
             // reads the cache and starts the grouping off the UI thread.
-            Session.LineupLookup = map => _lineupOrigins.For(map) is { } lineups ? (_, id) => lineups.ById.ContainsKey(id) : null;
+            Session.LineupLookup = map =>
+                _lineupOrigins.For(map) is { } lineups ? (_, id) => lineups.ById.ContainsKey(id) : null;
             _lineupOrigins.Changed += OnLineupsChanged;
         }
 
@@ -217,8 +222,10 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
 
         // A branch into another strat plays that strat's steps read from the store; it is not checked out,
         // since the canvas does not write it.
-        Canvas = new StratCanvasViewModel(Session, canvasMapLoader, lookup: id => _store.Load(id).Document, lineupOrigins: _lineupOrigins,
-            placesFor: canvasPlaces, post: post, routing: canvasRouting, spawnsFor: _spawns is { } spawnSource ? spawnSource.ForAsync : null,
+        Canvas = new StratCanvasViewModel(Session, canvasMapLoader, lookup: id => _store.Load(id).Document,
+            lineupOrigins: _lineupOrigins,
+            placesFor: canvasPlaces, post: post, routing: canvasRouting,
+            spawnsFor: _spawns is { } spawnSource ? spawnSource.ForAsync : null,
             lookups: canvasServices);
         Editor.Spawns = () => Canvas.CurrentSpawns;
         Editor.LegacyCarriedFor = Canvas.LegacyCarried;
@@ -235,7 +242,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         Canvas.PlacesLoaded += OnPlacesLoaded;
 
         Detected = new DetectedStratsViewModel(mining, playback ?? (() => null),
-            id => _teams?.AllTeams.FirstOrDefault(t => t.Id == id)?.Name, () => SelectedOwner?.Owner, ShowStratFromDetected, _post, canvasMapLoader, _lineupOrigins,
+            id => _teams?.AllTeams.FirstOrDefault(t => t.Id == id)?.Name, () => SelectedOwner?.Owner,
+            ShowStratFromDetected, _post, canvasMapLoader, _lineupOrigins,
             canvasServices);
         Detected.PropertyChanged += OnDetectedChanged;
 
@@ -317,7 +325,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
 
     public ObservableCollection<string> MapOptions { get; } = [];
 
-    public static IReadOnlyList<string> SideOptions { get; } = [AllSides, StratVocabulary.SideT, StratVocabulary.SideCt];
+    public static IReadOnlyList<string> SideOptions { get; } =
+        [AllSides, StratVocabulary.SideT, StratVocabulary.SideCt];
 
     public ObservableCollection<StratListRow> Strats { get; } = [];
 
@@ -524,7 +533,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         using (JobScope.UserAction())
         {
             // The canvas holds this map's bundle already: the picker draws it rather than decoding another.
-            picker = new LineupPickerViewModel(_lineupMap(document.Map), step?.Utility?.Kind ?? StratEditorViewModel.None, current,
+            picker = new LineupPickerViewModel(_lineupMap(document.Map),
+                step?.Utility?.Kind ?? StratEditorViewModel.None, current,
                 step?.Utility?.Technique, pick =>
                 {
                     if (ReferenceEquals(LineupPicker, picker))
@@ -682,7 +692,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         }
 
         SetCreating(true);
-        (StratOwnerOption Owner, string Map, string Side, Guid? Open) atClick = (owner, SelectedMap, SelectedSide, Session.Document?.Id);
+        (StratOwnerOption Owner, string Map, string Side, Guid? Open) atClick = (owner, SelectedMap, SelectedSide,
+            Session.Document?.Id);
         spawns.ContinueWith(t => _post(() =>
         {
             SetCreating(false);
@@ -692,8 +703,9 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
             }
 
             // Opened only if the user is still where they clicked; otherwise it is made but the open strat stays.
-            bool stillHere = SelectedOwner == atClick.Owner && SelectedMap == atClick.Map && SelectedSide == atClick.Side
-                             && Session.Document?.Id == atClick.Open;
+            bool stillHere = SelectedOwner == atClick.Owner && SelectedMap == atClick.Map
+                                                            && SelectedSide == atClick.Side
+                                                            && Session.Document?.Id == atClick.Open;
             CreateNew(owner.Owner, map, side, t.IsCompletedSuccessfully ? t.Result : null, template, stillHere);
         }), TaskScheduler.Default);
     }
@@ -714,7 +726,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         NewStratCommand.NotifyCanExecuteChanged();
     }
 
-    private void CreateNew(StratOwner owner, string map, string side, StratSpawns? spawns, StratTemplate? template, bool open)
+    private void CreateNew(StratOwner owner, string map, string side, StratSpawns? spawns, StratTemplate? template,
+        bool open)
     {
         string type = template?.Type ?? (side == StratVocabulary.SideCt ? "setup" : "default");
         StratDocument created = _store.Create(owner, map, side, type, template?.Name ?? "New strat",
@@ -964,7 +977,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
     {
         // Another strat, none, or the picker's step deleted: there is nothing left for it to write to.
         if (_pickerTarget is { } target
-            && (Session.Document is not { } open || open.Id != target.Strat || open.Steps.All(st => st.Id != target.Step)))
+            && (Session.Document is not { } open || open.Id != target.Strat
+                                                 || open.Steps.All(st => st.Id != target.Step)))
         {
             CancelLineupPicker();
         }
@@ -1001,7 +1015,9 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
             options.AddRange(_teams.Teams
                 .OrderByDescending(t => t.IsUs)
                 .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(t => new StratOwnerOption(StratOwner.Team(t.Id), DisplayText.Sanitize(t.Name) + (t.IsUs ? " (us)" : ""))));
+                .Select(t =>
+                    new StratOwnerOption(StratOwner.Team(t.Id),
+                        DisplayText.Sanitize(t.Name) + (t.IsUs ? " (us)" : ""))));
         }
 
         _refreshing = true;
@@ -1073,10 +1089,12 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         }
 
         RefreshMaps(_context?.MapName);
-        Detected.SetFilter(SelectedMap == AllMaps ? null : SelectedMap, SelectedSide == AllSides ? null : SelectedSide, SelectedOwner?.Owner);
+        Detected.SetFilter(SelectedMap == AllMaps ? null : SelectedMap, SelectedSide == AllSides ? null : SelectedSide,
+            SelectedOwner?.Owner);
         Guid? keep = SelectedStrat?.Id ?? Session.Document?.Id;
         IReadOnlyList<StratIndexEntry> rows = SelectedOwner is { } owner
-            ? _store.Query(owner.Owner, SelectedMap == AllMaps ? null : SelectedMap, SelectedSide == AllSides ? null : SelectedSide, null)
+            ? _store.Query(owner.Owner, SelectedMap == AllMaps ? null : SelectedMap,
+                SelectedSide == AllSides ? null : SelectedSide, null)
             : [];
 
         _refreshing = true;
@@ -1121,7 +1139,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
             : (StratOwner.Me(), "");
 
         if (_calloutsConfiguredFor is { } current && current.Owner.Equals(target.Owner)
-            && string.Equals(current.Map, target.Map, StringComparison.Ordinal) && Callouts.CopySources.Count == Owners.Count - 1)
+                                                  && string.Equals(current.Map, target.Map, StringComparison.Ordinal)
+                                                  && Callouts.CopySources.Count == Owners.Count - 1)
         {
             return;
         }

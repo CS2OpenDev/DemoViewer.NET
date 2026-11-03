@@ -25,11 +25,13 @@ public class StratStoreTests
         Path.Combine(StratStore.FolderFor(root, document.Owner, document.Map), document.Id + StratStore.StratExtension);
 
     private static string LogFile(string root, StratDocument document) =>
-        Path.Combine(StratStore.FolderFor(root, document.Owner, document.Map), document.Id + StratStore.HistoryExtension);
+        Path.Combine(StratStore.FolderFor(root, document.Owner, document.Map),
+            document.Id + StratStore.HistoryExtension);
 
     private static (StratDocument Next, PatchOp Op) MoveStep(StratDocument document, int step, double to)
     {
-        PatchOp op = PatchOp.ReplaceOp($"/steps/{step}/atSeconds", JsonValue.Create(document.Steps[step].AtSeconds), JsonValue.Create(to));
+        PatchOp op = PatchOp.ReplaceOp($"/steps/{step}/atSeconds", JsonValue.Create(document.Steps[step].AtSeconds),
+            JsonValue.Create(to));
         return (StratHistory.Apply(document, [op]), op);
     }
 
@@ -46,12 +48,18 @@ public class StratStoreTests
             StratIndexEntry row = store.Index.Single(e => e.Id == team.Id);
             using (Assert.Multiple())
             {
-                await Assert.That(File.Exists(Path.Combine(root, "team-" + TeamId, "de_mirage", team.Id + ".dvstrat.json"))).IsTrue();
-                await Assert.That(File.ReadAllLines(Path.Combine(root, "team-" + TeamId, "de_mirage", team.Id + ".history.jsonl")).Length).IsEqualTo(1);
+                await Assert
+                    .That(File.Exists(Path.Combine(root, "team-" + TeamId, "de_mirage", team.Id + ".dvstrat.json")))
+                    .IsTrue();
+                await Assert
+                    .That(File.ReadAllLines(Path.Combine(root, "team-" + TeamId, "de_mirage",
+                        team.Id + ".history.jsonl")).Length).IsEqualTo(1);
                 await Assert.That(File.Exists(Path.Combine(root, "me", "de_nuke", mine.Id + ".dvstrat.json"))).IsTrue();
                 await Assert.That(team.Revision).IsEqualTo(1);
-                await Assert.That(team.Slots.Select(s => s.Slot)).IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
-                await Assert.That(row.Map).IsEqualTo("de_mirage").Because("the map is the parser's lower-case spelling");
+                await Assert.That(team.Slots.Select(s => s.Slot))
+                    .IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
+                await Assert.That(row.Map).IsEqualTo("de_mirage")
+                    .Because("the map is the parser's lower-case spelling");
                 await Assert.That(row.Owner).IsEqualTo(Team);
                 await Assert.That(row.Revision).IsEqualTo(1);
                 await Assert.That(File.Exists(Path.Combine(root, "index.json"))).IsFalse()
@@ -89,12 +97,14 @@ public class StratStoreTests
 
             // Missing: never saved.
             StratStore rebuilt = new(PackStores.At(root));
-            await Assert.That(rebuilt.Index.Select(e => e.Id)).IsEquivalentTo(new[] { a.Id, b.Id }.Order(), CollectionOrdering.Matching);
+            await Assert.That(rebuilt.Index.Select(e => e.Id))
+                .IsEquivalentTo(new[] { a.Id, b.Id }.Order(), CollectionOrdering.Matching);
 
             // Corrupt.
             File.WriteAllText(Path.Combine(root, "index.json"), "{ not json");
             StratStore fromCorrupt = new(PackStores.At(root));
-            await Assert.That(fromCorrupt.Index.Select(e => e.Id)).IsEquivalentTo(new[] { a.Id, b.Id }.Order(), CollectionOrdering.Matching);
+            await Assert.That(fromCorrupt.Index.Select(e => e.Id))
+                .IsEquivalentTo(new[] { a.Id, b.Id }.Order(), CollectionOrdering.Matching);
             await Assert.That(File.ReadAllText(Path.Combine(root, "index.json"))).Contains(a.Id.ToString());
         }
         finally
@@ -125,7 +135,8 @@ public class StratStoreTests
             File.WriteAllText(StratFile(root, late), StratStore.Serialize(late));
 
             StratStore reopened = new(PackStores.At(root));
-            await Assert.That(reopened.Index.Select(e => e.Id)).IsEquivalentTo(new[] { kept.Id, late.Id }.Order(), CollectionOrdering.Matching);
+            await Assert.That(reopened.Index.Select(e => e.Id))
+                .IsEquivalentTo(new[] { kept.Id, late.Id }.Order(), CollectionOrdering.Matching);
         }
         finally
         {
@@ -184,15 +195,18 @@ public class StratStoreTests
             {
                 await Assert.That(result.Saved).IsTrue();
                 await Assert.That(result.Revision).IsEqualTo(2);
-                await Assert.That(moved.Revision).IsEqualTo(2).Because("the caller's document is stamped to match the file");
+                await Assert.That(moved.Revision).IsEqualTo(2)
+                    .Because("the caller's document is stamped to match the file");
                 await Assert.That(moved.ModifiedUtc).IsEqualTo(Created.AddMinutes(1));
                 await Assert.That(log.Count).IsEqualTo(2);
                 await Assert.That(log[0].Ops.Single().Path).IsEqualTo("").Because("revision 1 is the whole document");
                 await Assert.That(log[1].Ops.Single().From!.GetValue<double>()).IsEqualTo(82);
                 await Assert.That(log[1].Summary).IsEqualTo("molotov moved from 1:22 to 1:16");
                 await Assert.That(store.TryLoad(document.Id)!.Steps[1].AtSeconds).IsEqualTo(76);
-                await Assert.That(Directory.EnumerateFiles(folder, "*.tmp", SearchOption.AllDirectories).Any()).IsFalse();
-                await Assert.That(Directory.EnumerateFiles(folder, ".strat-*", SearchOption.AllDirectories).Any()).IsFalse();
+                await Assert.That(Directory.EnumerateFiles(folder, "*.tmp", SearchOption.AllDirectories).Any())
+                    .IsFalse();
+                await Assert.That(Directory.EnumerateFiles(folder, ".strat-*", SearchOption.AllDirectories).Any())
+                    .IsFalse();
             }
         }
         finally
@@ -226,7 +240,8 @@ public class StratStoreTests
                 previous = now;
             }
 
-            await Assert.That(store.History(document.Id).Select(e => e.Revision)).IsEquivalentTo(SixRevisions, CollectionOrdering.Matching);
+            await Assert.That(store.History(document.Id).Select(e => e.Revision))
+                .IsEquivalentTo(SixRevisions, CollectionOrdering.Matching);
         }
         finally
         {
@@ -351,7 +366,8 @@ public class StratStoreTests
         List<StratDocument> documents = [];
         for (int i = 0; i < 50; i++)
         {
-            documents.Add(store.Create(i % 2 == 0 ? Team : StratOwner.Me(), i % 3 == 0 ? "de_nuke" : "de_mirage", "T", "default", $"strat {i}"));
+            documents.Add(store.Create(i % 2 == 0 ? Team : StratOwner.Me(), i % 3 == 0 ? "de_nuke" : "de_mirage", "T",
+                "default", $"strat {i}"));
         }
 
         StratDocument first = store.TryLoad(documents[0].Id)!;
@@ -396,7 +412,8 @@ public class StratStoreTests
                 await Assert.That(store.TryLoad(document.Id)).IsNull();
                 await Assert.That(store.Index.Count).IsEqualTo(0);
                 await Assert.That(changed.Last()).IsEqualTo(document.Id);
-                await Assert.That(new StratStore(PackStores.At(root)).Index.Count).IsEqualTo(0).Because("the trash is never listed");
+                await Assert.That(new StratStore(PackStores.At(root)).Index.Count).IsEqualTo(0)
+                    .Because("the trash is never listed");
                 await Assert.That(store.Delete(document.Id)).IsFalse();
             }
         }
@@ -445,7 +462,8 @@ public class StratStoreTests
                 await Assert.That(File.Exists(oldFile)).IsFalse();
                 await Assert.That(File.Exists(StratFile(root, moved))).IsTrue();
                 await Assert.That(File.ReadAllLines(LogFile(root, moved)).Length).IsEqualTo(2);
-                await Assert.That(new StratStore(PackStores.At(root)).TryLoad(document.Id)!.Map).IsEqualTo("de_inferno");
+                await Assert.That(new StratStore(PackStores.At(root)).TryLoad(document.Id)!.Map)
+                    .IsEqualTo("de_inferno");
             }
         }
         finally
@@ -476,7 +494,8 @@ public class StratStoreTests
             using (Assert.Multiple())
             {
                 await Assert.That(File.Exists(Path.Combine(root, "team-" + TeamId, "book.json"))).IsTrue();
-                await Assert.That(File.Exists(Path.Combine(root, "team-" + TeamId, "de_mirage", "callouts.json"))).IsTrue();
+                await Assert.That(File.Exists(Path.Combine(root, "team-" + TeamId, "de_mirage", "callouts.json")))
+                    .IsTrue();
                 await Assert.That(reopened.LoadBook(Team).SlotDefaults["e1"]["A"]).IsEqualTo("76561198000000001");
                 await Assert.That(reopened.LoadCallouts(Team, "de_mirage").Aliases.Single().Primary).IsTrue();
                 await Assert.That(store.SaveCallouts(Team, duplicate)).IsFalse();

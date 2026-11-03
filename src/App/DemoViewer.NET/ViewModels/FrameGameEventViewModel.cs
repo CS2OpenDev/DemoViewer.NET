@@ -55,7 +55,8 @@ public sealed class FrameGameEventViewModel(GameEvent e, Func<int, string> playe
 
     private static string BuildSummary(GameEvent e, Func<int, string> playerName) => e.Payload switch
     {
-        PlayerDeathEvent d => $"{playerName(d.Attacker)} → {playerName(d.UserId)}  {d.Weapon}{(d.Headshot ? " hs" : "")}",
+        PlayerDeathEvent d =>
+            $"{playerName(d.Attacker)} → {playerName(d.UserId)}  {d.Weapon}{(d.Headshot ? " hs" : "")}",
         PlayerHurtEvent h => $"{playerName(h.Attacker)} → {playerName(h.UserId)}  -{h.DmgHealth}hp  {h.Weapon}",
         WeaponFireEvent w => $"{playerName(w.UserId)}  {w.Weapon}",
         PlayerBlindEvent b => $"{playerName(b.Attacker)} → {playerName(b.UserId)}  {b.BlindDuration:F2}s",

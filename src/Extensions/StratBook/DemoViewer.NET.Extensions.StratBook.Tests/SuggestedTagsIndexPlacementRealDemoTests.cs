@@ -35,15 +35,21 @@ public class SuggestedTagsIndexPlacementRealDemoTests
         DemoCacheStore store = new(null);
         RoundFactsEvaluator facts = new(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
         facts.Evaluate(path, parsed);
-        RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts ?? throw new InvalidOperationException("the evaluator wrote no rows");
+        RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts
+                              ?? throw new InvalidOperationException("the evaluator wrote no rows");
 
         OccupancyBuild walk = RoundOccupancyBuilder.FromWalk(parsed, rows);
-        RoundIndexBuild built = RoundIndexBuilder.BuildWithPositions(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
+        RoundIndexBuild built =
+            RoundIndexBuilder.BuildWithPositions(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
         RoundIndexDocument index = built.Index;
         List<PlaceSummary> places =
         [
-            .. index.Places.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => new PlaceSummary(p.Key, p.Value.Count,
-                [.. p.Value.Buckets.Select(b => new PlaceZBucket(b.ZBucket, b.Count, b.SumX / b.Count, b.SumY / b.Count))]))
+            .. index.Places.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => new PlaceSummary(p.Key,
+                p.Value.Count,
+                [
+                    .. p.Value.Buckets.Select(b =>
+                        new PlaceZBucket(b.ZBucket, b.Count, b.SumX / b.Count, b.SumY / b.Count))
+                ]))
         ];
         using AssetZonePlaceResolverSource zoneSource = new();
         IZonePlaceResolver? zones = zoneSource.TryGet(parsed.MapName);
@@ -65,13 +71,17 @@ public class SuggestedTagsIndexPlacementRealDemoTests
             cloudOnly += byIndex is not null && centroidsOnly.Resolve(e.Position) is null ? 1 : 0;
         }
 
-        Console.WriteLine($"{Path.GetFileName(path)} {parsed.MapName} zones={(zones is null ? "no" : "yes")}: {events.Count} detonations, " +
-                          $"walk placed {walkPlaced}, index placed {indexPlaced}, lost {lost}, cloud-only {cloudOnly}, renamed {renamed}");
+        Console.WriteLine(
+            $"{Path.GetFileName(path)} {parsed.MapName} zones={(zones is null ? "no" : "yes")}: {events.Count} detonations, "
+            +
+            $"walk placed {walkPlaced}, index placed {indexPlaced}, lost {lost}, cloud-only {cloudOnly}, renamed {renamed}");
         using (Assert.Multiple())
         {
             await Assert.That(events.Count).IsGreaterThan(0);
-            await Assert.That(walkPlaced).IsGreaterThan(0).Because("no loss is only a check when the walk placed something");
-            await Assert.That(lost).IsEqualTo(0).Because("a detonation the walk's cloud placed keeps a place on the index path");
+            await Assert.That(walkPlaced).IsGreaterThan(0)
+                .Because("no loss is only a check when the walk placed something");
+            await Assert.That(lost).IsEqualTo(0)
+                .Because("a detonation the walk's cloud placed keeps a place on the index path");
         }
     }
 

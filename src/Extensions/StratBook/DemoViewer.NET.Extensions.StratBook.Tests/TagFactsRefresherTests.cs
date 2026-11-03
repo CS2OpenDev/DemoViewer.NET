@@ -35,7 +35,8 @@ public class TagFactsRefresherTests
     // CT eco, a B plant at 12 000, the bomb explodes.
     private static RoundFactsRows Rows(int roundTwoCtScore = 1)
     {
-        RoundFacts one = RoundIndexTestData.Round(1, 1_000, 8_000, kills: [new KillStep { Tick = 1_500, VictimSide = 2, CtAlive = 5, TAlive = 4 }]);
+        RoundFacts one = RoundIndexTestData.Round(1, 1_000, 8_000,
+            kills: [new KillStep { Tick = 1_500, VictimSide = 2, CtAlive = 5, TAlive = 4 }]);
         one.MatchRoundNumber = 1;
         one.Half = RoundHalf.First;
         one.Ct.BuyType = BuyType.Pistol;
@@ -85,13 +86,14 @@ public class TagFactsRefresherTests
             await Assert.That(Value(execute, "plantTick")).IsEqualTo("12000");
             await Assert.That(Value(execute, "roundTime")).IsEqualTo("88");
             await Assert.That(Value(execute, "phase")).IsEqualTo(
-                RoundFactsRules.LowerCamel(RoundPhases.At(Rows().Rounds[1], 11_000)))
+                    RoundFactsRules.LowerCamel(RoundPhases.At(Rows().Rounds[1], 11_000)))
                 .Because("the tick-anchored facts are read at fromTick");
             await Assert.That(Value(execute, "manCount.ct")).IsEqualTo("5");
             await Assert.That(Value(execute, "manCount.t")).IsEqualTo("5");
             await Assert.That(execute.Facts.Any(f => f.Group is "side" or "buy.us" or "buy.them")).IsFalse()
                 .Because("relative facts are Team Identity's to derive at query time");
-            await Assert.That(execute.Facts.Any(f => f.Group.StartsWith("parser.", StringComparison.Ordinal))).IsFalse();
+            await Assert.That(execute.Facts.Any(f => f.Group.StartsWith("parser.", StringComparison.Ordinal)))
+                .IsFalse();
             await Assert.That(execute.FactsStamp!.Schema).IsEqualTo(RoundFactsRecords.Schema);
             await Assert.That(execute.FactsStamp.ComputedUtc).IsEqualTo(Refreshed);
             await Assert.That(execute.FactsStamp.Stale).IsFalse();
@@ -163,7 +165,8 @@ public class TagFactsRefresherTests
             TagInstance stored = new TagStore(PackStores.At(root)).TryLoad(Sha)!.Instances.Single();
             using (Assert.Multiple())
             {
-                await Assert.That(Value(stored, "score.ct")).IsEqualTo("4").Because("Updated drove a refresh from the new rows");
+                await Assert.That(Value(stored, "score.ct")).IsEqualTo("4")
+                    .Because("Updated drove a refresh from the new rows");
                 await Assert.That(stored.FactsStamp!.ComputedUtc).IsEqualTo(Refreshed);
                 await Assert.That(LabelsJson(stored)).IsEqualTo(labelsBefore);
             }
@@ -213,10 +216,11 @@ public class TagFactsRefresherTests
     {
         TagStore store = new(null);
         FakeFacts facts = new(Rows());
-        using TagSession session = new(store, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created, facts)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        using TagSession session =
+            new(store, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created, facts)
+            {
+                AutoSaveDelay = TimeSpan.FromHours(1)
+            };
         await session.AttachAsync(Demo, Clock, DemoPath);
         TagInstance execute = Instance("B execute", 11_000, 13_000, ("outcome", "won"));
         session.Apply(new TagDelta.Add(execute));
@@ -246,10 +250,9 @@ public class TagFactsRefresherTests
     public async Task AFreshInstance_AlreadyCarriesItsRoundsFacts()
     {
         FakeFacts facts = new(Rows());
-        using TagSession session = new(new TagStore(null), _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created, facts)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        using TagSession session =
+            new(new TagStore(null), _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false,
+                () => Created, facts) { AutoSaveDelay = TimeSpan.FromHours(1) };
         await session.AttachAsync(Demo, Clock, DemoPath);
 
         session.Apply(new TagDelta.Add(Instance("B execute", 11_000, 13_000)));
@@ -277,10 +280,9 @@ public class TagFactsRefresherTests
     public async Task MovingAStart_IntoAnotherRound_RederivesItsFacts_AndUndoMovesThemBack()
     {
         FakeFacts facts = new(Rows());
-        using TagSession session = new(new TagStore(null), _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created, facts)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        using TagSession session =
+            new(new TagStore(null), _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false,
+                () => Created, facts) { AutoSaveDelay = TimeSpan.FromHours(1) };
         await session.AttachAsync(Demo, Clock, DemoPath);
         TagInstance execute = Instance("B execute", 11_000, 13_000);
         session.Apply(new TagDelta.Add(execute));
@@ -310,10 +312,11 @@ public class TagFactsRefresherTests
         store.Save(Document(Sha, early));
         FakeFacts facts = new(Rows());
 
-        using TagSession session = new(store, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created, facts)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        using TagSession session =
+            new(store, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created, facts)
+            {
+                AutoSaveDelay = TimeSpan.FromHours(1)
+            };
         await session.AttachAsync(Demo, Clock, DemoPath);
 
         TagInstance loaded = session.Document!.Instances.Single();
@@ -329,10 +332,9 @@ public class TagFactsRefresherTests
     public async Task ASessionWithoutRows_LeavesFactsToTheRefresher()
     {
         FakeFacts facts = new(null);
-        using TagSession session = new(new TagStore(null), _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created, facts)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        using TagSession session =
+            new(new TagStore(null), _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false,
+                () => Created, facts) { AutoSaveDelay = TimeSpan.FromHours(1) };
         await session.AttachAsync(Demo, Clock, DemoPath);
         session.Apply(new TagDelta.Add(Instance("B execute", 11_000, 13_000)));
 
@@ -386,7 +388,9 @@ public class TagFactsRefresherTests
         public IReadOnlyList<(DemoCacheIndexEntry Demo, RoundFacts Round)> Query(RoundFactsFilter filter) => [];
 
         public IReadOnlyList<FactLabel> FactsFor(string demoPath, int round, int? atTick = null) =>
-            Rows?.Rounds.FirstOrDefault(r => r.Number == round) is { } facts ? RoundFactsRules.Labels(facts, atTick) : [];
+            Rows?.Rounds.FirstOrDefault(r => r.Number == round) is { } facts
+                ? RoundFactsRules.Labels(facts, atTick)
+                : [];
 
         public void Raise(string demoPath) => _updated?.Invoke(demoPath);
     }

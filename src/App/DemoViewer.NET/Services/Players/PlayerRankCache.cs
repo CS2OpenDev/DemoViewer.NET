@@ -167,7 +167,8 @@ public sealed class PlayerRankCache
                     }
                     else if (!subject.Entries.TryGetValue(id, out entry) || entry.Stamp != stamp)
                     {
-                        MatchRankRow? rank = _read(match.Row.Path)?.Players?.Find(p => string.Equals(p.SteamId64, id64, StringComparison.Ordinal));
+                        MatchRankRow? rank = _read(match.Row.Path)?.Players
+                            ?.Find(p => string.Equals(p.SteamId64, id64, StringComparison.Ordinal));
                         entry = new Entry(stamp, rank);
                     }
 

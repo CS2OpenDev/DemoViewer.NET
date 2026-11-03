@@ -54,17 +54,29 @@ public static partial class Variants
             (double X, double Y) spawn = Centre(zones, "TSpawn");
             StratStep seed = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = 115, Actor = StratVocabulary.ActorAll, Verb = "hold",
+                Id = Guid.NewGuid(),
+                AtSeconds = 115,
+                Actor = StratVocabulary.ActorAll,
+                Verb = "hold",
                 Positions = [.. StratVocabulary.Slots.Select((s, i) => At(s, spawn.X - 120 + 60 * i, spawn.Y))]
             };
             StratStep via = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = 110, Actor = "B", Verb = "move", From = new PlaceRef { Place = "TSpawn" },
-                To = new PlaceRef { Place = "BombsiteB" }, Via = ["Middle"]
+                Id = Guid.NewGuid(),
+                AtSeconds = 110,
+                Actor = "B",
+                Verb = "move",
+                From = new PlaceRef { Place = "TSpawn" },
+                To = new PlaceRef { Place = "BombsiteB" },
+                Via = ["Middle"]
             };
             StratStep tunnels = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = 110, Actor = "C", Verb = "move", From = new PlaceRef { Place = "TSpawn" },
+                Id = Guid.NewGuid(),
+                AtSeconds = 110,
+                Actor = "C",
+                Verb = "move",
+                From = new PlaceRef { Place = "TSpawn" },
                 To = new PlaceRef { Place = "BombsiteB" }
             };
             Replace(vm, "B through mid", [seed, tunnels, via]);
@@ -87,32 +99,45 @@ public static partial class Variants
     {
         vm.Editor.Name = name;
         vm.Session.Apply(PatchOp.ReplaceOp("/steps", null,
-            new JsonArray(steps.Select(s => JsonSerializer.SerializeToNode(s, StratJsonContext.Default.StratStep)).ToArray())));
+            new JsonArray(steps.Select(s => JsonSerializer.SerializeToNode(s, StratJsonContext.Default.StratStep))
+                .ToArray())));
     }
 
     private static (double X, double Y) Centre(IZonePlaceResolver? zones, string place) =>
         zones?.PlaceArrival(place, Dust2Floor) is { } a ? (Math.Round(a.X), Math.Round(a.Y)) : (0, 0);
 
-    private static StepPosition At(string slot, double x, double y) => new() { Slot = slot, X = x, Y = y, LevelMinZ = Dust2Floor };
+    private static StepPosition At(string slot, double x, double y) =>
+        new() { Slot = slot, X = x, Y = y, LevelMinZ = Dust2Floor };
 
     // The shape StratRoutingTests.ExecuteB measures: eight steps, ten tokens, a lurk, two throws, dragged opponents.
     private static List<StratStep> ExecuteB(IZonePlaceResolver? zones)
     {
-        (double X, double Y) spawn = Centre(zones, "TSpawn"), ct = Centre(zones, "CTSpawn"), site = Centre(zones, "BombsiteB");
+        (double X, double Y) spawn = Centre(zones, "TSpawn"),
+            ct = Centre(zones, "CTSpawn"),
+            site = Centre(zones, "BombsiteB");
         (double X, double Y) doors = Centre(zones, "BDoors"), mid = Centre(zones, "Middle");
-        StratStep Step(double at, string actor, string verb) => new() { Id = Guid.NewGuid(), AtSeconds = at, Actor = actor, Verb = verb };
+
+        StratStep Step(double at, string actor, string verb) =>
+            new() { Id = Guid.NewGuid(), AtSeconds = at, Actor = actor, Verb = verb };
+
         StepAssignment Line(string slot, string place) => new() { Slot = slot, To = new PlaceRef { Place = place } };
 
         StratStep seed = Step(115, StratVocabulary.ActorAll, "hold");
         seed.Positions =
         [
             .. StratVocabulary.Slots.Select((s, i) => At(s, spawn.X - 120 + 60 * i, spawn.Y)),
-            At("O1", ct.X, ct.Y), At("O2", ct.X + 60, ct.Y), At("O3", site.X, site.Y), At("O4", doors.X, doors.Y), At("O5", mid.X, mid.Y)
+            At("O1", ct.X, ct.Y), At("O2", ct.X + 60, ct.Y), At("O3", site.X, site.Y), At("O4", doors.X, doors.Y),
+            At("O5", mid.X, mid.Y)
         ];
         StratStep split = Step(108, StratVocabulary.ActorAll, "move");
-        split.Assignments = [Line("A", "UpperTunnel"), Line("B", "UpperTunnel"), Line("C", "OutsideTunnel"), Line("D", "TopofMid")];
+        split.Assignments =
+            [Line("A", "UpperTunnel"), Line("B", "UpperTunnel"), Line("C", "OutsideTunnel"), Line("D", "TopofMid")];
         StratStep lurk = Step(108, "E", "lurk");
-        lurk.Lurk = new StepLurk { Areas = ["Middle"], Rotate = new LurkRotate { AtSeconds = 70, To = new PlaceRef { Place = "BombsiteB" } } };
+        lurk.Lurk = new StepLurk
+        {
+            Areas = ["Middle"],
+            Rotate = new LurkRotate { AtSeconds = 70, To = new PlaceRef { Place = "BombsiteB" } }
+        };
         StratStep stack = Step(96, StratVocabulary.ActorAll, "move");
         stack.Assignments = [Line("A", "UpperTunnel"), Line("C", "UpperTunnel"), Line("D", "LowerTunnel")];
         stack.Positions = [At("O3", site.X + 150, site.Y + 80), At("O5", mid.X + 200, mid.Y + 300)];
@@ -121,7 +146,8 @@ public static partial class Variants
         StratStep flash = Step(88, "C", "throw");
         flash.Utility = new UtilityRef { Kind = "flash", Landing = new UtilityLanding { Place = "BombsiteB" } };
         StratStep push = Step(85, StratVocabulary.ActorAll, "push");
-        push.Assignments = [Line("A", "BombsiteB"), Line("B", "BombsiteB"), Line("C", "BDoors"), Line("D", "BombsiteB")];
+        push.Assignments =
+            [Line("A", "BombsiteB"), Line("B", "BombsiteB"), Line("C", "BDoors"), Line("D", "BombsiteB")];
         push.Positions = [At("O1", doors.X + 200, doors.Y - 200), At("O2", mid.X - 150, mid.Y + 400)];
         StratStep plant = Step(75, "A", "plant");
         plant.To = new PlaceRef { Place = "BombsiteB" };

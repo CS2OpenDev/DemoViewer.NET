@@ -59,7 +59,8 @@
                                 <Run Text="0.0156" Foreground="{DynamicResource TextMid}" />
                             </TextBlock>
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                <TextBlock Text="Interactive" FontSize="10" Foreground="{DynamicResource AccentInteractive}" />
+                                <TextBlock Text="Interactive" FontSize="10"
+                                           Foreground="{DynamicResource AccentInteractive}" />
                                 <TextBlock Text="Amber" FontSize="10" Foreground="{DynamicResource AccentAmber}" />
                                 <TextBlock Text="Error" FontSize="10" Foreground="{DynamicResource AccentError}" />
                                 <TextBlock Text="Caution" FontSize="10" Foreground="{DynamicResource AccentCaution}" />
@@ -74,9 +75,12 @@
                     BorderThickness="0,1" Padding="10,5">
                 <Grid ColumnDefinitions="*,48,48,48,90" ColumnSpacing="6">
                     <TextBlock Grid.Column="0" Text="ropz" FontSize="11" Foreground="{DynamicResource TextBright}" />
-                    <TextBlock Grid.Column="1" Text="1.32" FontSize="11" Foreground="{DynamicResource StatPositive}" HorizontalAlignment="Right" />
-                    <TextBlock Grid.Column="2" Text="0.94" FontSize="11" Foreground="{DynamicResource StatNegativeSoft}" HorizontalAlignment="Right" />
-                    <TextBlock Grid.Column="3" Text="61%" FontSize="11" Foreground="{DynamicResource StatNegative}" HorizontalAlignment="Right" />
+                    <TextBlock Grid.Column="1" Text="1.32" FontSize="11" Foreground="{DynamicResource StatPositive}"
+                               HorizontalAlignment="Right" />
+                    <TextBlock Grid.Column="2" Text="0.94" FontSize="11"
+                               Foreground="{DynamicResource StatNegativeSoft}" HorizontalAlignment="Right" />
+                    <TextBlock Grid.Column="3" Text="61%" FontSize="11" Foreground="{DynamicResource StatNegative}"
+                               HorizontalAlignment="Right" />
                     <Grid Grid.Column="4" ColumnDefinitions="2*,*" Height="8" VerticalAlignment="Center">
                         <Border Grid.ColumnSpan="2" Background="{DynamicResource StatBarTrack}" CornerRadius="2" />
                         <Border Grid.Column="0" Background="{DynamicResource StatBarFill}" CornerRadius="2" />
@@ -86,19 +90,27 @@
 
             <!-- The 2D canvas: grid, two players, a sightline and a smoke; then the timeline strip -->
             <Canvas Height="96" Background="{DynamicResource Pb2dCanvasBg}" ClipToBounds="True">
-                <Line StartPoint="0,32" EndPoint="400,32" Stroke="{DynamicResource Pb2dCanvasMinorGrid}" StrokeThickness="1" />
-                <Line StartPoint="0,64" EndPoint="400,64" Stroke="{DynamicResource Pb2dCanvasMinorGrid}" StrokeThickness="1" />
-                <Line StartPoint="120,0" EndPoint="120,96" Stroke="{DynamicResource Pb2dCanvasMajorGrid}" StrokeThickness="1" />
-                <Line StartPoint="240,0" EndPoint="240,96" Stroke="{DynamicResource Pb2dCanvasMinorGrid}" StrokeThickness="1" />
-                <Ellipse Canvas.Left="200" Canvas.Top="20" Width="44" Height="44" Fill="{DynamicResource Pb2dCanvasSmoke}"
+                <Line StartPoint="0,32" EndPoint="400,32" Stroke="{DynamicResource Pb2dCanvasMinorGrid}"
+                      StrokeThickness="1" />
+                <Line StartPoint="0,64" EndPoint="400,64" Stroke="{DynamicResource Pb2dCanvasMinorGrid}"
+                      StrokeThickness="1" />
+                <Line StartPoint="120,0" EndPoint="120,96" Stroke="{DynamicResource Pb2dCanvasMajorGrid}"
+                      StrokeThickness="1" />
+                <Line StartPoint="240,0" EndPoint="240,96" Stroke="{DynamicResource Pb2dCanvasMinorGrid}"
+                      StrokeThickness="1" />
+                <Ellipse Canvas.Left="200" Canvas.Top="20" Width="44" Height="44"
+                         Fill="{DynamicResource Pb2dCanvasSmoke}"
                          Stroke="{DynamicResource Pb2dCanvasSmokeStroke}" StrokeThickness="1" />
-                <Line StartPoint="70,58" EndPoint="230,42" Stroke="{DynamicResource Pb2dCanvasSightlineCt}" StrokeThickness="2" />
+                <Line StartPoint="70,58" EndPoint="230,42" Stroke="{DynamicResource Pb2dCanvasSightlineCt}"
+                      StrokeThickness="2" />
                 <Ellipse Canvas.Left="60" Canvas.Top="48" Width="20" Height="20" Fill="{DynamicResource Pb2dTeamCt}"
                          Stroke="{DynamicResource Pb2dCanvasMarkerRingCt}" StrokeThickness="2" />
                 <Ellipse Canvas.Left="300" Canvas.Top="30" Width="20" Height="20" Fill="{DynamicResource Pb2dTeamT}"
                          Stroke="{DynamicResource Pb2dCanvasRingShooting}" StrokeThickness="2" />
-                <TextBlock Canvas.Left="56" Canvas.Top="70" Text="ropz" FontSize="10" Foreground="{DynamicResource Pb2dCanvasLabel}" />
-                <TextBlock Canvas.Left="294" Canvas.Top="52" Text="m0NESY" FontSize="10" Foreground="{DynamicResource Pb2dCanvasLabel}" />
+                <TextBlock Canvas.Left="56" Canvas.Top="70" Text="ropz" FontSize="10"
+                           Foreground="{DynamicResource Pb2dCanvasLabel}" />
+                <TextBlock Canvas.Left="294" Canvas.Top="52" Text="m0NESY" FontSize="10"
+                           Foreground="{DynamicResource Pb2dCanvasLabel}" />
             </Canvas>
             <Border Background="{DynamicResource Pb2dPanelBg}" BorderBrush="{DynamicResource Pb2dHudDivider}"
                     BorderThickness="0,1,0,0" Padding="10,5">
@@ -109,9 +121,12 @@
                                Foreground="{DynamicResource Pb2dTextDim}" VerticalAlignment="Center" />
                     <Grid Height="10" ColumnDefinitions="3*,*,4*" VerticalAlignment="Center">
                         <Border Grid.ColumnSpan="3" Background="{DynamicResource Pb2dCardBg}" CornerRadius="2" />
-                        <Border Grid.Column="0" Background="{DynamicResource Pb2dTeamCt}" Opacity="0.55" CornerRadius="2,0,0,2" />
-                        <Border Grid.Column="1" Width="2" HorizontalAlignment="Left" Background="{DynamicResource AccentAmber}" />
-                        <Ellipse Grid.Column="1" Width="6" Height="6" HorizontalAlignment="Right" Fill="{DynamicResource Pb2dHeadshot}" />
+                        <Border Grid.Column="0" Background="{DynamicResource Pb2dTeamCt}" Opacity="0.55"
+                                CornerRadius="2,0,0,2" />
+                        <Border Grid.Column="1" Width="2" HorizontalAlignment="Left"
+                                Background="{DynamicResource AccentAmber}" />
+                        <Ellipse Grid.Column="1" Width="6" Height="6" HorizontalAlignment="Right"
+                                 Fill="{DynamicResource Pb2dHeadshot}" />
                     </Grid>
                 </DockPanel>
             </Border>
@@ -120,18 +135,32 @@
             <Border Background="{DynamicResource PanelBg}" Padding="10,6" BorderBrush="{DynamicResource BorderSubtle}"
                     BorderThickness="0,1,0,0">
                 <StackPanel Spacing="1">
-                    <TextBlock Classes="mono" FontSize="11" Foreground="{DynamicResource SyntaxComment}" Text="# Entry kills in the first 20 seconds" />
+                    <TextBlock Classes="mono" FontSize="11" Foreground="{DynamicResource SyntaxComment}"
+                               Text="# Entry kills in the first 20 seconds" />
                     <TextBlock Classes="mono" FontSize="11">
-                        <Run Text="rule" Foreground="{DynamicResource SyntaxSection}" /><Run Text=": " Foreground="{DynamicResource SyntaxOperator}" /><Run Text="entry_kill" Foreground="{DynamicResource SyntaxIdentifier}" />
+                        <Run Text="rule" Foreground="{DynamicResource SyntaxSection}" />
+                        <Run Text=": " Foreground="{DynamicResource SyntaxOperator}" />
+                        <Run Text="entry_kill" Foreground="{DynamicResource SyntaxIdentifier}" />
                     </TextBlock>
                     <TextBlock Classes="mono" FontSize="11">
-                        <Run Text="  on" Foreground="{DynamicResource SyntaxKind}" /><Run Text=": " Foreground="{DynamicResource SyntaxOperator}" /><Run Text="player_death" Foreground="{DynamicResource SyntaxEvent}" />
+                        <Run Text="  on" Foreground="{DynamicResource SyntaxKind}" />
+                        <Run Text=": " Foreground="{DynamicResource SyntaxOperator}" />
+                        <Run Text="player_death" Foreground="{DynamicResource SyntaxEvent}" />
                     </TextBlock>
                     <TextBlock Classes="mono" FontSize="11">
-                        <Run Text="  when" Foreground="{DynamicResource SyntaxModifier}" /><Run Text=": " Foreground="{DynamicResource SyntaxOperator}" /><Run Text="attacker.team" Foreground="{DynamicResource SyntaxPath}" /><Run Text=" != " Foreground="{DynamicResource SyntaxOperator}" /><Run Text="victim.team" Foreground="{DynamicResource SyntaxFacet}" />
+                        <Run Text="  when" Foreground="{DynamicResource SyntaxModifier}" />
+                        <Run Text=": " Foreground="{DynamicResource SyntaxOperator}" />
+                        <Run Text="attacker.team" Foreground="{DynamicResource SyntaxPath}" />
+                        <Run Text=" != " Foreground="{DynamicResource SyntaxOperator}" />
+                        <Run Text="victim.team" Foreground="{DynamicResource SyntaxFacet}" />
                     </TextBlock>
                     <TextBlock Classes="mono" FontSize="11">
-                        <Run Text="  within" Foreground="{DynamicResource SyntaxKind}" /><Run Text=": " Foreground="{DynamicResource SyntaxOperator}" /><Run Text="20" Foreground="{DynamicResource SyntaxNumber}" /><Run Text="  label: " Foreground="{DynamicResource SyntaxPlain}" /><Run Text="&quot;Entry&quot;" Foreground="{DynamicResource SyntaxString}" /><Run Text=" true" Foreground="{DynamicResource SyntaxLiteral}" />
+                        <Run Text="  within" Foreground="{DynamicResource SyntaxKind}" />
+                        <Run Text=": " Foreground="{DynamicResource SyntaxOperator}" />
+                        <Run Text="20" Foreground="{DynamicResource SyntaxNumber}" />
+                        <Run Text="  label: " Foreground="{DynamicResource SyntaxPlain}" />
+                        <Run Text="&quot;Entry&quot;" Foreground="{DynamicResource SyntaxString}" />
+                        <Run Text=" true" Foreground="{DynamicResource SyntaxLiteral}" />
                     </TextBlock>
                 </StackPanel>
             </Border>
@@ -139,24 +168,30 @@
             <!-- Analysis graph: an active node feeding an inactive one -->
             <Border Background="{DynamicResource GraphCanvasBg}" Padding="10,8">
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                    <Border Grid.Column="0" Background="{DynamicResource GraphNodeActiveBg}" BorderBrush="{DynamicResource GraphNodeActiveBorder}"
+                    <Border Grid.Column="0" Background="{DynamicResource GraphNodeActiveBg}"
+                            BorderBrush="{DynamicResource GraphNodeActiveBorder}"
                             BorderThickness="1.5" CornerRadius="4" Padding="8,4">
                         <StackPanel>
-                            <TextBlock Text="EntryKill" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource GraphNodeActiveFg}" />
-                            <TextBlock Text="active · 3 fires" FontSize="9" Foreground="{DynamicResource GraphNodeActiveSubFg}" />
+                            <TextBlock Text="EntryKill" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource GraphNodeActiveFg}" />
+                            <TextBlock Text="active · 3 fires" FontSize="9"
+                                       Foreground="{DynamicResource GraphNodeActiveSubFg}" />
                         </StackPanel>
                     </Border>
                     <Grid Grid.Column="1" VerticalAlignment="Center" Margin="4,0">
                         <Rectangle Height="2" Fill="{DynamicResource GraphEdgeActivate}" />
-                        <Border Background="{DynamicResource GraphLabelBg}" HorizontalAlignment="Center" Padding="4,0" CornerRadius="2">
+                        <Border Background="{DynamicResource GraphLabelBg}" HorizontalAlignment="Center" Padding="4,0"
+                                CornerRadius="2">
                             <TextBlock Text="activates" FontSize="9" Foreground="{DynamicResource GraphEdgeLabel}" />
                         </Border>
                     </Grid>
-                    <Border Grid.Column="2" Background="{DynamicResource GraphNodeInactiveBg}" BorderBrush="{DynamicResource GraphNodeInactiveBorder}"
+                    <Border Grid.Column="2" Background="{DynamicResource GraphNodeInactiveBg}"
+                            BorderBrush="{DynamicResource GraphNodeInactiveBorder}"
                             BorderThickness="1" CornerRadius="4" Padding="8,4">
                         <StackPanel>
                             <TextBlock Text="Trade" FontSize="11" Foreground="{DynamicResource GraphNodeInactiveFg}" />
-                            <TextBlock Text="waiting" FontSize="9" Foreground="{DynamicResource GraphNodeInactiveSubFg}" />
+                            <TextBlock Text="waiting" FontSize="9"
+                                       Foreground="{DynamicResource GraphNodeInactiveSubFg}" />
                         </StackPanel>
                     </Border>
                 </Grid>

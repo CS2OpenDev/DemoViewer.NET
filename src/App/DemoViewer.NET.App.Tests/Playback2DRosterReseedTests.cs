@@ -26,25 +26,14 @@ public class Playback2DRosterReseedTests
 
         // Frame 1: a live player exists but the roster is still empty → marker renders (with a NUMBER label),
         // but there is no attributes card and no initials yet.
-        ctx.Push(new FakeSnap(1, new[]
-        {
-            Alive(0, 2, 100, 200)
-        }));
+        ctx.Push(new FakeSnap(1, new[] { Alive(0, 2, 100, 200) }));
         await Assert.That(vm.Markers.Count).IsEqualTo(1);
         await Assert.That(vm.Markers[0].Label).IsEqualTo("1"); // slot+1 fallback, no name
         await Assert.That(vm.Attributes.Count(a => a.InMatch)).IsEqualTo(0); // no cards yet
 
         // The host now sets the roster (post-load) and another push arrives.
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
-        ctx.Push(new FakeSnap(2, new[]
-        {
-            Alive(0, 2, 110, 210)
-        }));
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
+        ctx.Push(new FakeSnap(2, new[] { Alive(0, 2, 110, 210) }));
 
         // The cards + initials now appear, no tab re-activation needed.
         await Assert.That(vm.Markers[0].Label).IsEqualTo("NE"); // initials from the roster name

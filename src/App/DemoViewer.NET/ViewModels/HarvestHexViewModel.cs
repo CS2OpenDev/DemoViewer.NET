@@ -351,7 +351,8 @@ public sealed partial class HarvestHexViewModel : ObservableObject
 
     // ── Lazy row list ─────────────────────────────────────────────────────────
 
-    private sealed class LazyRowList(byte[] data, List<HexSpan> spans, int byteOffset, int byteCount) : IList<HarvestHexRow>
+    private sealed class LazyRowList(byte[] data, List<HexSpan> spans, int byteOffset, int byteCount)
+        : IList<HarvestHexRow>
     {
         /// <summary>Add.</summary>
         public void Add(HarvestHexRow item) => throw new NotSupportedException();

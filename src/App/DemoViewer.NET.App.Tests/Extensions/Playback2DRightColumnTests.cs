@@ -60,7 +60,8 @@ public class Playback2DRightColumnTests
         {
             await Assert.That(vm.Surface.Panels.Select(p => ((FakePanelViewModel)p.Content!).Name))
                 .IsEquivalentTo(["first", "second", "third"], CollectionOrdering.Matching);
-            await Assert.That(vm.Surface.Panels.Select(p => p.IsShown)).IsEquivalentTo([false, false, false], CollectionOrdering.Matching)
+            await Assert.That(vm.Surface.Panels.Select(p => p.IsShown))
+                .IsEquivalentTo([false, false, false], CollectionOrdering.Matching)
                 .Because("the mode is off");
             await Assert.That(vm.IsReviewAvailable).IsTrue();
             await Assert.That(vm.IsCardStrip).IsFalse();
@@ -69,7 +70,8 @@ public class Playback2DRightColumnTests
         mode.IsOn = true;
         using (Assert.Multiple())
         {
-            await Assert.That(vm.Surface.Panels.Select(p => p.IsShown)).IsEquivalentTo([true, true, true], CollectionOrdering.Matching);
+            await Assert.That(vm.Surface.Panels.Select(p => p.IsShown))
+                .IsEquivalentTo([true, true, true], CollectionOrdering.Matching);
             await Assert.That(first.IsShown).IsTrue();
             await Assert.That(vm.IsCardStrip).IsTrue();
         }
@@ -279,8 +281,11 @@ public class Playback2DRightColumnTests
             await Assert.That(vm.Surface.HasKeyboard).IsTrue();
             await Assert.That(vm.ExecuteAction(Playback2DAction.TogglePlay)).IsTrue();
             await Assert.That(ctx.PlayCount).IsEqualTo(1).Because("the focused panel took play");
-            await Assert.That(vm.ExecuteAction(Playback2DAction.StepForward)).IsTrue().Because("what it declines falls to the tab");
-            await Assert.That(actions).IsEquivalentTo([nameof(Playback2DAction.TogglePlay), nameof(Playback2DAction.StepForward)], CollectionOrdering.Matching);
+            await Assert.That(vm.ExecuteAction(Playback2DAction.StepForward)).IsTrue()
+                .Because("what it declines falls to the tab");
+            await Assert.That(actions)
+                .IsEquivalentTo([nameof(Playback2DAction.TogglePlay), nameof(Playback2DAction.StepForward)],
+                    CollectionOrdering.Matching);
         }
 
         mode.IsOn = false;

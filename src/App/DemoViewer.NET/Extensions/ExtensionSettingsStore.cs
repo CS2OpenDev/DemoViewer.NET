@@ -26,8 +26,7 @@ internal sealed class ExtensionSettingsStore : IExtensionSettings
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
     {
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() }
+        WriteIndented = true, Converters = { new JsonStringEnumConverter() }
     };
 
     private readonly string _extensionId;
@@ -92,7 +91,8 @@ internal sealed class ExtensionSettingsStore : IExtensionSettings
         {
             return node.Deserialize<T>(JsonOptions) is { } value ? value : fallback;
         }
-        catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException or FormatException)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException
+                                       or FormatException)
         {
             return fallback;
         }
@@ -223,7 +223,9 @@ internal sealed class ExtensionSettingsStore : IExtensionSettings
     {
         try
         {
-            File.Move(path, path + ".unreadable-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture));
+            File.Move(path,
+                path + ".unreadable-"
+                     + DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

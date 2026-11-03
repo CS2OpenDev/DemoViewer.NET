@@ -95,10 +95,12 @@
                         <Panel>
                             <Border x:Name="EditStartHandle" Width="5" HorizontalAlignment="Left" Cursor="SizeWestEast"
                                     Background="{DynamicResource Pb2dPositive}" ToolTip.Tip="Drag to move the start"
-                                    PointerPressed="OnHandlePressed" PointerMoved="OnHandleMoved" PointerReleased="OnHandleReleased" />
+                                    PointerPressed="OnHandlePressed" PointerMoved="OnHandleMoved"
+                                    PointerReleased="OnHandleReleased" />
                             <Border x:Name="EditEndHandle" Width="5" HorizontalAlignment="Right" Cursor="SizeWestEast"
                                     Background="{DynamicResource Pb2dPositive}" ToolTip.Tip="Drag to move the end"
-                                    PointerPressed="OnHandlePressed" PointerMoved="OnHandleMoved" PointerReleased="OnHandleReleased" />
+                                    PointerPressed="OnHandlePressed" PointerMoved="OnHandleMoved"
+                                    PointerReleased="OnHandleReleased" />
                         </Panel>
                     </Border>
                 </Panel>
@@ -129,11 +131,11 @@
                                  A null IconKey (annotations, round boundaries — our concepts, not the
                                  game's) means "nothing was asked for", so the glyph draws unreported. -->
                             <ui:GameIcon HorizontalAlignment="Left" VerticalAlignment="Center"
-                                               Margin="{Binding Offset}"
-                                               Key="{Binding IconKey}" Fallback="{Binding Glyph}"
-                                               IconHeight="11" FontSize="11"
-                                               Foreground="{Binding Brush}"
-                                               ToolTip.Tip="{Binding Tooltip}" />
+                                         Margin="{Binding Offset}"
+                                         Key="{Binding IconKey}" Fallback="{Binding Glyph}"
+                                         IconHeight="11" FontSize="11"
+                                         Foreground="{Binding Brush}"
+                                         ToolTip.Tip="{Binding Tooltip}" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

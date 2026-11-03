@@ -123,10 +123,12 @@ internal sealed class ExtensionContext : IExtensionContext
         _guard = services.GetService<ExtensionFaults>()?.GuardFor(extension) ?? ExtensionGuard.Standalone(extension);
         Features = new GateView(services.GetService<IFeatureGate>(), _guard);
         Jobs = new ExtensionJobs(extension.Id, () => services.GetService<IDemoProcessingQueue>(),
-            () => services.GetService<JobKindRegistry>() ?? JobKindRegistry.Default, _guard, Post, Dispatcher.UIThread.CheckAccess);
+            () => services.GetService<JobKindRegistry>() ?? JobKindRegistry.Default, _guard, Post,
+            Dispatcher.UIThread.CheckAccess);
         Passes = new ExtensionPasses(extension.Id, () => services.GetService<DemoScheduler>(), Post);
         Shell = new ShellView(services.GetRequiredService<ExtensionShellHub>(), _guard);
-        Stores = new ExtensionStores(extension.Id, AppPaths.ConfigRoot, AppPaths.DemoCacheDir, PackContributions.AcceptedStores(extension, _guard));
+        Stores = new ExtensionStores(extension.Id, AppPaths.ConfigRoot, AppPaths.DemoCacheDir,
+            PackContributions.AcceptedStores(extension, _guard));
         Settings = new ExtensionSettingsStore(extension.Id, AppPaths.ConfigRoot, Post);
         Notifications = services.GetService<NotificationCenter>()?.For(_guard, CreateLogger("Notifications"))
                         ?? new NotificationCenter(Post).For(_guard, CreateLogger("Notifications"));
@@ -135,9 +137,11 @@ internal sealed class ExtensionContext : IExtensionContext
         Identity = new HostIdentity(() => services.GetService<IdentityService>(), _guard);
         // The settings watcher raises on a thread-pool thread for an edit of the file.
         services.GetService<IOptionsMonitor<AppSettings>>()?.OnChange(_ => Post(_keymap.Refresh));
-        string? version = extension.GetType().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        string? version = extension.GetType().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
         _data = new Lazy<IExtensionDemoData>(() => AppPaths.DemoCacheDir is { } cache
-            ? new ExtensionDemoDataStore(extension.Id, Path.Combine(cache, ExtensionFolders.DataDirectoryName, ExtensionFolders.SafeName(extension.Id)),
+            ? new ExtensionDemoDataStore(extension.Id,
+                Path.Combine(cache, ExtensionFolders.DataDirectoryName, ExtensionFolders.SafeName(extension.Id)),
                 services.GetRequiredService<DemoCacheStore>(), Post, version, Dispatcher.UIThread.CheckAccess,
                 services.GetService<IDemoProcessingQueue>() is { } queue
                     // Asked for by a view the user is looking at, so it runs while the queue is paused too.
@@ -340,8 +344,13 @@ internal sealed class ExtensionContext : IExtensionContext
 ///     job that throws is counted against the extension before the queue marks it failed, a handle cancels
 ///     its own job only, and a job's completion is told on the UI thread through the extension's post.
 /// </summary>
-internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueue?> queue, Func<JobKindRegistry> kinds,
-    ExtensionGuard? guard = null, Action<Action>? post = null, Func<bool>? onUiThread = null)
+internal sealed class ExtensionJobs(
+    string extensionId,
+    Func<IDemoProcessingQueue?> queue,
+    Func<JobKindRegistry> kinds,
+    ExtensionGuard? guard = null,
+    Action<Action>? post = null,
+    Func<bool>? onUiThread = null)
     : IExtensionJobs
 {
     private readonly Func<bool> _onUiThread = onUiThread ?? (static () => true);
@@ -380,7 +389,8 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
             return handle;
         }
 
-        QueueJobRequest queued = new(kind, request.Title, extensionId, PriorityOf(priority), QueueWork.WithStopToken(async ctx =>
+        QueueJobRequest queued = new(kind, request.Title, extensionId, PriorityOf(priority),
+            QueueWork.WithStopToken(async ctx =>
             {
                 handle.Started();
                 try
@@ -388,12 +398,14 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
                     await Counted(ctx, work).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException
-                                           && !(ex is OperationCanceledException && ctx.CancellationToken.IsCancellationRequested))
+                                           && !(ex is OperationCanceledException
+                                                && ctx.CancellationToken.IsCancellationRequested))
                 {
                     handle.Error = ex;
                     throw;
                 }
-            }), request.Options.Key, ReplacePending: request.Options.Key is not null, Preemptible: request.Options.Preemptible,
+            }), request.Options.Key, ReplacePending: request.Options.Key is not null,
+            Preemptible: request.Options.Preemptible,
             Serial: request.Options.Serial, ExtensionKind: extensionKind, Level: LevelOf(priority));
         IDemoQueueHandle submitted = target!.SubmitJob(queued);
         handle.Attach(submitted.Cancel);
@@ -418,20 +430,23 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
         }
 
         Func<IDemoJobContext, Task> work = request.DemoWork!;
-        DemoJob job = DemoJob.Submit(target, new DemoJobRequest(path, label, extensionId, LevelOf(priority), async input =>
-        {
-            handle.Started();
-            try
+        DemoJob job = DemoJob.Submit(target, new DemoJobRequest(path, label, extensionId, LevelOf(priority),
+            async input =>
             {
-                await QueueWork.WithStopToken(() => work(new DemoContext(input)), input.CancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (guard is not null && ex is not OutOfMemoryException
-                                       && !(ex is OperationCanceledException && input.CancellationToken.IsCancellationRequested))
-            {
-                guard.Report("job", ex);
-                throw;
-            }
-        }, request.ReadsUserCommands, request.Title));
+                handle.Started();
+                try
+                {
+                    await QueueWork.WithStopToken(() => work(new DemoContext(input)), input.CancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (guard is not null && ex is not OutOfMemoryException
+                                                             && !(ex is OperationCanceledException
+                                                                  && input.CancellationToken.IsCancellationRequested))
+                {
+                    guard.Report("job", ex);
+                    throw;
+                }
+            }, request.ReadsUserCommands, request.Title));
         handle.Attach(job.Cancel);
         _ = job.Completion.ContinueWith(_ => handle.End(StatusOf(job.State), job.Error),
             CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
@@ -443,9 +458,13 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
         ArgumentNullException.ThrowIfNull(work);
         options ??= new JobOptions();
         (QueueJobKind kind, string? extensionKind) = Resolve(options.Kind);
-        options = options with { Priority = JobScope.IsUserAction ? JobPriority.UserRequested : Granted(options.Priority) };
+        options = options with
+        {
+            Priority = JobScope.IsUserAction ? JobPriority.UserRequested : Granted(options.Priority)
+        };
 
-        QueueJobRequest request = new(kind, title, extensionId, PriorityOf(options.Priority), ctx => Counted(ctx, work), options.Key,
+        QueueJobRequest request = new(kind, title, extensionId, PriorityOf(options.Priority), ctx => Counted(ctx, work),
+            options.Key,
             ReplacePending: options.Key is not null, Preemptible: options.Preemptible, Serial: options.Serial,
             ExtensionKind: extensionKind, Level: LevelOf(options.Priority));
         return QueueWork.Submit(queue(), request);
@@ -485,7 +504,8 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
             await work(new Context(ctx)).ConfigureAwait(false);
         }
         catch (Exception ex) when (guard is not null && ex is not OutOfMemoryException
-                                   && !(ex is OperationCanceledException && ctx.CancellationToken.IsCancellationRequested))
+                                                     && !(ex is OperationCanceledException
+                                                          && ctx.CancellationToken.IsCancellationRequested))
         {
             guard.Report("job", ex);
             throw;
@@ -505,7 +525,8 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
         }
 
         throw new ArgumentException(
-            $"Job kind '{kindId}' is neither built in nor declared in {extensionId}'s IExtension.JobKinds.", nameof(kindId));
+            $"Job kind '{kindId}' is neither built in nor declared in {extensionId}'s IExtension.JobKinds.",
+            nameof(kindId));
     }
 
     private sealed class Context(IQueueJobContext inner) : IJobContext
@@ -551,7 +572,9 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
     // One job's state as the extension sees it. Completed is raised through the extension's post, once.
     private sealed class JobHandle(Action<Action> post) : IJobHandle
     {
-        private readonly TaskCompletionSource<JobResult> _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<JobResult>
+            _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly object _gate = new();
         private Action? _cancel;
         private Action<JobResult>? _completed;
@@ -694,7 +717,7 @@ internal sealed class ExtensionPasses(string extensionId, Func<DemoScheduler?> s
         }
 
         if (handlers is not null && _subscribed is { } source
-                                  && string.Equals(source.OwnerOf(passId), extensionId, StringComparison.Ordinal))
+                                 && string.Equals(source.OwnerOf(passId), extensionId, StringComparison.Ordinal))
         {
             _post(handlers);
         }

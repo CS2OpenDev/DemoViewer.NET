@@ -96,10 +96,10 @@ public class DemoCorpusTests
         {
             Assert.Throws<InvalidDataException>(() => CorpusManifest.Parse("{ not json"));
             Assert.Throws<InvalidDataException>(() => CorpusManifest.Parse("{}"));
-            Assert.Throws<InvalidDataException>(
-                () => CorpusManifest.Parse("""{ "demos": [ { "file": "a.dem", "bytes": 1 } ] }"""));
-            Assert.Throws<InvalidDataException>(
-                () => CorpusManifest.Parse("""{ "demos": [ { "name": "a", "file": "a.dem" } ] }"""));
+            Assert.Throws<InvalidDataException>(() =>
+                CorpusManifest.Parse("""{ "demos": [ { "file": "a.dem", "bytes": 1 } ] }"""));
+            Assert.Throws<InvalidDataException>(() =>
+                CorpusManifest.Parse("""{ "demos": [ { "name": "a", "file": "a.dem" } ] }"""));
             Assert.Throws<InvalidDataException>(() => CorpusManifest.Parse(
                 """{ "demos": [ { "name": "a", "file": "a.dem", "bytes": 1, "sha256": "xyz" } ] }"""));
             Assert.Throws<InvalidDataException>(() => CorpusManifest.Parse(
@@ -185,7 +185,8 @@ public class DemoCorpusTests
             {
                 await Assert.That(problem).IsNull();
                 await Assert.That(resolved).IsEqualTo(corpus.CachePath(manifest.ByName("subject")!));
-                await Assert.That(await File.ReadAllBytesAsync(resolved!)).IsEquivalentTo(bytes, CollectionOrdering.Matching);
+                await Assert.That(await File.ReadAllBytesAsync(resolved!))
+                    .IsEquivalentTo(bytes, CollectionOrdering.Matching);
                 // Content addressed: the sha is the directory, the original file name is kept.
                 await Assert.That(Path.GetFileName(Path.GetDirectoryName(resolved)!))
                     .IsEqualTo(Sha256Of(bytes));
@@ -251,8 +252,8 @@ public class DemoCorpusTests
             DemoCorpus corpus = new(ManifestFor("subject.dem", expected, null), [],
                 Path.Combine(root, "cache"), [new DirectoryDemoSource(Path.Combine(root, "source"))]);
 
-            DemoCorpusIntegrityException thrown = Assert.Throws<DemoCorpusIntegrityException>(
-                () => corpus.TryResolve("subject.dem", out _))!;
+            DemoCorpusIntegrityException thrown =
+                Assert.Throws<DemoCorpusIntegrityException>(() => corpus.TryResolve("subject.dem", out _))!;
 
             using (Assert.Multiple())
             {
@@ -282,8 +283,8 @@ public class DemoCorpusTests
             DemoCorpus corpus = new(ManifestFor("subject.dem", expected, null), [],
                 Path.Combine(root, "cache"), [new DirectoryDemoSource(Path.Combine(root, "source"))]);
 
-            DemoCorpusIntegrityException thrown = Assert.Throws<DemoCorpusIntegrityException>(
-                () => corpus.TryResolve("subject.dem", out _))!;
+            DemoCorpusIntegrityException thrown =
+                Assert.Throws<DemoCorpusIntegrityException>(() => corpus.TryResolve("subject.dem", out _))!;
             await Assert.That(thrown.Message).Contains("manifest says 8");
         }
         finally
@@ -313,8 +314,7 @@ public class DemoCorpusTests
             DemoCorpus corpus = new(ManifestFor("subject.dem", bytes, null), [],
                 Path.Combine(root, "cache"), [new DirectoryDemoSource(a), new DirectoryDemoSource(b)]);
 
-            SkipTestException thrown = Assert.Throws<SkipTestException>(
-                () => corpus.Require("subject.dem"))!;
+            SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("subject.dem"))!;
             using (Assert.Multiple())
             {
                 await Assert.That(thrown.Message).Contains("subject");
@@ -340,8 +340,7 @@ public class DemoCorpusTests
             using (Assert.Multiple())
             {
                 await Assert.That(corpus.CanFetch).IsFalse();
-                SkipTestException thrown = Assert.Throws<SkipTestException>(
-                    () => corpus.Require("subject.dem"))!;
+                SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("subject.dem"))!;
                 await Assert.That(thrown.Message).Contains(DemoTestHelper.DemoSourcesEnvVar);
                 await Assert.That(thrown.Message).Contains(DemoTestHelper.CorpusRootEnvVar);
             }
@@ -362,8 +361,7 @@ public class DemoCorpusTests
             DemoCorpus corpus = new(ManifestFor("subject.dem", [1, 2, 3], null), [],
                 Path.Combine(root, "cache"), [new DirectoryDemoSource(Path.Combine(root, "source"))]);
 
-            SkipTestException thrown = Assert.Throws<SkipTestException>(
-                () => corpus.Require("stranger.dem"))!;
+            SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("stranger.dem"))!;
             await Assert.That(thrown.Message).Contains("not in the corpus manifest");
         }
         finally
@@ -417,8 +415,7 @@ public class DemoCorpusTests
                 await Assert.That(DirectoryDemoSource.FromSpecifier(new Uri(root).AbsoluteUri)
                     .TryCopyTo(demo, dest)).IsTrue();
                 // Silently ignoring a configured source would read as "nothing to fetch from".
-                Assert.Throws<NotSupportedException>(
-                    () => DirectoryDemoSource.FromSpecifier("s3://bucket/demos"));
+                Assert.Throws<NotSupportedException>(() => DirectoryDemoSource.FromSpecifier("s3://bucket/demos"));
             }
         }
         finally
@@ -461,8 +458,7 @@ public class DemoCorpusTests
             string poisoned = corpus.CachePath(manifest.ByName("subject")!);
             Write(Path.GetDirectoryName(poisoned)!, Path.GetFileName(poisoned), [1, 2]);
 
-            SkipTestException thrown = Assert.Throws<SkipTestException>(
-                () => corpus.Require("subject.dem"))!;
+            SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("subject.dem"))!;
             using (Assert.Multiple())
             {
                 await Assert.That(thrown.Message).Contains("wrong length");
@@ -668,7 +664,8 @@ public class DemoCorpusTests
             using (Assert.Multiple())
             {
                 await Assert.That(problem).IsNull();
-                await Assert.That(demos.Select(p => Path.GetFileName(p)!)).IsEquivalentTo(OrdinalPair, CollectionOrdering.Matching);
+                await Assert.That(demos.Select(p => Path.GetFileName(p)!))
+                    .IsEquivalentTo(OrdinalPair, CollectionOrdering.Matching);
                 // Ordinal, not culture: "B" before "a".
                 await Assert.That(Path.GetFileName(demos[0])).IsEqualTo("B.dem");
             }
@@ -761,7 +758,8 @@ public class DemoCorpusTests
             using (Assert.Multiple())
             {
                 await Assert.That(files.Length).IsGreaterThan(0);
-                await Assert.That(files).IsEquivalentTo(files.Order(StringComparer.Ordinal), CollectionOrdering.Matching);
+                await Assert.That(files)
+                    .IsEquivalentTo(files.Order(StringComparer.Ordinal), CollectionOrdering.Matching);
             }
         }
     }
@@ -784,7 +782,8 @@ public class DemoCorpusTests
             {
                 await Assert.That(paths.Select(p => Path.GetFileName(p)!).ToArray())
                     .IsEquivalentTo(AThenB, CollectionOrdering.Matching);
-                await Assert.That(await File.ReadAllBytesAsync(paths[0])).IsEquivalentTo(one, CollectionOrdering.Matching);
+                await Assert.That(await File.ReadAllBytesAsync(paths[0]))
+                    .IsEquivalentTo(one, CollectionOrdering.Matching);
                 await Assert.That(corpus.RequireSetMember("s", 1)).IsEqualTo(paths[1]);
             }
         }
@@ -905,8 +904,9 @@ public class DemoCorpusTests
     {
         string missing = Path.Combine(TempRoot(), "not-here");
 
-        DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-            () => DemoTestHelper.RequireCorpusDir("benchmarks", missing, null));
+        DemoCorpusConfigurationException thrown =
+            Assert.Throws<DemoCorpusConfigurationException>(() =>
+                DemoTestHelper.RequireCorpusDir("benchmarks", missing, null));
         using (Assert.Multiple())
         {
             await Assert.That(thrown.Message).Contains(DemoTestHelper.CorpusRootEnvVar);
@@ -917,8 +917,8 @@ public class DemoCorpusTests
     [Test]
     public async Task RequireCorpusDir_Unconfigured_StillSkipsWhenThereIsNoCorpus()
     {
-        SkipTestException thrown = Assert.Throws<SkipTestException>(
-            () => DemoTestHelper.RequireCorpusDir("benchmarks", null, null));
+        SkipTestException thrown =
+            Assert.Throws<SkipTestException>(() => DemoTestHelper.RequireCorpusDir("benchmarks", null, null));
         await Assert.That(thrown.Message).Contains(DemoTestHelper.CorpusRootEnvVar);
     }
 
@@ -961,7 +961,8 @@ public class DemoCorpusTests
                 await Assert.That(DemoTestHelper.ResolveReplaysFolder(demo, out _)).IsEqualTo(root);
                 await Assert.That(DemoTestHelper.ResolveReplaysFolder(null, out string? unset)).IsNull();
                 await Assert.That(unset).Contains(DemoTestHelper.DemoPathEnvVar);
-                await Assert.That(DemoTestHelper.ResolveReplaysFolder(Path.Combine(root, "gone"), out string? gone)).IsNull();
+                await Assert.That(DemoTestHelper.ResolveReplaysFolder(Path.Combine(root, "gone"), out string? gone))
+                    .IsNull();
                 await Assert.That(gone).Contains("does not exist");
             }
         }

@@ -579,11 +579,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
         }
 
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select the reel output folder",
-                AllowMultiple = false
-            });
+            new FolderPickerOpenOptions { Title = "Select the reel output folder", AllowMultiple = false });
         string? path = picked.Count > 0 ? picked[0].TryGetLocalPath() : null;
         if (!string.IsNullOrEmpty(path))
         {

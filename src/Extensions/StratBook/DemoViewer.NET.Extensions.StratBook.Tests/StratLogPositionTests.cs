@@ -29,15 +29,15 @@ public class StratLogPositionTests
     private static StratSession Session(StratStore store) =>
         new(store, null, () => false, () => Created)
         {
-            AutoSaveDelay = TimeSpan.FromHours(1),
-            IdleCommitDelay = TimeSpan.FromHours(1)
+            AutoSaveDelay = TimeSpan.FromHours(1), IdleCommitDelay = TimeSpan.FromHours(1)
         };
 
     private static string StratFile(string root, StratDocument document) =>
         Path.Combine(StratStore.FolderFor(root, document.Owner, document.Map), document.Id + StratStore.StratExtension);
 
     private static string LogFile(string root, StratDocument document) =>
-        Path.Combine(StratStore.FolderFor(root, document.Owner, document.Map), document.Id + StratStore.HistoryExtension);
+        Path.Combine(StratStore.FolderFor(root, document.Owner, document.Map),
+            document.Id + StratStore.HistoryExtension);
 
     private static string[] SetAsideFiles(string root, StratDocument document) =>
         Directory.GetFiles(Path.GetDirectoryName(StratFile(root, document))!, document.Id + ".working-r*.json");
@@ -62,7 +62,8 @@ public class StratLogPositionTests
             int count = before.Steps.Count;
             PatchOp stepOp = (i % 3) switch
             {
-                1 when count > 2 => PatchOp.RemoveOp($"/steps/{count - 1}", beforeNode["steps"]![count - 1]!.DeepClone()),
+                1 when count > 2 => PatchOp.RemoveOp($"/steps/{count - 1}",
+                    beforeNode["steps"]![count - 1]!.DeepClone()),
                 0 or 1 => PatchOp.AddOp("/steps/-",
                     JsonSerializer.SerializeToNode(Step(100 + i, 20, "A", "peek"), StratJsonContext.Default.StratStep)),
                 _ => PatchOp.ReplaceOp($"/steps/{i % 2}/atSeconds", JsonValue.Create(before.Steps[i % 2].AtSeconds),
@@ -73,7 +74,10 @@ public class StratLogPositionTests
                 stepOp,
                 PatchOp.ReplaceOp("/name", JsonValue.Create(before.Name), JsonValue.Create($"line {i}"))
             ];
-            HistoryEntry entry = new() { Revision = revisions[i], AtUtc = Past.AddMinutes(10 + i), Summary = $"line {i}", Ops = [.. ops] };
+            HistoryEntry entry = new()
+            {
+                Revision = revisions[i], AtUtc = Past.AddMinutes(10 + i), Summary = $"line {i}", Ops = [.. ops]
+            };
             StratDocument after = StratHistory.Apply(before, ops);
             after.Revision = entry.Revision;
             after.ModifiedUtc = entry.AtUtc;
@@ -88,7 +92,8 @@ public class StratLogPositionTests
     private static void WriteStrat(string root, StratDocument document) =>
         File.WriteAllText(StratFile(root, document), StratStore.Serialize(document));
 
-    private static string Committed(StratDocument document) => StratStore.Serialize(StratStore.WithPending(document, false));
+    private static string Committed(StratDocument document) =>
+        StratStore.Serialize(StratStore.WithPending(document, false));
 
     [Test]
     [MethodDataSource(nameof(Shapes))]
@@ -132,7 +137,8 @@ public class StratLogPositionTests
             StratDocument loaded = store.TryLoad(states[^1].Id)!;
             using (Assert.Multiple())
             {
-                await Assert.That(loaded.Steps.Select(s => s.Id)).IsEquivalentTo(states[^1].Steps.Select(s => s.Id), CollectionOrdering.Matching);
+                await Assert.That(loaded.Steps.Select(s => s.Id))
+                    .IsEquivalentTo(states[^1].Steps.Select(s => s.Id), CollectionOrdering.Matching);
                 await Assert.That(loaded.Steps.Select(s => s.Id).Distinct().Count()).IsEqualTo(loaded.Steps.Count);
                 await Assert.That(Committed(loaded)).IsEqualTo(Committed(states[^1]));
                 await Assert.That(File.ReadAllText(StratFile(root, states[^1]))).IsEqualTo(Committed(states[^1]));
@@ -218,7 +224,8 @@ public class StratLogPositionTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(session.Document!.Notes).IsEqualTo("uncommitted");
-                    await Assert.That(session.PendingOps.Select(o => o.Path)).IsEquivalentTo(NotesOnly, CollectionOrdering.Matching);
+                    await Assert.That(session.PendingOps.Select(o => o.Path))
+                        .IsEquivalentTo(NotesOnly, CollectionOrdering.Matching);
                     await Assert.That(session.RecoveryNote).IsNull();
                 }
 
@@ -233,7 +240,8 @@ public class StratLogPositionTests
                 await Assert.That(File.ReadAllText(StratFile(root, working))).IsEqualTo(Committed(states[^1]));
                 await Assert.That(session.RecoveryNote).Contains("more than once");
                 await Assert.That(SetAsideFiles(root, working).Length).IsEqualTo(1);
-                await Assert.That(JsonNode.Parse(File.ReadAllText(SetAsideFiles(root, working)[0]))!["notes"]!.GetValue<string>())
+                await Assert.That(JsonNode.Parse(File.ReadAllText(SetAsideFiles(root, working)[0]))!["notes"]!
+                        .GetValue<string>())
                     .IsEqualTo("uncommitted");
             }
         }
@@ -265,7 +273,8 @@ public class StratLogPositionTests
                 await Assert.That(File.ReadAllText(StratFile(root, working))).IsEqualTo(Committed(states[^1]));
                 await Assert.That(store.TakeNote(working.Id)).Contains("more than once");
                 await Assert.That(kept.Length).IsEqualTo(1);
-                await Assert.That(JsonNode.Parse(File.ReadAllText(kept[0]))!["notes"]!.GetValue<string>()).IsEqualTo("on the first 9");
+                await Assert.That(JsonNode.Parse(File.ReadAllText(kept[0]))!["notes"]!.GetValue<string>())
+                    .IsEqualTo("on the first 9");
             }
         }
         finally
@@ -285,7 +294,8 @@ public class StratLogPositionTests
             store.Save(document, [], "created");
 
             // Revision 2 inserts a step at the front at 1:40, so step 0 on the head is the new step.
-            JsonNode inserted = JsonSerializer.SerializeToNode(Step(9, 100, "A", "peek"), StratJsonContext.Default.StratStep)!;
+            JsonNode inserted =
+                JsonSerializer.SerializeToNode(Step(9, 100, "A", "peek"), StratJsonContext.Default.StratStep)!;
             PatchOp insert = PatchOp.AddOp("/steps/0", inserted);
             StratDocument revisionOne = store.Materialize(document.Id, 1)!;
             store.Save(StratHistory.Apply(revisionOne, [insert]), [insert], null);
@@ -302,10 +312,13 @@ public class StratLogPositionTests
             {
                 await Assert.That(loaded.Revision).IsEqualTo(2);
                 await Assert.That(loaded.Steps.Count).IsEqualTo(3);
-                await Assert.That(loaded.Steps[1].AtSeconds).IsEqualTo(90).Because("the working copy's move was not applied");
+                await Assert.That(loaded.Steps[1].AtSeconds).IsEqualTo(90)
+                    .Because("the working copy's move was not applied");
                 await Assert.That(restarted.TakeNote(document.Id)).Contains("conflict with revision 2");
                 await Assert.That(kept.Length).IsEqualTo(1);
-                await Assert.That(JsonNode.Parse(File.ReadAllText(kept[0]))!["steps"]![0]!["atSeconds"]!.GetValue<double>()).IsEqualTo(100);
+                await Assert
+                    .That(JsonNode.Parse(File.ReadAllText(kept[0]))!["steps"]![0]!["atSeconds"]!.GetValue<double>())
+                    .IsEqualTo(100);
             }
         }
         finally
@@ -329,7 +342,8 @@ public class StratLogPositionTests
             {
                 await Assert.That(Committed(store.Materialize(states[^1].Id, 12)!)).IsEqualTo(Committed(states[^1]));
                 await Assert.That(rows.Count).IsEqualTo(OwnerShape.Length);
-                await Assert.That(rows.Select(r => r.Revision)).IsEquivalentTo(Enumerable.Reverse(OwnerShape), CollectionOrdering.Matching);
+                await Assert.That(rows.Select(r => r.Revision))
+                    .IsEquivalentTo(Enumerable.Reverse(OwnerShape), CollectionOrdering.Matching);
                 await Assert.That(rows.Take(OwnerShape.Length - 1).All(r => r.Changes.Count == 2)).IsTrue();
             }
         }

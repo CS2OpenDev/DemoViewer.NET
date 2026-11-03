@@ -33,10 +33,7 @@ public class BenchCommandTests
         await Assert.That(payload["budget"]).IsNotNull();
         await Assert.That(payload["metadata"]).IsNotNull();
 
-        foreach (string phase in new[]
-                 {
-                     "advance_ms", "render_ms", "frame_ms"
-                 })
+        foreach (string phase in new[] { "advance_ms", "render_ms", "frame_ms" })
         {
             JsonObject stats = (JsonObject)payload[phase]!;
             double p50 = stats["p50"]!.GetValue<double>();

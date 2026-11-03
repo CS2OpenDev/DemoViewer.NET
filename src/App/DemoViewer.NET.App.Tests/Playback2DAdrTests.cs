@@ -27,12 +27,7 @@ public class Playback2DAdrTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
         vm.OnActivated(ctx);
 
         // Frame 1: 4 rounds completed (5th in progress), 500 total damage → ADR = round(500/4) = 125.
@@ -57,12 +52,7 @@ public class Playback2DAdrTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Trinity",
-            SteamId = 2
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Trinity", SteamId = 2 });
         vm.OnActivated(ctx);
 
         // A roster slot present this frame but with no live controller (pre-spawn / disconnect) renders
@@ -141,17 +131,11 @@ public class Playback2DAdrTests
     {
         public IEnumerable<IReadOnlyEntity> All() => rules is null
             ? Array.Empty<IReadOnlyEntity>()
-            : new[]
-            {
-                rules
-            };
+            : new[] { rules };
 
         public IEnumerable<IReadOnlyEntity> OfClass(string className) =>
             rules is not null && className == rules.ClassName
-                ? new[]
-                {
-                    rules
-                }
+                ? new[] { rules }
                 : Array.Empty<IReadOnlyEntity>();
 
         public IReadOnlyEntity? BySerial(int serial) => null;

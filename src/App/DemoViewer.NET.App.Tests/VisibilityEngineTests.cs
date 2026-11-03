@@ -156,7 +156,8 @@ public class VisibilityEngineTests
             }
         }
 
-        Console.WriteLine($"[vengine] segment compared={compared} mismatches={mismatches} visibleFrac={(double)visible / compared:P0}");
+        Console.WriteLine(
+            $"[vengine] segment compared={compared} mismatches={mismatches} visibleFrac={(double)visible / compared:P0}");
         await Assert.That(compared).IsGreaterThan(100);
         await Assert.That(mismatches).IsEqualTo(0);
         // Guard against a degenerate all-visible/all-blocked set that would make equivalence meaningless.

@@ -247,21 +247,10 @@ public class Playback2DHudLayoutTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            Window window = new()
-            {
-                Width = 400,
-                Height = 200
-            };
+            Window window = new() { Width = 400, Height = 200 };
             StackPanel panel = new();
-            Button themed = new()
-            {
-                Content = "ok"
-            };
-            Button themeless = new()
-            {
-                Content = "ok",
-                Template = null
-            };
+            Button themed = new() { Content = "ok" };
+            Button themeless = new() { Content = "ok", Template = null };
             panel.Children.Add(themed);
             panel.Children.Add(themeless);
             window.Content = panel;
@@ -378,11 +367,7 @@ public class Playback2DHudLayoutTests
     {
         SettingsService svc = new(null); // no directory → the in-memory provider, i.e. the WASM branch
 
-        Playback2DTabViewModel authored = new()
-        {
-            IsViewportToolbarOpen = false,
-            IsOverlayBarOpen = true
-        };
+        Playback2DTabViewModel authored = new() { IsViewportToolbarOpen = false, IsOverlayBarOpen = true };
 
         svc.Write(s => authored.WriteChromeSettings(s.Playback2D));
 

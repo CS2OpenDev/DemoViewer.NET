@@ -57,15 +57,8 @@ internal sealed class SceneCompositor : IDisposable
         // Owned and mutated in place rather than constructed per frame. An SKPaint is a managed
         // wrapper over native state, so one per frame is both a heap allocation and a native
         // allocation, and the per-frame allocation budget is zero bytes.
-        _background = new SKPaint
-        {
-            Style = SKPaintStyle.Fill
-        };
-        _divider = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            IsAntialias = true
-        };
+        _background = new SKPaint { Style = SKPaintStyle.Fill };
+        _divider = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true };
     }
 
     /// <summary>The registered layers in draw order.</summary>
@@ -353,11 +346,7 @@ internal sealed class SceneCompositor : IDisposable
                 // equality so this cannot quietly become half-true.
                 submission.Purpose,
                 submission.Palette,
-                submission.RenderScaling)
-            {
-                Pane = pane,
-                Levels = submission.Levels
-            };
+                submission.RenderScaling) { Pane = pane, Levels = submission.Levels };
 
             RenderPane(canvas, in ctx);
             canvas.RestoreToCount(save);

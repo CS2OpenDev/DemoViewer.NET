@@ -176,10 +176,7 @@ public class LayerCachePictureTests
     [Test]
     public async Task DisabledLayer_IsSkippedInBothAdvanceAndRender()
     {
-        CountingLayer layer = new("test.dynamic", LayerCacheHint.Dynamic)
-        {
-            IsEnabled = false
-        };
+        CountingLayer layer = new("test.dynamic", LayerCacheHint.Dynamic) { IsEnabled = false };
         using SceneCompositor compositor = new();
         compositor.Add(layer);
 
@@ -198,13 +195,7 @@ public class LayerCachePictureTests
         MapLevelId? levelId = null)
     {
         MapLevelId id = levelId ?? new MapLevelId(0);
-        MapLevel level = new()
-        {
-            Id = id,
-            Name = "floor 0",
-            ZMin = -1000,
-            ZMax = 1000
-        };
+        MapLevel level = new() { Id = id, Name = "floor 0", ZMin = -1000, ZMax = 1000 };
 
         LevelPaneSnapshot pane = new(id, 0, level, camera, new SKRect(0, 0, 128, 128), cameraEpoch);
         return new SceneSubmission(1, Scene2DFrame.Empty, default, [pane], ScenePalette.Dark,

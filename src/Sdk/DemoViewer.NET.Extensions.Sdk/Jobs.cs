@@ -117,7 +117,8 @@ public sealed class JobRequest
     ///     must not wait on another job.
     /// </param>
     /// <param name="options">How it is queued; only <see cref="JobOptions.Priority" /> and <see cref="JobOptions.Kind" /> apply.</param>
-    public static JobRequest OnDemo(string title, string demoPath, Func<IDemoJobContext, Task> work, JobOptions? options = null)
+    public static JobRequest OnDemo(string title, string demoPath, Func<IDemoJobContext, Task> work,
+        JobOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(title);
         ArgumentException.ThrowIfNullOrEmpty(demoPath);

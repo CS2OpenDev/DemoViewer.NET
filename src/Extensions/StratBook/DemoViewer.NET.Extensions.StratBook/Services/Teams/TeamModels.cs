@@ -316,7 +316,12 @@ public sealed class TeamIndexFile
 /// <param name="Tier">1 = fixed five, 2 = extended core, 3 = squad, 0 = unaffiliated or overridden.</param>
 /// <param name="StandIn">Overlap 3 or 4 with a member outside the anchor.</param>
 public sealed record SideAssignment(
-    IReadOnlyList<string> Key, Guid? TeamId, string? RosterId, int Overlap, int Tier, bool StandIn)
+    IReadOnlyList<string> Key,
+    Guid? TeamId,
+    string? RosterId,
+    int Overlap,
+    int Tier,
+    bool StandIn)
 {
     public bool IsAssigned => TeamId is not null;
 }
@@ -326,9 +331,13 @@ public sealed record SideAssignment(
 ///     played in round N asks <see cref="TeamIdentityService.SideAtRound" />.
 /// </summary>
 public sealed record TeamAssignment(
-    string DemoPath, string? Sha256,
-    SideAssignment T, SideAssignment Ct,
-    int? OurSide, OurSideSource Source, Guid? OpponentTeamId)
+    string DemoPath,
+    string? Sha256,
+    SideAssignment T,
+    SideAssignment Ct,
+    int? OurSide,
+    OurSideSource Source,
+    Guid? OpponentTeamId)
 {
     /// <summary>The assignment of an end-of-demo side.</summary>
     /// <param name="side">2 = T, 3 = CT.</param>

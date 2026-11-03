@@ -26,7 +26,11 @@ public interface IStratLineupCatalog
 }
 
 /// <summary>A resolved lineup: its primary id, title, strat utility kind and techniques, most thrown first.</summary>
-public sealed record StratLineupChoice(Guid Id, string Title, string UtilityKind, IReadOnlyList<StratTechniqueOption> Techniques);
+public sealed record StratLineupChoice(
+    Guid Id,
+    string Title,
+    string UtilityKind,
+    IReadOnlyList<StratTechniqueOption> Techniques);
 
 /// <summary>One way a lineup is thrown: a <see cref="GrenadeLineups.TechniqueKey" /> and what the combo shows.</summary>
 public sealed record StratTechniqueOption(string Key, string Label)
@@ -51,7 +55,8 @@ public sealed class StratLineupCatalog(LineupOriginSource source) : IStratLineup
 
     /// <summary>The grenade kinds a strat utility kind stands for, or null for one outside the vocabulary.</summary>
     /// <param name="utilityKind">A strat utility kind.</param>
-    public static IReadOnlySet<GrenadeKind>? GrenadeKindsFor(string utilityKind) => KindsByUtility.GetValueOrDefault(utilityKind);
+    public static IReadOnlySet<GrenadeKind>? GrenadeKindsFor(string utilityKind) =>
+        KindsByUtility.GetValueOrDefault(utilityKind);
 
     /// <summary>The strat utility kind a grenade kind is written as.</summary>
     /// <param name="kind">A grenade kind.</param>
@@ -79,7 +84,11 @@ public sealed class StratLineupCatalog(LineupOriginSource source) : IStratLineup
     /// <inheritdoc />
     public IReadOnlyList<StratLineupOption> Options(string map, string utilityKind) =>
         GrenadeKindsFor(utilityKind) is { } kinds && source.For(map) is { } lineups
-            ? [.. lineups.Lineups.Where(l => kinds.Contains(l.Kind)).Select(l => new StratLineupOption(l.Lineup.Id, l.Title))]
+            ?
+            [
+                .. lineups.Lineups.Where(l => kinds.Contains(l.Kind))
+                    .Select(l => new StratLineupOption(l.Lineup.Id, l.Title))
+            ]
             : [];
 
     /// <inheritdoc />

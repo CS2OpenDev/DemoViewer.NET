@@ -132,10 +132,7 @@ public class AnnotationNukeLevelTests
         await Assert.That(Added(beforeRemap, baseline, lowerBand, IsRed)).IsGreaterThan(50);
 
         int undoBefore = document.UndoDepth;
-        document.RemapWorldLevels(new Dictionary<double, double>
-        {
-            [lower] = upper
-        });
+        document.RemapWorldLevels(new Dictionary<double, double> { [lower] = upper });
         layer.InvalidateLevels();
 
         await Assert.That(((SpaceRef.World)document.Elements[0].Space).LevelMinZ).IsEqualTo(upper);

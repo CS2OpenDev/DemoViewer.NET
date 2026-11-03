@@ -95,11 +95,7 @@ internal static class RenderCommand
                 ["backend_requested"] = plan.Backend.Requested,
                 ["assets_root"] = plan.Assets.Path,
                 ["assets_source"] = plan.Assets.SourceToken,
-                ["source"] = new JsonObject
-                {
-                    ["kind"] = source.Kind,
-                    ["name"] = source.Name
-                },
+                ["source"] = new JsonObject { ["kind"] = source.Kind, ["name"] = source.Name },
                 ["map"] = source.MapName,
                 ["map_version"] = plan.MapAssets?.Bundle.MapVersion ?? source.MapVersion,
                 ["zones_version"] = plan.Zones.Resolver?.Zones.EffectiveVersion,
@@ -152,9 +148,7 @@ internal static class RenderCommand
 
         ConsoleOut.JsonEvent(new JsonObject
         {
-            ["schema_version"] = 1,
-            ["event"] = "loaded_assemblies",
-            ["assemblies"] = names
+            ["schema_version"] = 1, ["event"] = "loaded_assemblies", ["assemblies"] = names
         });
     }
 

@@ -33,7 +33,8 @@ public class StratEvidenceRealDemoTests
         Guid stratId = Guid.NewGuid();
 
         DemoCacheStore cache = new(null);
-        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
+        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(),
+            new RulesRoundFactsRulesetIdentity());
         RoundFactsSource facts = new(cache, evaluator);
         TagStore tags = new(null);
 
@@ -41,13 +42,15 @@ public class StratEvidenceRealDemoTests
         tags.Save(Document(Sha,
         [
             .. rounds.Select(r => Instance("A execute", r.StartTickFrameClock + 64, r.StartTickFrameClock + 640,
-                (TagStore.StratGroup, stratId.ToString("D")), (StratEvidence.RevisionGroup, "1"), (StratEvidence.OutcomeGroup, StratEvidence.OutcomeWon)))
+                (TagStore.StratGroup, stratId.ToString("D")), (StratEvidence.RevisionGroup, "1"),
+                (StratEvidence.OutcomeGroup, StratEvidence.OutcomeWon)))
         ]));
         using TagFactsRefresher refresher = new(tags, facts, _ => Sha, action => action());
         evaluator.Evaluate(path, parsed);
 
         RoundFactsRows rows = facts.TryGet(path) ?? throw new InvalidOperationException("the evaluator wrote no rows");
-        StratDocument strat = StratDocument.Create(stratId, StratOwner.Me(), parsed.MapName ?? "de_mirage", StratVocabulary.SideT, "execute", "real", Created);
+        StratDocument strat = StratDocument.Create(stratId, StratOwner.Me(), parsed.MapName ?? "de_mirage",
+            StratVocabulary.SideT, "execute", "real", Created);
         StratRecord record = new StratEvidenceService(tags).Compute(strat);
 
         using (Assert.Multiple())

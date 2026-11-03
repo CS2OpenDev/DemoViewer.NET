@@ -29,7 +29,9 @@ public interface ITrustPolicy
     ///     overrides it with a specific one. The loader calls this, not <see cref="IsTrusted" /> directly.
     /// </summary>
     TrustVerdict Judge(string directory, ExtensionManifest manifest) =>
-        IsTrusted(directory, manifest) ? TrustVerdict.Yes : TrustVerdict.No("the copy is not signed by this app's publisher");
+        IsTrusted(directory, manifest)
+            ? TrustVerdict.Yes
+            : TrustVerdict.No("the copy is not signed by this app's publisher");
 }
 
 /// <summary>What an <see cref="ITrustPolicy" /> decided, and why when it refused.</summary>
@@ -64,7 +66,8 @@ public static class TrustPolicy
     ///     parsing nor signature checking happens until a candidate is actually judged (both policies
     ///     underneath are lazy), so a bad embedded key cannot fail at process start.
     /// </summary>
-    public static ITrustPolicy Default { get; } = SignedOrOptIn(PublisherKeys.Current, static name => Environment.GetEnvironmentVariable(name));
+    public static ITrustPolicy Default { get; } =
+        SignedOrOptIn(PublisherKeys.Current, static name => Environment.GetEnvironmentVariable(name));
 
     /// <summary>
     ///     The developer opt-in alone, over an explicit environment read, so a test can exercise both
@@ -100,11 +103,13 @@ public static class TrustPolicy
     ///     user or the log can act on. Exposed so a test can build the same shape <see cref="Default" /> is
     ///     with an ephemeral key instead of <see cref="PublisherKeys.Current" />.
     /// </summary>
-    public static ITrustPolicy SignedOrOptIn(IReadOnlyList<string> publisherKeysBase64Spki, Func<string, string?> getEnvironmentVariable)
+    public static ITrustPolicy SignedOrOptIn(IReadOnlyList<string> publisherKeysBase64Spki,
+        Func<string, string?> getEnvironmentVariable)
     {
         ArgumentNullException.ThrowIfNull(publisherKeysBase64Spki);
         ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
-        return new SignedOrOptInPolicy(new SignedTrustPolicy(publisherKeysBase64Spki), UnsignedOptIn(getEnvironmentVariable));
+        return new SignedOrOptInPolicy(new SignedTrustPolicy(publisherKeysBase64Spki),
+            UnsignedOptIn(getEnvironmentVariable));
     }
 
     private sealed class NothingPolicy : ITrustPolicy

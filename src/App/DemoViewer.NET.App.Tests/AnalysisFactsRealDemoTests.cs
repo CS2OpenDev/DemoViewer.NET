@@ -67,11 +67,11 @@ public class AnalysisFactsRealDemoTests
         try
         {
             MergedRulesBuild rules = new(() => AnalysisFactsTests.WithFixture(fixture),
-            () =>
-            [
-                StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
-                new StampedRuleset("fixture_dangling", "dev.example.x", static () => true)
-            ]);
+                () =>
+                [
+                    StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                    new StampedRuleset("fixture_dangling", "dev.example.x", static () => true)
+                ]);
             DemoCacheStore cache = new(null);
             cache.Upsert(new DemoCacheRecord
             {
@@ -100,11 +100,14 @@ public class AnalysisFactsRealDemoTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(rules.Docs.Select(d => d.Id)).Contains("fixture_dangling").Because("it loads, so it reaches the build");
+                await Assert.That(rules.Docs.Select(d => d.Id)).Contains("fixture_dangling")
+                    .Because("it loads, so it reaches the build");
                 await Assert.That(pass.Run!.Highlights.Count).IsGreaterThan(0);
                 await Assert.That(library.RoundFacts.TryGet(path)?.Rounds.Count ?? 0).IsGreaterThan(0);
-                await Assert.That(library.Status(path, key)).IsEqualTo(FactStatus.Absent).Because("a ruleset with no fingerprint is never stamped");
-                await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
+                await Assert.That(library.Status(path, key)).IsEqualTo(FactStatus.Absent)
+                    .Because("a ruleset with no fingerprint is never stamped");
+                await Assert.That(rules.Fingerprint(64).Fingerprint)
+                    .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
             }
         }
         finally
@@ -117,17 +120,18 @@ public class AnalysisFactsRealDemoTests
     public async Task OneRead_StoresTheStaleTables_AndTheLibraryReadsThemBack()
     {
         string path = BackgroundPlanRealDemoTests.SmallestDemo(0);
-        string fixture = AnalysisFactsTests.WriteFixture((AnalysisFactsTests.FactsRuleset, AnalysisFactsTests.FactsYaml),
+        string fixture = AnalysisFactsTests.WriteFixture(
+            (AnalysisFactsTests.FactsRuleset, AnalysisFactsTests.FactsYaml),
             (BrokenRuleset, BrokenYaml));
         try
         {
             MergedRulesBuild rules = new(() => AnalysisFactsTests.WithFixture(fixture),
-            () =>
-            [
-                StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
-                new StampedRuleset(AnalysisFactsTests.FactsRuleset, "dev.example.x", static () => true),
-                new StampedRuleset(BrokenRuleset, "dev.example.x", static () => true)
-            ]);
+                () =>
+                [
+                    StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                    new StampedRuleset(AnalysisFactsTests.FactsRuleset, "dev.example.x", static () => true),
+                    new StampedRuleset(BrokenRuleset, "dev.example.x", static () => true)
+                ]);
             DemoCacheStore cache = new(null);
             cache.Upsert(new DemoCacheRecord
             {
@@ -158,23 +162,31 @@ public class AnalysisFactsRealDemoTests
             FactTable? table = library.TryGet(path, key);
             using (Assert.Multiple())
             {
-                await Assert.That(rules.Docs.Select(d => d.Id)).Contains(BrokenRuleset).Because("it loads, so this reaches the build");
+                await Assert.That(rules.Docs.Select(d => d.Id)).Contains(BrokenRuleset)
+                    .Because("it loads, so this reaches the build");
                 await Assert.That(wanted).IsTrue();
-                await Assert.That(first).IsEquivalentTo(new[] { RoundFactsFingerprint.RulesetId, AnalysisFactsTests.FactsTable }, CollectionOrdering.Matching)
+                await Assert.That(first)
+                    .IsEquivalentTo(new[] { RoundFactsFingerprint.RulesetId, AnalysisFactsTests.FactsTable },
+                        CollectionOrdering.Matching)
                     .Because("the broken ruleset has no fingerprint, so nothing reads for it");
                 await Assert.That(library.Declared).Contains(key);
-                await Assert.That(library.Declared).Contains(new FactKey(AnalysisFactsTests.FactsRuleset, FactKey.ScoreboardOutput));
+                await Assert.That(library.Declared)
+                    .Contains(new FactKey(AnalysisFactsTests.FactsRuleset, FactKey.ScoreboardOutput));
                 await Assert.That(library.Status(path, key)).IsEqualTo(FactStatus.Current);
-                await Assert.That(library.Status(path, new FactKey(AnalysisFactsTests.FactsRuleset, FactKey.ScoreboardOutput)))
+                await Assert.That(library.Status(path,
+                        new FactKey(AnalysisFactsTests.FactsRuleset, FactKey.ScoreboardOutput)))
                     .IsEqualTo(FactStatus.NeedsFullAnalysis);
-                await Assert.That(library.Status(path, new FactKey(BrokenRuleset, "fixture_broken_table"))).IsEqualTo(FactStatus.Absent);
+                await Assert.That(library.Status(path, new FactKey(BrokenRuleset, "fixture_broken_table")))
+                    .IsEqualTo(FactStatus.Absent);
                 await Assert.That(table).IsNotNull();
                 await Assert.That(table!.Grain).IsEqualTo("player_match");
                 await Assert.That(table.Rows.Count).IsGreaterThanOrEqualTo(10);
-                await Assert.That(table.Rows.Sum(r => r.Values["fixture_kills_count"].AsNumber() ?? 0)).IsGreaterThan(0);
+                await Assert.That(table.Rows.Sum(r => r.Values["fixture_kills_count"].AsNumber() ?? 0))
+                    .IsGreaterThan(0);
                 await Assert.That(library.RoundFacts.TryGet(path)?.Rounds.Count ?? 0).IsGreaterThan(0)
                     .Because("the broken ruleset rode the same build and Round Facts still wrote");
-                await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
+                await Assert.That(rules.Fingerprint(64).Fingerprint)
+                    .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
                 await Assert.That(facts.Wants(path)).IsFalse();
                 await Assert.That(Cut()).IsEmpty().Because("nothing is stale, so the next read records no table");
             }

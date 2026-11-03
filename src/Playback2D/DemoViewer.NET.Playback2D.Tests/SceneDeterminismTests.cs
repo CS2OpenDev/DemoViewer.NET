@@ -117,10 +117,7 @@ public class SceneDeterminismTests
         SceneTime time = fixture.Time;
         for (int i = 0; i < frames; i++)
         {
-            SceneTime frameTime = time with
-            {
-                DeltaSeconds = 1.0 / 64
-            };
+            SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 };
             stage.Renderer.Advance(fixture.Frame, in frameTime);
             if (i == 0)
             {

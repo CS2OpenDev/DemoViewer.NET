@@ -30,22 +30,11 @@ public class Playback2DReloadResyncTests
             TotalFrames = 0,
             MapTicksToFrames = false,
             MapName = "de_dust2",
-            Roster =
-            {
-                new PlayerRosterEntry
-                {
-                    Slot = 0,
-                    Name = "Alice",
-                    SteamId = 1
-                }
-            }
+            Roster = { new PlayerRosterEntry { Slot = 0, Name = "Alice", SteamId = 1 } }
         };
 
         vm.OnActivated(ctx);
-        ctx.Push(new FakeSnap(1, new[]
-        {
-            Alive(0, 2, 100, 200)
-        }));
+        ctx.Push(new FakeSnap(1, new[] { Alive(0, 2, 100, 200) }));
 
         // Baseline: seeded to demo A (its map + its roster).
         await Assert.That(vm.LoadedMapNameForTest).IsEqualTo("de_dust2");
@@ -57,15 +46,7 @@ public class Playback2DReloadResyncTests
         // The shell raises DemoReset instead, and there is no authoritative tracker until the first seek
         // (CurrentPlayers empty), exactly as after a real reload.
         ctx.MapName = "de_mirage";
-        ctx.Roster = new List<PlayerRosterEntry>
-        {
-            new()
-            {
-                Slot = 0,
-                Name = "Bob",
-                SteamId = 2
-            }
-        };
+        ctx.Roster = new List<PlayerRosterEntry> { new() { Slot = 0, Name = "Bob", SteamId = 2 } };
         ctx.SetCurrentPlayers(Array.Empty<IPlayerState>());
         ctx.RaiseDemoReset();
 
@@ -85,15 +66,7 @@ public class Playback2DReloadResyncTests
             TotalFrames = 0,
             MapTicksToFrames = false,
             MapName = "de_dust2",
-            Roster =
-            {
-                new PlayerRosterEntry
-                {
-                    Slot = 0,
-                    Name = "Alice",
-                    SteamId = 1
-                }
-            }
+            Roster = { new PlayerRosterEntry { Slot = 0, Name = "Alice", SteamId = 1 } }
         };
 
         vm.OnActivated(ctx);

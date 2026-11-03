@@ -102,11 +102,7 @@ public sealed class AnnotationLayer : ISceneLayer
         _ownsText = text is null;
         _text = text ?? new TextBlobCache();
 
-        _fill = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+        _fill = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
 
         _stroke = new SKPaint
         {

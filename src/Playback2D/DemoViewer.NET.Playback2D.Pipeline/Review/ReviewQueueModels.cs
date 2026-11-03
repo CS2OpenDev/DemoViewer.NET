@@ -151,10 +151,7 @@ public sealed record ReviewEntry
     /// <param name="subtitle">The line under it, or empty.</param>
     public static ReviewEntry Section(string title, string subtitle = "") => new()
     {
-        Id = Guid.NewGuid(),
-        Kind = ReviewEntryKind.Section,
-        Title = title ?? "",
-        Note = subtitle ?? ""
+        Id = Guid.NewGuid(), Kind = ReviewEntryKind.Section, Title = title ?? "", Note = subtitle ?? ""
     };
 }
 

@@ -33,14 +33,17 @@ public class StratStoreWriteOrderTests
     private static IExtensionFolder Strats(string root) => PackStores.Folder(root, StratBookStores.Strats);
 
     private static string StratFile(IExtensionFolder strats, StratDocument document) =>
-        Path.Combine(StratStore.FolderFor(strats.Path, document.Owner, document.Map), document.Id + StratStore.StratExtension);
+        Path.Combine(StratStore.FolderFor(strats.Path, document.Owner, document.Map),
+            document.Id + StratStore.StratExtension);
 
     private static string LogFile(IExtensionFolder strats, StratDocument document) =>
-        Path.Combine(StratStore.FolderFor(strats.Path, document.Owner, document.Map), document.Id + StratStore.HistoryExtension);
+        Path.Combine(StratStore.FolderFor(strats.Path, document.Owner, document.Map),
+            document.Id + StratStore.HistoryExtension);
 
     // Named rather than a bool so a failure says which commit inverted the order.
     private static string Order(IExtensionFolder strats, StratDocument document, string stage) =>
-        $"{stage}: " + (File.GetLastWriteTimeUtc(StratFile(strats, document)) >= File.GetLastWriteTimeUtc(LogFile(strats, document))
+        $"{stage}: " + (File.GetLastWriteTimeUtc(StratFile(strats, document))
+                        >= File.GetLastWriteTimeUtc(LogFile(strats, document))
             ? "strat >= log"
             : "LOG AHEAD");
 
@@ -71,7 +74,8 @@ public class StratStoreWriteOrderTests
             stamps.Add(Order(strats, relocated, "map changed"));
 
             await Assert.That(stamps).IsEquivalentTo(EveryCommitInOrder, CollectionOrdering.Matching)
-                .Because("the log is appended first, so a strat file older than its log is a commit that never finished");
+                .Because(
+                    "the log is appended first, so a strat file older than its log is a commit that never finished");
         }
         finally
         {
@@ -152,7 +156,8 @@ public class StratStoreWriteOrderTests
 
     private static (StratDocument Next, PatchOp Op) MoveStep(StratDocument document, int step, double to)
     {
-        PatchOp op = PatchOp.ReplaceOp($"/steps/{step}/atSeconds", JsonValue.Create(document.Steps[step].AtSeconds), JsonValue.Create(to));
+        PatchOp op = PatchOp.ReplaceOp($"/steps/{step}/atSeconds", JsonValue.Create(document.Steps[step].AtSeconds),
+            JsonValue.Create(to));
         return (StratHistory.Apply(document, [op]), op);
     }
 }

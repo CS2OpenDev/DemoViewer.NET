@@ -60,10 +60,11 @@ public class TagTrackTests
 
     private static async Task<TagSession> Attached(params TagInstance[] instances)
     {
-        TagSession session = new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        TagSession session =
+            new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
+            {
+                AutoSaveDelay = TimeSpan.FromHours(1)
+            };
         await session.AttachAsync(Demo, Clock, DemoPath);
         foreach (TagInstance instance in instances)
         {
@@ -109,7 +110,8 @@ public class TagTrackTests
                 await Assert.That(bands[1].StartFrameIndex).IsEqualTo(131);
                 await Assert.That(bands[1].Label).IsEqualTo("mid take");
 
-                await Assert.That(bands[2].Label).IsEqualTo("B retake").Because("a run of one is labelled with its code");
+                await Assert.That(bands[2].Label).IsEqualTo("B retake")
+                    .Because("a run of one is labelled with its code");
                 await Assert.That(bands[2].Argb).IsEqualTo(TagTrack.DefaultColour("B retake"));
             }
         });
@@ -129,7 +131,8 @@ public class TagTrackTests
             IReadOnlyList<TimelineMarker> markers = track.BuildMarkers(new HalfTickData(1000));
 
             await Assert.That(markers.Count).IsEqualTo(3).Because("the merge must hide nothing");
-            await Assert.That(markers.Select(m => m.FrameIndex)).IsEquivalentTo(MarkerFrames, CollectionOrdering.Matching);
+            await Assert.That(markers.Select(m => m.FrameIndex))
+                .IsEquivalentTo(MarkerFrames, CollectionOrdering.Matching);
 
             using (Assert.Multiple())
             {
@@ -260,7 +263,8 @@ public class TagTrackTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(timeline.Bands.Select(b => b.TrackId).Distinct()).IsEquivalentTo(RoundOnly, CollectionOrdering.Matching);
+                await Assert.That(timeline.Bands.Select(b => b.TrackId).Distinct())
+                    .IsEquivalentTo(RoundOnly, CollectionOrdering.Matching);
                 await Assert.That(timeline.LaneBands.Count).IsEqualTo(1);
                 await Assert.That(timeline.LaneBands[0].StartFrameIndex).IsEqualTo(50);
                 await Assert.That(timeline.HasLaneBands).IsTrue();
@@ -283,7 +287,8 @@ public class TagTrackTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             review.ReviewMode!.IsOn = true; // tagging and its lanes live in Review mode
             TagSession tags = review.Session!;
             (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);

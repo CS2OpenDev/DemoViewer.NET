@@ -287,13 +287,7 @@ public class HudLayerTests
             RenderPurpose.Export, ScenePalette.Dark, 1f)
         {
             Pane = new LevelPaneSnapshot(default, 0,
-                new MapLevel
-                {
-                    Id = default,
-                    Name = "l",
-                    ZMin = 0,
-                    ZMax = 100
-                },
+                new MapLevel { Id = default, Name = "l", ZMin = 0, ZMax = 100 },
                 ViewportTransform.Fit(400, 200, -100, -100, 100, 100), paneRect, 0)
         };
 
@@ -514,10 +508,7 @@ public class FfmpegAcquisitionTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
             CancellationToken cancellationToken) =>
-            Task.FromResult(new HttpResponseMessage(status)
-            {
-                Content = new ByteArrayContent(payload)
-            });
+            Task.FromResult(new HttpResponseMessage(status) { Content = new ByteArrayContent(payload) });
     }
 
     private sealed class TempDirectory : IDisposable

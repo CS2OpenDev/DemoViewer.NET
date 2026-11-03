@@ -109,7 +109,8 @@ public sealed partial class ResultCardViewModel : ObservableObject
     public string Map => Hit.Map;
 
     /// <summary>Seconds into the round at the matched tick, from the hit alone: "0:47 in".</summary>
-    public string ElapsedText => $"{Clock(Math.Max(0, (Hit.FirstMatchTick - Hit.FreezeEndTick) / (double)TickRate))} in";
+    public string ElapsedText =>
+        $"{Clock(Math.Max(0, (Hit.FirstMatchTick - Hit.FreezeEndTick) / (double)TickRate))} in";
 
     /// <summary>The frame-clock tick a click seeks to: the matched tick minus ten seconds, never below zero.</summary>
     public int SeekTick => SeekTickFor(Hit.FirstMatchTick, TickRate);

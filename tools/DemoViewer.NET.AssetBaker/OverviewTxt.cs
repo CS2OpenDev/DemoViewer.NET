@@ -196,7 +196,8 @@ public static class OverviewTxt
 
         public double GetDoubleOrDefault(string key, double fallback) =>
             Children.TryGetValue(key, out object? v) && v is string s
-                                                     && double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double d)
+                                                     && double.TryParse(s, NumberStyles.Float,
+                                                         CultureInfo.InvariantCulture, out double d)
                 ? d
                 : fallback;
     }

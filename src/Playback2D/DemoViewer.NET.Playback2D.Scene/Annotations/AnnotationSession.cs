@@ -413,10 +413,7 @@ public sealed class AnnotationSession
     ///     only the colour differs, so a two-pen user never has to keep two widths in step.
     /// </summary>
     public AnnotationStyle SecondaryStyle { get; set; } =
-        AnnotationStyle.Default with
-        {
-            ColorArgb = DefaultSecondaryColorArgb
-        };
+        AnnotationStyle.Default with { ColorArgb = DefaultSecondaryColorArgb };
 
     /// <summary>
     ///     The tool the right button routes to, mirrored here for the UI's benefit exactly as

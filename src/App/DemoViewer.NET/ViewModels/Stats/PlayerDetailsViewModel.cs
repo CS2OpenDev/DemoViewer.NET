@@ -29,7 +29,6 @@ public enum DetailSection
 /// </summary>
 public sealed partial class PlayerDetailsViewModel : ObservableObject
 {
-
     /// <summary>Core-strip tile keys in display order; HLTV is the hero tile.</summary>
     private static readonly (string Key, bool Hero)[] _coreTileKeys =
     [
@@ -853,7 +852,6 @@ public sealed partial class WeaponBreakdownViewModel : ObservableObject
 /// </summary>
 public sealed class VisionViewModel : ObservableObject
 {
-
     private readonly StatsTabViewModel _parent;
 
     internal VisionViewModel(StatsTabViewModel parent) => _parent = parent;

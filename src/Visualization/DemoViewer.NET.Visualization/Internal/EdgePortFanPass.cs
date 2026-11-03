@@ -224,7 +224,9 @@ internal static class EdgePortFanPass
             : end.Anchor.X <= rect.Left + rect.Width / 2;
         double face = horizontal
             ? low ? rect.Top : rect.Bottom
-            : low ? rect.Left : rect.Right;
+            : low
+                ? rect.Left
+                : rect.Right;
         double outward = low ? -1 : 1;
 
         for (int ring = 0; ring < Rings; ring++)
@@ -328,7 +330,11 @@ internal static class EdgePortFanPass
         Math.Abs(a.X - b.X) < 1e-9 && Math.Abs(a.Y - b.Y) < 1e-9;
 
     private readonly record struct Endpoint(
-        IGraphEdge Edge, bool Source, Point Anchor, bool HorizontalFace, int Order);
+        IGraphEdge Edge,
+        bool Source,
+        Point Anchor,
+        bool HorizontalFace,
+        int Order);
 
     private readonly record struct Port(Point Anchor, bool HorizontalFace, double Outward);
 }

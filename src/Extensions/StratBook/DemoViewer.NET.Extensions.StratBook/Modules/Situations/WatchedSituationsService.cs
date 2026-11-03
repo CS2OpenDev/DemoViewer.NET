@@ -242,7 +242,9 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
     {
         lock (_gate)
         {
-            return _new.TryGetValue(id, out Dictionary<string, NewGroup>? groups) ? groups.Values.Sum(g => g.Hits.Count) : 0;
+            return _new.TryGetValue(id, out Dictionary<string, NewGroup>? groups)
+                ? groups.Values.Sum(g => g.Hits.Count)
+                : 0;
         }
     }
 
@@ -531,7 +533,8 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
                 Dictionary<string, NewGroup> next = new(StringComparer.Ordinal);
                 if (_index.IsReady)
                 {
-                    foreach (IGrouping<string, SituationHit> demo in _index.Query(ToQuery(watch, indexedAfter: watch.WatermarkTicks))
+                    foreach (IGrouping<string, SituationHit> demo in _index
+                                 .Query(ToQuery(watch, indexedAfter: watch.WatermarkTicks))
                                  .GroupBy(h => h.DemoStableKey, StringComparer.Ordinal))
                     {
                         long stamp = _index.IndexedAtTicks(demo.First().DemoPath);
@@ -563,7 +566,7 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
         foreach ((string key, NewGroup group) in a)
         {
             if (!b.TryGetValue(key, out NewGroup? other) || other.Hits.Count != group.Hits.Count
-                || other.ComputedAtTicks != group.ComputedAtTicks)
+                                                         || other.ComputedAtTicks != group.ComputedAtTicks)
             {
                 return false;
             }
@@ -572,7 +575,8 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
         return true;
     }
 
-    private static bool Replace(Dictionary<string, NewGroup> groups, string key, IReadOnlyList<SituationHit> hits, long stamp)
+    private static bool Replace(Dictionary<string, NewGroup> groups, string key, IReadOnlyList<SituationHit> hits,
+        long stamp)
     {
         if (hits.Count == 0)
         {
@@ -580,7 +584,7 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
         }
 
         bool same = groups.TryGetValue(key, out NewGroup? previous) && previous.Hits.Count == hits.Count
-                    && previous.ComputedAtTicks == stamp;
+                                                                    && previous.ComputedAtTicks == stamp;
         groups[key] = new NewGroup(stamp, hits);
         return !same;
     }
@@ -631,10 +635,12 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
                 return;
             }
 
-            WatchedSituationsFile? file = JsonSerializer.Deserialize<WatchedSituationsFile>(bytes, WatchedSituationsFile.JsonOptions);
+            WatchedSituationsFile? file =
+                JsonSerializer.Deserialize<WatchedSituationsFile>(bytes, WatchedSituationsFile.JsonOptions);
             if (file is null || file.SchemaVersion > WatchedSituationsFile.CurrentSchema)
             {
-                Refuse($"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
+                Refuse(
+                    $"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
                 return;
             }
 

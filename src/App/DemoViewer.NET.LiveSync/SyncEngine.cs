@@ -62,10 +62,7 @@ public sealed class SyncEngine : IAsyncDisposable
     private readonly Task _pumpTask;
 
     private readonly Channel<SyncCommand> _queue =
-        Channel.CreateUnbounded<SyncCommand>(new UnboundedChannelOptions
-        {
-            SingleReader = true
-        });
+        Channel.CreateUnbounded<SyncCommand>(new UnboundedChannelOptions { SingleReader = true });
 
     private readonly Timer _seekGraceTimer;
     private readonly Timer _seekTimeoutTimer;
@@ -120,9 +117,11 @@ public sealed class SyncEngine : IAsyncDisposable
         _timings = timings;
         _capabilities = capabilities;
         _settleTimer = new Timer(_ => Reconcile(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _seekGraceTimer = new Timer(_ => OnSeekGraceElapsed(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _seekGraceTimer = new Timer(_ => OnSeekGraceElapsed(), null, Timeout.InfiniteTimeSpan,
+            Timeout.InfiniteTimeSpan);
         _seekTimeoutTimer = new Timer(_ => OnSeekTimedOut(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _toggleTimeoutTimer = new Timer(_ => OnToggleTimedOut(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _toggleTimeoutTimer =
+            new Timer(_ => OnToggleTimedOut(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _pumpTask = Task.Run(PumpAsync);
     }
 

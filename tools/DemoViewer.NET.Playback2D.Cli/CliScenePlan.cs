@@ -211,8 +211,10 @@ internal static class CliScenePlan
                 if (query is null)
                 {
                     throw new CliUsageException(
-                        $"--layers {raw} needs a query to draw. Pass --query <file{QueryFixtureStore.SidecarExtension}>, " +
-                        $"or name a corpus entry with a {FixtureQuery.CorpusDirectoryName}/<name>{QueryFixtureStore.SidecarExtension} " +
+                        $"--layers {raw} needs a query to draw. Pass --query <file{QueryFixtureStore.SidecarExtension}>, "
+                        +
+                        $"or name a corpus entry with a {FixtureQuery.CorpusDirectoryName}/<name>{QueryFixtureStore.SidecarExtension} "
+                        +
                         "fixture beside its scene.");
                 }
 
@@ -224,8 +226,10 @@ internal static class CliScenePlan
                 if (overlay is null)
                 {
                     throw new CliUsageException(
-                        $"--layers {raw} needs an overlay to draw. Pass --overlay <file{OverlayFixtureStore.SidecarExtension}>, " +
-                        $"or name a corpus entry with an {FixtureOverlay.CorpusDirectoryName}/<name>{OverlayFixtureStore.SidecarExtension} " +
+                        $"--layers {raw} needs an overlay to draw. Pass --overlay <file{OverlayFixtureStore.SidecarExtension}>, "
+                        +
+                        $"or name a corpus entry with an {FixtureOverlay.CorpusDirectoryName}/<name>{OverlayFixtureStore.SidecarExtension} "
+                        +
                         "fixture beside its scene.");
                 }
 

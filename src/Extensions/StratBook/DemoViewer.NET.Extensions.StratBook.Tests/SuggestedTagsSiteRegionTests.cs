@@ -32,11 +32,11 @@ public class SuggestedTagsSiteRegionTests
     }
 
     // A round with no plant, spawning like the others.
-    private static RoundOccupancy NoPlant() => Round(60, new Dictionary<int, string?[]>
-    {
-        [6] = Path(60, "TSpawn", (0, 8, "TRamp")),
-        [7] = Path(60, "TSpawn", (0, 8, "TRamp"))
-    });
+    private static RoundOccupancy NoPlant() => Round(60,
+        new Dictionary<int, string?[]>
+        {
+            [6] = Path(60, "TSpawn", (0, 8, "TRamp")), [7] = Path(60, "TSpawn", (0, 8, "TRamp"))
+        });
 
     [Test]
     public async Task TheLearner_KeepsApproachPlaces_BeforeFortyPercentOfPlants_AndDropsSpawnPlaces()
@@ -61,8 +61,10 @@ public class SuggestedTagsSiteRegionTests
             await Assert.That(table.DemoCount).IsEqualTo(1);
             await Assert.That(table.RoundCount).IsEqualTo(7);
             await Assert.That(table.Plants[SiteRegions.SiteA]).IsEqualTo(5);
-            await Assert.That(table.Regions[SiteRegions.SiteA]).IsEquivalentTo([SiteRegions.SiteA, "ALong", "Short"], CollectionOrdering.Matching);
-            await Assert.That(table.Regions[SiteRegions.SiteB]).IsEquivalentTo([SiteRegions.SiteB], CollectionOrdering.Matching)
+            await Assert.That(table.Regions[SiteRegions.SiteA])
+                .IsEquivalentTo([SiteRegions.SiteA, "ALong", "Short"], CollectionOrdering.Matching);
+            await Assert.That(table.Regions[SiteRegions.SiteB])
+                .IsEquivalentTo([SiteRegions.SiteB], CollectionOrdering.Matching)
                 .Because("one plant is under the four a site needs");
             await Assert.That(table.SpawnAdjacent).IsEquivalentTo(["TRamp", "TSpawn"], CollectionOrdering.Matching);
         }
@@ -76,10 +78,11 @@ public class SuggestedTagsSiteRegionTests
         [
             PlantedAt(SiteRegions.SiteA, "TRamp"),
             PlantedAt(SiteRegions.SiteA, "TRamp"),
-            .. Enumerable.Range(0, 3).Select(_ => Round(60, new Dictionary<int, string?[]>
-            {
-                [6] = Path(60, "TSpawn", (18, 29, "TRamp"), (30, 59, SiteRegions.SiteA))
-            }, bomb: Plant(30, SiteRegions.SiteA))),
+            .. Enumerable.Range(0, 3).Select(_ => Round(60,
+                new Dictionary<int, string?[]>
+                {
+                    [6] = Path(60, "TSpawn", (18, 29, "TRamp"), (30, 59, SiteRegions.SiteA))
+                }, bomb: Plant(30, SiteRegions.SiteA))),
             Round(60),
             Round(60)
         ];
@@ -115,16 +118,21 @@ public class SuggestedTagsSiteRegionTests
         using (Assert.Multiple())
         {
             await Assert.That(learned.Source).IsEqualTo("learned:1");
-            await Assert.That(learned.RegionOf(SiteRegions.SiteA)).IsEquivalentTo([SiteRegions.SiteA, "ALong", "ASmall"], CollectionOrdering.Matching);
+            await Assert.That(learned.RegionOf(SiteRegions.SiteA))
+                .IsEquivalentTo([SiteRegions.SiteA, "ALong", "ASmall"], CollectionOrdering.Matching);
             await Assert.That(learned.SpawnAdjacent).IsEquivalentTo(["TSpawn", "TRamp"], CollectionOrdering.Matching);
             await Assert.That(fromShipped.Source).IsEqualTo("shipped");
-            await Assert.That(fromShipped.RegionOf(SiteRegions.SiteA)).IsEquivalentTo([SiteRegions.SiteA, "Shipped"], CollectionOrdering.Matching);
-            await Assert.That(fromShipped.RegionOf(SiteRegions.SiteB)).IsEquivalentTo([SiteRegions.SiteB], CollectionOrdering.Matching)
+            await Assert.That(fromShipped.RegionOf(SiteRegions.SiteA))
+                .IsEquivalentTo([SiteRegions.SiteA, "Shipped"], CollectionOrdering.Matching);
+            await Assert.That(fromShipped.RegionOf(SiteRegions.SiteB))
+                .IsEquivalentTo([SiteRegions.SiteB], CollectionOrdering.Matching)
                 .Because("a site the table leaves out is the site alone");
             await Assert.That(withEdit.Source).IsEqualTo("learned:1+profile");
-            await Assert.That(withEdit.RegionOf(SiteRegions.SiteA)).IsEquivalentTo([SiteRegions.SiteA, "ASmall", "Added"], CollectionOrdering.Matching);
+            await Assert.That(withEdit.RegionOf(SiteRegions.SiteA))
+                .IsEquivalentTo([SiteRegions.SiteA, "ASmall", "Added"], CollectionOrdering.Matching);
             await Assert.That(nothing.Source).IsEqualTo("site-only");
-            await Assert.That(nothing.SitesContaining(SiteRegions.SiteB)).IsEquivalentTo([SiteRegions.SiteB], CollectionOrdering.Matching);
+            await Assert.That(nothing.SitesContaining(SiteRegions.SiteB))
+                .IsEquivalentTo([SiteRegions.SiteB], CollectionOrdering.Matching);
         }
     }
 
@@ -142,7 +150,8 @@ public class SuggestedTagsSiteRegionTests
 
         SiteRegions regions = SiteRegions.Compose("de_inferno", null, inferno, DetectorProfile.Default);
 
-        await Assert.That(regions.RegionOf(SiteRegions.SiteA)).IsEquivalentTo([SiteRegions.SiteA, "TopofMid", "Balcony"], CollectionOrdering.Matching);
+        await Assert.That(regions.RegionOf(SiteRegions.SiteA))
+            .IsEquivalentTo([SiteRegions.SiteA, "TopofMid", "Balcony"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -155,8 +164,10 @@ public class SuggestedTagsSiteRegionTests
         {
             await Assert.That(back).IsNotNull();
             await Assert.That(back!.ToJson()).IsEqualTo(json);
-            await Assert.That(back.Regions[SiteRegions.SiteA]).IsEquivalentTo([SiteRegions.SiteA, "ALong", "ASmall"], CollectionOrdering.Matching);
-            await Assert.That(SiteRegionTable.TryParse("{\"schemaVersion\": 2}")).IsNull().Because("a newer file is not read");
+            await Assert.That(back.Regions[SiteRegions.SiteA])
+                .IsEquivalentTo([SiteRegions.SiteA, "ALong", "ASmall"], CollectionOrdering.Matching);
+            await Assert.That(SiteRegionTable.TryParse("{\"schemaVersion\": 2}")).IsNull()
+                .Because("a newer file is not read");
             await Assert.That(SiteRegionTable.TryParse("not json")).IsNull();
         }
     }
@@ -186,7 +197,8 @@ public class SuggestedTagsSiteRegionTests
             using (Assert.Multiple())
             {
                 await Assert.That(File.Exists(file)).IsTrue();
-                await Assert.That(Directory.GetFiles(folder.Path).Length).IsEqualTo(1).Because("the atomic write leaves no temp file");
+                await Assert.That(Directory.GetFiles(folder.Path).Length).IsEqualTo(1)
+                    .Because("the atomic write leaves no temp file");
                 await Assert.That(new SiteRegionStore(folder).TryLoad(Map)!.ToJson()).IsEqualTo(Table.ToJson());
                 Assert.Throws<ArgumentException>(() => SiteRegionStore.FileNameFor("../x"));
             }
@@ -204,15 +216,15 @@ public class SuggestedTagsSiteRegionTests
     public async Task TheShippedProfile_ReadsAsTheDesignWritesIt_AndRoundTrips()
     {
         const string design = """
-            { "schemaVersion": 1, "id": "team-default",
-              "order": ["execute", "default", "fake", "opener", "retake"],
-              "execute": { "N": 4, "T": 4, "touch": 10, "minSecond": 3, "lead": 6, "lag": 8, "rushSecond": 25, "slowSecond": 60 },
-              "default": { "defaultSecond": 40, "spreadSecond": 30, "spreadPlaces": 3, "lag": 10 },
-              "fake":    { "fakeWindow": 25, "fakePresence": 2, "fakeUtility": 2, "lead": 4 },
-              "opener":  { "K": 3, "W": 2, "lead": 5, "lag": 6 },
-              "retake":  { "retakeGap": 6, "minGroup": 2, "lead": 5, "lag": 10 },
-              "siteRegionOverrides": { "de_inferno": { "BombsiteA": { "remove": ["Middle"] } } } }
-            """;
+                              { "schemaVersion": 1, "id": "team-default",
+                                "order": ["execute", "default", "fake", "opener", "retake"],
+                                "execute": { "N": 4, "T": 4, "touch": 10, "minSecond": 3, "lead": 6, "lag": 8, "rushSecond": 25, "slowSecond": 60 },
+                                "default": { "defaultSecond": 40, "spreadSecond": 30, "spreadPlaces": 3, "lag": 10 },
+                                "fake":    { "fakeWindow": 25, "fakePresence": 2, "fakeUtility": 2, "lead": 4 },
+                                "opener":  { "K": 3, "W": 2, "lead": 5, "lag": 6 },
+                                "retake":  { "retakeGap": 6, "minGroup": 2, "lead": 5, "lag": 10 },
+                                "siteRegionOverrides": { "de_inferno": { "BombsiteA": { "remove": ["Middle"] } } } }
+                              """;
 
         DetectorProfile parsed = DetectorProfile.Parse(design);
         DetectorProfile back = DetectorProfile.Parse(DetectorProfile.Default.ToJson());
@@ -222,7 +234,8 @@ public class SuggestedTagsSiteRegionTests
             await Assert.That(parsed.ToJson()).IsEqualTo(DetectorProfile.Default.ToJson())
                 .Because("the worked example is the shipped profile, window mode off by default");
             await Assert.That(back.ToJson()).IsEqualTo(DetectorProfile.Default.ToJson());
-            await Assert.That(parsed.Order).IsEquivalentTo(["execute", "default", "fake", "opener", "retake"], CollectionOrdering.Matching);
+            await Assert.That(parsed.Order).IsEquivalentTo(["execute", "default", "fake", "opener", "retake"],
+                CollectionOrdering.Matching);
             await Assert.That(parsed.Get("execute", "window")).IsEqualTo(0);
         }
     }
@@ -230,12 +243,14 @@ public class SuggestedTagsSiteRegionTests
     [Test]
     public async Task AProfileNamingOneValue_IsAWholeProfile_AndKeepsWhatItDoesNotKnow()
     {
-        DetectorProfile profile = DetectorProfile.Parse("""{ "execute": { "N": 3, "future": 7 }, "newDetector": { "x": 1 } }""");
+        DetectorProfile profile =
+            DetectorProfile.Parse("""{ "execute": { "N": 3, "future": 7 }, "newDetector": { "x": 1 } }""");
 
         using (Assert.Multiple())
         {
             await Assert.That(profile.Get("execute", "N")).IsEqualTo(3);
-            await Assert.That(profile.Get("execute", "T")).IsEqualTo(4).Because("missing values are the shipped defaults");
+            await Assert.That(profile.Get("execute", "T")).IsEqualTo(4)
+                .Because("missing values are the shipped defaults");
             await Assert.That(profile.Order).IsEquivalentTo(DetectorProfile.Default.Order, CollectionOrdering.Matching);
             await Assert.That(profile.ToJson()).Contains("\"future\": 7");
             await Assert.That(profile.ToJson()).Contains("\"newDetector\"");

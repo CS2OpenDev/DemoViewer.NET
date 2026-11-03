@@ -124,12 +124,14 @@ public sealed class SignatureCache(StoredFile? file)
 
                 using MemoryStream stream = new(bytes, writable: false);
                 using GZipStream gzip = new(stream, CompressionMode.Decompress);
-                if (JsonSerializer.Deserialize<CacheFile>(gzip, JsonOptions) is { SchemaVersion: SchemaVersion, Demos: { } demos })
+                if (JsonSerializer.Deserialize<CacheFile>(gzip, JsonOptions) is
+                    { SchemaVersion: SchemaVersion, Demos: { } demos })
                 {
                     return new Dictionary<string, Entry>(demos, StringComparer.Ordinal);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException
+                                           or InvalidDataException)
             {
                 // Unreadable: every demo is rebuilt and the file rewritten.
             }

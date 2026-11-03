@@ -29,7 +29,8 @@ public sealed partial class PlayerOverviewPage : ObservableObject
 
     /// <summary>True below <see cref="RailBreakpoint" />, or with nothing in the rail: one column.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PrimarySpan), nameof(RailColumn), nameof(RailRow), nameof(RailSpan), nameof(BottomColumns))]
+    [NotifyPropertyChangedFor(nameof(PrimarySpan), nameof(RailColumn), nameof(RailRow), nameof(RailSpan),
+        nameof(BottomColumns))]
     private bool _isStacked = true;
 
     /// <summary>

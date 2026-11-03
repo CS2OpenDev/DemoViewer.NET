@@ -13,7 +13,8 @@ namespace DemoViewer.NET.ViewModels;
 
 /// <summary>Graph node view model.</summary>
 /// <remarks>Initializes a new <see cref="GraphNodeViewModel" /> instance.</remarks>
-public sealed partial class GraphNodeViewModel(string name, bool isRoot = false, string? subtitle = null) : ObservableObject, IGraphNode
+public sealed partial class GraphNodeViewModel(string name, bool isRoot = false, string? subtitle = null)
+    : ObservableObject, IGraphNode
 {
     [ObservableProperty]
     private string? _displayValue;
@@ -142,9 +143,5 @@ public sealed partial class GraphNodeViewModel(string name, bool isRoot = false,
         }
     }
 
-    private static NodeStyle BorderStyle(Color border) => new()
-    {
-        ActiveBorder = border,
-        InactiveBorder = border
-    };
+    private static NodeStyle BorderStyle(Color border) => new() { ActiveBorder = border, InactiveBorder = border };
 }

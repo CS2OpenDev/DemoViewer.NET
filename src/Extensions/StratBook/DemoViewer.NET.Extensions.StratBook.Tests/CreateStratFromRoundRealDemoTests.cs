@@ -57,12 +57,15 @@ public class CreateStratFromRoundRealDemoTests
                 await Assert.That(document.Steps[0].Verb).IsEqualTo("hold");
                 await Assert.That(document.Steps[0].AtSeconds).IsEqualTo(StratClock.DefaultRoundSeconds);
                 await Assert.That(projection.ClockClamped).IsFalse();
-                await Assert.That(projection.Tracks.Count).IsEqualTo(10).Because("five of ours and five opponents at the freeze-end");
+                await Assert.That(projection.Tracks.Count).IsEqualTo(10)
+                    .Because("five of ours and five opponents at the freeze-end");
                 await Assert.That(throws.All(s => s.Utility?.Landing is { X: not null, Y: not null })).IsTrue()
                     .Because("every detonation carries its world point");
                 await Assert.That(projection.Utility.Count).IsEqualTo(throws.Count);
-                await Assert.That(throws.Count(s => s.Strokes.Count == 1)).IsEqualTo(throws.Count(s => s.Actor != StratVocabulary.ActorAll
-                    && s.Positions.Any(p => p.Slot == s.Actor))).Because("an arrow per throw whose thrower is standing");
+                await Assert.That(throws.Count(s => s.Strokes.Count == 1)).IsEqualTo(throws.Count(s =>
+                        s.Actor != StratVocabulary.ActorAll
+                        && s.Positions.Any(p => p.Slot == s.Actor)))
+                    .Because("an arrow per throw whose thrower is standing");
                 await Assert.That(projection.Elements.Count).IsEqualTo(throws.Sum(s => s.Strokes.Count));
 
                 // Every token samples at every step's tick: nothing has to be dragged into place to play.
@@ -94,16 +97,20 @@ public class CreateStratFromRoundRealDemoTests
         CaptureMoment freeze = capture.FreezeEnd;
         using (Assert.Multiple())
         {
-            await Assert.That(utility.Count).IsEqualTo(detonations).Because("this many detonations were counted in the round");
+            await Assert.That(utility.Count).IsEqualTo(detonations)
+                .Because("this many detonations were counted in the round");
             await Assert.That(freeze.Pawns.Count).IsEqualTo(10);
             await Assert.That(freeze.Pawns.Select(p => p.PlayerSlot).Distinct().Count()).IsEqualTo(10);
             await Assert.That(freeze.Pawns.Count(p => p.Team == 2)).IsEqualTo(5);
-            await Assert.That(freeze.Pawns.All(p => p.Place is not null)).IsTrue().Because("the pawn carries its place");
+            await Assert.That(freeze.Pawns.All(p => p.Place is not null)).IsTrue()
+                .Because("the pawn carries its place");
             await Assert.That(capture.Moments.Select(m => m.Tick)).IsOrderedBy(t => t);
             await Assert.That(capture.LiveEndTick).IsGreaterThan(capture.FreezeEndTick);
 
             // Throwers are named for every kind but the fire, whose owner the inferno entity carries.
-            await Assert.That(utility.Where(m => m.UtilityKind is "smoke" or "flash" or "he").All(m => m.ActorSlot >= 0)).IsTrue();
+            await Assert
+                .That(utility.Where(m => m.UtilityKind is "smoke" or "flash" or "he").All(m => m.ActorSlot >= 0))
+                .IsTrue();
         }
 
         // Every captured step's time maps back to its own tick through the strat clock.
@@ -112,7 +119,8 @@ public class CreateStratFromRoundRealDemoTests
         HashSet<int> ticks = [.. capture.Moments.Select(m => m.Tick)];
         foreach (StratStep step in steps)
         {
-            int tick = StratClock.TickFor(step.AtSeconds, capture.FreezeEndTick, capture.TickRate, options.RoundSeconds);
+            int tick = StratClock.TickFor(step.AtSeconds, capture.FreezeEndTick, capture.TickRate,
+                options.RoundSeconds);
             await Assert.That(ticks.Contains(tick)).IsTrue();
         }
 
@@ -125,7 +133,8 @@ public class CreateStratFromRoundRealDemoTests
     {
         (string map, string demo, int round, _) = Measured[index];
         (ParsedDemo parsed, ClipRound clip, RoundCapture capture) = Capture(demo, round);
-        RoundFactsRows rows = RoundFactsProjection.Project(ClipRounds.Derive(parsed), new EngineRoundFactsRowSource().Rows(parsed));
+        RoundFactsRows rows =
+            RoundFactsProjection.Project(ClipRounds.Derive(parsed), new EngineRoundFactsRowSource().Rows(parsed));
         RoundFacts row = rows.Rounds.Single(r => r.Number == clip.Number);
 
         StratCaptureOptions options = OptionsFor(capture, 2, arrows: true) with
@@ -146,8 +155,10 @@ public class CreateStratFromRoundRealDemoTests
 
     internal static StratCaptureOptions OptionsFor(RoundCapture capture, int side, bool arrows)
     {
-        IReadOnlyDictionary<char, ulong> map = StratFromRound.SlotMap(capture.FreezeEnd.Pawns.Where(p => p.Team == side), null, null);
-        return new StratCaptureOptions(side, StratFromRound.Tokens(capture.FreezeEnd.Pawns, side, map), StratClock.DefaultRoundSeconds,
+        IReadOnlyDictionary<char, ulong> map =
+            StratFromRound.SlotMap(capture.FreezeEnd.Pawns.Where(p => p.Team == side), null, null);
+        return new StratCaptureOptions(side, StratFromRound.Tokens(capture.FreezeEnd.Pawns, side, map),
+            StratClock.DefaultRoundSeconds,
             arrows, StratFromRound.QuantizedLevel);
     }
 
@@ -169,6 +180,7 @@ public class CreateStratFromRoundRealDemoTests
 
     // The replays folder DEMO_PATH names, or the folder of the file it names.
     private static string ReplaysFolder() =>
-        DemoTestHelper.ResolveReplaysFolder(Environment.GetEnvironmentVariable(DemoTestHelper.DemoPathEnvVar), out string? problem)
+        DemoTestHelper.ResolveReplaysFolder(Environment.GetEnvironmentVariable(DemoTestHelper.DemoPathEnvVar),
+            out string? problem)
         ?? throw new SkipTestException(problem ?? $"{DemoTestHelper.DemoPathEnvVar} names no replays folder");
 }

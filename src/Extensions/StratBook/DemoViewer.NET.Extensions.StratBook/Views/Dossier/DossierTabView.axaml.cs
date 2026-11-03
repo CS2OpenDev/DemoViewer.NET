@@ -43,7 +43,8 @@ public partial class DossierTabView : UserControl
 
         Dispatcher.UIThread.Post(() =>
         {
-            if (ReferenceEquals(box.DataContext, row) && box.IsEffectivelyVisible && TopLevel.GetTopLevel(box) is not null
+            if (ReferenceEquals(box.DataContext, row) && box.IsEffectivelyVisible
+                                                      && TopLevel.GetTopLevel(box) is not null
                 || !row.IsEditing)
             {
                 _editing = null;
@@ -57,7 +58,8 @@ public partial class DossierTabView : UserControl
 
     private void Reclaim(TextBox? box)
     {
-        if (box is { DataContext: DossierFindingViewModel { IsEditing: true } row } && ReferenceEquals(row, _editing) && !box.IsFocused)
+        if (box is { DataContext: DossierFindingViewModel { IsEditing: true } row } && ReferenceEquals(row, _editing)
+            && !box.IsFocused)
         {
             Dispatcher.UIThread.Post(() =>
             {

@@ -38,27 +38,33 @@
                 <TextBlock Grid.Column="0" Text="{Binding HintLine}" FontSize="12" TextWrapping="Wrap"
                            VerticalAlignment="Center" Foreground="{DynamicResource TextMid}" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <Button Content="Cancel" Classes="ghost" FontSize="12" Padding="12 5" Command="{Binding CancelCommand}"
+                    <Button Content="Cancel" Classes="ghost" FontSize="12" Padding="12 5"
+                            Command="{Binding CancelCommand}"
                             ToolTip.Tip="Close without changing the step (Escape)" />
-                    <Button x:Name="ConfirmPick" Content="Use this lineup" Classes="primary" Command="{Binding ConfirmCommand}"
+                    <Button x:Name="ConfirmPick" Content="Use this lineup" Classes="primary"
+                            Command="{Binding ConfirmCommand}"
                             ToolTip.Tip="Write the kind, the lineup and how it is thrown to the step, as one undo" />
                 </StackPanel>
             </Grid>
 
             <Grid ColumnDefinitions="*,300" ColumnSpacing="10">
-                <Border Grid.Column="0" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="6"
+                <Border Grid.Column="0" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                        CornerRadius="6"
                         ClipToBounds="True">
                     <Panel>
                         <utility:UtilityMapHost x:Name="PickerMap" DataContext="{Binding Map}" />
-                        <TextBlock Text="no map art for this map on this host" FontSize="12" Foreground="{DynamicResource TextMid}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding Map.HasNoMapArt}" />
+                        <TextBlock Text="no map art for this map on this host" FontSize="12"
+                                   Foreground="{DynamicResource TextMid}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   IsVisible="{Binding Map.HasNoMapArt}" />
                     </Panel>
                 </Border>
 
                 <DockPanel Grid.Column="1">
                     <TextBlock DockPanel.Dock="Top" Text="Thrown from" Classes="col-label" FontSize="11"
                                Foreground="{DynamicResource TextCardHeader}" Margin="0 0 0 4" />
-                    <TextBlock DockPanel.Dock="Top" Text="click a landing icon on the map" FontSize="11" TextWrapping="Wrap"
+                    <TextBlock DockPanel.Dock="Top" Text="click a landing icon on the map" FontSize="11"
+                               TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMid}" IsVisible="{Binding !HasPositions}" />
                     <ListBox x:Name="PickerPositions" DockPanel.Dock="Top" ItemsSource="{Binding Positions}"
                              SelectedItem="{Binding SelectedPosition}" Background="Transparent" MaxHeight="220"
@@ -66,8 +72,10 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:LineupPickerPosition">
                                 <StackPanel Spacing="1">
-                                    <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource TextValue}" />
-                                    <TextBlock Text="{Binding CountText}" FontSize="10" Foreground="{DynamicResource TextMid}" />
+                                    <TextBlock Text="{Binding Label}" FontSize="12"
+                                               Foreground="{DynamicResource TextValue}" />
+                                    <TextBlock Text="{Binding CountText}" FontSize="10"
+                                               Foreground="{DynamicResource TextMid}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -77,12 +85,14 @@
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" Margin="0 8 0 0">
                         <StackPanel Spacing="6" DataContext="{Binding Detail}" x:DataType="ub:LineupDetail"
                                     IsVisible="{Binding $parent[UserControl].((vm:LineupPickerViewModel)DataContext).CanConfirm, FallbackValue=False}">
-                            <TextBlock Text="{Binding StyleLine}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
+                            <TextBlock Text="{Binding StyleLine}" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextMid}" />
                             <TextBlock Text="{Binding UsedLine}" FontSize="12" Foreground="{DynamicResource TextValue}" />
-                            <TextBlock Text="{Binding TechniquesLine}" IsVisible="{Binding HasTechniques}" FontSize="11"
+                            <TextBlock Text="{Binding TechniquesLine}" IsVisible="{Binding HasTechniques}"
+                                       FontSize="11"
                                        TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
                             <ui:GifView Source="{Binding ClipPath}" IsVisible="{Binding HasClip}" MaxHeight="200"
-                                              HorizontalAlignment="Center" />
+                                        HorizontalAlignment="Center" />
                             <TextBlock Text="{Binding ClipLine}" IsVisible="{Binding HasClipLine}" FontSize="11"
                                        TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
                         </StackPanel>

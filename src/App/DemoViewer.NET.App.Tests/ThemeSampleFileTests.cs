@@ -93,10 +93,12 @@ public class ThemeSampleFileTests
 
         foreach (ThemePalette builtIn in BuiltInThemes.All)
         {
-            string onDisk = (await File.ReadAllTextAsync(Path.Combine(SamplesDir(), ThemeExport.SampleFileName(builtIn))))
+            string onDisk =
+                (await File.ReadAllTextAsync(Path.Combine(SamplesDir(), ThemeExport.SampleFileName(builtIn))))
                 .Replace("\r\n", "\n");
             await Assert.That(onDisk).IsEqualTo(ThemeExport.SampleFile(builtIn))
-                .Because($"samples/Themes/{ThemeExport.SampleFileName(builtIn)} is stale; run `UiCapture export-themes`");
+                .Because(
+                    $"samples/Themes/{ThemeExport.SampleFileName(builtIn)} is stale; run `UiCapture export-themes`");
         }
     }
 
@@ -112,7 +114,8 @@ public class ThemeSampleFileTests
         });
 
         await Assert.That(problems).IsEmpty();
-        await Assert.That(samples.Select(t => t.Id[..^Suffix.Length])).IsEquivalentTo(BuiltInThemes.All.Select(p => p.Id));
+        await Assert.That(samples.Select(t => t.Id[..^Suffix.Length]))
+            .IsEquivalentTo(BuiltInThemes.All.Select(p => p.Id));
         foreach (Theme sample in samples)
         {
             await Assert.That(sample.MissingTokens).IsEmpty().Because(sample.Id);
@@ -153,7 +156,8 @@ public class ThemeSampleFileTests
     internal static bool SameBrush(object? a, object? b) => (a, b) switch
     {
         (ISolidColorBrush x, ISolidColorBrush y) => x.Color == y.Color,
-        (ILinearGradientBrush x, ILinearGradientBrush y) => ThemeGradient.FromBrush(x).Equals(ThemeGradient.FromBrush(y)),
+        (ILinearGradientBrush x, ILinearGradientBrush y) => ThemeGradient.FromBrush(x)
+            .Equals(ThemeGradient.FromBrush(y)),
         _ => false
     };
 

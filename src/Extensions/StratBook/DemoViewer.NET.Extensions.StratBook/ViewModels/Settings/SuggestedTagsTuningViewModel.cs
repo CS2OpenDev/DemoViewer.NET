@@ -119,7 +119,8 @@ public sealed partial class SuggestedTagsTuningViewModel : ExtensionViewModel
     /// <param name="profiles">Where a save lands; null hides the section.</param>
     /// <param name="isBrowser">Whether the host is the WASM head (no tuning view there either way).</param>
     /// <param name="profileFolderPath">The folder holding the profile, for the "open folder" link; null hides it.</param>
-    public SuggestedTagsTuningViewModel(SuggestedTagsTuningService? tuning, ProfileStore? profiles, bool isBrowser = false,
+    public SuggestedTagsTuningViewModel(SuggestedTagsTuningService? tuning, ProfileStore? profiles,
+        bool isBrowser = false,
         string? profileFolderPath = null)
     {
         ProfileFolderPath = profileFolderPath;

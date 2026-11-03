@@ -29,11 +29,15 @@ public class TagFactsRealDemoTests
         IReadOnlyList<ClipRound> rounds = ClipRounds.Derive(parsed);
 
         DemoCacheStore cache = new(null);
-        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
+        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(),
+            new RulesRoundFactsRulesetIdentity());
         RoundFactsSource facts = new(cache, evaluator);
         TagStore tags = new(null);
         TagDocument document = Document(Sha,
-            [.. rounds.Select(r => Instance("execute", r.StartTickFrameClock + 64, r.StartTickFrameClock + 640, ("outcome", "won")))]);
+        [
+            .. rounds.Select(r =>
+                Instance("execute", r.StartTickFrameClock + 64, r.StartTickFrameClock + 640, ("outcome", "won")))
+        ]);
         tags.Save(document);
         using TagFactsRefresher refresher = new(tags, facts, _ => Sha, action => action());
 

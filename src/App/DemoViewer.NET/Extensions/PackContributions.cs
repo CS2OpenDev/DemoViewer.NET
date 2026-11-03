@@ -33,7 +33,10 @@ namespace DemoViewer.NET.Extensions;
 ///     Modules are kept as the pack's own objects, so the pack can still find what it contributed; the
 ///     shell runs their tabs through <see cref="ExtensionTabs" /> with the guard recorded here.
 /// </remarks>
-internal sealed class PackContributions(IExtension pack, Func<IExtensionContext> context, Action<Action>? toUiThread = null,
+internal sealed class PackContributions(
+    IExtension pack,
+    Func<IExtensionContext> context,
+    Action<Action>? toUiThread = null,
     ExtensionGuard? guard = null)
     : IExtensionContributions
 {
@@ -61,6 +64,7 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
 
     /// <summary>The guard every contribution of the pack runs under.</summary>
     public ExtensionGuard Guard => _guard;
+
     public IExtensionContext Context => _context ??= context();
     public IReadOnlyList<GatedDemoAction> DemoActions => _demoActions;
 
@@ -103,7 +107,9 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
     ///     has one, so a refusal is reported once.
     /// </summary>
     public IReadOnlyList<StoreDescriptor> Stores =>
-        Context is ExtensionContext { Stores: ExtensionStores declared } ? declared.Declared : _stores ??= AcceptedStores(Pack, _guard);
+        Context is ExtensionContext { Stores: ExtensionStores declared }
+            ? declared.Declared
+            : _stores ??= AcceptedStores(Pack, _guard);
 
     /// <summary>The pack's own "delete extension data", replacing the host's, or null when it declared none.</summary>
     public IExtensionDataRemoval? DataRemovalContribution => _dataRemoval;
@@ -128,7 +134,8 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
             return;
         }
 
-        _hubTabs.Add(ContributedHub.For(hub with { FeatureId = _guard.OwnFeature("hub tab", hub.FeatureId) }, Pack.Id, Pack.FeatureId, _guard));
+        _hubTabs.Add(ContributedHub.For(hub with { FeatureId = _guard.OwnFeature("hub tab", hub.FeatureId) }, Pack.Id,
+            Pack.FeatureId, _guard));
     }
 
     /// <inheritdoc />
@@ -190,9 +197,15 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
                 if (cached is null || !ReferenceEquals(cached.Inner, inner))
                 {
                     cached = new ExtensionPassHost(inner, after, _guard,
-                        collectors: CollectorSet.Of(_collectors.Where(c => string.Equals(c.Contribution.PassId, id, StringComparison.Ordinal))),
-                        tableRulesets: [.. _rulesets.Where(r => string.Equals(r.ReadBy, id, StringComparison.Ordinal)).Select(r => r.RulesetId)],
-                        tablesReadUserCommands: _rulesets.Any(r => string.Equals(r.ReadBy, id, StringComparison.Ordinal) && r.ReadsUserCommands));
+                        collectors: CollectorSet.Of(_collectors.Where(c =>
+                            string.Equals(c.Contribution.PassId, id, StringComparison.Ordinal))),
+                        tableRulesets:
+                        [
+                            .. _rulesets.Where(r => string.Equals(r.ReadBy, id, StringComparison.Ordinal))
+                                .Select(r => r.RulesetId)
+                        ],
+                        tablesReadUserCommands: _rulesets.Any(r =>
+                            string.Equals(r.ReadBy, id, StringComparison.Ordinal) && r.ReadsUserCommands));
                 }
 
                 return cached;
@@ -223,18 +236,20 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
 
         if (ruleset.ReadBy is { } passId && string.IsNullOrWhiteSpace(passId))
         {
-            _guard.Report("ruleset", new ArgumentException($"'{ruleset.Id}' names a blank pass in ReadBy.", nameof(ruleset)));
+            _guard.Report("ruleset",
+                new ArgumentException($"'{ruleset.Id}' names a blank pass in ReadBy.", nameof(ruleset)));
             return;
         }
 
         string id = RulesetContribution.QualifiedId(Pack.Id, ruleset.Id);
         Func<Stream> open = ruleset.Yaml;
-        _rulesets.Add(new ContributedRuleset(id, Pack.Id, _guard.OwnFeature("ruleset", ruleset.FeatureId), () => _guard.Run<string?>("ruleset " + id, () =>
-        {
-            using Stream stream = open();
-            using StreamReader reader = new(stream);
-            return reader.ReadToEnd();
-        }, null)) { ReadBy = ruleset.ReadBy, ReadsUserCommands = ruleset.ReadsUserCommands });
+        _rulesets.Add(new ContributedRuleset(id, Pack.Id, _guard.OwnFeature("ruleset", ruleset.FeatureId), () =>
+            _guard.Run<string?>("ruleset " + id, () =>
+            {
+                using Stream stream = open();
+                using StreamReader reader = new(stream);
+                return reader.ReadToEnd();
+            }, null)) { ReadBy = ruleset.ReadBy, ReadsUserCommands = ruleset.ReadsUserCommands });
     }
 
     // Ids that are global across extensions carry the owner's id, so two extensions never lose one to the other.
@@ -299,9 +314,11 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
             ArgumentException.ThrowIfNullOrWhiteSpace(setting.Key);
         }
 
-        string keywords = string.Join(' ', schema.Settings.Select(s => s.Label).Prepend(schema.Keywords).Prepend(schema.Header));
+        string keywords = string.Join(' ',
+            schema.Settings.Select(s => s.Label).Prepend(schema.Keywords).Prepend(schema.Header));
         SettingsPage(new SettingsPageContribution(schema.Id, schema.Header, schema.Order, keywords,
-            () => new SchemaSettingsPageViewModel(schema, Context.Settings), () => new SchemaSettingsPageView(), schema.FeatureId));
+            () => new SchemaSettingsPageViewModel(schema, Context.Settings), () => new SchemaSettingsPageView(),
+            schema.FeatureId));
     }
 
     /// <inheritdoc />
@@ -315,7 +332,8 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
             return;
         }
 
-        _statusChips.Add(new HostStatusChip(chip, _guard.OwnFeature("status chip", chip.FeatureId), _guard, _toUiThread));
+        _statusChips.Add(
+            new HostStatusChip(chip, _guard.OwnFeature("status chip", chip.FeatureId), _guard, _toUiThread));
     }
 
     /// <inheritdoc />
@@ -336,7 +354,8 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
     public void Library(ILibraryContribution contribution)
     {
         ArgumentNullException.ThrowIfNull(contribution);
-        string featureId = _guard.OwnFeature("library contribution", _guard.Run("library contribution", () => contribution.FeatureId, null));
+        string featureId = _guard.OwnFeature("library contribution",
+            _guard.Run("library contribution", () => contribution.FeatureId, null));
         _library.Add(new HostLibraryContribution(contribution, featureId, _toUiThread, _guard));
     }
 
@@ -409,8 +428,10 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
             {
                 int star = path.IndexOf('*', StringComparison.Ordinal);
                 string suffix = star < 0 ? "" : path[(star + 1)..];
-                if (star < 0 || !suffix.StartsWith('.') || Services.DemoCache.DemoCacheStore.RecordSuffix.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
-                    || ".json".EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                if (star < 0 || !suffix.StartsWith('.')
+                             || Services.DemoCache.DemoCacheStore.RecordSuffix.EndsWith(suffix,
+                                 StringComparison.OrdinalIgnoreCase)
+                             || ".json".EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                 {
                     return $"'{raw}' would reach the demo cache's own records";
                 }
@@ -423,7 +444,8 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
     // What the host and every extension share under each root; no store may name one.
     private static readonly string[] ReservedConfigNames =
     [
-        ExtensionFolders.DataDirectoryName, ExtensionSettingsStore.DirectoryName, ExtensionLoader.ExtensionsDirectoryName,
+        ExtensionFolders.DataDirectoryName, ExtensionSettingsStore.DirectoryName,
+        ExtensionLoader.ExtensionsDirectoryName,
         "cache", "logs", "themes", "zones", "settings.json"
     ];
 
@@ -474,7 +496,10 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
     // concrete gate id and never has to fall back to "always on" the way a settings page or chip would.
     // Changed may be raised on any thread; the host's handlers run on the UI thread. Every read and call
     // into the extension is guarded: a throwing filter keeps the demo, a throwing badge shows none.
-    private sealed class HostLibraryContribution(ILibraryContribution inner, string featureId, Action<Action> toUiThread,
+    private sealed class HostLibraryContribution(
+        ILibraryContribution inner,
+        string featureId,
+        Action<Action> toUiThread,
         ExtensionGuard guard)
         : ILibraryContribution
     {
@@ -582,7 +607,8 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
 
         public string? BadgeResetTooltip => guard.Run("library badge labels", () => inner.BadgeResetTooltip, null);
 
-        public void SetLabel(LibraryDemo demo, string? label) => guard.Run("library label", () => inner.SetLabel(demo, label));
+        public void SetLabel(LibraryDemo demo, string? label) =>
+            guard.Run("library label", () => inner.SetLabel(demo, label));
     }
 
     private sealed class GuardedReindexEstimate(IReindexEstimate inner, ExtensionGuard guard) : IReindexEstimate
@@ -617,18 +643,28 @@ internal sealed class PackContributions(IExtension pack, Func<IExtensionContext>
 /// <param name="PackId">The owning pack's id; the key of its session state.</param>
 /// <param name="Session">The pack's session state, guarded, or null.</param>
 public sealed record ContributedHub(
-    string Id, string Header, int Order, string RailLabel, string FeatureId, string PackId, IExtensionSessionState? Session)
+    string Id,
+    string Header,
+    int Order,
+    string RailLabel,
+    string FeatureId,
+    string PackId,
+    IExtensionSessionState? Session)
 {
     /// <summary>The hub as the shell builds it from a pack's declaration.</summary>
     /// <param name="hub">The declaration.</param>
     /// <param name="packId">The owning pack's id.</param>
     /// <param name="packFeatureId">The owning pack's master switch, for a declaration that names no feature.</param>
     /// <param name="guard">The owning pack's guard; null runs the session state unguarded.</param>
-    public static ContributedHub For(HubTabContribution hub, string packId, string packFeatureId, ExtensionGuard? guard = null)
+    public static ContributedHub For(HubTabContribution hub, string packId, string packFeatureId,
+        ExtensionGuard? guard = null)
     {
         ArgumentNullException.ThrowIfNull(hub);
-        IExtensionSessionState? session = hub.Session is { } state && guard is not null ? new GuardedSessionState(state, guard) : hub.Session;
-        return new ContributedHub(hub.Id, hub.Header, hub.Order, hub.RailLabel, hub.FeatureId ?? packFeatureId, packId, session);
+        IExtensionSessionState? session = hub.Session is { } state && guard is not null
+            ? new GuardedSessionState(state, guard)
+            : hub.Session;
+        return new ContributedHub(hub.Id, hub.Header, hub.Order, hub.RailLabel, hub.FeatureId ?? packFeatureId, packId,
+            session);
     }
 }
 

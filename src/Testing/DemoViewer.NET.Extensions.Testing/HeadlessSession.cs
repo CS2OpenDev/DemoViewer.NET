@@ -90,7 +90,8 @@ public static class HeadlessSession
     // The test assembly names its app builder the way Avalonia's own test integrations expect, so this file
     // carries no app type and links into any extension's test project.
     private static Type EntryPoint() =>
-        typeof(HeadlessSession).Assembly.GetCustomAttribute<AvaloniaTestApplicationAttribute>()?.AppBuilderEntryPointType
+        typeof(HeadlessSession).Assembly.GetCustomAttribute<AvaloniaTestApplicationAttribute>()
+            ?.AppBuilderEntryPointType
         ?? throw new InvalidOperationException(
             "The test assembly declares no [assembly: AvaloniaTestApplication(typeof(...))] naming a type with a static BuildAvaloniaApp().");
 
@@ -396,7 +397,8 @@ public static class HeadlessSession
                 }
                 catch (Exception flushEx)
                 {
-                    Console.WriteLine($"[runonui-flush] leaked-window render fault (not this test's failure): {flushEx.Message}");
+                    Console.WriteLine(
+                        $"[runonui-flush] leaked-window render fault (not this test's failure): {flushEx.Message}");
                 }
 
                 return true;

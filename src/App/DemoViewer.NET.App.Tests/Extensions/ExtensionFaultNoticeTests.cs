@@ -29,7 +29,9 @@ public class ExtensionFaultNoticeTests
 
     private sealed class Rig : IDisposable
     {
-        private readonly string _dir = Path.Combine(Path.GetTempPath(), "dvfaultnotice_" + Guid.NewGuid().ToString("N"));
+        private readonly string
+            _dir = Path.Combine(Path.GetTempPath(), "dvfaultnotice_" + Guid.NewGuid().ToString("N"));
+
         private readonly ServiceProvider _sp;
 
         public Rig()
@@ -99,7 +101,8 @@ public class ExtensionFaultNoticeTests
         using (Assert.Multiple())
         {
             await Assert.That(master.Fault.IsShown).IsTrue();
-            await Assert.That(master.Fault.Text).IsEqualTo("Turned off for this session after 3 errors (last: library filter).");
+            await Assert.That(master.Fault.Text)
+                .IsEqualTo("Turned off for this session after 3 errors (last: library filter).");
             await Assert.That(master.Fault.CanTurnOnAgain).IsTrue();
             await Assert.That(master.IsEnabled).IsFalse().Because("the suspension resolves the master switch off");
         }
@@ -195,11 +198,13 @@ public class ExtensionFaultNoticeTests
                 Action late = () => throw new InvalidOperationException("after");
                 rig.Faults.Run(StratBook, "library filter", late);
                 rig.Posts.Drain();
-                await Assert.That(shell.HasExtensionFaultBanner).IsFalse().Because("the same switch-off is not announced twice");
+                await Assert.That(shell.HasExtensionFaultBanner).IsFalse()
+                    .Because("the same switch-off is not announced twice");
 
                 rig.Faults.Resume(StratBookPack.PackFeatureId);
                 rig.Trip();
-                await Assert.That(shell.HasExtensionFaultBanner).IsTrue().Because("a new switch-off gets its own banner");
+                await Assert.That(shell.HasExtensionFaultBanner).IsTrue()
+                    .Because("a new switch-off gets its own banner");
 
                 shell.ExtensionFaultBanner!.TurnOnAgainCommand.Execute(null);
                 using (Assert.Multiple())

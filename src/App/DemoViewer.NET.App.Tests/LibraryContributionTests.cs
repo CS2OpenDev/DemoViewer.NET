@@ -34,7 +34,8 @@ public class LibraryContributionTests
 
     private static DemoLibraryService NewLibrary(params string[] paths)
     {
-        DemoLibraryService lib = new(a => a(), Path.Combine(Path.GetTempPath(), "dvlibcontrib_" + Guid.NewGuid().ToString("N") + ".json"));
+        DemoLibraryService lib = new(a => a(),
+            Path.Combine(Path.GetTempPath(), "dvlibcontrib_" + Guid.NewGuid().ToString("N") + ".json"));
         foreach (string p in paths)
         {
             lib.Entries.Add(Entry(p));
@@ -43,7 +44,8 @@ public class LibraryContributionTests
         return lib;
     }
 
-    private static LibraryTabViewModel NewVm(DemoLibraryService lib, IReadOnlyList<ILibraryContribution> contributions, Func<string, bool>? isFeatureEnabled = null) =>
+    private static LibraryTabViewModel NewVm(DemoLibraryService lib, IReadOnlyList<ILibraryContribution> contributions,
+        Func<string, bool>? isFeatureEnabled = null) =>
         new(lib, _ => Task.CompletedTask, () => Task.FromResult<IReadOnlyList<string>>([]),
             contributions: contributions, isFeatureEnabled: isFeatureEnabled);
 
@@ -106,7 +108,8 @@ public class LibraryContributionTests
         List<LibraryDemo> seen = [];
         FakeContribution c = new()
         {
-            FilterValue = new LibraryFilter("Clan", [new LibraryFilterItem("", "All"), new LibraryFilterItem("blue", "Blue")],
+            FilterValue = new LibraryFilter("Clan",
+                [new LibraryFilterItem("", "All"), new LibraryFilterItem("blue", "Blue")],
                 (demo, key) => string.Equals(demo.CtClan, key, StringComparison.OrdinalIgnoreCase)),
             HasBadgeValue = true,
             BadgeForFunc = demo =>
@@ -123,10 +126,13 @@ public class LibraryContributionTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(vm.FilteredEntries.Select(e => e.FileName)).IsEquivalentTo(["a.dem"], CollectionOrdering.Matching)
+            await Assert.That(vm.FilteredEntries.Select(e => e.FileName))
+                .IsEquivalentTo(["a.dem"], CollectionOrdering.Matching)
                 .Because("the clans come from the cache's row, which the grid entry does not carry");
             await Assert.That(seen.First(d => d.FilePath == "/demos/a.dem").Sha256).IsEqualTo(record.Sha256);
-            await Assert.That(ReferenceEquals(seen.Last(d => d.FilePath == "/demos/a.dem"), library.Find("/demos/a.dem"))).IsTrue();
+            await Assert
+                .That(ReferenceEquals(seen.Last(d => d.FilePath == "/demos/a.dem"), library.Find("/demos/a.dem")))
+                .IsTrue();
             await Assert.That(seen.First(d => d.FilePath == "/demos/b.dem").Sha256).IsNull()
                 .Because("a demo the cache has no row for falls back to the grid entry");
         }
@@ -142,8 +148,7 @@ public class LibraryContributionTests
         HostLibrary library = new(cache, null, () => false);
         FakeContribution c = new()
         {
-            HasBadgeValue = true,
-            BadgeForFunc = demo => new LibraryBadge("seen", demo.FilePath, false)
+            HasBadgeValue = true, BadgeForFunc = demo => new LibraryBadge("seen", demo.FilePath, false)
         };
 
         LibraryTabViewModel vm = new(lib, _ => Task.CompletedTask, () => Task.FromResult<IReadOnlyList<string>>([]),
@@ -177,7 +182,9 @@ public class LibraryContributionTests
 
         public LibraryFilter? Filter => throw new InvalidOperationException("Filter read while off");
         public bool HasBadge => throw new InvalidOperationException("HasBadge read while off");
-        public LibraryBadge? BadgeFor(LibraryDemo demo) => throw new InvalidOperationException("BadgeFor called while off");
+
+        public LibraryBadge? BadgeFor(LibraryDemo demo) =>
+            throw new InvalidOperationException("BadgeFor called while off");
 
         public IReadOnlyDictionary<string, LibraryBadge?> BadgesFor(IEnumerable<LibraryDemo> demos) =>
             throw new InvalidOperationException("BadgesFor called while off");
@@ -185,7 +192,9 @@ public class LibraryContributionTests
         public IReadOnlyList<string> BadgeLabels => throw new InvalidOperationException("BadgeLabels read while off");
         public string? BadgeResetLabel => throw new InvalidOperationException("BadgeResetLabel read while off");
         public string? BadgeResetTooltip => throw new InvalidOperationException("BadgeResetTooltip read while off");
-        public void SetLabel(LibraryDemo demo, string? label) => throw new InvalidOperationException("SetLabel called while off");
+
+        public void SetLabel(LibraryDemo demo, string? label) =>
+            throw new InvalidOperationException("SetLabel called while off");
     }
 
     [Test]
@@ -194,7 +203,8 @@ public class LibraryContributionTests
         DemoLibraryService lib = NewLibrary("/d/keep.dem", "/d/drop.dem");
         FakeContribution c = new() { FeatureId = "pack.fake" };
         ConcurrentQueue<Action> posted = new();
-        PackContributions contributions = new(new FakePack(), () => throw new InvalidOperationException(), posted.Enqueue);
+        PackContributions contributions =
+            new(new FakePack(), () => throw new InvalidOperationException(), posted.Enqueue);
         contributions.Library(c);
         LibraryTabViewModel vm = NewVm(lib, contributions.LibraryContributions, _ => true);
         await Assert.That(vm.Filters).IsEmpty();
@@ -217,7 +227,8 @@ public class LibraryContributionTests
     {
         FakeContribution c = new() { FeatureId = "pack.fake" };
         ConcurrentQueue<Action> posted = new();
-        PackContributions contributions = new(new FakePack(), () => throw new InvalidOperationException(), posted.Enqueue);
+        PackContributions contributions =
+            new(new FakePack(), () => throw new InvalidOperationException(), posted.Enqueue);
         contributions.Library(c);
         ILibraryContribution host = contributions.LibraryContributions.Single();
         int calls = 0;
@@ -246,12 +257,14 @@ public class LibraryContributionTests
         FakeContribution c = new()
         {
             FeatureId = "pack.fake",
-            FilterValue = new LibraryFilter("Throws", [new LibraryFilterItem("", "All"), new LibraryFilterItem("x", "X")],
+            FilterValue = new LibraryFilter("Throws",
+                [new LibraryFilterItem("", "All"), new LibraryFilterItem("x", "X")],
                 (_, _) => throw new InvalidOperationException("filter")),
             HasBadgeValue = true,
             BadgeForFunc = _ => throw new InvalidOperationException("badge")
         };
-        PackContributions contributions = new(new FakePack(), () => throw new InvalidOperationException(), null, rig.Guard);
+        PackContributions contributions =
+            new(new FakePack(), () => throw new InvalidOperationException(), null, rig.Guard);
         contributions.Library(c);
         LibraryTabViewModel vm = NewVm(lib, contributions.LibraryContributions, _ => true);
 
@@ -291,7 +304,8 @@ public class LibraryContributionTests
         await Assert.That(vm.FilteredEntries.Count).IsEqualTo(2).Because("the \"\" choice applies no predicate");
 
         filter.Selected = filter.Items.Single(i => i.Key == "keep");
-        await Assert.That(vm.FilteredEntries.Select(e => e.FileName)).IsEquivalentTo(["keep.dem"], CollectionOrdering.Matching);
+        await Assert.That(vm.FilteredEntries.Select(e => e.FileName))
+            .IsEquivalentTo(["keep.dem"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -349,9 +363,12 @@ public class LibraryContributionTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(c.BadgesForCalls).IsEqualTo(1).Because("one batch call refreshes every entry at construction");
-            await Assert.That(c.BadgeForCalls).IsEqualTo(0).Because("the per-entry hook is for a single-entry update, not a full refresh");
-            await Assert.That(lib.Entries.Select(e => e.BadgeLabel!)).IsEquivalentTo(["a.dem", "b.dem", "c.dem"], CollectionOrdering.Matching);
+            await Assert.That(c.BadgesForCalls).IsEqualTo(1)
+                .Because("one batch call refreshes every entry at construction");
+            await Assert.That(c.BadgeForCalls).IsEqualTo(0)
+                .Because("the per-entry hook is for a single-entry update, not a full refresh");
+            await Assert.That(lib.Entries.Select(e => e.BadgeLabel!))
+                .IsEquivalentTo(["a.dem", "b.dem", "c.dem"], CollectionOrdering.Matching);
         }
 
         // A library change (OnEntriesChanged, fired by the collection add) also refreshes through the batch hook.
@@ -386,7 +403,8 @@ public class LibraryContributionTests
             await Assert.That(vm.HasBadge).IsFalse();
             await Assert.That(vm.FilteredEntries.Count).IsEqualTo(2)
                 .Because("no filter contribution left: every entry passes");
-            await Assert.That(lib.Entries[0].BadgeLabel).IsNull().Because("the badge clears when its contribution goes off");
+            await Assert.That(lib.Entries[0].BadgeLabel).IsNull()
+                .Because("the badge clears when its contribution goes off");
         }
 
         on = true;
@@ -413,11 +431,13 @@ public class LibraryContributionTests
 
         // The underlying data changed (e.g. a rename); the contribution reports a fresh Filter and raises
         // Changed, with no gate transition at all.
-        c.FilterValue = new LibraryFilter("Keep", [new LibraryFilterItem("", "All"), new LibraryFilterItem("keep", "Keep")],
+        c.FilterValue = new LibraryFilter("Keep",
+            [new LibraryFilterItem("", "All"), new LibraryFilterItem("keep", "Keep")],
             (entry, key) => key != "keep" || entry.FileName == "a.dem");
         c.RaiseChanged();
 
-        await Assert.That(vm.FilteredEntries.Select(e => e.FileName)).IsEquivalentTo(["a.dem"], CollectionOrdering.Matching);
+        await Assert.That(vm.FilteredEntries.Select(e => e.FileName))
+            .IsEquivalentTo(["a.dem"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -476,7 +496,8 @@ public class LibraryContributionTests
                 .Because("Changed must add a filter VM, not only a gate transition");
             LibraryFilterViewModel filter = vm.Filters.Single();
             filter.Selected = filter.Items.Single(i => i.Key == "keep");
-            await Assert.That(vm.FilteredEntries.Select(e => e.FileName)).IsEquivalentTo(["keep.dem"], CollectionOrdering.Matching);
+            await Assert.That(vm.FilteredEntries.Select(e => e.FileName))
+                .IsEquivalentTo(["keep.dem"], CollectionOrdering.Matching);
         }
     }
 

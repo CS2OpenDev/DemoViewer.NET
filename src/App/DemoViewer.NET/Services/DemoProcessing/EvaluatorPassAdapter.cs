@@ -76,7 +76,9 @@ public sealed class EvaluatorPassAdapter : IDemoPass, IPassScheduling
 
     /// <summary>The level the evaluator asks for a demo at, from <see cref="IDemoEvaluator.PriorityFor" />.</summary>
     public PassLevel LevelFor(VisitedDemo demo) =>
-        Evaluator.PriorityFor(demo.Path) >= DemoJobPriority.UserRequested ? PassLevel.UserRequested : PassLevel.Background;
+        Evaluator.PriorityFor(demo.Path) >= DemoJobPriority.UserRequested
+            ? PassLevel.UserRequested
+            : PassLevel.Background;
 
     /// <summary>The evaluator's <see cref="IDemoEvaluator.OrderHint" />.</summary>
     public long OrderHint(VisitedDemo demo) => Evaluator.OrderHint(demo.Path);

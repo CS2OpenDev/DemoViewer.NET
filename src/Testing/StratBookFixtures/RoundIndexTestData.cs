@@ -24,7 +24,8 @@ internal static class RoundIndexTestData
     internal static readonly int[] TSlots = [6, 7, 8, 9, 10];
 
     /// <summary>The fingerprint's sampler term under the shipped options.</summary>
-    internal static readonly string SamplerTerm = $";sampler=table;ruleset={RoundIndexTable.Identity};roster={RoundIndexRosterCollector.Version}";
+    internal static readonly string SamplerTerm =
+        $";sampler=table;ruleset={RoundIndexTable.Identity};roster={RoundIndexRosterCollector.Version}";
 
     /// <summary>A two-frame parse at <paramref name="tickRate" /> whose last frame is <paramref name="lastTick" />.</summary>
     internal static ParsedDemo Demo(int tickRate = 64, int lastTick = 20000, string map = "de_nuke")
@@ -51,13 +52,7 @@ internal static class RoundIndexTestData
     internal static RoundFactsRows Facts(params RoundFacts[] rounds) => new()
     {
         Schema = RoundFactsRecords.Schema,
-        Clock = new RoundFactsClock
-        {
-            TickRate = 64,
-            FrameCount = 2,
-            FirstTick = 1,
-            LastTick = 20000
-        },
+        Clock = new RoundFactsClock { TickRate = 64, FrameCount = 2, FirstTick = 1, LastTick = 20000 },
         Rounds = [.. rounds]
     };
 
@@ -82,28 +77,17 @@ internal static class RoundIndexTestData
             WinnerSide = 3,
             EndReason = RoundEndReason.CTWin,
             Ct = new SideFacts
-            {
-                Side = 3,
-                Slots = ctSlots,
-                PlayersAtFreezeEnd = ctSlots.Length,
-                BuyType = BuyType.Full
-            },
-            T = new SideFacts
-            {
-                Side = 2,
-                Slots = tSlots,
-                PlayersAtFreezeEnd = tSlots.Length,
-                BuyType = BuyType.Full
-            },
+                {
+                    Side = 3, Slots = ctSlots, PlayersAtFreezeEnd = ctSlots.Length, BuyType = BuyType.Full
+                },
+            T = new SideFacts { Side = 2, Slots = tSlots, PlayersAtFreezeEnd = tSlots.Length, BuyType = BuyType.Full },
             Kills = [.. kills]
         };
     }
 
     internal static KillStep Kill(int tick, int victimSlot) => new()
     {
-        Tick = tick,
-        VictimSlot = victimSlot,
-        VictimSide = Array.IndexOf(CtSlots, victimSlot) >= 0 ? 3 : 2
+        Tick = tick, VictimSlot = victimSlot, VictimSide = Array.IndexOf(CtSlots, victimSlot) >= 0 ? 3 : 2
     };
 
     // Team follows the seat unless a test says otherwise, so a sample agrees with the round the
@@ -138,13 +122,7 @@ internal static class RoundIndexTestData
         RoundIndexDocument document = new()
         {
             Fingerprint = fingerprint,
-            Clock = new RoundFactsClock
-            {
-                TickRate = 64,
-                FrameCount = 2,
-                FirstTick = 1,
-                LastTick = 20000
-            },
+            Clock = new RoundFactsClock { TickRate = 64, FrameCount = 2, FirstTick = 1, LastTick = 20000 },
             Map = map,
             CadenceTicks = 64
         };
@@ -152,10 +130,7 @@ internal static class RoundIndexTestData
         {
             document.Rounds.Add(new RoundIndexRound
             {
-                Number = number,
-                FreezeEndTick = freezeEnd,
-                EndTick = end,
-                Runs = [.. runs]
+                Number = number, FreezeEndTick = freezeEnd, EndTick = end, Runs = [.. runs]
             });
         }
 
@@ -173,11 +148,7 @@ internal static class RoundIndexTestData
             ModifiedTicks = modifiedTicks,
             Sha256 = sha,
             Map = map,
-            Parse = new TierStamp
-            {
-                Schema = DemoCacheRecord.ParseSchema,
-                ComputedAtTicks = 1
-            }
+            Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
         };
         if (facts is not null)
         {
@@ -188,17 +159,20 @@ internal static class RoundIndexTestData
     }
 
     /// <summary>Puts a parsed record in the library and a written index for it, the way the evaluator leaves a demo.</summary>
-    internal static void Indexed(DemoCacheStore store, RoundIndexStore sidecars, string path, RoundIndexDocument document,
+    internal static void Indexed(DemoCacheStore store, RoundIndexStore sidecars, string path,
+        RoundIndexDocument document,
         long computedAt = 100, long modifiedTicks = 20, string? sha = null)
     {
         store.Upsert(ParsedRecord(path, document.Map, sha, modifiedTicks: modifiedTicks));
         if (sidecars.Data is MemoryDemoData memory)
         {
-            Dictionary<string, byte[]>? parts = memory.ReadAny(path, RoundIndexStore.Facet, RoundIndexStore.PositionsPart) is { } positions
-                ? new Dictionary<string, byte[]> { [RoundIndexStore.PositionsPart] = positions.Content }
-                : null;
+            Dictionary<string, byte[]>? parts =
+                memory.ReadAny(path, RoundIndexStore.Facet, RoundIndexStore.PositionsPart) is { } positions
+                    ? new Dictionary<string, byte[]> { [RoundIndexStore.PositionsPart] = positions.Content }
+                    : null;
             memory.Put(new DemoDataStamp(path, sha, RoundIndexStore.Facet, RoundIndexStore.Schema, document.Fingerprint,
-                DemoDataState.Written, computedAt, document.RowCount), System.Text.Encoding.UTF8.GetBytes(document.Serialize()), parts);
+                    DemoDataState.Written, computedAt, document.RowCount),
+                System.Text.Encoding.UTF8.GetBytes(document.Serialize()), parts);
             return;
         }
 

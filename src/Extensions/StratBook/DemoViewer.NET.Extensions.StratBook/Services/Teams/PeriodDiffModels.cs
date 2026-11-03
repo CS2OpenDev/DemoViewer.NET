@@ -17,8 +17,17 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// <param name="CtRounds">Rounds won on the CT side, match-wide (the grain <c>CtSideWins</c> is cached at).</param>
 /// <param name="TRounds">Rounds won on the T side, match-wide.</param>
 public sealed record PeriodDiffDemoRow(
-    string DemoPath, string? Sha256, string Map, long OrderTicks, int Side,
-    string? RosterId, string RosterLabel, bool StandIn, bool? Won, int CtRounds, int TRounds);
+    string DemoPath,
+    string? Sha256,
+    string Map,
+    long OrderTicks,
+    int Side,
+    string? RosterId,
+    string RosterLabel,
+    bool StandIn,
+    bool? Won,
+    int CtRounds,
+    int TRounds);
 
 /// <summary>One roster's share of a period, most-played first.</summary>
 /// <param name="RosterId">The roster.</param>

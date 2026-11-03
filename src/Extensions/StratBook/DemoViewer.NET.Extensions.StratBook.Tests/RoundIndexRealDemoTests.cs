@@ -52,7 +52,8 @@ public class RoundIndexRealDemoTests
 
         RoundFactsRows facts = SyntheticRows(parsed);
         Stopwatch watch = Stopwatch.StartNew();
-        RoundIndexDocument document = RoundIndexBuilder.Build(parsed, facts, RoundIndexOptions.Default, PawnPlaceSource.Instance);
+        RoundIndexDocument document =
+            RoundIndexBuilder.Build(parsed, facts, RoundIndexOptions.Default, PawnPlaceSource.Instance);
         watch.Stop();
         Console.WriteLine($"round index build: {watch.ElapsedMilliseconds} ms over {parsed.Frames.Count} frames, " +
                           $"{document.RowCount} rows, {document.Places.Count} places, {document.Transitions.Count} transitions");
@@ -76,9 +77,12 @@ public class RoundIndexRealDemoTests
                 // The last round of a demo can be a truncated tail; every other round is a real one.
                 if (i < rounds.Count - 1)
                 {
-                    await Assert.That(rows.Count).IsGreaterThanOrEqualTo(20).Because($"round {round.Number} at one second");
-                    await Assert.That(rows.Count).IsLessThanOrEqualTo(160).Because($"round {round.Number} at one second");
-                    await Assert.That(rows[0].Step).IsEqualTo(0).Because($"round {round.Number} samples its freeze end");
+                    await Assert.That(rows.Count).IsGreaterThanOrEqualTo(20)
+                        .Because($"round {round.Number} at one second");
+                    await Assert.That(rows.Count).IsLessThanOrEqualTo(160)
+                        .Because($"round {round.Number} at one second");
+                    await Assert.That(rows[0].Step).IsEqualTo(0)
+                        .Because($"round {round.Number} samples its freeze end");
                     await Assert.That(rows[0].Tick).IsEqualTo(rounds[i].StartTickFrameClock);
                 }
 
@@ -104,7 +108,8 @@ public class RoundIndexRealDemoTests
         facts.Evaluate(path, parsed);
         RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts ?? throw new InvalidOperationException("no rows");
 
-        RoundIndexDocument document = RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
+        RoundIndexDocument document =
+            RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
         await Assert.That(document.RowCount).IsGreaterThan(0);
     }
 
@@ -122,7 +127,8 @@ public class RoundIndexRealDemoTests
         RoundFactsEvaluator facts = new(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
         facts.Evaluate(path, parsed);
         RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts ?? throw new InvalidOperationException("no rows");
-        RoundIndexDocument document = RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
+        RoundIndexDocument document =
+            RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
         EmpiricalPlaceAdjacency graph = new(document.Transitions, 1);
 
         using (Assert.Multiple())
@@ -172,18 +178,15 @@ public class RoundIndexRealDemoTests
             {
                 Path = demo,
                 Map = parsed.MapName,
-                Parse = new TierStamp
-                {
-                    Schema = DemoCacheRecord.ParseSchema,
-                    ComputedAtTicks = 1
-                }
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
             });
             facts.Evaluate(demo, parsed);
             evaluator.Evaluate(demo, parsed);
         }
 
         watch.Stop();
-        Console.WriteLine($"indexed {index.IndexedDemoCount} of {demos.Length} demos in {watch.ElapsedMilliseconds} ms " +
+        Console.WriteLine($"indexed {index.IndexedDemoCount} of {demos.Length} demos in {watch.ElapsedMilliseconds} ms "
+                          +
                           $"({watch.ElapsedMilliseconds / Math.Max(1, demos.Length)} ms per demo, parse included)");
 
         Stopwatch lookup = Stopwatch.StartNew();

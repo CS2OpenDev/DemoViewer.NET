@@ -88,11 +88,8 @@ public sealed class KillFeedLayer : ISceneLayer
                     new SKColor(ClockLayer.DimTextArgb), SKBlendMode.SrcIn)
             };
         }
-        _paint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+
+        _paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
     }
 
     /// <inheritdoc />
@@ -238,12 +235,35 @@ public sealed class KillFeedLayer : ISceneLayer
     {
         List<string> keys = [Weapons.Key(row.Weapon)];
 
-        if (row.Headshot) { keys.Add("modifier/headshot"); }
-        if (row.Penetrated) { keys.Add("modifier/penetrate"); }
-        if (row.NoScope) { keys.Add("modifier/noscope"); }
-        if (row.ThroughSmoke) { keys.Add("modifier/smoke"); }
-        if (row.AttackerBlind) { keys.Add("modifier/blind"); }
-        if (row.AttackerInAir) { keys.Add("modifier/inair"); }
+        if (row.Headshot)
+        {
+            keys.Add("modifier/headshot");
+        }
+
+        if (row.Penetrated)
+        {
+            keys.Add("modifier/penetrate");
+        }
+
+        if (row.NoScope)
+        {
+            keys.Add("modifier/noscope");
+        }
+
+        if (row.ThroughSmoke)
+        {
+            keys.Add("modifier/smoke");
+        }
+
+        if (row.AttackerBlind)
+        {
+            keys.Add("modifier/blind");
+        }
+
+        if (row.AttackerInAir)
+        {
+            keys.Add("modifier/inair");
+        }
 
         return [.. keys];
     }

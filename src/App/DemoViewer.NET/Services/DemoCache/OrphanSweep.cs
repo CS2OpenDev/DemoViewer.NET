@@ -34,7 +34,8 @@ public static class OrphanSweep
             return null;
         }
 
-        return queue.SubmitJob(new QueueJobRequest(QueueJobKind.CacheSweep, "Demo cache: drop demos gone past the grace period",
+        return queue.SubmitJob(new QueueJobRequest(QueueJobKind.CacheSweep,
+            "Demo cache: drop demos gone past the grace period",
             "demo-cache", DemoJobPriority.Background,
             _ =>
             {

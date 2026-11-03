@@ -312,10 +312,7 @@ public class FirstRunWizardTests
             {
                 FirstRunWizardViewModel vm = new(new SettingsService(dir));
                 using MainViewModel shell = new(library: TestLibraries.Empty());
-                BrowserWindowService windowService = new()
-                {
-                    OnShowFirstRun = shell.ShowFirstRunOverlay
-                };
+                BrowserWindowService windowService = new() { OnShowFirstRun = shell.ShowFirstRunOverlay };
 
                 windowService.ShowFirstRunWizard(vm);
                 await Assert.That(ReferenceEquals(shell.FirstRunOverlay, vm)).IsTrue()
@@ -342,20 +339,9 @@ public class FirstRunWizardTests
         {
             await HeadlessSession.RunOnUi(async () =>
             {
-                FirstRunWizardViewModel vm = new(new SettingsService(dir))
-                {
-                    CurrentStep = 1
-                };
-                FirstRunWizardView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 640,
-                    Height = 560,
-                    Content = view
-                };
+                FirstRunWizardViewModel vm = new(new SettingsService(dir)) { CurrentStep = 1 };
+                FirstRunWizardView view = new() { DataContext = vm };
+                Window window = new() { Width = 640, Height = 560, Content = view };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -395,16 +381,8 @@ public class FirstRunWizardTests
                 {
                     CurrentStep = 2 // folders step
                 };
-                FirstRunWizardView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 640,
-                    Height = 560,
-                    Content = view
-                };
+                FirstRunWizardView view = new() { DataContext = vm };
+                Window window = new() { Width = 640, Height = 560, Content = view };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -438,20 +416,9 @@ public class FirstRunWizardTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 Cs2DemosLookup lookup = new(null, [@"C:\Program Files (x86)\Steam", @"D:\SteamLibrary"]);
-                FirstRunWizardViewModel vm = new(new SettingsService(dir), () => lookup)
-                {
-                    CurrentStep = 2
-                };
-                FirstRunWizardView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 640,
-                    Height = 560,
-                    Content = view
-                };
+                FirstRunWizardViewModel vm = new(new SettingsService(dir), () => lookup) { CurrentStep = 2 };
+                FirstRunWizardView view = new() { DataContext = vm };
+                Window window = new() { Width = 640, Height = 560, Content = view };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -502,16 +469,20 @@ public class FirstRunWizardTests
                 .IsEquivalentTo(FeaturePacks.Compatible.Select(p => p.FeatureId), CollectionOrdering.Matching);
 
             ExtensionHostInfo host = new(SemVersion.Parse("1.0.0"), null, SemVersion.Parse("0.14.1"));
-            IExtension incompatible = new CatalogPack("pack.future", FakeManifests.For("net.demoviewer.pack.future", "Future", "2.0.0", "^2.0", "*"));
+            IExtension incompatible = new CatalogPack("pack.future",
+                FakeManifests.For("net.demoviewer.pack.future", "Future", "2.0.0", "^2.0", "*"));
             IExtension fine = new CatalogPack("pack.fine", FakeManifests.For("net.demoviewer.pack.fine", "Fine"));
             IReadOnlyList<PackStatus> statuses = PackStatus.Evaluate([incompatible, fine], host);
-            FeatureDescriptor[] catalog = FeatureCatalog.Build([.. statuses.Where(s => s.IsCompatible).Select(s => s.Pack)]);
+            FeatureDescriptor[] catalog =
+                FeatureCatalog.Build([.. statuses.Where(s => s.IsCompatible).Select(s => s.Pack)]);
 
-            FirstRunWizardViewModel vm = new(new SettingsService(dir), packs: catalog.Where(d => d.Scope == FeatureScope.Pack));
+            FirstRunWizardViewModel vm = new(new SettingsService(dir),
+                packs: catalog.Where(d => d.Scope == FeatureScope.Pack));
             using (Assert.Multiple())
             {
                 await Assert.That(statuses[0].IsCompatible).IsFalse();
-                await Assert.That(vm.PackOptions.Select(o => o.FeatureId)).IsEquivalentTo(["pack.fine"], CollectionOrdering.Matching);
+                await Assert.That(vm.PackOptions.Select(o => o.FeatureId))
+                    .IsEquivalentTo(["pack.fine"], CollectionOrdering.Matching);
             }
         }
         finally
@@ -528,7 +499,10 @@ public class FirstRunWizardTests
         public ExtensionManifest Manifest => manifest;
 
         public IEnumerable<ExtensionFeature> Features =>
-            [new(featureId, ExtensionFeatureKind.Extension, manifest.Name, "d", null, new AudienceDefaults(false, true, false))];
+        [
+            new(featureId, ExtensionFeatureKind.Extension, manifest.Name, "d", null,
+                new AudienceDefaults(false, true, false))
+        ];
 
         public void Register(IServiceCollection services)
         {
@@ -677,12 +651,12 @@ public class FirstRunWizardTests
         try
         {
             string json = """
-                {
-                  "FirstRunCompleted": true,
-                  "UserCategory": "PowerUser",
-                  "Features": { "Overrides": { "chrome.output": true } }
-                }
-                """;
+                          {
+                            "FirstRunCompleted": true,
+                            "UserCategory": "PowerUser",
+                            "Features": { "Overrides": { "chrome.output": true } }
+                          }
+                          """;
             await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), json);
 
             SettingsService svc = new(dir);
@@ -716,7 +690,8 @@ public class FirstRunWizardTests
             [
                 new(
                     "pack.testone", FeatureScope.Pack, "Test Pack One", "First synthetic pack.",
-                    null, null, false, new Dictionary<UserCategory, bool>
+                    null, null, false,
+                    new Dictionary<UserCategory, bool>
                     {
                         [UserCategory.Consumer] = true,
                         [UserCategory.PowerUser] = true,
@@ -724,7 +699,8 @@ public class FirstRunWizardTests
                     }),
                 new(
                     "pack.testtwo", FeatureScope.Pack, "Test Pack Two", "Second synthetic pack.",
-                    null, null, false, new Dictionary<UserCategory, bool>
+                    null, null, false,
+                    new Dictionary<UserCategory, bool>
                     {
                         [UserCategory.Consumer] = false,
                         [UserCategory.PowerUser] = false,
@@ -770,20 +746,9 @@ public class FirstRunWizardTests
         {
             await HeadlessSession.RunOnUi(async () =>
             {
-                FirstRunWizardViewModel vm = new(new SettingsService(dir))
-                {
-                    CurrentStep = 3
-                };
-                FirstRunWizardView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 640,
-                    Height = 560,
-                    Content = view
-                };
+                FirstRunWizardViewModel vm = new(new SettingsService(dir)) { CurrentStep = 3 };
+                FirstRunWizardView view = new() { DataContext = vm };
+                Window window = new() { Width = 640, Height = 560, Content = view };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();

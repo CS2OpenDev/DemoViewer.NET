@@ -47,7 +47,8 @@ public sealed class DossierGeneralSectionViewModel : DossierSectionViewModel
     /// <param name="key">The section's session key.</param>
     /// <param name="title">Its title.</param>
     /// <param name="expanded">Whether it starts open.</param>
-    public DossierGeneralSectionViewModel(string key, string title, bool expanded) : base(key, expanded) => _title = title;
+    public DossierGeneralSectionViewModel(string key, string title, bool expanded) : base(key, expanded) =>
+        _title = title;
 
     public override string Header => _count.Length == 0 ? _title : $"{_title} · {_count}";
 

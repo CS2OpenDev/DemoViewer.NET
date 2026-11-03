@@ -104,7 +104,8 @@ public sealed class VetoHistoryStore
             VetoHistoryFile? file = JsonSerializer.Deserialize<VetoHistoryFile>(bytes, VetoHistoryFile.JsonOptions);
             if (file is null || file.SchemaVersion > VetoHistoryFile.CurrentSchema)
             {
-                Refuse($"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
+                Refuse(
+                    $"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
                 return;
             }
 

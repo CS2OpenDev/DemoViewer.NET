@@ -67,7 +67,8 @@ public class TeamIdentityCorpusTests
     private static Dictionary<(Guid, string), List<TeamIndexSide>> RosterSides(TeamIndexFile index)
     {
         Dictionary<(Guid, string), List<TeamIndexSide>> sides = [];
-        foreach (TeamIndexDemo demo in index.Demos.Values.OrderBy(d => d.OrderTicks).ThenBy(d => d.Path, StringComparer.Ordinal))
+        foreach (TeamIndexDemo demo in index.Demos.Values.OrderBy(d => d.OrderTicks)
+                     .ThenBy(d => d.Path, StringComparer.Ordinal))
         {
             foreach (TeamIndexSide side in demo.Sides.Values)
             {
@@ -96,9 +97,12 @@ public class TeamIdentityCorpusTests
         int matched = assigned.Count - rosters.Count; // one founder per roster is not a match
         ((Guid team, string roster), List<TeamIndexSide> largest) = rosters.MaxBy(r => r.Value.Count);
 
-        Console.WriteLine($"replays: rosters={rosters.Count} fives={teams.Teams.SelectMany(t => t.Rosters).Count(r => r.HasCoreLineup)} " +
-                          $"largest={largest.Count}/{index.Members[team.ToString()][roster].Count} unaffiliated={index.Unaffiliated.Count} " +
-                          $"matched={matched} tier1={assigned.Count(s => s.Tier == 1)} standIns={assigned.Count(s => s.StandIn)}");
+        Console.WriteLine(
+            $"replays: rosters={rosters.Count} fives={teams.Teams.SelectMany(t => t.Rosters).Count(r => r.HasCoreLineup)} "
+            +
+            $"largest={largest.Count}/{index.Members[team.ToString()][roster].Count} unaffiliated={index.Unaffiliated.Count} "
+            +
+            $"matched={matched} tier1={assigned.Count(s => s.Tier == 1)} standIns={assigned.Count(s => s.StandIn)}");
 
         using (Assert.Multiple())
         {
@@ -113,7 +117,8 @@ public class TeamIdentityCorpusTests
             await Assert.That(assigned.Count(s => s.StandIn)).IsEqualTo(82);
             await Assert.That(assigned.Count(s => s.StandIn && s.Tier == 1)).IsEqualTo(17);
             await Assert.That(teams.Teams.Count).IsEqualTo(24).Because("one auto team per auto roster, none tagged");
-            await Assert.That(teams.Teams.All(t => t.NameSource == TeamNameSource.Auto && t.Name.StartsWith("Team of ", StringComparison.Ordinal)))
+            await Assert.That(teams.Teams.All(t =>
+                    t.NameSource == TeamNameSource.Auto && t.Name.StartsWith("Team of ", StringComparison.Ordinal)))
                 .IsTrue().Because("matchmaking carries no clan tag");
         }
     }
@@ -133,11 +138,13 @@ public class TeamIdentityCorpusTests
             {
                 Roster persisted = teams.Find(team)!.Rosters.Single(r => r.Id == roster);
                 await Assert.That(persisted.HasCoreLineup).IsTrue();
-                await Assert.That(sides[1].Key).IsEquivalentTo(sides[0].Key, CollectionOrdering.Matching).Because("the five is established at the second sighting");
+                await Assert.That(sides[1].Key).IsEquivalentTo(sides[0].Key, CollectionOrdering.Matching)
+                    .Because("the five is established at the second sighting");
                 await Assert.That(persisted.CoreLineup!).IsEquivalentTo(sides[0].Key, CollectionOrdering.Matching);
                 await Assert.That(sides.Skip(1).All(s => s.Overlap == 5)).IsTrue();
                 await Assert.That(sides.Any(s => s.StandIn)).IsFalse();
-                await Assert.That(sides.Skip(2).All(s => s.Tier == 1)).IsTrue().Because("from the third side the fixed five is the anchor");
+                await Assert.That(sides.Skip(2).All(s => s.Tier == 1)).IsTrue()
+                    .Because("from the third side the fixed five is the anchor");
             }
 
             List<string> names = [.. teams.Teams.Select(t => t.Name).Order(StringComparer.OrdinalIgnoreCase)];

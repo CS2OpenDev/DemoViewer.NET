@@ -39,9 +39,12 @@ internal sealed class SuggestedTagsGolden
 
     public string Note { get; set; } =
         "One real round's occupancy (runs of 'from-to:place' seconds per slot, '?' alive and unplaced, " +
-        "gaps dead), its detonations placed by the walk's cloud, and the map's region table learned from the same demo. " +
-        "Rows are synthesised from the demo's own events on purpose, so the fixture is pinned to them; the engine's own " +
-        "Round Facts rows close a round earlier and keep every round, so their fold is pinned apart under engine-rows/. " +
+        "gaps dead), its detonations placed by the walk's cloud, and the map's region table learned from the same demo. "
+        +
+        "Rows are synthesised from the demo's own events on purpose, so the fixture is pinned to them; the engine's own "
+        +
+        "Round Facts rows close a round earlier and keep every round, so their fold is pinned apart under engine-rows/. "
+        +
         "Recapture with ST_GOLDEN_UPDATE=1.";
 
     /// <summary>The note a fixture under <see cref="EngineRowsFixtureDirectory" /> carries.</summary>
@@ -110,17 +113,15 @@ internal sealed class SuggestedTagsGolden
             RegionTable = JsonNode.Parse(table.ToJson()),
             Round = new GoldenRound
             {
-                Number = round.Round,
-                StartTick = round.StartTick,
-                EndTick = round.EndTick,
-                Bomb = round.Bomb
+                Number = round.Round, StartTick = round.StartTick, EndTick = round.EndTick, Bomb = round.Bomb
             },
             Events =
             [
                 .. events
                     .Where(e => e.Tick >= round.StartTick && e.Tick < round.EndTick)
                     .Select(e => new GoldenEvent(e.Tick, e.Kind, e.ThrowerSlot,
-                        MathF.Round(e.Position.X, 1), MathF.Round(e.Position.Y, 1), MathF.Round(e.Position.Z, 1), e.Place))
+                        MathF.Round(e.Position.X, 1), MathF.Round(e.Position.Y, 1), MathF.Round(e.Position.Z, 1),
+                        e.Place))
             ]
         };
 
@@ -168,7 +169,9 @@ internal sealed class SuggestedTagsGolden
             {
                 int colon = run.IndexOf(':', StringComparison.Ordinal);
                 string[] span = run[..colon].Split('-');
-                for (int s = int.Parse(span[0], CultureInfo.InvariantCulture); s <= int.Parse(span[1], CultureInfo.InvariantCulture); s++)
+                for (int s = int.Parse(span[0], CultureInfo.InvariantCulture);
+                     s <= int.Parse(span[1], CultureInfo.InvariantCulture);
+                     s++)
                 {
                     bySecond[s] = run[(colon + 1)..];
                 }
@@ -202,7 +205,8 @@ internal sealed class SuggestedTagsGolden
         ];
     }
 
-    internal string Serialize() => JsonSerializer.Serialize(this, JsonOptions).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
+    internal string Serialize() =>
+        JsonSerializer.Serialize(this, JsonOptions).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
 
     internal static SuggestedTagsGolden Load(string path) =>
         JsonSerializer.Deserialize<SuggestedTagsGolden>(File.ReadAllText(path), JsonOptions)
@@ -211,7 +215,8 @@ internal sealed class SuggestedTagsGolden
     internal static string FixtureDirectory(string repo) => Path.Combine(repo, "tests", "fixtures", "suggested-tags");
 
     // A subfolder, so the synthesised-row snapshot tests that read FixtureDirectory's own *.json leave it out.
-    internal static string EngineRowsFixtureDirectory(string repo) => Path.Combine(FixtureDirectory(repo), "engine-rows");
+    internal static string EngineRowsFixtureDirectory(string repo) =>
+        Path.Combine(FixtureDirectory(repo), "engine-rows");
 
     private static string? Entry(RoundOccupancy round, int slot, int second) =>
         round.PlaceOf(slot, second) ?? (round.IsAlive(slot, second) ? RoundOccupancy.Unplaced : null);
@@ -273,7 +278,8 @@ internal static class SuggestedTagsRealDemoRows
         {
             int start = clips[i].StartTickFrameClock;
             int? next = i + 1 < clips.Count ? clips[i + 1].StartTickFrameClock : null;
-            int? end = officiallyEnded.Where(t => t > start && (next is null || t <= next)).Select(t => (int?)t).FirstOrDefault();
+            int? end = officiallyEnded.Where(t => t > start && (next is null || t <= next)).Select(t => (int?)t)
+                .FirstOrDefault();
             int windowEnd = end ?? next ?? int.MaxValue;
 
             Dictionary<int, int> sides = [];
@@ -293,8 +299,14 @@ internal static class SuggestedTagsRealDemoRows
                 FreezeEndTick = start,
                 EndTick = end,
                 EndSource = end is null ? RoundEndSource.None : RoundEndSource.OfficiallyEndedEvent,
-                Ct = new SideFacts { Side = 3, Slots = [.. sides.Where(s => s.Value == 3).Select(s => s.Key).Order()] },
-                T = new SideFacts { Side = 2, Slots = [.. sides.Where(s => s.Value == 2).Select(s => s.Key).Order()] }
+                Ct = new SideFacts
+                {
+                    Side = 3, Slots = [.. sides.Where(s => s.Value == 3).Select(s => s.Key).Order()]
+                },
+                T = new SideFacts
+                {
+                    Side = 2, Slots = [.. sides.Where(s => s.Value == 2).Select(s => s.Key).Order()]
+                }
             };
 
             foreach (GameEvent e in events.Where(e => e.GameTick >= start && e.GameTick < windowEnd))
@@ -338,7 +350,8 @@ internal static class SuggestedTagsRealDemoRows
 
     // The last change at or before the tick; the first change's OldTeam when every change lies ahead;
     // the final roster team for a slot that never changed.
-    private static int SideAt(int slot, int tick, int finalTeam, Dictionary<int, List<(int Tick, int Team, int OldTeam)>> changes)
+    private static int SideAt(int slot, int tick, int finalTeam,
+        Dictionary<int, List<(int Tick, int Team, int OldTeam)>> changes)
     {
         if (!changes.TryGetValue(slot, out List<(int Tick, int Team, int OldTeam)>? list))
         {

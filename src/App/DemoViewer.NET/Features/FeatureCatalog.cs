@@ -339,7 +339,8 @@ public static class FeatureCatalog
         {
             if (d.OwnerPackId is not null && d.Required)
             {
-                throw new InvalidOperationException($"Feature '{d.Id}' owned by pack '{d.OwnerPackId}' may not be Required.");
+                throw new InvalidOperationException(
+                    $"Feature '{d.Id}' owned by pack '{d.OwnerPackId}' may not be Required.");
             }
         }
 
@@ -410,17 +411,13 @@ public static class FeatureCatalog
             _ => FeatureScope.SubFeature
         };
         AudienceDefaults d = feature.Defaults;
-        return new FeatureDescriptor(feature.Id, scope, feature.Label, feature.Description, feature.ParentId, null, false,
+        return new FeatureDescriptor(feature.Id, scope, feature.Label, feature.Description, feature.ParentId, null,
+            false,
             Defaults(d.Consumer, d.PowerUser, d.Developer));
     }
 
     // Builds a category→default map without a constant-array argument (CA1861-clean) and reads left-to-right.
     // Concrete return type per CA1859; the descriptor's IReadOnlyDictionary param accepts it directly.
     internal static Dictionary<UserCategory, bool> Defaults(bool consumer, bool power, bool dev) =>
-        new()
-        {
-            [UserCategory.Consumer] = consumer,
-            [UserCategory.PowerUser] = power,
-            [UserCategory.Developer] = dev
-        };
+        new() { [UserCategory.Consumer] = consumer, [UserCategory.PowerUser] = power, [UserCategory.Developer] = dev };
 }

@@ -44,12 +44,14 @@ public class RoundIndexBuilderTests
         {
             await Assert.That(document.Rounds.Count).IsEqualTo(1).Because("a round that is not live is skipped");
             await Assert.That(document.CadenceTicks).IsEqualTo(64);
-            await Assert.That(document.RowCount).IsEqualTo(3).Because("1000, 1064 and 1128; the end tick itself is not sampled");
+            await Assert.That(document.RowCount).IsEqualTo(3)
+                .Because("1000, 1064 and 1128; the end tick itself is not sampled");
             await Assert.That(document.Rounds[0].Runs.Count).IsEqualTo(2);
             await Assert.That(document.Rounds[0].Runs[0]).IsEqualTo(new RoundIndexRun(0, 0, "CTSpawn:5", "TSpawn:5"));
             await Assert.That(document.Rounds[0].Runs[1]).IsEqualTo(new RoundIndexRun(1, 2, "Outside:5", "Ramp:5"));
             await Assert.That(document.Map).IsEqualTo("de_nuke");
-            await Assert.That(document.Fingerprint).IsEqualTo("ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm);
+            await Assert.That(document.Fingerprint)
+                .IsEqualTo("ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm);
         }
     }
 
@@ -73,14 +75,19 @@ public class RoundIndexBuilderTests
         using (Assert.Multiple())
         {
             await Assert.That(at64.CadenceTicks).IsEqualTo(64);
-            await Assert.That(at64.ExpandRows(at64.Rounds[0]).Select(r => r.Tick)).IsEquivalentTo([1000, 1064, 1128, 1256], CollectionOrdering.Matching)
+            await Assert.That(at64.ExpandRows(at64.Rounds[0]).Select(r => r.Tick))
+                .IsEquivalentTo([1000, 1064, 1128, 1256], CollectionOrdering.Matching)
                 .Because("a row's tick is its nominal step tick, never the frame it was read from");
-            await Assert.That(at64.ExpandRows(at64.Rounds[0]).Select(r => r.Step)).IsEquivalentTo([0, 1, 2, 4], CollectionOrdering.Matching);
-            await Assert.That(at64.ExpandRows(at64.Rounds[0]).Select(r => r.Ct)).IsEquivalentTo(["A:5", "A:5", "C:5", "E:5"], CollectionOrdering.Matching);
+            await Assert.That(at64.ExpandRows(at64.Rounds[0]).Select(r => r.Step))
+                .IsEquivalentTo([0, 1, 2, 4], CollectionOrdering.Matching);
+            await Assert.That(at64.ExpandRows(at64.Rounds[0]).Select(r => r.Ct))
+                .IsEquivalentTo(["A:5", "A:5", "C:5", "E:5"], CollectionOrdering.Matching);
 
             await Assert.That(at128.CadenceTicks).IsEqualTo(128);
-            await Assert.That(at128.ExpandRows(at128.Rounds[0]).Select(r => r.Tick)).IsEquivalentTo([1000, 1128, 1256], CollectionOrdering.Matching);
-            await Assert.That(at128.ExpandRows(at128.Rounds[0]).Select(r => r.Step)).IsEquivalentTo([0, 1, 2], CollectionOrdering.Matching);
+            await Assert.That(at128.ExpandRows(at128.Rounds[0]).Select(r => r.Tick))
+                .IsEquivalentTo([1000, 1128, 1256], CollectionOrdering.Matching);
+            await Assert.That(at128.ExpandRows(at128.Rounds[0]).Select(r => r.Step))
+                .IsEquivalentTo([0, 1, 2], CollectionOrdering.Matching);
             await Assert.That(at128.Fingerprint).IsEqualTo(at64.Fingerprint)
                 .Because("the cadence is in seconds, so the rate is not part of what a row means");
         }
@@ -111,7 +118,8 @@ public class RoundIndexBuilderTests
         using (Assert.Multiple())
         {
             await Assert.That(rows[0].T).IsEqualTo("Ramp:5");
-            await Assert.That(rows[1].T).IsEqualTo("Ramp:4").Because("slot 6 died at the sampled tick and is dead from it on");
+            await Assert.That(rows[1].T).IsEqualTo("Ramp:4")
+                .Because("slot 6 died at the sampled tick and is dead from it on");
             await Assert.That(rows[1].Ct).IsEqualTo("Outside:5").Because("slot 1 dies at 1100, after this row");
             await Assert.That(rows[2].Ct).IsEqualTo("Outside:4");
             await Assert.That(rows[3].Ct).IsEqualTo("Outside:4");
@@ -179,7 +187,8 @@ public class RoundIndexBuilderTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(rows[1].Ct).IsEqualTo("Outside:6").Because("the sample's Team, not the row's seat, decides the side");
+            await Assert.That(rows[1].Ct).IsEqualTo("Outside:6")
+                .Because("the sample's Team, not the row's seat, decides the side");
             await Assert.That(rows[1].T).IsEqualTo("Ramp:4");
             await Assert.That(build.Disagreements).IsNotEmpty();
             await Assert.That(build.Disagreements.Single().Round).IsEqualTo(1);
@@ -211,7 +220,8 @@ public class RoundIndexBuilderTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(round.Ct).IsEquivalentTo(CtSlots, CollectionOrdering.Matching).Because("the sample's Team, not the row's seat");
+            await Assert.That(round.Ct).IsEquivalentTo(CtSlots, CollectionOrdering.Matching)
+                .Because("the sample's Team, not the row's seat");
             foreach (RoundIndexRow row in build.Index.ExpandRows(build.Index.Rounds[0]))
             {
                 IReadOnlyList<RoundPosition> tuples = round.At(row.Step);
@@ -283,7 +293,8 @@ public class RoundIndexBuilderTests
             await Assert.That(row.Ct).IsEqualTo("?:1|Outside:4");
             await Assert.That(row.T).IsEqualTo("Ramp:5");
             await Assert.That(document.Places.ContainsKey("?")).IsFalse().Because("a null place has no centroid");
-            await Assert.That(document.Places["Outside"].Count).IsEqualTo(4).Because("the spectator's sample is not counted");
+            await Assert.That(document.Places["Outside"].Count).IsEqualTo(4)
+                .Because("the spectator's sample is not counted");
         }
     }
 
@@ -309,13 +320,16 @@ public class RoundIndexBuilderTests
         {
             await Assert.That(document.Places["Outside"].Count).IsEqualTo(10);
             await Assert.That(document.Places["Outside"].Buckets.Count).IsEqualTo(1);
-            await Assert.That(document.Places["Outside"].Buckets[0].ZBucket).IsEqualTo(0).Because("z=10 quantizes to the 0 bucket");
+            await Assert.That(document.Places["Outside"].Buckets[0].ZBucket).IsEqualTo(0)
+                .Because("z=10 quantizes to the 0 bucket");
             await Assert.That(document.Places["Outside"].Buckets[0].SumX).IsEqualTo(1000);
-            await Assert.That(document.Places["Hell"].Buckets[0].ZBucket).IsEqualTo(128).Because("z=100 quantizes to the 128 bucket");
+            await Assert.That(document.Places["Hell"].Buckets[0].ZBucket).IsEqualTo(128)
+                .Because("z=100 quantizes to the 128 bucket");
             await Assert.That(document.Places["Ramp"].Count).IsEqualTo(20);
 
             PlaceTransition hellOutside = document.Transitions.Single(t => t.A == "Hell" && t.B == "Outside");
-            await Assert.That(hellOutside.Count).IsEqualTo(10).Because("five players crossed twice within round 1; round 2 starts a new chain");
+            await Assert.That(hellOutside.Count).IsEqualTo(10)
+                .Because("five players crossed twice within round 1; round 2 starts a new chain");
             await Assert.That(document.Transitions.Count).IsEqualTo(1).Because("the T side never moved");
         }
     }
@@ -323,7 +337,8 @@ public class RoundIndexBuilderTests
     [Test]
     public async Task TheClockHeader_IsTheFrameClock_AndTheDemoBlockIsLeftForTheCaller()
     {
-        RoundIndexDocument document = Build(Demo(lastTick: 9000), Facts(Round(1, 1000, 1100)), Everyone(1000, "A", "B"));
+        RoundIndexDocument document = Build(Demo(lastTick: 9000), Facts(Round(1, 1000, 1100)),
+            Everyone(1000, "A", "B"));
 
         using (Assert.Multiple())
         {
@@ -353,8 +368,10 @@ public class RoundIndexBuilderTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(document.Rounds[0].EndTick).IsEqualTo(1200).Because("the next round's freeze end bounds a round without an end");
-            await Assert.That(document.Rounds[1].EndTick).IsEqualTo(1301).Because("the last round runs one past the last frame");
+            await Assert.That(document.Rounds[0].EndTick).IsEqualTo(1200)
+                .Because("the next round's freeze end bounds a round without an end");
+            await Assert.That(document.Rounds[1].EndTick).IsEqualTo(1301)
+                .Because("the last round runs one past the last frame");
             await Assert.That(document.Rounds[0].Runs.Count).IsEqualTo(2)
                 .Because("step 1 was not sampled, and a run never spans a step the walk did not see");
             await Assert.That(document.Rounds[0].Runs[0]).IsEqualTo(new RoundIndexRun(0, 0, "A:5", "B:5"));
@@ -381,12 +398,16 @@ public class RoundIndexBuilderTests
         using (Assert.Multiple())
         {
             await Assert.That(row.Ct).IsEqualTo("E-box:5").Because("the resolver's name, not the pawn's");
-            await Assert.That(row.T).IsEqualTo("?:5").Because("a point the resolver does not place keeps the man-count");
-            await Assert.That(document.Fingerprint).IsEqualTo("ri1;cadence=1;token=1;rf=1;src=zones;zv=zv-1;pos=5" + SamplerTerm);
+            await Assert.That(row.T).IsEqualTo("?:5")
+                .Because("a point the resolver does not place keeps the man-count");
+            await Assert.That(document.Fingerprint)
+                .IsEqualTo("ri1;cadence=1;token=1;rf=1;src=zones;zv=zv-1;pos=5" + SamplerTerm);
         }
     }
 
-    internal sealed class FakeZoneResolver(string version, Func<System.Numerics.Vector3, string?> resolve,
+    internal sealed class FakeZoneResolver(
+        string version,
+        Func<System.Numerics.Vector3, string?> resolve,
         IReadOnlyDictionary<string, string[]>? adjacency = null) : IZonePlaceResolver
     {
         public string ZonesVersion { get; } = version;

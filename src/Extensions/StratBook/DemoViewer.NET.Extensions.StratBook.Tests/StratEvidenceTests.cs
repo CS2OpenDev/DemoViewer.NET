@@ -28,27 +28,32 @@ public class StratEvidenceTests
     private static readonly string ShaB = new('b', 64);
     private static readonly string ShaC = new('c', 64);
 
-    private static readonly string[] ProvenanceOrder = [DemoProvenanceLabel.Scrim, DemoProvenanceLabel.Matchmaking, StratEvidence.Unlabeled];
+    private static readonly string[] ProvenanceOrder =
+        [DemoProvenanceLabel.Scrim, DemoProvenanceLabel.Matchmaking, StratEvidence.Unlabeled];
+
     private static readonly string[] RevisionOrder = ["1", "2", "3"];
     private static readonly string[] FailureOrder = ["utility-late", "entry-lost", "early-contact"];
 
     private static readonly Dictionary<string, string?> Labels = new(StringComparer.Ordinal)
     {
-        [ShaA] = DemoProvenanceLabel.Scrim,
-        [ShaB] = DemoProvenanceLabel.Matchmaking,
-        [ShaC] = null
+        [ShaA] = DemoProvenanceLabel.Scrim, [ShaB] = DemoProvenanceLabel.Matchmaking, [ShaC] = null
     };
 
     private static string S => StratId.ToString("D");
 
-    private static TagInstance Run(int round, (string Group, string Value)[] labels, string? winner = null, string source = TagSources.Human)
+    private static TagInstance Run(int round, (string Group, string Value)[] labels, string? winner = null,
+        string source = TagSources.Human)
     {
         TagInstance instance = Instance("A execute", round * 1000, round * 1000 + 600, labels);
         instance.Round = round;
         instance.Source = source;
         if (winner is not null)
         {
-            instance.Facts = [new TagLabel("round", round.ToString(System.Globalization.CultureInfo.InvariantCulture)), new TagLabel(StratEvidence.WinnerFact, winner)];
+            instance.Facts =
+            [
+                new TagLabel("round", round.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                new TagLabel(StratEvidence.WinnerFact, winner)
+            ];
         }
 
         return instance;
@@ -64,20 +69,31 @@ public class StratEvidenceTests
     [
         Document(ShaA,
             Run(1, [("strat", S), ("strat.rev", "1"), ("outcome", "lost")], winner: "T"),
-            Run(2, [("strat", S), ("strat.rev", "1"), ("strat.failure", "utility-late"), ("strat.failure", "utility-late"), ("strat.failure", "entry-lost")], winner: "CT"),
-            Run(3, [("strat", S), ("strat.rev", "2"), ("strat.result", "aborted"), ("strat.failure", "early-contact")], winner: "T"),
+            Run(2,
+            [
+                ("strat", S), ("strat.rev", "1"), ("strat.failure", "utility-late"), ("strat.failure", "utility-late"),
+                ("strat.failure", "entry-lost")
+            ], winner: "CT"),
+            Run(3, [("strat", S), ("strat.rev", "2"), ("strat.result", "aborted"), ("strat.failure", "early-contact")],
+                winner: "T"),
             Run(4, [("strat", OtherId.ToString("D")), ("strat.rev", "7")], winner: "T")),
         Document(ShaB,
             Run(1, [("strat", S.ToUpperInvariant()), ("strat.rev", "2"), ("outcome", "won")]),
             Run(2, [("strat", S), ("strat.rev", "2"), ("strat.failure", "utility-late")]),
             Run(3, [("strat", S), ("strat.rev", "2"), ("outcome", "won")], winner: "T", source: TagSources.Import),
-            Run(4, [("strat", S), ("strat.rev", "2"), ("outcome", "lost")], winner: "none", source: TagSources.Suggested)),
+            Run(4, [("strat", S), ("strat.rev", "2"), ("outcome", "lost")], winner: "none",
+                source: TagSources.Suggested)),
         Document(ShaC,
-            Run(5, [("strat", OtherId.ToString("D")), ("strat.rev", "5"), ("strat", S), ("strat.rev", "3"), ("strat.failure", "other")], winner: "T"))
+            Run(5,
+            [
+                ("strat", OtherId.ToString("D")), ("strat.rev", "5"), ("strat", S), ("strat.rev", "3"),
+                ("strat.failure", "other")
+            ], winner: "T"))
     ];
 
     private static StratRecord Build(List<TagDocument>? docs = null) =>
-        StratEvidence.Build(StratId, 4, StratVocabulary.SideT, docs ?? Fixture(), hashes => hashes.ToDictionary(h => h, h => Labels.GetValueOrDefault(h)));
+        StratEvidence.Build(StratId, 4, StratVocabulary.SideT, docs ?? Fixture(),
+            hashes => hashes.ToDictionary(h => h, h => Labels.GetValueOrDefault(h)));
 
     [Test]
     public async Task Record_CountsRunsWonLostAbortedAndUnknown_AndSkipsImportsAndOtherStrats()
@@ -86,7 +102,8 @@ public class StratEvidenceTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(record.Runs.Count).IsEqualTo(7).Because("the import and the other strat's round are not runs");
+            await Assert.That(record.Runs.Count).IsEqualTo(7)
+                .Because("the import and the other strat's round are not runs");
             await Assert.That(record.Total).IsEqualTo(new RecordSplit(7, 3, 2, 1, 1));
             await Assert.That(record.Revision).IsEqualTo(4);
             await Assert.That(record.Total.WinRate).IsEqualTo(0.6);
@@ -105,7 +122,8 @@ public class StratEvidenceTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(onFact.Outcome).IsEqualTo(RunOutcome.Won).Because("winner T on a T strat, whatever the label says");
+            await Assert.That(onFact.Outcome).IsEqualTo(RunOutcome.Won)
+                .Because("winner T on a T strat, whatever the label says");
             await Assert.That(onLabel.Outcome).IsEqualTo(RunOutcome.Won);
             await Assert.That(onNone.Outcome).IsEqualTo(RunOutcome.Lost).Because("a winner of none is no winner");
             await Assert.That(neither.Outcome).IsEqualTo(RunOutcome.Unknown);
@@ -141,7 +159,8 @@ public class StratEvidenceTests
         {
             await Assert.That(record.ByProvenance.Count).IsEqualTo(3);
             await Assert.That(record.ByProvenance[DemoProvenanceLabel.Scrim]).IsEqualTo(new RecordSplit(3, 1, 1, 1, 0));
-            await Assert.That(record.ByProvenance[DemoProvenanceLabel.Matchmaking]).IsEqualTo(new RecordSplit(3, 1, 1, 0, 1));
+            await Assert.That(record.ByProvenance[DemoProvenanceLabel.Matchmaking])
+                .IsEqualTo(new RecordSplit(3, 1, 1, 0, 1));
             await Assert.That(record.ByProvenance[StratEvidence.Unlabeled]).IsEqualTo(new RecordSplit(1, 1, 0, 0, 0));
         }
     }
@@ -158,7 +177,8 @@ public class StratEvidenceTests
             await Assert.That(record.ByRevision[2]).IsEqualTo(new RecordSplit(4, 1, 1, 1, 1));
             await Assert.That(record.ByRevision[3]).IsEqualTo(new RecordSplit(1, 1, 0, 0, 0))
                 .Because("the round that ran two strats carries 5 for the other one and 3 for this one");
-            await Assert.That(record.SplitAround(2)).IsEqualTo((new RecordSplit(2, 1, 1, 0, 0), new RecordSplit(5, 2, 1, 1, 1)));
+            await Assert.That(record.SplitAround(2))
+                .IsEqualTo((new RecordSplit(2, 1, 1, 0, 0), new RecordSplit(5, 2, 1, 1, 1)));
         }
     }
 
@@ -183,9 +203,11 @@ public class StratEvidenceTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(lost.Failures).IsEquivalentTo(["utility-late", "entry-lost"], CollectionOrdering.Matching);
+            await Assert.That(lost.Failures)
+                .IsEquivalentTo(["utility-late", "entry-lost"], CollectionOrdering.Matching);
             await Assert.That(record.FailureBreakdown.Count).IsEqualTo(3);
-            await Assert.That(record.FailureBreakdown["utility-late"]).IsEqualTo(2).Because("once for the lost run, once for the unknown one");
+            await Assert.That(record.FailureBreakdown["utility-late"]).IsEqualTo(2)
+                .Because("once for the lost run, once for the unknown one");
             await Assert.That(record.FailureBreakdown["entry-lost"]).IsEqualTo(1);
             await Assert.That(record.FailureBreakdown["early-contact"]).IsEqualTo(1);
             await Assert.That(record.FailureBreakdown.ContainsKey("other")).IsFalse().Because("that run was won");
@@ -211,7 +233,9 @@ public class StratEvidenceTests
     public async Task TheFailureVocabulary_IsTheSevenShippedValues()
     {
         await Assert.That(StratEvidence.Failures)
-            .IsEquivalentTo(["utility-late", "entry-lost", "early-contact", "rotation-early", "info-lost", "economy", "other"], CollectionOrdering.Matching);
+            .IsEquivalentTo(
+                ["utility-late", "entry-lost", "early-contact", "rotation-early", "info-lost", "economy", "other"],
+                CollectionOrdering.Matching);
     }
 
     [Test]
@@ -221,10 +245,13 @@ public class StratEvidenceTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(string.Join(",", pane.ByProvenance.Select(r => r.Key))).IsEqualTo(string.Join(",", ProvenanceOrder));
-            await Assert.That(string.Join(",", pane.ByRevision.Select(r => r.Key))).IsEqualTo(string.Join(",", RevisionOrder));
+            await Assert.That(string.Join(",", pane.ByProvenance.Select(r => r.Key)))
+                .IsEqualTo(string.Join(",", ProvenanceOrder));
+            await Assert.That(string.Join(",", pane.ByRevision.Select(r => r.Key)))
+                .IsEqualTo(string.Join(",", RevisionOrder));
             await Assert.That(pane.ByRevision[0].Display).IsEqualTo("revision 1");
-            await Assert.That(string.Join(",", pane.Failures.Select(f => f.Failure))).IsEqualTo(string.Join(",", FailureOrder));
+            await Assert.That(string.Join(",", pane.Failures.Select(f => f.Failure)))
+                .IsEqualTo(string.Join(",", FailureOrder));
             await Assert.That(pane.Failures[0].Runs.Count).IsEqualTo(2);
             await Assert.That(pane.Total.RunsWith(RunOutcome.Won).Count).IsEqualTo(3);
             await Assert.That(pane.ByProvenance[0].RunsWith(RunOutcome.Aborted).Single().Ref.Round).IsEqualTo(3);
@@ -254,8 +281,10 @@ public class StratEvidenceTests
         using (Assert.Multiple())
         {
             await Assert.That(record.Total).IsEqualTo(Build().Total);
-            await Assert.That(record.ByProvenance.Keys.Order(StringComparer.Ordinal)).IsEquivalentTo(Build().ByProvenance.Keys.Order(StringComparer.Ordinal), CollectionOrdering.Matching);
-            await Assert.That(new StratEvidenceService(tags).Compute(strat).ByProvenance.Keys).IsEquivalentTo([StratEvidence.Unlabeled], CollectionOrdering.Matching)
+            await Assert.That(record.ByProvenance.Keys.Order(StringComparer.Ordinal))
+                .IsEquivalentTo(Build().ByProvenance.Keys.Order(StringComparer.Ordinal), CollectionOrdering.Matching);
+            await Assert.That(new StratEvidenceService(tags).Compute(strat).ByProvenance.Keys)
+                .IsEquivalentTo([StratEvidence.Unlabeled], CollectionOrdering.Matching)
                 .Because("without Demo Provenance Labels every run is unlabeled");
         }
     }
@@ -279,7 +308,8 @@ public class StratEvidenceTests
         using (Assert.Multiple())
         {
             await Assert.That(record.Runs[0].Round).IsEqualTo(1);
-            await Assert.That(record.Runs[0].Outcome).IsEqualTo(RunOutcome.Lost).Because("CT won round 1; the human said won");
+            await Assert.That(record.Runs[0].Outcome).IsEqualTo(RunOutcome.Lost)
+                .Because("CT won round 1; the human said won");
             await Assert.That(record.Runs[1].Outcome).IsEqualTo(RunOutcome.Won);
             await Assert.That(record.Total).IsEqualTo(new RecordSplit(2, 1, 1, 0, 0));
         }

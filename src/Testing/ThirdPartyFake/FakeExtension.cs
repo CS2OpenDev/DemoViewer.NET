@@ -19,8 +19,10 @@ public sealed class FakeExtension : IExtension
 
     public IEnumerable<ExtensionFeature> Features =>
     [
-        new(MasterSwitch, ExtensionFeatureKind.Extension, "Third Party Fake", "A test extension.", null, AudienceDefaults.Everyone),
-        new(TabFeature, ExtensionFeatureKind.Tab, "Fake tab", "Shows the UI kit.", MasterSwitch, AudienceDefaults.Everyone)
+        new(MasterSwitch, ExtensionFeatureKind.Extension, "Third Party Fake", "A test extension.", null,
+            AudienceDefaults.Everyone),
+        new(TabFeature, ExtensionFeatureKind.Tab, "Fake tab", "Shows the UI kit.", MasterSwitch,
+            AudienceDefaults.Everyone)
     ];
 
     public void Register(IServiceCollection services) => services.AddSingleton<FakeTabViewModel>();

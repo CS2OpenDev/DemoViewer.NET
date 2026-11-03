@@ -145,7 +145,8 @@ public sealed class MinedPattern
 
     public IReadOnlyList<MinedCommonThrow> CommonThrows { get; init; } = [];
 
-    public IReadOnlyList<Guid> Teams => [.. Members.Where(m => m.TeamId is not null).Select(m => m.TeamId!.Value).Distinct()];
+    public IReadOnlyList<Guid> Teams =>
+        [.. Members.Where(m => m.TeamId is not null).Select(m => m.TeamId!.Value).Distinct()];
 
     public int Support => Members.Count;
 

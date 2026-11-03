@@ -26,15 +26,12 @@ public class MatchOverviewDemoActionTests
         Size = 10,
         ModifiedTicks = 20,
         Map = "de_mirage",
-        Parse = new TierStamp
-        {
-            Schema = DemoCacheRecord.ParseSchema,
-            ComputedAtTicks = 1
-        },
+        Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 },
         TickRate = 64
     };
 
-    private static (MatchOverviewTabViewModel Vm, DemoActionRow Row) Page(DemoAction action, Func<bool>? featureOn = null)
+    private static (MatchOverviewTabViewModel Vm, DemoActionRow Row) Page(DemoAction action,
+        Func<bool>? featureOn = null)
     {
         MatchOverviewTabViewModel vm = new();
         vm.AttachDemoActions([new GatedDemoAction(action, Feature)], _ => featureOn?.Invoke() ?? true);

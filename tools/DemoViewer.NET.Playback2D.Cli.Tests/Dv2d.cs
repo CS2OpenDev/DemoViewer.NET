@@ -173,10 +173,7 @@ internal static class Dv2d
 
         string managed = Path.Combine(CliOutputDirectory, "dv2d.dll");
         return File.Exists(managed)
-            ? ("dotnet", new[]
-            {
-                managed
-            })
+            ? ("dotnet", new[] { managed })
             : throw new FileNotFoundException($"no dv2d host in {CliOutputDirectory}.", native);
     }
 

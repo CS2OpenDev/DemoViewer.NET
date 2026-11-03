@@ -162,10 +162,7 @@ public sealed class TagFactsRefresher : IExtensionResident, IDisposable
         {
             instance.FactsStamp = new TagFactsStamp
             {
-                Schema = old?.Schema ?? schema,
-                ComputedUtc = old?.ComputedUtc,
-                Stale = true,
-                Extra = old?.Extra
+                Schema = old?.Schema ?? schema, ComputedUtc = old?.ComputedUtc, Stale = true, Extra = old?.Extra
             };
             return;
         }
@@ -174,10 +171,7 @@ public sealed class TagFactsRefresher : IExtensionResident, IDisposable
         instance.Facts = FactsOf(round, instance.FromTick);
         instance.FactsStamp = new TagFactsStamp
         {
-            Schema = schema,
-            ComputedUtc = utcNow,
-            Stale = false,
-            Extra = old?.Extra
+            Schema = schema, ComputedUtc = utcNow, Stale = false, Extra = old?.Extra
         };
     }
 

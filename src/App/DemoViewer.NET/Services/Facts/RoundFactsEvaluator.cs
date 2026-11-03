@@ -91,7 +91,8 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
     {
         DemoCacheIndexEntry? entry = _demoCache.TryGetIndex(path);
         string? fingerprint = TryFingerprint(BacklogTickRate);
-        return entry is { ParseSchema: > 0 } && entry.NeedsRoundFacts(fingerprint) && !TriedWithoutRows(path, fingerprint);
+        return entry is { ParseSchema: > 0 } && entry.NeedsRoundFacts(fingerprint)
+                                             && !TriedWithoutRows(path, fingerprint);
     }
 
     /// <summary>Whether the demo will need this pass once the pass it runs after has written.</summary>
@@ -108,7 +109,8 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
     {
         string? fingerprint = TryFingerprint(BacklogTickRate);
         return fingerprint is not null
-               && (_demoCache.TryGetIndex(path) is not { ParseSchema: > 0 } entry || entry.NeedsRoundFacts(fingerprint));
+               && (_demoCache.TryGetIndex(path) is not { ParseSchema: > 0 } entry
+                   || entry.NeedsRoundFacts(fingerprint));
     }
 
     /// <inheritdoc />
@@ -122,7 +124,8 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
 
     /// <inheritdoc />
     public void EvaluateForward(string path, ForwardDemoResult pass) =>
-        Refresh(path, pass.Demo.TickRate, () => _rows.Rows(pass), () => pass.Rounds, () => FrameClock.IdentityFor(pass));
+        Refresh(path, pass.Demo.TickRate, () => _rows.Rows(pass), () => pass.Rounds,
+            () => FrameClock.IdentityFor(pass));
 
     /// <summary>
     ///     Rewrites a demo's index row from its record: for a row whose stamp claims rows the record does not
@@ -153,7 +156,8 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
         return
         [
             .. _demoCache.Contents
-                .Where(e => e.ParseSchema > 0 && e.NeedsRoundFacts(fingerprint) && !TriedWithoutRows(e.Path, fingerprint))
+                .Where(e => e.ParseSchema > 0 && e.NeedsRoundFacts(fingerprint)
+                                              && !TriedWithoutRows(e.Path, fingerprint))
                 .OrderByDescending(e => e.ModifiedTicks)
                 .Select(e => e.Path)
         ];

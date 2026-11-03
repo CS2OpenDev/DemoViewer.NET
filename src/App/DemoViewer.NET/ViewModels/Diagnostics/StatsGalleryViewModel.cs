@@ -14,7 +14,10 @@ namespace DemoViewer.NET.ViewModels.Diagnostics;
 /// <param name="Scale">The scale currently in force.</param>
 /// <param name="IsLeader">Whether this cell is the column's best value under the current polarity.</param>
 /// <param name="BarAlignment">Which edge the fill grows from, so the trade can be seen both ways.</param>
-public sealed record GalleryCell(double Value, StatScale Scale, bool IsLeader,
+public sealed record GalleryCell(
+    double Value,
+    StatScale Scale,
+    bool IsLeader,
     StatBarAlignment BarAlignment);
 
 /// <summary>

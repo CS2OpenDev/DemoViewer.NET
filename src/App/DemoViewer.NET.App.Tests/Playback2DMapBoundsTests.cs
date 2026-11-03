@@ -40,18 +40,14 @@ public class Playback2DMapBoundsTests
 
         ModuleContext context = new(controller, () => path);
         context.SetRoster(demo.Players.Values.Select(p =>
-            new PlayerRosterEntry
-            {
-                Slot = p.Slot,
-                SteamId = p.SteamId64,
-                Name = p.Name
-            }));
+            new PlayerRosterEntry { Slot = p.Slot, SteamId = p.SteamId64, Name = p.Name }));
 
         Playback2DTabViewModel vm = new();
         vm.OnActivated(context); // UpdateGameInfo reads the map bounds once
 
         (double MinX, double MinY, double MaxX, double MaxY)? mb = vm.MapBounds;
-        Console.WriteLine($"[mapbounds] {Path.GetFileName(path)} MapBounds={(mb is { } b ? $"X[{b.MinX:F0}..{b.MaxX:F0}] Y[{b.MinY:F0}..{b.MaxY:F0}]" : "null")}");
+        Console.WriteLine(
+            $"[mapbounds] {Path.GetFileName(path)} MapBounds={(mb is { } b ? $"X[{b.MinX:F0}..{b.MaxX:F0}] Y[{b.MinY:F0}..{b.MaxY:F0}]" : "null")}");
 
         // The radar bounding box is published on the game rules.
         await Assert.That(mb).IsNotNull();

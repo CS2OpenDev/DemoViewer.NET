@@ -36,7 +36,8 @@ public class PlayerOverviewHighlightsTests
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
-    private static CachedHighlightEvent Fired(int slot, int score, string id, int round = 3, HighlightKind kind = HighlightKind.Highlight) => new()
+    private static CachedHighlightEvent Fired(int slot, int score, string id, int round = 3,
+        HighlightKind kind = HighlightKind.Highlight) => new()
     {
         RulesetId = "player_stats",
         HighlightId = id,
@@ -65,8 +66,8 @@ public class PlayerOverviewHighlightsTests
                 Fired(2, 40 + i, "ace"),
                 Fired(3, 90, "clutch"),
                 Fired(7, 99, "noone"),
-                .. i == 1 ? (CachedHighlightEvent[]) [Fired(5, 70, "after_reconnect", 9)] : [],
-                .. i == 0 ? (CachedHighlightEvent[]) [Fired(2, 5, "flash_self", 1, HighlightKind.Funny)] : []
+                .. i == 1 ? (CachedHighlightEvent[])[Fired(5, 70, "after_reconnect", 9)] : [],
+                .. i == 0 ? (CachedHighlightEvent[])[Fired(2, 5, "flash_self", 1, HighlightKind.Funny)] : []
             ];
         }
 
@@ -143,8 +144,12 @@ public class PlayerOverviewHighlightsTests
             }
 
             return store.TryLoadRecord(demoPath, false) is { } record
-                ? [.. record.Highlights.Select(h => new LibraryHighlight(h.RulesetId, h.HighlightId, h.Tick, h.PlayerSlot,
-                    h.RoundNumber, h.RenderedTitle, h.Score, h.Kind.ToString()))]
+                ?
+                [
+                    .. record.Highlights.Select(h => new LibraryHighlight(h.RulesetId, h.HighlightId, h.Tick,
+                        h.PlayerSlot,
+                        h.RoundNumber, h.RenderedTitle, h.Score, h.Kind.ToString()))
+                ]
                 : [];
         }
     }
@@ -162,7 +167,8 @@ public class PlayerOverviewHighlightsTests
             await Assert.That(section.IsVisible).IsTrue();
             await Assert.That(section.Rows.Select(r => (r.Match.Row.Path, r.Highlight.HighlightId))).IsEquivalentTo(
             [
-                ("/lib/1.dem", "after_reconnect"), ("/lib/2.dem", "ace"), ("/lib/1.dem", "ace"), ("/lib/0.dem", "ace"), ("/lib/0.dem", "flash_self")
+                ("/lib/1.dem", "after_reconnect"), ("/lib/2.dem", "ace"), ("/lib/1.dem", "ace"), ("/lib/0.dem", "ace"),
+                ("/lib/0.dem", "flash_self")
             ], CollectionOrdering.Matching).Because("Mate's slot 3 and the unheld slot 7 are someone else's");
             await Assert.That(section.CountText).IsEqualTo("5 in 3 matches");
             await Assert.That(section.KindText).IsEqualTo("4 highlights, 1 funny");
@@ -177,7 +183,8 @@ public class PlayerOverviewHighlightsTests
 
         shell.Tab.OpenPlayer(Mate);
         await shell.Highlights.Loading;
-        await Assert.That(shell.Highlights.Rows.Select(r => r.Highlight.HighlightId).Distinct()).IsEquivalentTo(["clutch"], CollectionOrdering.Matching);
+        await Assert.That(shell.Highlights.Rows.Select(r => r.Highlight.HighlightId).Distinct())
+            .IsEquivalentTo(["clutch"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -193,7 +200,8 @@ public class PlayerOverviewHighlightsTests
         await shell.Highlights.Loading;
         shell.Tab.OpenPlayer(Grim);
         await shell.Highlights.Loading;
-        await Assert.That(shell.Facts.Reads.Count).IsEqualTo(3).Because("every demo's list holds every player's highlights");
+        await Assert.That(shell.Facts.Reads.Count).IsEqualTo(3)
+            .Because("every demo's list holds every player's highlights");
 
         DemoCacheRecord rescanned = Demo(2, "cfg2");
         rescanned.Highlights.Add(Fired(2, 100, "five_k", 12));
@@ -202,7 +210,8 @@ public class PlayerOverviewHighlightsTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(shell.Facts.Reads.ToArray()[3..]).IsEquivalentTo(["/lib/2.dem"], CollectionOrdering.Matching);
+            await Assert.That(shell.Facts.Reads.ToArray()[3..])
+                .IsEquivalentTo(["/lib/2.dem"], CollectionOrdering.Matching);
             await Assert.That(shell.Highlights.Rows[0].Highlight.HighlightId).IsEqualTo("five_k");
         }
     }
@@ -226,7 +235,8 @@ public class PlayerOverviewHighlightsTests
         shell.Facts.Throws.Clear();
         store.Upsert(Demo(2, "cfg2"));
         await shell.Highlights.Loading;
-        await Assert.That(shell.Facts.Reads.ToArray()[3..].Order()).IsEquivalentTo(["/lib/1.dem", "/lib/2.dem"], CollectionOrdering.Matching)
+        await Assert.That(shell.Facts.Reads.ToArray()[3..].Order())
+            .IsEquivalentTo(["/lib/1.dem", "/lib/2.dem"], CollectionOrdering.Matching)
             .Because("the next refresh reads the demo that failed and the one rescanned, and nothing else");
         await Assert.That(shell.Highlights.Rows.Any(r => r.Match.Row.Path == "/lib/1.dem")).IsTrue();
     }
@@ -248,7 +258,8 @@ public class PlayerOverviewHighlightsTests
             await Assert.That(none.Highlights.IsVisible).IsTrue();
             await Assert.That(none.Highlights.ShowEmpty).IsTrue();
             await Assert.That(none.Highlights.HasRows).IsFalse();
-            await Assert.That(none.Facts.Reads).IsEmpty().Because("a demo the index says holds no highlights is never opened");
+            await Assert.That(none.Facts.Reads).IsEmpty()
+                .Because("a demo the index says holds no highlights is never opened");
         }
     }
 
@@ -262,7 +273,8 @@ public class PlayerOverviewHighlightsTests
         shell.Highlights.AddClipsCommand.Execute(null);
         shell.Highlights.OpenDemoCommand.Execute(shell.Highlights.Rows[0]);
         await Assert.That(shell.AddedFor).IsEquivalentTo([Grim], CollectionOrdering.Matching);
-        await Assert.That(shell.Opened).IsEquivalentTo([shell.Highlights.Rows[0].Match.Row.Path], CollectionOrdering.Matching);
+        await Assert.That(shell.Opened)
+            .IsEquivalentTo([shell.Highlights.Rows[0].Match.Row.Path], CollectionOrdering.Matching);
 
         using Shell noReels = new(Library(1), withPicker: false);
         await Assert.That(noReels.Highlights.CanAddClips).IsFalse();
@@ -272,11 +284,13 @@ public class PlayerOverviewHighlightsTests
     public async Task ThePicker_OpensWithTheSubjectTicked()
     {
         List<DemoCacheRecord> records = [Demo(0), Demo(1)];
-        AddClipsPickerViewModel picker = new(records, 2, _ => false, _ => { }, _ => { }, () => { }, players: [Id(Grim)]);
+        AddClipsPickerViewModel picker = new(records, 2, _ => false, _ => { }, _ => { }, () => { },
+            players: [Id(Grim)]);
 
         using (Assert.Multiple())
         {
-            await Assert.That(picker.PlayerFilters.Where(p => p.IsSelected).Select(p => p.SteamId64)).IsEquivalentTo([Id(Grim)], CollectionOrdering.Matching);
+            await Assert.That(picker.PlayerFilters.Where(p => p.IsSelected).Select(p => p.SteamId64))
+                .IsEquivalentTo([Id(Grim)], CollectionOrdering.Matching);
             await Assert.That(picker.Rows.Count).IsEqualTo(4);
             await Assert.That(picker.Rows.All(r => r.PlayerKey == Id(Grim))).IsTrue();
         }
@@ -298,14 +312,26 @@ public class PlayerOverviewHighlightsRenderTests
             {
                 DemoCacheRecord record = PlayerOverviewHistoryTests.Demo(i);
                 record.ConfigFingerprint = "cfg";
-                record.Highlights = [new CachedHighlightEvent { RulesetId = "r", HighlightId = "ace", PlayerSlot = 2, RoundNumber = 4, Score = 60, RenderedTitle = "grim ace" }];
+                record.Highlights =
+                [
+                    new CachedHighlightEvent
+                    {
+                        RulesetId = "r",
+                        HighlightId = "ace",
+                        PlayerSlot = 2,
+                        RoundNumber = 4,
+                        Score = 60,
+                        RenderedTitle = "grim ace"
+                    }
+                ];
                 store.Upsert(record);
             }
 
             PlayerDirectory directory = new(store, _ => true);
             using IdentityService identity = new(new SettingsService((string?)null));
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, new AnalysisFacts(store, null, new NoRoundFacts()), _ => { }));
+                _ => { }, _ => { }, (_, _) => { }, _ => { }, new AnalysisFacts(store, null, new NoRoundFacts()),
+                _ => { }));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
             HighlightsSectionViewModel section = vm.Reveal<HighlightsSectionViewModel>();
@@ -315,7 +341,10 @@ public class PlayerOverviewHighlightsRenderTests
 
             vm.ShowPage(PlayerOverviewPageKind.Achievements);
 
-            Window window = new() { Width = 1300, Height = 1400, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1300, Height = 1400, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -324,7 +353,8 @@ public class PlayerOverviewHighlightsRenderTests
             HighlightsSectionView view = window.GetVisualDescendants().OfType<HighlightsSectionView>().Single();
             ListBox list = view.GetVisualDescendants().OfType<ListBox>().Single(l => l.Name == "HighlightList");
             await Assert.That(list.GetVisualDescendants().OfType<ListBoxItem>().Count()).IsEqualTo(3);
-            await Assert.That(view.GetVisualDescendants().OfType<Button>().Any(b => Equals(b.Content, "Add clips") && b.IsEffectivelyVisible)).IsTrue();
+            await Assert.That(view.GetVisualDescendants().OfType<Button>()
+                .Any(b => Equals(b.Content, "Add clips") && b.IsEffectivelyVisible)).IsTrue();
             window.Close();
         });
     }
@@ -333,7 +363,11 @@ public class PlayerOverviewHighlightsRenderTests
     {
         public int Schema => 0;
 
-        public event Action<string>? Updated { add { } remove { } }
+        public event Action<string>? Updated
+        {
+            add { }
+            remove { }
+        }
 
         public RoundFactsRows? TryGet(string demoPath) => null;
 

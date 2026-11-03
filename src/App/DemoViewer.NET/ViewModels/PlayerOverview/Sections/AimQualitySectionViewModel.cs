@@ -30,7 +30,11 @@ public sealed partial class AimQualitySectionViewModel : PlayerOverviewSection
         ("Reaction", [("TTS", "0' ms'"), ("TTD", "0' ms'"), ("AimRx", "0' ms'"), ("TTK", "0' ms'")]),
         ("Crosshair", [("Preaim", "0.0'°'"), ("XPlace", "0.0'°'"), ("FlickErr", "+0.0'°';-0.0'°';0.0'°'")]),
         ("After contact", [("FB%", "0.0'%'"), ("SAcc%", "0.0'%'"), ("SprayAcc%", "0.0'%'")]),
-        ("Accuracy", [("Acc%", "0.0'%'"), ("HSAcc%", "0.0'%'"), ("HSDmg%", "0.0'%'"), ("CS%", "0.0'%'"), ("CSAll%", "0.0'%'"), ("Linear%", "0.0'%'"), ("Spray", "0.00'°'")])
+        ("Accuracy",
+        [
+            ("Acc%", "0.0'%'"), ("HSAcc%", "0.0'%'"), ("HSDmg%", "0.0'%'"), ("CS%", "0.0'%'"), ("CSAll%", "0.0'%'"),
+            ("Linear%", "0.0'%'"), ("Spray", "0.00'°'")
+        ])
     ];
 
     [ObservableProperty]
@@ -72,7 +76,11 @@ public sealed partial class AimQualitySectionViewModel : PlayerOverviewSection
 
         IReadOnlyList<PlayerDemo> pooled = [.. context.Window.Where(d => d.Stats is not null)];
         Aggregate = window;
-        Blocks = [.. All.Select(b => new CategoryItem(b.Title, [.. b.Entries.Select(e => Build(window, pooled, e.Key, e.Format))]))];
+        Blocks =
+        [
+            .. All.Select(b =>
+                new CategoryItem(b.Title, [.. b.Entries.Select(e => Build(window, pooled, e.Key, e.Format))]))
+        ];
         ScopeText = window.WithSight == 0
             ? "no line-of-sight data"
             : string.Create(CultureInfo.InvariantCulture, $"line of sight from {Matches(window.WithSight)}");
@@ -80,13 +88,16 @@ public sealed partial class AimQualitySectionViewModel : PlayerOverviewSection
         IsVisible = true;
     }
 
-    private static CategoryStatItem Build(PlayerAggregate window, IReadOnlyList<PlayerDemo> pooled, string key, string format)
+    private static CategoryStatItem Build(PlayerAggregate window, IReadOnlyList<PlayerDemo> pooled, string key,
+        string format)
     {
         ColumnMeta meta = ColumnCatalogue.Resolve(key);
         double? value = window[key];
-        string text = value is { } v ? v.ToString(format, CultureInfo.InvariantCulture) : meta.RequiresVisibility ? NoData : None;
+        string text = value is { } v ? v.ToString(format, CultureInfo.InvariantCulture) :
+            meta.RequiresVisibility ? NoData : None;
         return new CategoryStatItem(key, meta.Display, text, value,
-            value is null || OverNothing(pooled, meta) ? null : SummarySectionViewModel.AbsoluteScale(key, window), Population(window, meta, value),
+            value is null || OverNothing(pooled, meta) ? null : SummarySectionViewModel.AbsoluteScale(key, window),
+            Population(window, meta, value),
             meta.Tooltip);
     }
 
@@ -105,7 +116,8 @@ public sealed partial class AimQualitySectionViewModel : PlayerOverviewSection
     // A rate over a zero denominator pools to 0, as the engine divides; it measured nothing, so it takes no colour.
     private static bool OverNothing(IReadOnlyList<PlayerDemo> pooled, ColumnMeta meta) =>
         ColumnRules.For(meta.Key) is ColumnRule.RatioOfSums ratio
-        && pooled.Where(d => d.HasSight || !meta.RequiresVisibility).Sum(d => ratio.Denominator.Sum(c => d.Stats!.GetValueOrDefault(c))) == 0;
+        && pooled.Where(d => d.HasSight || !meta.RequiresVisibility)
+            .Sum(d => ratio.Denominator.Sum(c => d.Stats!.GetValueOrDefault(c))) == 0;
 
     private static string NoteFor(PlayerAggregate window)
     {

@@ -106,12 +106,7 @@ public class TokenToolHostTests
     private static (Window Window, Scene2DHost Host) Mount(object frameHost)
     {
         Scene2DHost host = new() { DataContext = frameHost };
-        Window window = new()
-        {
-            Width = 1000,
-            Height = 700,
-            Content = host
-        };
+        Window window = new() { Width = 1000, Height = 700, Content = host };
         window.Show();
         Playback2DTimelineHarness.Pump();
         return (window, host);
@@ -121,12 +116,7 @@ public class TokenToolHostTests
     {
         Time = new SceneTime(tick, tick, tick / 64.0, 1 / 64.0, discontinuity),
         Markers = markers,
-        Map = new SceneMapInfo
-        {
-            MapName = "de_mirage",
-            ObservedBounds = Mirage,
-            NetworkedBounds = Mirage
-        }
+        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = Mirage, NetworkedBounds = Mirage }
     };
 
     private static PlayerMarker Token(int slot, int team, float x, float y, float z) =>
@@ -195,7 +185,8 @@ public class TokenToolHostTests
 
         public void BeginDrag(string slot, TokenGrip grip) => Calls.Add($"Begin {slot} {grip}");
 
-        public void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None, double worldUnitsPerPixel = 0) =>
+        public void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None,
+            double worldUnitsPerPixel = 0) =>
             Calls.Add($"Move {slot} {world.X:F0},{world.Y:F0} z={levelMinZ}");
 
         public void EndDrag(ToolModifiers modifiers = ToolModifiers.None) => Calls.Add("End ");

@@ -141,12 +141,7 @@ internal sealed class Playback2DFakeContext : IModuleContext
     /// <summary>Adds one roster entry plus the matching live player state (team 2 = T, 3 = CT).</summary>
     public void AddPlayer(int slot, string name, int team)
     {
-        Roster.Add(new PlayerRosterEntry
-        {
-            Slot = slot,
-            Name = name,
-            SteamId = (ulong)(slot + 1)
-        });
+        Roster.Add(new PlayerRosterEntry { Slot = slot, Name = name, SteamId = (ulong)(slot + 1) });
         _players.Add(new FakePlayerState(slot, team));
     }
 

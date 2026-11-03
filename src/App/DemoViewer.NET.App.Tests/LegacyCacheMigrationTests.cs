@@ -21,22 +21,15 @@ public class LegacyCacheMigrationTests
     private static string WriteLibrary(string dir, params DemoLibraryCacheEntry[] entries)
     {
         string path = Path.Combine(dir, "library.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(new DemoLibraryData
-        {
-            Folders = ["/demos"],
-            Cache = [.. entries]
-        }));
+        File.WriteAllText(path,
+            JsonSerializer.Serialize(new DemoLibraryData { Folders = ["/demos"], Cache = [.. entries] }));
         return path;
     }
 
     private static string WriteHighlights(string dir, params LegacyHighlightsRow[] rows)
     {
         string path = Path.Combine(dir, "highlights.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(new
-        {
-            Version = 1,
-            Rows = rows
-        }));
+        File.WriteAllText(path, JsonSerializer.Serialize(new { Version = 1, Rows = rows }));
         return path;
     }
 
@@ -184,21 +177,11 @@ public class LegacyCacheMigrationTests
             {
                 r.Players =
                 [
-                    new CachedPlayerInfo
-                    {
-                        Slot = 1,
-                        Name = "s1mple",
-                        Team = 3,
-                        SteamId64 = "765"
-                    }
+                    new CachedPlayerInfo { Slot = 1, Name = "s1mple", Team = 3, SteamId64 = "765" }
                 ];
                 r.Rounds =
                 [
-                    new CachedRound
-                    {
-                        Number = 1,
-                        StartTickFrameClock = 500
-                    }
+                    new CachedRound { Number = 1, StartTickFrameClock = 500 }
                 ];
                 r.TickRate = 64;
                 DemoCacheStore.StampParse(r);
@@ -252,13 +235,7 @@ public class LegacyCacheMigrationTests
                     ConfigFingerprint = "fp-legacy",
                     Players =
                     [
-                        new LegacyCachedPlayer
-                        {
-                            Slot = 1,
-                            Name = "s1mple",
-                            SteamId64 = "765",
-                            Team = 3
-                        }
+                        new LegacyCachedPlayer { Slot = 1, Name = "s1mple", SteamId64 = "765", Team = 3 }
                     ],
                     Events =
                     [

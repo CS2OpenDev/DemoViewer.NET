@@ -32,7 +32,8 @@ public class ZonePlaceResolverSourceTests
     {
         string bundleDir = RequireBundle();
         using TempDir overlays = new();
-        using AssetZonePlaceResolverSource source = new(Leases(MapAssetBundleReader.FindBundleDirectory, overlays.Path));
+        using AssetZonePlaceResolverSource
+            source = new(Leases(MapAssetBundleReader.FindBundleDirectory, overlays.Path));
         PlaceResolver direct = ZoneAssetPipeline.TryLoad(bundleDir, null)!;
 
         IZonePlaceResolver? zones = source.TryGet(Map);
@@ -107,7 +108,8 @@ public class ZonePlaceResolverSourceTests
     {
         string bundleDir = RequireBundle();
         using TempDir overlays = new();
-        using AssetZonePlaceResolverSource source = new(Leases(MapAssetBundleReader.FindBundleDirectory, overlays.Path));
+        using AssetZonePlaceResolverSource
+            source = new(Leases(MapAssetBundleReader.FindBundleDirectory, overlays.Path));
         string baked = ZoneAssetPipeline.TryReadBaked(bundleDir)!.ZonesVersion;
 
         IZonePlaceResolver? before = source.TryGet(Map);
@@ -128,7 +130,8 @@ public class ZonePlaceResolverSourceTests
 
         IZonePlaceResolver? after = source.TryGet(Map);
         await Assert.That(after).IsNotNull();
-        await Assert.That(ReferenceEquals(after, before)).IsFalse().Because("the overlay was saved after the first load");
+        await Assert.That(ReferenceEquals(after, before)).IsFalse()
+            .Because("the overlay was saved after the first load");
         ZonePlaceResolverAdapter adapter = (ZonePlaceResolverAdapter)after!;
         using (Assert.Multiple())
         {
@@ -139,7 +142,8 @@ public class ZonePlaceResolverSourceTests
             await Assert.That(after.ResolveOnFloor(-1400, -1700, -512)).IsEqualTo("Sandwich");
         }
 
-        await Assert.That(ReferenceEquals(source.TryGet(Map), after)).IsTrue().Because("an unchanged overlay is not re-read");
+        await Assert.That(ReferenceEquals(source.TryGet(Map), after)).IsTrue()
+            .Because("an unchanged overlay is not re-read");
 
         using ToleranceSliderHarness slider = new(source);
         await Assert.That(slider.Vm.ToleranceTip).Contains($"zones:{after.ZonesVersion}");
@@ -170,7 +174,8 @@ public class ZonePlaceResolverSourceTests
     {
         public TempDir()
         {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dv-zone-source-" + Guid.NewGuid().ToString("N"));
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                "dv-zone-source-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path);
         }
 

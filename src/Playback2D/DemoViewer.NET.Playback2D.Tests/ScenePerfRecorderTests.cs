@@ -289,10 +289,7 @@ public class ScenePerfRecorderTests
         SceneTime time = fixture.Time;
         for (int i = 0; i < samples.Length; i++)
         {
-            SceneTime frameTime = time with
-            {
-                DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6
-            };
+            SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6 };
 
             long start = Stopwatch.GetTimestamp();
             stage.Renderer.Advance(fixture.Frame, in frameTime);
@@ -343,10 +340,7 @@ public class ScenePerfRecorderTests
         long before = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < frames; i++)
         {
-            SceneTime frameTime = time with
-            {
-                DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6
-            };
+            SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6 };
             stage.Renderer.Advance(fixture.Frame, in frameTime);
             stage.Renderer.Render();
             recorder?.EndFrame();

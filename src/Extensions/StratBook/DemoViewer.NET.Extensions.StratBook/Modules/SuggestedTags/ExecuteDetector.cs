@@ -41,7 +41,8 @@ public sealed class ExecuteDetector : IProposalDetector
         new("lag", 8, "seconds claimed after trigger plus T"),
         new("rushSecond", 25, "an execute at or before this second is tempo rush"),
         new("slowSecond", 60, "an execute at or after this second is tempo late"),
-        new("window", 0, "1 counts distinct players across a T-second window (per-slot data only); 0 counts at one second")
+        new("window", 0,
+            "1 counts distinct players across a T-second window (per-slot data only); 0 counts at one second")
     ];
 
     /// <inheritdoc />
@@ -121,15 +122,15 @@ public sealed class ExecuteDetector : IProposalDetector
         double fUtility = 0.6 + 0.1 * Math.Min(4, utility.Count);
 
         int triggerTick = round.TickAt(trigger);
-        int arrival = round.HasSlots ? FirstArrival(round, fired, trigger, windowMode ? trigger + t - 1 : trigger) : trigger;
+        int arrival = round.HasSlots
+            ? FirstArrival(round, fired, trigger, windowMode ? trigger + t - 1 : trigger)
+            : trigger;
         int from = DetectorMath.Lead(round, round.TickAt(arrival), profile.Get(Id, "lead"));
         int to = DetectorMath.Lag(round, round.TickAt(trigger + t), profile.Get(Id, "lag"));
 
         Dictionary<string, string> labels = new(StringComparer.Ordinal)
         {
-            ["site"] = at,
-            ["count"] = DetectorMath.Text(peak),
-            ["tempo"] = Tempo(trigger, profile)
+            ["site"] = at, ["count"] = DetectorMath.Text(peak), ["tempo"] = Tempo(trigger, profile)
         };
         if (round.Bomb is { } bomb && bomb.Site == at && bomb.PlantTick >= triggerTick)
         {

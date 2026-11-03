@@ -42,23 +42,11 @@ public sealed class QueryTokenLayer : ISceneLayer
         ArgumentNullException.ThrowIfNull(document);
         _document = document;
 
-        _fill = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        _ring = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2f,
-            IsAntialias = true
-        };
+        _fill = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
+        _ring = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2f, IsAntialias = true };
         _mark = new SKPaint
         {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1.5f,
-            StrokeCap = SKStrokeCap.Round,
-            IsAntialias = true
+            Style = SKPaintStyle.Stroke, StrokeWidth = 1.5f, StrokeCap = SKStrokeCap.Round, IsAntialias = true
         };
     }
 

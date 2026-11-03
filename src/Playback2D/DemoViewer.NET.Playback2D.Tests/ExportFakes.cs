@@ -116,10 +116,7 @@ internal sealed class StubHudDataSource : IHudDataSource
     public HudSnapshot At(int tick)
     {
         Reads++;
-        return _snapshot with
-        {
-            Tick = tick
-        };
+        return _snapshot with { Tick = tick };
     }
 }
 

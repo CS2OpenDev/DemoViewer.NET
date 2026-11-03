@@ -26,8 +26,7 @@ public partial class SchemaSettingsPageView : UserControl
 
         IReadOnlyList<IStorageFolder> picked = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = row.Label,
-            AllowMultiple = false
+            Title = row.Label, AllowMultiple = false
         });
         if (picked.Count > 0 && picked[0].TryGetLocalPath() is { } path)
         {

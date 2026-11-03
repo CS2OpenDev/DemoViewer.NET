@@ -306,10 +306,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     (configured outputs, keyed breakdowns) are per-evaluation.
     /// </summary>
     public IReadOnlyList<MetricTable> ExportTables =>
-        new[]
-            {
-                GameTable, RoundTable, EventsTable, VisibilityPlayersTable, VisibilityPairsTable
-            }
+        new[] { GameTable, RoundTable, EventsTable, VisibilityPlayersTable, VisibilityPairsTable }
             .Where(t => t is not null).Cast<MetricTable>()
             .Concat(ExtraTables)
             .ToList();
@@ -518,14 +515,12 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     {
         string? matchId = _demoPathAccessor() is { } path ? Path.GetFileName(path) : null;
         EvaluationResult result = run.Snapshots
-                                  ?? throw new InvalidOperationException("Stats tab requires snapshot-mode evaluation.");
+                                  ?? throw new InvalidOperationException(
+                                      "Stats tab requires snapshot-mode evaluation.");
 
         List<MetricTable> extras = new();
         extras.AddRange(run.ProjectConfiguredOutputs(demo, matchId));
-        extras.AddRange(new KeyedStatsProjector
-        {
-            MatchId = matchId
-        }.Project(result, demo));
+        extras.AddRange(new KeyedStatsProjector { MatchId = matchId }.Project(result, demo));
 
         Update(result, demo, extras);
     }
@@ -757,28 +752,16 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         SetExtraTables(extraTables ?? []);
         _steamIdBySlot = SteamIdsBySlot(demo, extraTables);
 
-        GameTable = new PlayerGameStatsProjector
-        {
-            MatchId = matchId
-        }.Project(result, demo).Single();
-        RoundTable = new PlayerRoundStatsProjector
-        {
-            MatchId = matchId
-        }.Project(result, demo).Single();
-        EventsTable = new RuleChainEventProjector
-        {
-            MatchId = matchId
-        }.Project(result, demo).Single();
+        GameTable = new PlayerGameStatsProjector { MatchId = matchId }.Project(result, demo).Single();
+        RoundTable = new PlayerRoundStatsProjector { MatchId = matchId }.Project(result, demo).Single();
+        EventsTable = new RuleChainEventProjector { MatchId = matchId }.Project(result, demo).Single();
 
         Highlights = EventsTable.Rows
             .Select(r => new HighlightRow(
                 Convert.ToInt32(r.Dimensions.GetValueOrDefault("round_number") ?? 0, CultureInfo.InvariantCulture),
                 Convert.ToInt32(r.Dimensions.GetValueOrDefault("tick") ?? 0, CultureInfo.InvariantCulture),
                 r.Dimensions.GetValueOrDefault("chain")?.ToString() ?? "?",
-                r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "")
-            {
-                PlayerOverview = EntryFor(r)
-            })
+                r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "") { PlayerOverview = EntryFor(r) })
             .OrderBy(h => h.Tick)
             .ToList();
         OnPropertyChanged(nameof(Highlights));
@@ -1019,7 +1002,8 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     private static (string? Key, bool Descending) DefaultSort(List<string> visibleOrder)
     {
         string? kills = visibleOrder.FirstOrDefault(c => string.Equals(c, "Kills", StringComparison.OrdinalIgnoreCase))
-                        ?? visibleOrder.FirstOrDefault(c => string.Equals(c, "TotalK", StringComparison.OrdinalIgnoreCase));
+                        ?? visibleOrder.FirstOrDefault(c =>
+                            string.Equals(c, "TotalK", StringComparison.OrdinalIgnoreCase));
         if (kills is not null)
         {
             return (kills, true);
@@ -1055,10 +1039,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         foreach (IGrouping<int, StatsRow> group in sortedRows.GroupBy(r => r.TeamSort).OrderBy(g => g.Key))
         {
             List<StatsRow> members = group
-                .Select((r, i) => r with
-                {
-                    IsAlt = i % 2 == 1
-                })
+                .Select((r, i) => r with { IsAlt = i % 2 == 1 })
                 .ToList();
             bool isCt = group.Key == 0;
             string side = members[0].TeamLabel is { Length: > 0 } label ? label : "—";
@@ -1202,16 +1183,10 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
                 }
             }
 
-            cells.Add(new StatCell(total, meta)
-            {
-                Denominator = over
-            });
+            cells.Add(new StatCell(total, meta) { Denominator = over });
         }
 
-        return new StatsRow("team", 0, cells)
-        {
-            IsTotals = true
-        };
+        return new StatsRow("team", 0, cells) { IsTotals = true };
     }
 
     // ── Export ─────────────────────────────────────────────────────────────────
@@ -1314,10 +1289,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             .Select(r => WithAccount(BuildRow(r, _visibleRoundColumnOrder, roundScales, SightUnavailable)))
             .OrderBy(r => r.TeamSort)
             .ThenBy(r => r.PlayerName, StringComparer.OrdinalIgnoreCase)
-            .Select((r, i) => r with
-            {
-                IsAlt = i % 2 == 1
-            })
+            .Select((r, i) => r with { IsAlt = i % 2 == 1 })
             .ToList();
         OnPropertyChanged(nameof(RoundRows));
         OnPropertyChanged(nameof(CurrentRows));
@@ -1590,15 +1562,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             cells.Add(new StatCell(unavailable || noSample ? null : row.Values.GetValueOrDefault(column),
                 meta, scale, resolved.MarksLeader)
             {
-                Denominator = unavailable || noSample ? null : over,
-                Unavailable = unavailable
+                Denominator = unavailable || noSample ? null : over, Unavailable = unavailable
             });
         }
 
-        return new StatsRow(player, team, cells)
-        {
-            PlayerSlot = RowSlot(row)
-        };
+        return new StatsRow(player, team, cells) { PlayerSlot = RowSlot(row) };
     }
 
     /// <summary>
@@ -1897,10 +1865,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
                     VisibilityAnalyzer.Analyze(demo.Frames, engine, PositionUtil.CellToWorld,
                         options, token);
                 token.ThrowIfCancellationRequested();
-                return new VisibilityStatsProjector
-                {
-                    MatchId = matchId
-                }.Project(report, demo);
+                return new VisibilityStatsProjector { MatchId = matchId }.Project(report, demo);
             }, token);
 
             if (token.IsCancellationRequested)
@@ -1971,7 +1936,12 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 ///     built in the same catalogue display order). <see cref="Meta" /> carries the view-only
 ///     presentation (friendly name, group, width, alignment) from <see cref="ColumnCatalogue" />.
 /// </summary>
-public sealed record StatColumn(string Label, int Index, ColumnMeta Meta, bool IsSorted = false, bool SortDescending = false)
+public sealed record StatColumn(
+    string Label,
+    int Index,
+    ColumnMeta Meta,
+    bool IsSorted = false,
+    bool SortDescending = false)
 {
     /// <summary>Friendly header text.</summary>
     public string Display => Meta.Display;
@@ -2225,7 +2195,9 @@ public sealed record VisibilityRow(
     public string VisionShareDisplay => FormatShare(VisionShare);
 
     private static string FormatSeconds(double s) => s.ToString("0.#", CultureInfo.InvariantCulture) + " s";
-    private static string FormatShare(double share) => (share * 100).ToString("0.#", CultureInfo.InvariantCulture) + " %";
+
+    private static string FormatShare(double share) =>
+        (share * 100).ToString("0.#", CultureInfo.InvariantCulture) + " %";
 }
 
 /// <summary>
@@ -2240,7 +2212,10 @@ internal readonly record struct ColumnScale(StatScale? Scale = null, bool MarksL
 ///     One cell: the raw boxed value (for sorting) plus its display string and, when built for a
 ///     catalogued column, the presentation metadata (width, alignment, emphasis).
 /// </summary>
-public sealed record StatCell(object? Raw, ColumnMeta? Meta = null, StatScale? Scale = null,
+public sealed record StatCell(
+    object? Raw,
+    ColumnMeta? Meta = null,
+    StatScale? Scale = null,
     bool MarksLeader = false)
 {
     /// <summary>
@@ -2287,7 +2262,8 @@ public sealed record StatCell(object? Raw, ColumnMeta? Meta = null, StatScale? S
             string noun = Math.Abs(count - 1) < 1e-9 && over.Noun.EndsWith('s')
                 ? over.Noun[..^1]
                 : over.Noun;
-            return $"{Display}{over.Unit} {over.Preposition} {count.ToString("0.##", CultureInfo.InvariantCulture)} {noun}";
+            return
+                $"{Display}{over.Unit} {over.Preposition} {count.ToString("0.##", CultureInfo.InvariantCulture)} {noun}";
         }
     }
 

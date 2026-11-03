@@ -86,7 +86,8 @@ public sealed class StampedFacts
     /// </summary>
     /// <param name="rulesetId">The ruleset's id.</param>
     public static bool IsHostRead(string rulesetId) =>
-        string.Equals(rulesetId, RoundFactsFingerprint.RulesetId, StringComparison.Ordinal) || LibraryTeamTables.IsLibraryRuleset(rulesetId);
+        string.Equals(rulesetId, RoundFactsFingerprint.RulesetId, StringComparison.Ordinal)
+        || LibraryTeamTables.IsLibraryRuleset(rulesetId);
 
     /// <summary>The stamp id a ruleset's facts are written under.</summary>
     /// <param name="rulesetId">The ruleset's id.</param>
@@ -137,7 +138,9 @@ public sealed class StampedFacts
         {
             // A dependency that is off still leaves a fingerprint, so the build that drops the ruleset stamps it
             // failed. Any other failure to compose has nothing to run.
-            fingerprint = Rules.MissingDependencyIdentity(rulesetId) is { } missing ? Combine(rulesetId, missing) : null;
+            fingerprint = Rules.MissingDependencyIdentity(rulesetId) is { } missing
+                ? Combine(rulesetId, missing)
+                : null;
         }
 
         lock (byRate)

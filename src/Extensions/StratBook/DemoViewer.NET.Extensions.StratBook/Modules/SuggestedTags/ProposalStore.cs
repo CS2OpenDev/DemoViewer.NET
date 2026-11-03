@@ -222,7 +222,8 @@ public sealed class ProposalStore
     /// <summary>Are the demo's proposals current under <paramref name="fingerprint" /> (the detector set)?</summary>
     /// <param name="demoPath">The demo's path.</param>
     /// <param name="fingerprint">The detector-set fingerprint in force for the demo's map.</param>
-    public bool IsCurrent(string demoPath, string fingerprint) => Stamp(demoPath)?.IsCurrent(Schema, fingerprint) ?? false;
+    public bool IsCurrent(string demoPath, string fingerprint) =>
+        Stamp(demoPath)?.IsCurrent(Schema, fingerprint) ?? false;
 
     /// <summary>
     ///     Writes a demo's proposals built under <paramref name="fingerprint" /> with <paramref name="pending" />
@@ -235,10 +236,11 @@ public sealed class ProposalStore
     public void Write(string demoPath, ProposalDocument document, string fingerprint, int pending)
     {
         ArgumentNullException.ThrowIfNull(document);
-        Data.Write(demoPath, new DemoDataWrite(Facet, Schema, fingerprint, System.Text.Encoding.UTF8.GetBytes(document.Serialize()))
-        {
-            Count = pending
-        });
+        Data.Write(demoPath,
+            new DemoDataWrite(Facet, Schema, fingerprint, System.Text.Encoding.UTF8.GetBytes(document.Serialize()))
+            {
+                Count = pending
+            });
     }
 
     /// <summary>Updates the pending count alone, after a verdict; a demo with no stamp gets a pending one carrying the count.</summary>

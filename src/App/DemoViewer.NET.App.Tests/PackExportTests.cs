@@ -104,7 +104,8 @@ public class PackExportTests
     {
         ReviewEntry clip = ReviewEntry.Clip("/d/a.dem", 0, 1280, "", ReviewSources.Manual, 128);
 
-        await Assert.That(PackPlanner.EstimateFrames(clip, 30)).IsEqualTo(301).Because("ten seconds at 30 fps, both ends");
+        await Assert.That(PackPlanner.EstimateFrames(clip, 30)).IsEqualTo(301)
+            .Because("ten seconds at 30 fps, both ends");
         await Assert.That(PackPlanner.EstimateFrames(clip with { TickRate = 0 }, 30)).IsEqualTo(601)
             .Because("an unknown rate is read as 64");
     }
@@ -125,9 +126,11 @@ public class PackExportTests
         using (Assert.Multiple())
         {
             await Assert.That(plan.Segments.OfType<PackTitleCard>().Count()).IsEqualTo(0);
-            await Assert.That(Path.GetFileName(folder)).IsEqualTo("scrims").Because("the folder is the pack path without its extension");
+            await Assert.That(Path.GetFileName(folder)).IsEqualTo("scrims")
+                .Because("the folder is the pack path without its extension");
             await Assert.That(plan.Clips.Count).IsEqualTo(2);
-            await Assert.That(plan.Clips[0].OutputPath).IsEqualTo(Path.Combine(folder, "01 B site - smoke into CT.gif"));
+            await Assert.That(plan.Clips[0].OutputPath)
+                .IsEqualTo(Path.Combine(folder, "01 B site - smoke into CT.gif"));
             await Assert.That(plan.Clips[1].OutputPath).IsEqualTo(Path.Combine(folder, "02 B site - a long one.gif"));
             await Assert.That(plan.Clips.All(c => c.MaxFrames == SceneExportSession.GifMaxFrames)).IsTrue();
             await Assert.That(plan.Clips[0].Trimmed).IsFalse();
@@ -160,7 +163,8 @@ public class PackExportTests
     [Test]
     public async Task BuildClipRequest_ResolvesTheQueueRange_ToDemoFrames_WithTheInkLayerNamed()
     {
-        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 1064, 1128)], PackSettings.For(Pack, ExportFormats.Mp4), Exists);
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 1064, 1128)], PackSettings.For(Pack, ExportFormats.Mp4),
+            Exists);
         PackClip clip = plan.Clips[0];
 
         Scene2DExportRequest? request = PackPlanner.BuildClipRequest(clip, plan.Settings, Frames(1000, 2000), 64);
@@ -184,9 +188,11 @@ public class PackExportTests
     [Test]
     public async Task BuildClipRequest_HoldsAGifClip_ToItsCap()
     {
-        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64 * 200)], PackSettings.For("/p/x.gif", ExportFormats.Gif), Exists);
+        PackPlan plan = PackPlanner.Plan([Clip("/d/a.dem", 0, 64 * 200)],
+            PackSettings.For("/p/x.gif", ExportFormats.Gif), Exists);
 
-        Scene2DExportRequest? request = PackPlanner.BuildClipRequest(plan.Clips[0], plan.Settings, Frames(0, 64 * 200), 64);
+        Scene2DExportRequest? request =
+            PackPlanner.BuildClipRequest(plan.Clips[0], plan.Settings, Frames(0, 64 * 200), 64);
 
         await Assert.That(request!.Core.FrameCount).IsEqualTo(SceneExportSession.GifMaxFrames);
         SceneExportSession.Validate(request.Core);
@@ -202,7 +208,9 @@ public class PackExportTests
         PackPlan plan = PackPlanner.Plan(Queue(), Settings(), Exists);
         List<PackProgress> progress = [];
 
-        PackResult result = await new PackExporter(clips, encoder).ExportAsync(plan, new InlineProgress(progress.Add), CancellationToken.None);
+        PackResult result =
+            await new PackExporter(clips, encoder).ExportAsync(plan, new InlineProgress(progress.Add),
+                CancellationToken.None);
 
         RecordingSink sink = encoder.Sinks.Single();
         int card = ((PackTitleCard)plan.Segments[1]).Frames;
@@ -219,7 +227,8 @@ public class PackExportTests
         {
             await Assert.That(string.Join(",", encoder.Opened)).IsEqualTo(Pack);
             await Assert.That(string.Join(",", sink.Marks)).IsEqualTo(string.Join(",", expected));
-            await Assert.That(sink.DisposeCount).IsEqualTo(1).Because("the clips end their segment, the pack ends the file");
+            await Assert.That(sink.DisposeCount).IsEqualTo(1)
+                .Because("the clips end their segment, the pack ends the file");
             await Assert.That(clips.Demos.Distinct().Count()).IsEqualTo(3);
             await Assert.That(string.Join(",", result.Outputs)).IsEqualTo(Pack);
             await Assert.That(result.ClipsRendered).IsEqualTo(4);
@@ -260,7 +269,8 @@ public class PackExportTests
         Exception? thrown = null;
         try
         {
-            await new PackExporter(new FakeClips(framesPerClip: 4), encoder).ExportAsync(plan, null, CancellationToken.None);
+            await new PackExporter(new FakeClips(framesPerClip: 4), encoder).ExportAsync(plan, null,
+                CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -281,11 +291,20 @@ public class PackExportTests
         string path = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}.mp4");
         await File.WriteAllTextAsync(path, "half a video");
         using CancellationTokenSource cts = new();
-        FakeClips clips = new(framesPerClip: 2) { OnRender = n => { if (n == 2) { cts.Cancel(); } } };
+        FakeClips clips = new(framesPerClip: 2)
+        {
+            OnRender = n =>
+            {
+                if (n == 2)
+                {
+                    cts.Cancel();
+                }
+            }
+        };
         PackPlan plan = PackPlanner.Plan(Queue(), Settings(path), Exists);
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            async () => await new PackExporter(clips, new FakeEncoder()).ExportAsync(plan, null, cts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await new PackExporter(clips, new FakeEncoder()).ExportAsync(plan, null, cts.Token));
         await Assert.That(File.Exists(path)).IsFalse();
     }
 
@@ -295,8 +314,8 @@ public class PackExportTests
         FakeEncoder encoder = new();
         PackPlan plan = PackPlanner.Plan([Clip("/d/missing.dem", 0, 64)], Settings(), Exists);
 
-        await Assert.ThrowsAsync<ExportValidationException>(
-            async () => await new PackExporter(new FakeClips(1), encoder).ExportAsync(plan, null, CancellationToken.None));
+        await Assert.ThrowsAsync<ExportValidationException>(async () =>
+            await new PackExporter(new FakeClips(1), encoder).ExportAsync(plan, null, CancellationToken.None));
         await Assert.That(encoder.Opened.Count).IsEqualTo(0);
         await Assert.That(encoder.Prepared).IsFalse();
     }
@@ -306,16 +325,19 @@ public class PackExportTests
     {
         string root = Path.Combine(Path.GetTempPath(), $"dv-pack-{Guid.NewGuid():N}");
         FakeEncoder encoder = new();
-        PackPlan plan = PackPlanner.Plan(Queue(), Settings(Path.Combine(root, "scrims.gif"), ExportFormats.Gif), Exists);
+        PackPlan plan =
+            PackPlanner.Plan(Queue(), Settings(Path.Combine(root, "scrims.gif"), ExportFormats.Gif), Exists);
 
         try
         {
-            PackResult result = await new PackExporter(new FakeClips(2), encoder).ExportAsync(plan, null, CancellationToken.None);
+            PackResult result =
+                await new PackExporter(new FakeClips(2), encoder).ExportAsync(plan, null, CancellationToken.None);
 
             using (Assert.Multiple())
             {
                 await Assert.That(result.Outputs.Count).IsEqualTo(4);
-                await Assert.That(string.Join("|", encoder.Opened)).IsEqualTo(string.Join("|", plan.Clips.Select(c => c.OutputPath)));
+                await Assert.That(string.Join("|", encoder.Opened))
+                    .IsEqualTo(string.Join("|", plan.Clips.Select(c => c.OutputPath)));
                 await Assert.That(encoder.Sinks.All(s => s.DisposeCount == 1)).IsTrue();
                 await Assert.That(encoder.Sinks.SelectMany(s => s.Marks).Contains(RecordingSink.CardMark)).IsFalse();
                 await Assert.That(Directory.Exists(Path.Combine(root, "scrims"))).IsTrue();
@@ -340,7 +362,8 @@ public class PackExportTests
         await segment.DisposeAsync();
 
         PackSegmentSink second = new(inner);
-        await Assert.ThrowsAsync<IOException>(async () => await second.WriteAsync(new byte[4], 1, 1, CancellationToken.None));
+        await Assert.ThrowsAsync<IOException>(async () =>
+            await second.WriteAsync(new byte[4], 1, 1, CancellationToken.None));
         using (Assert.Multiple())
         {
             await Assert.That(inner.DisposeCount).IsEqualTo(0);
@@ -412,7 +435,8 @@ public class PackExportTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.PackOutputPath).EndsWith(".webm").Because("the extension follows the format");
-            await Assert.That(Path.GetDirectoryName(vm.PackOutputPath)).IsEqualTo(Path.GetDirectoryName(Path.Combine("/packs", "x")));
+            await Assert.That(Path.GetDirectoryName(vm.PackOutputPath))
+                .IsEqualTo(Path.GetDirectoryName(Path.Combine("/packs", "x")));
             await Assert.That(handed).IsNotNull();
             await Assert.That(handed!.Settings.FormatId).IsEqualTo(ExportFormats.WebM);
             await Assert.That(handed.Clips.Count).IsEqualTo(4);
@@ -429,7 +453,8 @@ public class PackExportTests
         queue.Add([Clip("/d/a.dem", 0, 64)]);
         using ReviewQueueTabViewModel vm = new(new ExtensionReviewQueue(queue), isBrowser: false,
             packExport: new ExtensionReviewPackExport(
-                (_, _, _) => throw new ExportRefusedException(SceneExportRunner.NoFfmpegRefusal), queue, fileExists: Exists));
+                (_, _, _) => throw new ExportRefusedException(SceneExportRunner.NoFfmpegRefusal), queue,
+                fileExists: Exists));
 
         await vm.ExportPackCommand.ExecuteAsync(null);
 

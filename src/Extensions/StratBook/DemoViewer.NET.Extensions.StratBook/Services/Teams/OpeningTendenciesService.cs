@@ -81,7 +81,8 @@ public sealed class OpeningTendenciesService
     /// <param name="grenades">The Grenade Index: every thrown grenade's release and landing.</param>
     /// <param name="positions">The round positions files, for the lurk.</param>
     /// <param name="fingerprintFor">The fingerprint current positions carry per map; a file under another is stale.</param>
-    public OpeningTendenciesService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts, GrenadeIndex grenades,
+    public OpeningTendenciesService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts,
+        GrenadeIndex grenades,
         RoundIndexStore positions, Func<string?, string> fingerprintFor)
     {
         ArgumentNullException.ThrowIfNull(teams);
@@ -127,7 +128,8 @@ public sealed class OpeningTendenciesService
                 withoutGrenades++;
             }
 
-            RoundPositionsDocument? positions = _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
+            RoundPositionsDocument? positions =
+                _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
             if (positions is null)
             {
                 withoutPositions++;
@@ -146,7 +148,8 @@ public sealed class OpeningTendenciesService
             }
 
             HashSet<string> roster = new(assignment.Side(endSide).Key, StringComparer.Ordinal);
-            DemoContext context = new(demo.Path, record.Sha256, rate, names, grenades.Count > 0 ? grenades : null, positions, roster);
+            DemoContext context = new(demo.Path, record.Sha256, rate, names, grenades.Count > 0 ? grenades : null,
+                positions, roster);
             foreach (RoundFacts round in rows.Rounds.OrderBy(x => x.Number))
             {
                 if (!round.IsLive || _teams.SideAtRound(demo.Path, teamId, round.Number) is not { } side)
@@ -266,7 +269,8 @@ public sealed class OpeningTendenciesService
                     continue;
                 }
 
-                (int run, int firstTick) = alone.TryGetValue(player.Slot, out (int Run, int FirstTick) was) ? was : (0, tick);
+                (int run, int firstTick) =
+                    alone.TryGetValue(player.Slot, out (int Run, int FirstTick) was) ? was : (0, tick);
                 alone[player.Slot] = (run + 1, firstTick);
                 if (run + 1 >= LurkMinSteps)
                 {
@@ -297,7 +301,8 @@ public sealed class OpeningTendenciesService
         kind == GrenadeKind.He ? "HE" : kind.ToString().ToLowerInvariant();
 
     private static string SiteLabel(RoundFacts round) =>
-        round.PlantTick is null ? NoPlant : round.PlantSite == BombSite.Unknown ? "unknown site" : round.PlantSite.ToString();
+        round.PlantTick is null ? NoPlant :
+        round.PlantSite == BombSite.Unknown ? "unknown site" : round.PlantSite.ToString();
 
     private static string NameOf(DemoContext demo, int slot) =>
         demo.Names.TryGetValue(slot, out string? name) && name.Length > 0 ? name : $"slot {slot}";
@@ -313,7 +318,8 @@ public sealed class OpeningTendenciesService
     {
         // The team's own players by SteamID; the side at the throw only when the row names no player.
         public bool Throws(IndexedGrenade g, int side) =>
-            g.Row.ThrowerSteamId64 is { } steam && Roster is { Count: > 0 } roster ? roster.Contains(steam) && g.Row.ThrowerTeam == side
+            g.Row.ThrowerSteamId64 is { } steam && Roster is { Count: > 0 } roster
+                ? roster.Contains(steam) && g.Row.ThrowerTeam == side
                 : g.Row.ThrowerTeam == side;
     }
 
@@ -400,7 +406,8 @@ public sealed class OpeningTendenciesService
             {
                 _utilityRounds++;
                 IndexedGrenade? first = grenades
-                    .Where(g => g.Row.RoundNumber == round.Number && demo.Throws(g, side) && g.Row.ReleaseTick >= freezeEnd)
+                    .Where(g => g.Row.RoundNumber == round.Number && demo.Throws(g, side)
+                                                                  && g.Row.ReleaseTick >= freezeEnd)
                     .OrderBy(g => g.Row.ReleaseTick)
                     .FirstOrDefault();
                 if (first is null)
@@ -441,7 +448,8 @@ public sealed class OpeningTendenciesService
             if (OpeningDuel(round, side) is { } duel)
             {
                 _entry.Add($"{NameOf(demo, duel.Slot)} at {site}",
-                    Clip(demo, round, duel.Kill.Tick - ClipLeadSeconds * rate, duel.Kill.Tick + ClipTailSeconds * rate));
+                    Clip(demo, round, duel.Kill.Tick - ClipLeadSeconds * rate,
+                        duel.Kill.Tick + ClipTailSeconds * rate));
             }
 
             if (demo.Positions is { } positions && positions.Round(round.Number) is not null)
@@ -449,7 +457,8 @@ public sealed class OpeningTendenciesService
                 _lurkRounds++;
                 if (Lurk(positions, round, side, rate) is { } lurk)
                 {
-                    TendencyRound clip = Clip(demo, round, lurk.Tick - 2 * rate, lurk.Tick + 2 * ClipTailSeconds * rate);
+                    TendencyRound clip = Clip(demo, round, lurk.Tick - 2 * rate,
+                        lurk.Tick + 2 * ClipTailSeconds * rate);
                     _lurkClock.Add(ClockLabel(Seconds(lurk.Tick)), clip);
                     _lurkers.Add(NameOf(demo, lurk.Slot), clip);
                 }

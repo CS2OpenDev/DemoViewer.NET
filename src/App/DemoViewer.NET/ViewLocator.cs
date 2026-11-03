@@ -36,10 +36,7 @@ public class ViewLocator : IDataTemplate
             return Create(type, ExtensionFaults.Current);
         }
 
-        return new TextBlock
-        {
-            Text = "Not Found: " + name
-        };
+        return new TextBlock { Text = "Not Found: " + name };
     }
 
     /// <summary>

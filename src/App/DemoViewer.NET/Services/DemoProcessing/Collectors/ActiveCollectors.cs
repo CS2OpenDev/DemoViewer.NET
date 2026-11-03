@@ -85,7 +85,8 @@ internal sealed class ActiveCollectors
         }
     }
 
-    private sealed class Registration(ActiveCollectors owner, string path, CollectorSet collectors, ForwardNeeds needs) : IDisposable
+    private sealed class Registration(ActiveCollectors owner, string path, CollectorSet collectors, ForwardNeeds needs)
+        : IDisposable
     {
         private int _ended;
 

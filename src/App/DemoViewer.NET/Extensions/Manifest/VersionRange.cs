@@ -42,7 +42,9 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
     /// <summary>Parses a range.</summary>
     /// <exception cref="FormatException">Not a range this syntax covers.</exception>
     public static VersionRange Parse(string text) =>
-        TryParse(text, out VersionRange? range) ? range : throw new FormatException($"'{text}' is not a version range.");
+        TryParse(text, out VersionRange? range)
+            ? range
+            : throw new FormatException($"'{text}' is not a version range.");
 
     /// <summary>Parses a range; false when the text is not one.</summary>
     public static bool TryParse(string? text, [NotNullWhen(true)] out VersionRange? range)
@@ -65,7 +67,8 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
         {
             // Only an explicit "*" may yield an empty set (which admits everything); an alternative with no
             // token at all ("^1.0 ||") is a typo, and a typo must not widen the range.
-            string[] tokens = alternative.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            string[] tokens = alternative.Split(' ',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (tokens.Length == 0)
             {
                 return false;
@@ -98,7 +101,9 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
                 return true;
             }
 
-            if (set.All(c => c.Holds(version)) && (!version.IsPrerelease || set.Any(c => c.Version.IsPrerelease && c.Version.SameCore(version))))
+            if (set.All(c => c.Holds(version)) && (!version.IsPrerelease
+                                                   || set.Any(c =>
+                                                       c.Version.IsPrerelease && c.Version.SameCore(version))))
             {
                 return true;
             }
@@ -111,7 +116,8 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
     public override string ToString() => _text;
 
     /// <inheritdoc />
-    public bool Equals(VersionRange? other) => other is not null && string.Equals(_text, other._text, StringComparison.Ordinal);
+    public bool Equals(VersionRange? other) =>
+        other is not null && string.Equals(_text, other._text, StringComparison.Ordinal);
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => Equals(obj as VersionRange);
@@ -196,8 +202,12 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
             return false;
         }
 
-        int? minor = m.Groups[2].Success && !minorWild ? int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture) : null;
-        int? patch = minor is not null && m.Groups[3].Success && !patchWild ? int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture) : null;
+        int? minor = m.Groups[2].Success && !minorWild
+            ? int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)
+            : null;
+        int? patch = minor is not null && m.Groups[3].Success && !patchWild
+            ? int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture)
+            : null;
         if (m.Groups[4].Success && patch is null)
         {
             return false;
@@ -212,7 +222,8 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
     [GeneratedRegex(@"^(>=|<=|>|<|=|\^|~)?(.+)$")]
     private static partial Regex Token();
 
-    [GeneratedRegex(@"^(\d+)(?:\.(\d+|x|X|\*))?(?:\.(\d+|x|X|\*))?(?:-(" + SemVersion.PrereleasePattern + @"))?(?:\+[0-9A-Za-z.-]+)?$")]
+    [GeneratedRegex(@"^(\d+)(?:\.(\d+|x|X|\*))?(?:\.(\d+|x|X|\*))?(?:-(" + SemVersion.PrereleasePattern
+                                                                         + @"))?(?:\+[0-9A-Za-z.-]+)?$")]
     private static partial Regex PartialVersion();
 
     private enum Op
@@ -245,7 +256,8 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
         public SemVersion Floor => new(Major, Minor ?? 0, Patch ?? 0, Prerelease);
 
         // The first version above everything the partial names: 1 -> 2.0.0, 1.2 -> 1.3.0.
-        public SemVersion NextPartial() => Minor is null ? new SemVersion(Major + 1, 0, 0) : new SemVersion(Major, Minor.Value + 1, 0);
+        public SemVersion NextPartial() =>
+            Minor is null ? new SemVersion(Major + 1, 0, 0) : new SemVersion(Major, Minor.Value + 1, 0);
 
         // ^1.2.3 -> 2.0.0; ^0.2.3 -> 0.3.0; ^0.0.3 -> 0.0.4; ^0 -> 1.0.0; ^0.2 -> 0.3.0.
         public SemVersion CaretCeiling()
@@ -264,6 +276,7 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
         }
 
         // ~1.2.3 -> 1.3.0; ~1 -> 2.0.0.
-        public SemVersion TildeCeiling() => Minor is null ? new SemVersion(Major + 1, 0, 0) : new SemVersion(Major, Minor.Value + 1, 0);
+        public SemVersion TildeCeiling() =>
+            Minor is null ? new SemVersion(Major + 1, 0, 0) : new SemVersion(Major, Minor.Value + 1, 0);
     }
 }

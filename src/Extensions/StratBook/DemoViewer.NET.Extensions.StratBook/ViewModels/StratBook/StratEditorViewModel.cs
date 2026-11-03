@@ -101,7 +101,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     private Guid? _clockNoteFor;
 
     /// <summary>The step table's heading: which clock its times are on.</summary>
-    public string StepsHeader { get; private set; } = "Steps (round clock remaining, m:ss; +m:ss after the timer stopped)";
+    public string StepsHeader { get; private set; } =
+        "Steps (round clock remaining, m:ss; +m:ss after the timer stopped)";
 
     /// <param name="session">The session the editor reads and writes.</param>
     /// <param name="lineups">
@@ -113,7 +114,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     ///     null carries authored positions only.
     /// </param>
     /// <param name="placeCentres">The canvas's place centres, so a new step carries a watching token's facing.</param>
-    public StratEditorViewModel(StratSession session, IStratLineupCatalog? lineups = null, ThrowOriginResolver? throwOrigins = null,
+    public StratEditorViewModel(StratSession session, IStratLineupCatalog? lineups = null,
+        ThrowOriginResolver? throwOrigins = null,
         PlaceCentreResolver? placeCentres = null)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -180,7 +182,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     /// <param name="places">The resolver for the strat's owner and map.</param>
     /// <param name="pins">Pin candidates, "book default" excluded.</param>
     /// <param name="targets">The owner's strats on the map, this one included.</param>
-    public void Configure(CalloutResolver places, IReadOnlyList<StratPinOption> pins, IReadOnlyList<StratTargetOption> targets)
+    public void Configure(CalloutResolver places, IReadOnlyList<StratPinOption> pins,
+        IReadOnlyList<StratTargetOption> targets)
     {
         ArgumentNullException.ThrowIfNull(places);
         ArgumentNullException.ThrowIfNull(pins);
@@ -240,7 +243,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
         {
             EndEditBurst();
             if (field.Slot is { } slot
-                && StratStartBlock.WriteLocation(document, slot, entries.FirstOrDefault(StratLocations.IsSet), LegacyCarried(document),
+                && StratStartBlock.WriteLocation(document, slot, entries.FirstOrDefault(StratLocations.IsSet),
+                    LegacyCarried(document),
                     spawns: Spawns?.Invoke()) is { Count: > 0 } start)
             {
                 ApplyStart(start, [slot]);
@@ -272,7 +276,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     /// <summary>The entries an older file reads as carried copies, marked when the start block is first written.</summary>
     /// <param name="document">The strat.</param>
     internal IReadOnlyList<StartSource> LegacyCarried(StratDocument document) =>
-        LegacyCarriedFor?.Invoke(document) ?? StratSceneProjection.LegacyCarriedEntries(document, _throwOrigins, Spawns?.Invoke());
+        LegacyCarriedFor?.Invoke(document)
+        ?? StratSceneProjection.LegacyCarriedEntries(document, _throwOrigins, Spawns?.Invoke());
 
     /// <summary>
     ///     The canvas's reading of the entries an older file reads as copies, so the editor and a drag mark the same ones
@@ -302,11 +307,14 @@ public sealed partial class StratEditorViewModel : ObservableObject
     // A start write that would change nothing on screen, or bake in spawns not yet read, is not made: the row says why.
     private void ApplyStart(IReadOnlyList<PatchOp> ops, IReadOnlyList<string> slots)
     {
-        List<string> refusals = [.. slots.Select(s => StartRefusal?.Invoke(s)).OfType<string>().Distinct(StringComparer.Ordinal)];
+        List<string> refusals =
+            [.. slots.Select(s => StartRefusal?.Invoke(s)).OfType<string>().Distinct(StringComparer.Ordinal)];
         if (refusals.Count > 0)
         {
             Project();
-            Start.Note = refusals.Count == 1 ? refusals[0] : string.Join("; ", refusals.Take(2)) + (refusals.Count > 2 ? "; …" : "");
+            Start.Note = refusals.Count == 1
+                ? refusals[0]
+                : string.Join("; ", refusals.Take(2)) + (refusals.Count > 2 ? "; …" : "");
             return;
         }
 
@@ -327,12 +335,14 @@ public sealed partial class StratEditorViewModel : ObservableObject
         }
 
         EndEditBurst();
-        List<PatchOp> ops = StratClock.SwitchOps(document, value == TriggerClockChoice ? StratClock.TriggerKind : StratClock.RoundKind);
+        List<PatchOp> ops = StratClock.SwitchOps(document,
+            value == TriggerClockChoice ? StratClock.TriggerKind : StratClock.RoundKind);
         if (ops.Count > 0)
         {
             Apply(ops);
             _clockNoteFor = document.Id;
-            ClockNote = "step and rotate times moved to the new clock; times written in notes, branch conditions and the trigger are not";
+            ClockNote =
+                "step and rotate times moved to the new clock; times written in notes, branch conditions and the trigger are not";
         }
     }
 
@@ -383,7 +393,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     public bool ApplyLineupPick(Guid stepId, string utilityKind, Guid lineupId, string? technique)
     {
         EndEditBurst();
-        if (_session.Document is not { } document || document.Steps.FindIndex(s => s.Id == stepId) is var index && index < 0)
+        if (_session.Document is not { } document
+            || document.Steps.FindIndex(s => s.Id == stepId) is var index && index < 0)
         {
             return false;
         }
@@ -395,8 +406,11 @@ public sealed partial class StratEditorViewModel : ObservableObject
         // The same lineup (a stored alias id included) keeps the stored id; a null technique is the most thrown.
         StratLineupChoice? stored = step.Utility?.LineupId is { } storedId ? ResolveLineup(storedId) : null;
         bool sameLineup = step.Utility?.LineupId == lineupId || stored?.Id == lineupId;
-        string? mostThrown = (stored ?? ResolveLineup(lineupId))?.Techniques is { Count: > 0 } techniques ? techniques[0].Key : null;
-        bool sameTechnique = string.Equals(step.Utility?.Technique ?? mostThrown, technique ?? mostThrown, StringComparison.Ordinal);
+        string? mostThrown = (stored ?? ResolveLineup(lineupId))?.Techniques is { Count: > 0 } techniques
+            ? techniques[0].Key
+            : null;
+        bool sameTechnique = string.Equals(step.Utility?.Technique ?? mostThrown, technique ?? mostThrown,
+            StringComparison.Ordinal);
         if (step.Utility is not null && sameLineup)
         {
             if (!string.Equals(step.Utility.Kind, utilityKind, StringComparison.Ordinal))
@@ -581,7 +595,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     /// <returns>Whether it wrote.</returns>
     public bool SetWho(Guid stepId, IReadOnlyCollection<string> slots)
     {
-        if (IsProjecting || _session.Document is not { } document || document.Steps.FindIndex(s => s.Id == stepId) is var index && index < 0)
+        if (IsProjecting || _session.Document is not { } document
+                         || document.Steps.FindIndex(s => s.Id == stepId) is var index && index < 0)
         {
             return false;
         }
@@ -654,14 +669,18 @@ public sealed partial class StratEditorViewModel : ObservableObject
     /// <param name="positions">The entries' indices.</param>
     internal void ClearPlaced(Guid stepId, IReadOnlyList<int> positions)
     {
-        if (_session.Document is not { } document || document.Steps.FindIndex(s => s.Id == stepId) is not (>= 0 and var index))
+        if (_session.Document is not { } document
+            || document.Steps.FindIndex(s => s.Id == stepId) is not (>= 0 and var index))
         {
             return;
         }
 
         EndEditBurst();
-        List<PatchOp> ops = [.. positions.Where(k => k >= 0 && k < document.Steps[index].Positions.Count).Distinct().OrderDescending()
-            .Select(k => StratDragPatches.Clear(index, k))];
+        List<PatchOp> ops =
+        [
+            .. positions.Where(k => k >= 0 && k < document.Steps[index].Positions.Count).Distinct().OrderDescending()
+                .Select(k => StratDragPatches.Clear(index, k))
+        ];
         if (ops.Count > 0)
         {
             _session.Apply(ops);
@@ -673,8 +692,9 @@ public sealed partial class StratEditorViewModel : ObservableObject
     /// <param name="position">The entry's index.</param>
     internal void ConvertPlaced(Guid stepId, int position)
     {
-        if (_session.Document is not { } document || document.Steps.FindIndex(s => s.Id == stepId) is not (>= 0 and var index)
-                                                   || position < 0 || position >= document.Steps[index].Positions.Count)
+        if (_session.Document is not { } document
+            || document.Steps.FindIndex(s => s.Id == stepId) is not (>= 0 and var index)
+            || position < 0 || position >= document.Steps[index].Positions.Count)
         {
             return;
         }
@@ -689,7 +709,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
 
     /// <summary>Whether the step's row shows its lines one per player; false for a row that shows them as one, or no row.</summary>
     /// <param name="stepId">The step.</param>
-    public bool ShowsLinesApart(Guid stepId) => Steps.FirstOrDefault(r => r.Id == stepId) is { ShowCompact: false, HasLines: true };
+    public bool ShowsLinesApart(Guid stepId) => Steps.FirstOrDefault(r => r.Id == stepId) is
+        { ShowCompact: false, HasLines: true };
 
     /// <summary>A row switched between its lines as one and one per player; Set On Map reads <see cref="ShowsLinesApart" />.</summary>
     public event Action? LinesViewChanged;
@@ -697,7 +718,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     internal void RaiseLinesViewChanged() => LinesViewChanged?.Invoke();
 
     private static StratStep CloneStep(StratStep step) =>
-        JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep)!.Deserialize(StratJsonContext.Default.StratStep)!;
+        JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep)!.Deserialize(StratJsonContext.Default
+            .StratStep)!;
 
     // ── Lines ────────────────────────────────────────────────────────────────────────────────────
 
@@ -709,7 +731,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     /// <param name="line">The line's index in <see cref="StratStepLines.Of" />.</param>
     /// <param name="slot">The new slot.</param>
     /// <param name="expandAll">The row shows a step for everyone as a line per slot.</param>
-    internal void ChangeLineSlot(int index, int line, string slot, bool expandAll = false) => ApplyInBurst(index, "slot" + line,
+    internal void ChangeLineSlot(int index, int line, string slot, bool expandAll = false) => ApplyInBurst(index,
+        "slot" + line,
         (start, path) => StratLinePatches.ChangeSlot(start, path, line, slot, expandAll));
 
     /// <summary>One edit of a step's lines, as one undo entry, written in the stored shape (<see cref="StratLinePatches" />).</summary>
@@ -802,7 +825,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
             return [];
         }
 
-        List<PatchOp> ops = [PatchOp.ReplaceOp(path + "/lineupId", null, lineupId is { } id ? JsonValue.Create(id) : null)];
+        List<PatchOp> ops =
+            [PatchOp.ReplaceOp(path + "/lineupId", null, lineupId is { } id ? JsonValue.Create(id) : null)];
         if (utility.ContainsKey("technique"))
         {
             ops.Add(PatchOp.RemoveOp(path + "/technique", null));
@@ -818,10 +842,12 @@ public sealed partial class StratEditorViewModel : ObservableObject
     /// <param name="index">The step's index.</param>
     /// <param name="technique">A technique key.</param>
     /// <param name="mostThrown">The lineup's most thrown technique, what a null technique means.</param>
-    internal void ChangeTechnique(int index, string technique, string? mostThrown) => ApplyInBurst(index, "technique", (start, path) =>
-        start.Utility is null || string.Equals(start.Utility.Technique ?? mostThrown, technique, StringComparison.Ordinal)
-            ? []
-            : [PatchOp.ReplaceOp(path + "/utility/technique", null, JsonValue.Create(technique))]);
+    internal void ChangeTechnique(int index, string technique, string? mostThrown) => ApplyInBurst(index, "technique",
+        (start, path) =>
+            start.Utility is null
+            || string.Equals(start.Utility.Technique ?? mostThrown, technique, StringComparison.Ordinal)
+                ? []
+                : [PatchOp.ReplaceOp(path + "/utility/technique", null, JsonValue.Create(technique))]);
 
     /// <summary>
     ///     Ends the combo box burst: the next change starts a new undo entry from the step as it then is. The view
@@ -840,7 +866,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
         }
 
         StratStep current = document.Steps[index];
-        if (_burst is not { } burst || burst.StepId != current.Id || burst.Field != field || burst.Version != _session.Version)
+        if (_burst is not { } burst || burst.StepId != current.Id || burst.Field != field
+            || burst.Version != _session.Version)
         {
             burst = new EditBurst(current.Id, field,
                 JsonSerializer.SerializeToNode(current, StratJsonContext.Default.StratStep)!
@@ -899,10 +926,12 @@ public sealed partial class StratEditorViewModel : ObservableObject
 
     partial void OnStatusChanged(string value) => Replace("/status", JsonValue.Create(value));
 
-    partial void OnNotesChanged(string value) => Replace("/notes", string.IsNullOrWhiteSpace(value) ? null : JsonValue.Create(value));
+    partial void OnNotesChanged(string value) =>
+        Replace("/notes", string.IsNullOrWhiteSpace(value) ? null : JsonValue.Create(value));
 
     partial void OnTagsTextChanged(string value) =>
-        Replace("/tags", new JsonArray(value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        Replace("/tags", new JsonArray(value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.Ordinal)
             .Select(t => (JsonNode?)JsonValue.Create(t))
             .ToArray()));
@@ -948,7 +977,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
         }
 
         double wanted = index >= 0
-            ? StratClock.AtSecondsOf(document.Clock, StratClock.ElapsedOf(document.Clock, document.Steps[index].AtSeconds) + NewStepOffsetSeconds)
+            ? StratClock.AtSecondsOf(document.Clock,
+                StratClock.ElapsedOf(document.Clock, document.Steps[index].AtSeconds) + NewStepOffsetSeconds)
             : StratClock.StartOf(document.Clock);
         Guid id = Guid.NewGuid();
         Apply([StepAuthoringPatches.AddCarriedStep(document, index, wanted, id, _throwOrigins, _placeCentres)]);
@@ -1014,7 +1044,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
         for (int b = document.Branches.Count - 1; b >= 0; b--)
         {
             StratBranch branch = document.Branches[b];
-            if (branch.AfterStepId == row.Id || (branch.Target.StratId == document.Id && branch.Target.StepId == row.Id))
+            if (branch.AfterStepId == row.Id
+                || (branch.Target.StratId == document.Id && branch.Target.StepId == row.Id))
             {
                 ops.Add(PatchOp.RemoveOp(Invariant($"/branches/{b}"), null));
             }
@@ -1047,7 +1078,9 @@ public sealed partial class StratEditorViewModel : ObservableObject
         }
 
         JsonNode node = JsonSerializer.SerializeToNode(document.Steps[index], StratJsonContext.Default.StratStep)!;
-        Apply([PatchOp.RemoveOp(Invariant($"/steps/{index}"), null), PatchOp.AddOp(Invariant($"/steps/{target}"), node)]);
+        Apply([
+            PatchOp.RemoveOp(Invariant($"/steps/{index}"), null), PatchOp.AddOp(Invariant($"/steps/{target}"), node)
+        ]);
     }
 
     /// <summary>
@@ -1068,7 +1101,9 @@ public sealed partial class StratEditorViewModel : ObservableObject
             AfterStepId = document.Steps[^1].Id,
             Target = new BranchTarget { StratId = document.Id }
         };
-        Apply([PatchOp.AddOp("/branches/-", JsonSerializer.SerializeToNode(branch, StratJsonContext.Default.StratBranch))]);
+        Apply([
+            PatchOp.AddOp("/branches/-", JsonSerializer.SerializeToNode(branch, StratJsonContext.Default.StratBranch))
+        ]);
     }
 
     [RelayCommand]
@@ -1113,11 +1148,14 @@ public sealed partial class StratEditorViewModel : ObservableObject
             ? "Steps (from the trigger, +m:ss)"
             : "Steps (round clock remaining, m:ss; +m:ss after the timer stopped)";
         _startEntries = [];
-        if (document.Start is null && StratStartBlock.Legacy(document, out IReadOnlyList<StartSource> sources) is not null)
+        if (document.Start is null
+            && StratStartBlock.Legacy(document, out IReadOnlyList<StartSource> sources) is not null)
         {
             foreach (StartSource source in sources)
             {
-                (_startEntries.TryGetValue(source.Step, out HashSet<int>? entries) ? entries : _startEntries[source.Step] = []).Add(source.Position);
+                (_startEntries.TryGetValue(source.Step, out HashSet<int>? entries)
+                    ? entries
+                    : _startEntries[source.Step] = []).Add(source.Position);
             }
         }
 
@@ -1173,7 +1211,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
         {
             if (issue.Severity == StratIssueSeverity.Warning && StratDepartureCheck.PositionOf(issue.Field) is { } at)
             {
-                (zips.TryGetValue(at.Step, out Dictionary<int, string>? byPosition) ? byPosition : zips[at.Step] = [])[at.Position] = issue.Message;
+                (zips.TryGetValue(at.Step, out Dictionary<int, string>? byPosition) ? byPosition : zips[at.Step] = [])
+                    [at.Position] = issue.Message;
             }
         }
 
@@ -1194,13 +1233,17 @@ public sealed partial class StratEditorViewModel : ObservableObject
         for (int i = 0; i < document.Branches.Count; i++)
         {
             StratBranch branch = document.Branches[i];
-            Branches[i].Load(i, branch, TargetFor(branch.Target.StratId), TargetStepOptions(document, branch.Target.StratId));
+            Branches[i].Load(i, branch, TargetFor(branch.Target.StratId),
+                TargetStepOptions(document, branch.Target.StratId));
         }
 
         // One validation per document version, shared by the summary and the rows.
         IReadOnlyList<StratIssue> issues = _session.Issues;
-        List<string> lines = [.. issues.Select(issue => $"{issue.Severity.ToString().ToLowerInvariant()}: {issue.Message}"
-                                                        + (issue.Field.Length > 0 ? $" ({issue.Field})" : ""))];
+        List<string> lines =
+        [
+            .. issues.Select(issue => $"{issue.Severity.ToString().ToLowerInvariant()}: {issue.Message}"
+                                      + (issue.Field.Length > 0 ? $" ({issue.Field})" : ""))
+        ];
         if (!Issues.SequenceEqual(lines))
         {
             Replace(Issues, lines);
@@ -1226,7 +1269,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     {
         string[] parts = pointer.Split('/');
         return parts.Length >= 3 && parts[1] == "steps"
-                                 && int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out int index)
+                                 && int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture,
+                                     out int index)
             ? index
             : null;
     }
@@ -1254,7 +1298,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
         StratTargetOption? known = TargetStrats.FirstOrDefault(t => t.Id == stratId);
         if (known is null)
         {
-            known = new StratTargetOption(stratId, stratId == _session.Document?.Id ? "this strat" : "a strat not in this book");
+            known = new StratTargetOption(stratId,
+                stratId == _session.Document?.Id ? "this strat" : "a strat not in this book");
             TargetStrats.Add(known);
         }
 
@@ -1268,14 +1313,16 @@ public sealed partial class StratEditorViewModel : ObservableObject
         List<StratStepOption> options = [StratStepOption.Start];
         if (targetStrat == document.Id)
         {
-            options.AddRange(document.Steps.Select((s, i) => new StratStepOption(s.Id, StepLabel(i, s, document.Clock))));
+            options.AddRange(
+                document.Steps.Select((s, i) => new StratStepOption(s.Id, StepLabel(i, s, document.Clock))));
         }
 
         return options;
     }
 
     internal static string StepLabel(int index, StratStep step, StratClockInfo? clock = null) =>
-        Invariant($"{index + 1} · {StratClock.Format(clock, step.AtSeconds)} {StratStepLines.ActorOf(step)} {step.Verb}");
+        Invariant(
+            $"{index + 1} · {StratClock.Format(clock, step.AtSeconds)} {StratStepLines.ActorOf(step)} {step.Verb}");
 
     private static JsonValue? NoneToNull(string? value) =>
         string.IsNullOrEmpty(value) || value == None ? null : JsonValue.Create(value);
@@ -1340,13 +1387,15 @@ public sealed record StratFieldIssue(bool IsRefusal, string Message)
         List<StratFieldIssue> present = [.. issues.OfType<StratFieldIssue>()];
         return present.Count == 0
             ? null
-            : new StratFieldIssue(present.Exists(i => i.IsRefusal), string.Join(Environment.NewLine, present.Select(i => i.Message).Distinct()));
+            : new StratFieldIssue(present.Exists(i => i.IsRefusal),
+                string.Join(Environment.NewLine, present.Select(i => i.Message).Distinct()));
     }
 
     internal static StratFieldIssue? From(Dictionary<string, List<StratIssue>> byField, string field) =>
         byField.TryGetValue(field, out List<StratIssue>? issues)
             ? new StratFieldIssue(issues.Any(i => i.Severity == StratIssueSeverity.Refusal),
-                string.Join(Environment.NewLine, issues.Select(i => $"{i.Severity.ToString().ToLowerInvariant()}: {i.Message}")))
+                string.Join(Environment.NewLine,
+                    issues.Select(i => $"{i.Severity.ToString().ToLowerInvariant()}: {i.Message}")))
             : null;
 }
 
@@ -1793,7 +1842,8 @@ public sealed partial class StratStepRow : ObservableObject
             if (LineOf(issue.Field) is ({ } line, { } member))
             {
                 perLine[line].Add((issue, member));
-                lines.Add($"{issue.Severity.ToString().ToLowerInvariant()}: {issue.Message} ({Lines[line].Slot} {Lines[line].LabelOf(member)})");
+                lines.Add(
+                    $"{issue.Severity.ToString().ToLowerInvariant()}: {issue.Message} ({Lines[line].Slot} {Lines[line].LabelOf(member)})");
                 continue;
             }
 
@@ -1830,15 +1880,19 @@ public sealed partial class StratStepRow : ObservableObject
 
         // A compact row shows every line's marks on its one who, place and watching.
         WhoIssue = StratFieldIssue.Merge([ActorIssue, .. Lines.Select(l => l.SlotIssue)]);
-        GroupPlaceIssue = StratFieldIssue.Merge(HasLines ? [.. Lines.Select(l => l.PlaceIssue)] : IsStrayTo ? [] : [ToIssue]);
+        GroupPlaceIssue =
+            StratFieldIssue.Merge(HasLines ? [.. Lines.Select(l => l.PlaceIssue)] : IsStrayTo ? [] : [ToIssue]);
         GroupWatchIssue = StratFieldIssue.Merge([.. Lines.Select(l => l.WatchIssue)]);
         GroupViaIssue = StratFieldIssue.Merge([ViaIssue, .. Lines.Select(l => l.ViaIssue)]);
 
         foreach (string name in (string[])
                  [
-                     nameof(TimeIssue), nameof(ActorIssue), nameof(VerbIssue), nameof(FromIssue), nameof(ToIssue), nameof(UtilityIssue),
-                     nameof(LineupIssue), nameof(TechniqueIssue), nameof(LandingIssue), nameof(RowIssue), nameof(IssueText), nameof(HasIssues),
-                     nameof(LurkAreasIssue), nameof(RotateAtIssue), nameof(RotateToIssue), nameof(WhoIssue), nameof(GroupPlaceIssue),
+                     nameof(TimeIssue), nameof(ActorIssue), nameof(VerbIssue), nameof(FromIssue), nameof(ToIssue),
+                     nameof(UtilityIssue),
+                     nameof(LineupIssue), nameof(TechniqueIssue), nameof(LandingIssue), nameof(RowIssue),
+                     nameof(IssueText), nameof(HasIssues),
+                     nameof(LurkAreasIssue), nameof(RotateAtIssue), nameof(RotateToIssue), nameof(WhoIssue),
+                     nameof(GroupPlaceIssue),
                      nameof(GroupWatchIssue), nameof(GroupViaIssue), nameof(ViaIssue)
                  ])
         {
@@ -1852,7 +1906,8 @@ public sealed partial class StratStepRow : ObservableObject
     {
         string[] parts = pointer.Split('/');
         if (HasStoredLines && parts.Length > 4 && parts[3] == "assignments"
-            && int.TryParse(parts[4], NumberStyles.None, CultureInfo.InvariantCulture, out int line) && line < Lines.Count)
+            && int.TryParse(parts[4], NumberStyles.None, CultureInfo.InvariantCulture, out int line)
+            && line < Lines.Count)
         {
             return (line, parts.Length > 5 ? parts[5] : "slot");
         }
@@ -1956,7 +2011,8 @@ public sealed partial class StratStepRow : ObservableObject
 
         // A null technique is the most thrown one, shown selected without being written.
         Sync(Techniques, choice?.Techniques ?? []);
-        Technique = Techniques.FirstOrDefault(t => string.Equals(t.Key, step.Utility?.Technique, StringComparison.Ordinal))
+        Technique = Techniques.FirstOrDefault(t =>
+                        string.Equals(t.Key, step.Utility?.Technique, StringComparison.Ordinal))
                     ?? Techniques.FirstOrDefault();
 
         OnPropertyChanged(nameof(Number));
@@ -1966,7 +2022,8 @@ public sealed partial class StratStepRow : ObservableObject
     // Rebuilt only when what they say changes, so a focused chip keeps focus across an unrelated edit.
     private void LoadPlaced(StratStep step, IReadOnlyDictionary<int, string>? warnings)
     {
-        List<StratPlacedChip> chips = StratPlacedChip.For(this, step, _owner.KnownPlaceAtForRows, warnings, _owner.LegacySeen,
+        List<StratPlacedChip> chips = StratPlacedChip.For(this, step, _owner.KnownPlaceAtForRows, warnings,
+            _owner.LegacySeen,
             _owner.StartEntriesOn(_index));
         if (Placed.Select(Key).SequenceEqual(chips.Select(Key)))
         {
@@ -1982,14 +2039,16 @@ public sealed partial class StratStepRow : ObservableObject
         OnPropertyChanged(nameof(HasPlaced));
 
         static string Key(StratPlacedChip chip) =>
-            chip.Text + "|" + chip.ToolTip + "|" + string.Join(",", chip.Entries.Select(e => e.PositionIndex + ":" + e.Text + ":" + e.ConvertLabel));
+            chip.Text + "|" + chip.ToolTip + "|" + string.Join(",",
+                chip.Entries.Select(e => e.PositionIndex + ":" + e.Text + ":" + e.ConvertLabel));
     }
 
     // Rebuilt only when the number of lines or their kind changes, so a field keeps focus across its own edit.
     private void LoadLines(StratStep step)
     {
         bool stored = StratStepLines.HasLines(step);
-        ExpandsAll = !ShowCompact && !stored && string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal);
+        ExpandsAll = !ShowCompact && !stored
+                                  && string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal);
         IReadOnlyList<StepAssignment> lines = ExpandsAll ? StratLinePatches.Copy(step, true) : StratStepLines.Of(step);
         // Five lines read from a step for everyone and the five stored lines an edit of one makes are the same rows.
         bool isImplicit = !stored && !ExpandsAll;
@@ -2035,11 +2094,14 @@ public sealed partial class StratStepRow : ObservableObject
         GroupWatchValue = StratLocations.Watched(shared?.Watch);
         GroupViaValue = StratLocations.Via(shared?.Via, shared?.ViaPoints);
         HasGroupAngle = shared?.Watch?.YawDegrees is not null;
-        GroupAngleText = shared?.Watch?.YawDegrees is { } yaw ? yaw.ToString("0", CultureInfo.InvariantCulture) + "°" : "";
+        GroupAngleText = shared?.Watch?.YawDegrees is { } yaw
+            ? yaw.ToString("0", CultureInfo.InvariantCulture) + "°"
+            : "";
         RefreshView();
         foreach (string name in (string[])
                  [
-                     nameof(WhoText), nameof(PlayerCount), nameof(HasGroupAngle), nameof(GroupAngleText), nameof(ShowGroupPlace), nameof(ShowGroupWatch),
+                     nameof(WhoText), nameof(PlayerCount), nameof(HasGroupAngle), nameof(GroupAngleText),
+                     nameof(ShowGroupPlace), nameof(ShowGroupWatch),
                      nameof(ShowGroupVia)
                  ])
         {
@@ -2070,9 +2132,11 @@ public sealed partial class StratStepRow : ObservableObject
         _owner.WriteLocation(GroupPlaceTarget, _owner.ParseLocation(value, GroupPlaceValue));
     }
 
-    partial void OnGroupPlaceValueChanged(IReadOnlyList<PlaceRef> value) => _owner.WriteLocation(GroupPlaceTarget, value);
+    partial void OnGroupPlaceValueChanged(IReadOnlyList<PlaceRef> value) =>
+        _owner.WriteLocation(GroupPlaceTarget, value);
 
-    partial void OnGroupWatchValueChanged(IReadOnlyList<PlaceRef> value) => _owner.WriteLocation(GroupWatchTarget, value);
+    partial void OnGroupWatchValueChanged(IReadOnlyList<PlaceRef> value) =>
+        _owner.WriteLocation(GroupWatchTarget, value);
 
     partial void OnGroupViaValueChanged(IReadOnlyList<PlaceRef> value) => _owner.WriteLocation(GroupViaTarget, value);
 
@@ -2110,7 +2174,9 @@ public sealed partial class StratStepRow : ObservableObject
     {
         if (!_owner.IsProjecting)
         {
-            _owner.EditLurk(_index, lurk => (lurk.Rotate ??= new LurkRotate()).When = string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+            _owner.EditLurk(_index,
+                lurk => (lurk.Rotate ??= new LurkRotate()).When =
+                    string.IsNullOrWhiteSpace(value) ? null : value.Trim());
         }
     }
 
@@ -2131,7 +2197,8 @@ public sealed partial class StratStepRow : ObservableObject
         _lineSlot = slot;
         foreach (StratLineRow line in Lines)
         {
-            line.IsSelected = IsSelected && slot is not null && string.Equals(line.Slot, slot, StringComparison.Ordinal);
+            line.IsSelected = IsSelected && slot is not null
+                                         && string.Equals(line.Slot, slot, StringComparison.Ordinal);
         }
     }
 
@@ -2259,7 +2326,8 @@ public sealed partial class StratStepRow : ObservableObject
 
         PlaceRef? stored = LandingValue.Count > 0 ? LandingValue[0] : null;
         PlaceRef? next = value.Count > 0 ? StratLocations.Clone(value[0]) : null;
-        if (stored is not null && StratLocations.HasPoint(stored) && (next is not null || StratLocations.HasPlace(stored)))
+        if (stored is not null && StratLocations.HasPoint(stored)
+                               && (next is not null || StratLocations.HasPlace(stored)))
         {
             next ??= new PlaceRef { Extra = stored.Extra };
             if (!StratLocations.HasPoint(next))
@@ -2413,7 +2481,8 @@ public sealed partial class StratLineRow : ObservableObject
             WatchValue = StratLocations.Watched(line.Watch);
             PlaceLabel = StratStepFields.ToLabel(verb);
             ShowPlace = StratStepFields.Uses(verb, StratStepField.To) || PlaceText.Length > 0;
-            ShowWatch = StratStepFields.Uses(verb, StratStepField.Watch) || WatchText.Length > 0 || line.Watch?.YawDegrees is not null;
+            ShowWatch = StratStepFields.Uses(verb, StratStepField.Watch) || WatchText.Length > 0
+                                                                         || line.Watch?.YawDegrees is not null;
             ViaValue = StratLocations.Via(line.Via, line.ViaPoints);
             ShowVia = StratStepFields.Uses(verb, StratStepField.Via) || ViaText.Length > 0;
             HasAngle = line.Watch?.YawDegrees is not null;
@@ -2426,8 +2495,10 @@ public sealed partial class StratLineRow : ObservableObject
 
         foreach (string name in (string[])
                  [
-                     nameof(Index), nameof(IsImplicit), nameof(IsExplicit), nameof(PlaceLabel), nameof(ShowPlace), nameof(ShowWatch), nameof(HasAngle),
-                     nameof(AngleText), nameof(Callouts), nameof(PlaceTarget), nameof(WatchTarget), nameof(ViaTarget), nameof(ShowVia)
+                     nameof(Index), nameof(IsImplicit), nameof(IsExplicit), nameof(PlaceLabel), nameof(ShowPlace),
+                     nameof(ShowWatch), nameof(HasAngle),
+                     nameof(AngleText), nameof(Callouts), nameof(PlaceTarget), nameof(WatchTarget), nameof(ViaTarget),
+                     nameof(ShowVia)
                  ])
         {
             OnPropertyChanged(name);
@@ -2587,7 +2658,8 @@ public sealed partial class StratBranchRow : ObservableObject
     /// <summary>Where the branch can continue: the target's start, or any step when the target is this strat.</summary>
     public ObservableCollection<StratStepOption> TargetStepOptions { get; } = [];
 
-    internal void Load(int index, StratBranch branch, StratTargetOption target, IReadOnlyList<StratStepOption> targetSteps)
+    internal void Load(int index, StratBranch branch, StratTargetOption target,
+        IReadOnlyList<StratStepOption> targetSteps)
     {
         _index = index;
         if (!TargetStepOptions.SequenceEqual(targetSteps))
@@ -2616,7 +2688,8 @@ public sealed partial class StratBranchRow : ObservableObject
         }
     }
 
-    partial void OnConditionTextChanged(string value) => _owner.Replace(Path("condition/text"), JsonValue.Create(value));
+    partial void OnConditionTextChanged(string value) =>
+        _owner.Replace(Path("condition/text"), JsonValue.Create(value));
 
     // A new target strat starts at its beginning: a step id from the old target means nothing in the new one.
     partial void OnTargetStratChanged(StratTargetOption? value)

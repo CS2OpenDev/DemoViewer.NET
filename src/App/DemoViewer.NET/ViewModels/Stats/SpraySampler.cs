@@ -174,10 +174,13 @@ public static class SpraySampler
             Flush(run, weapons, byPlayerWeapon, origin);
         }
 
-        return [.. byPlayerWeapon
-            .Select(kv => new PlayerSprays(kv.Key.Slot, kv.Key.Weapon, kv.Value))
-            .OrderBy(p => p.Slot)
-            .ThenBy(p => p.Weapon, StringComparer.Ordinal)];
+        return
+        [
+            .. byPlayerWeapon
+                .Select(kv => new PlayerSprays(kv.Key.Slot, kv.Key.Weapon, kv.Value))
+                .OrderBy(p => p.Slot)
+                .ThenBy(p => p.Weapon, StringComparer.Ordinal)
+        ];
     }
 
     private static void Flush(
@@ -370,9 +373,13 @@ public static class SpraySampler
     }
 
     private readonly record struct Shot(
-        int Attacker, int Victim, int Tick,
-        float ShootPitch, float ShootYaw,
-        float PunchPitch, float PunchYaw,
+        int Attacker,
+        int Victim,
+        int Tick,
+        float ShootPitch,
+        float ShootYaw,
+        float PunchPitch,
+        float PunchYaw,
         int RecoilIndex)
     {
         /// <summary>Whether the victim's chest direction resolved for this shot.</summary>

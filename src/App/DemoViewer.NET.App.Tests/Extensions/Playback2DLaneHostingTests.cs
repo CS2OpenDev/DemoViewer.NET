@@ -35,7 +35,8 @@ public class Playback2DLaneHostingTests
 {
     private static readonly string[] CoreTracks = ["round", "kill", "bomb", "annotation"];
 
-    private static readonly MapLevel FakeLevel = new() { Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000 };
+    private static readonly MapLevel FakeLevel =
+        new() { Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000 };
 
     [Test]
     public async Task AddLane_RegistersTheTrackInTheLaneRow_AndDisposeUnregistersIt()
@@ -58,13 +59,18 @@ public class Playback2DLaneHostingTests
         IHostLaneHandle laneB = vm.Surface.AddLane(b, TimelineBandRow.Lane);
         using (Assert.Multiple())
         {
-            await Assert.That(vm.Timeline.Tracks.Select(t => t.Id)).IsEquivalentTo([.. CoreTracks, "lane-a", "lane-b"], CollectionOrdering.Matching);
-            await Assert.That(trackListChanges).IsEqualTo(2).Because("the footer's toggle list learns of a lane added after the build");
-            await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id)).IsEquivalentTo(["lane-a", "lane-b"], CollectionOrdering.Matching);
+            await Assert.That(vm.Timeline.Tracks.Select(t => t.Id))
+                .IsEquivalentTo([.. CoreTracks, "lane-a", "lane-b"], CollectionOrdering.Matching);
+            await Assert.That(trackListChanges).IsEqualTo(2)
+                .Because("the footer's toggle list learns of a lane added after the build");
+            await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id))
+                .IsEquivalentTo(["lane-a", "lane-b"], CollectionOrdering.Matching);
             await Assert.That(laneA.Track).IsSameReferenceAs(a);
-            await Assert.That(vm.Timeline.LaneBands.Select(band => band.TrackId)).IsEquivalentTo(["lane-a", "lane-b"], CollectionOrdering.Matching)
+            await Assert.That(vm.Timeline.LaneBands.Select(band => band.TrackId))
+                .IsEquivalentTo(["lane-a", "lane-b"], CollectionOrdering.Matching)
                 .Because("a lane registered after the build shows without a re-query");
-            await Assert.That(vm.Timeline.Bands.Select(band => band.TrackId).Distinct()).IsEquivalentTo(["round"], CollectionOrdering.Matching);
+            await Assert.That(vm.Timeline.Bands.Select(band => band.TrackId).Distinct())
+                .IsEquivalentTo(["round"], CollectionOrdering.Matching);
             await Assert.That(vm.Surface.AddLane(a, TimelineBandRow.Lane)).IsSameReferenceAs(laneA)
                 .Because("an id already registered is one lane");
         }
@@ -72,9 +78,12 @@ public class Playback2DLaneHostingTests
         laneA.Dispose();
         using (Assert.Multiple())
         {
-            await Assert.That(vm.Timeline.Tracks.Select(t => t.Id)).IsEquivalentTo([.. CoreTracks, "lane-b"], CollectionOrdering.Matching);
-            await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id)).IsEquivalentTo(["lane-b"], CollectionOrdering.Matching);
-            await Assert.That(vm.Timeline.LaneBands.Select(band => band.TrackId)).IsEquivalentTo(["lane-b"], CollectionOrdering.Matching);
+            await Assert.That(vm.Timeline.Tracks.Select(t => t.Id))
+                .IsEquivalentTo([.. CoreTracks, "lane-b"], CollectionOrdering.Matching);
+            await Assert.That(vm.Timeline.Lanes.Select(l => l.Track.Id))
+                .IsEquivalentTo(["lane-b"], CollectionOrdering.Matching);
+            await Assert.That(vm.Timeline.LaneBands.Select(band => band.TrackId))
+                .IsEquivalentTo(["lane-b"], CollectionOrdering.Matching);
             await Assert.That(a.Subscribers).IsEqualTo(0).Because("the Changed subscription left with the track");
             await Assert.That(trackListChanges).IsEqualTo(3);
             await Assert.That(saves).IsEqualTo(0);
@@ -104,8 +113,10 @@ public class Playback2DLaneHostingTests
             await Assert.That(behaviourA.Pressed).IsEquivalentTo([100], CollectionOrdering.Matching);
             await Assert.That(behaviourB.Pressed).IsEmpty();
             await Assert.That(ctx.SeekFrames).Contains(100).Because("the lane's press comes before the seek");
-            await Assert.That(vm.Timeline.MenuFor(bandA).Select(m => m.Header)).IsEquivalentTo(["a:100", "Any band"], CollectionOrdering.Matching);
-            await Assert.That(vm.Timeline.MenuFor(round).Select(m => m.Header)).IsEquivalentTo(["Any band"], CollectionOrdering.Matching)
+            await Assert.That(vm.Timeline.MenuFor(bandA).Select(m => m.Header))
+                .IsEquivalentTo(["a:100", "Any band"], CollectionOrdering.Matching);
+            await Assert.That(vm.Timeline.MenuFor(round).Select(m => m.Header))
+                .IsEquivalentTo(["Any band"], CollectionOrdering.Matching)
                 .Because("a band of a track that is no lane has only the contributors' entries");
         }
 
@@ -179,7 +190,8 @@ public class Playback2DLaneHostingTests
     public async Task AnEditSpan_IsClampedToTheDemo_OnSetAndWhenAShorterOneArrives()
     {
         (Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab();
-        IHostLaneHandle lane = vm.Surface.AddLane(new FakeLaneTrack("lane-a"), TimelineBandRow.Lane, new FakeBehaviour("a"));
+        IHostLaneHandle lane =
+            vm.Surface.AddLane(new FakeLaneTrack("lane-a"), TimelineBandRow.Lane, new FakeBehaviour("a"));
 
         lane.EditSpan = (900, 1500);
         await Assert.That(lane.EditSpan).IsEqualTo((900, 999))
@@ -312,11 +324,13 @@ public class Playback2DLaneHostingTests
         }
 
         vm.Surface.AddToolbarItem(b);
-        await Assert.That(vm.Surface.ToolbarItems.Select(i => i.Id)).IsEquivalentTo(["b", "a"], CollectionOrdering.Matching)
+        await Assert.That(vm.Surface.ToolbarItems.Select(i => i.Id))
+            .IsEquivalentTo(["b", "a"], CollectionOrdering.Matching)
             .Because("lower Order sorts first, regardless of registration order");
 
         a.Command!.Execute(null);
-        await Assert.That(aRuns).IsEqualTo(1).Because("the command AddToolbarItem wired runs the item against the current frame");
+        await Assert.That(aRuns).IsEqualTo(1)
+            .Because("the command AddToolbarItem wired runs the item against the current frame");
 
         regA.Dispose();
         using (Assert.Multiple())
@@ -385,7 +399,8 @@ public class Playback2DLaneHostingTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.Surface.TryHandlePointerPress(pointer)).IsTrue();
-            await Assert.That(calls).IsEquivalentTo(["a", "b"], CollectionOrdering.Matching).Because("a falls through, b consumes it, c is never asked");
+            await Assert.That(calls).IsEquivalentTo(["a", "b"], CollectionOrdering.Matching)
+                .Because("a falls through, b consumes it, c is never asked");
         }
 
         calls.Clear();
@@ -393,7 +408,8 @@ public class Playback2DLaneHostingTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.Surface.TryHandlePointerPress(pointer)).IsTrue();
-            await Assert.That(calls).IsEquivalentTo(["a", "c"], CollectionOrdering.Matching).Because("b left; the next handler in order takes it");
+            await Assert.That(calls).IsEquivalentTo(["a", "c"], CollectionOrdering.Matching)
+                .Because("b left; the next handler in order takes it");
         }
 
         calls.Clear();
@@ -439,11 +455,13 @@ public class Playback2DLaneHostingTests
 
         ctx.Push(10, 20);
         ctx.Push(30, 60);
-        await Assert.That(ticks).IsEquivalentTo([20, 60], CollectionOrdering.Matching).Because("a clock push moves the playhead");
+        await Assert.That(ticks).IsEquivalentTo([20, 60], CollectionOrdering.Matching)
+            .Because("a clock push moves the playhead");
 
         ctx.CurrentTick = 90;
         ctx.RaiseDemoReset();
-        await Assert.That(ticks).IsEquivalentTo([20, 60, 90], CollectionOrdering.Matching).Because("the resync on a demo reset moves it too");
+        await Assert.That(ticks).IsEquivalentTo([20, 60, 90], CollectionOrdering.Matching)
+            .Because("the resync on a demo reset moves it too");
 
         registration.Dispose();
         ctx.Push(50, 100);

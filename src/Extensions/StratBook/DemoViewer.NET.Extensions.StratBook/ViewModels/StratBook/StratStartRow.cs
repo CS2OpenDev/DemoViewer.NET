@@ -75,13 +75,15 @@ public sealed partial class StratStartRow : ObservableObject
             Note = "";
         }
 
-        KindText = start is null ? "" : document.Start is null && start.Kind == StratStart.CustomKind ? "from step 1" : start.Kind switch
-        {
-            StratStart.SpawnKind => "spawn",
-            StratStart.CapturedKind => "captured",
-            _ => "custom"
-        };
-        Summary = StratStartPhrasing.Text(document, places, spawns) ?? "no one placed: tokens appear at their first step";
+        KindText = start is null ? "" :
+            document.Start is null && start.Kind == StratStart.CustomKind ? "from step 1" : start.Kind switch
+            {
+                StratStart.SpawnKind => "spawn",
+                StratStart.CapturedKind => "captured",
+                _ => "custom"
+            };
+        Summary = StratStartPhrasing.Text(document, places, spawns)
+                  ?? "no one placed: tokens appear at their first step";
         Line = document.Trigger?.Text is { Length: > 0 } trigger ? Summary + " · " + trigger : Summary;
         foreach (StratStartSlotRow row in Own.Concat(Opponents))
         {

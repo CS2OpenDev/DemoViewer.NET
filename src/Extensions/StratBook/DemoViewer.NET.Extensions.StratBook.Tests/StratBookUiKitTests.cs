@@ -20,7 +20,8 @@ public class StratBookUiKitTests
     [Test]
     public async Task NoStratBookType_DerivesFromTheAppsViewModelBase()
     {
-        string[] offenders = [.. Pack.GetTypes().Where(t => t.IsSubclassOf(typeof(ViewModelBase))).Select(t => t.FullName!)];
+        string[] offenders =
+            [.. Pack.GetTypes().Where(t => t.IsSubclassOf(typeof(ViewModelBase))).Select(t => t.FullName!)];
 
         await Assert.That(offenders).IsEmpty();
     }
@@ -37,7 +38,8 @@ public class StratBookUiKitTests
             // the pack's view-model count.
             await Assert.That(viewModels.Length).IsGreaterThanOrEqualTo(13);
             await Assert.That(viewModels.All(t => t.IsSubclassOf(typeof(ExtensionViewModel)))).IsTrue();
-            await Assert.That(Pack.GetReferencedAssemblies().Select(a => a.Name!)).Contains("DemoViewer.NET.Extensions.Sdk.Ui");
+            await Assert.That(Pack.GetReferencedAssemblies().Select(a => a.Name!))
+                .Contains("DemoViewer.NET.Extensions.Sdk.Ui");
         }
     }
 }

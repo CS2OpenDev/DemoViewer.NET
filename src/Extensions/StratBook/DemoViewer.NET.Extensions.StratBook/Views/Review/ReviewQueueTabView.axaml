@@ -95,7 +95,8 @@
                         <ComboBox Grid.Column="0" ItemsSource="{Binding PackFormats}" FontSize="11"
                                   SelectedItem="{Binding SelectedPackFormat}" IsEnabled="{Binding !IsPackRunning}"
                                   ToolTip.Tip="mp4 plays on any phone; gif writes one file per clip into a folder" />
-                        <TextBox Grid.Column="1" Text="{Binding PackOutputPath, UpdateSourceTrigger=LostFocus}" FontSize="11"
+                        <TextBox Grid.Column="1" Text="{Binding PackOutputPath, UpdateSourceTrigger=LostFocus}"
+                                 FontSize="11"
                                  IsEnabled="{Binding !IsPackRunning}" PlaceholderText="Where the pack goes" />
                         <Button Grid.Column="2" Content="Export pack" Classes="ghost" FontSize="11" Padding="10 5"
                                 Command="{Binding ExportPackCommand}"
@@ -117,89 +118,97 @@
                        Text="Nothing queued. Send clips here from the Reels tray, from Situation Search's result cards, or pick one at the playhead." />
 
             <ItemsControl Name="RowsList" ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}">
-                    <ItemsControl.Template>
-                        <ControlTemplate TargetType="ItemsControl">
-                            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-                                <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
-                            </ScrollViewer>
-                        </ControlTemplate>
-                    </ItemsControl.Template>
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <VirtualizingStackPanel />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ReviewRowViewModel">
-                            <Panel>
+                <ItemsControl.Template>
+                    <ControlTemplate TargetType="ItemsControl">
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </ItemsControl.Template>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ReviewRowViewModel">
+                        <Panel>
 
-                                <!-- A title card. -->
-                                <Border Classes="reviewCard titleCard" IsVisible="{Binding IsSection}">
-                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                        <StackPanel Grid.Column="0" Spacing="4">
-                                            <TextBox Text="{Binding Title, UpdateSourceTrigger=LostFocus}" FontSize="14"
-                                                     FontWeight="SemiBold" PlaceholderText="Section title" />
-                                            <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}" FontSize="11"
-                                                     PlaceholderText="A line under the title" />
-                                            <TextBlock Text="{Binding ClipCountText}" FontSize="11"
+                            <!-- A title card. -->
+                            <Border Classes="reviewCard titleCard" IsVisible="{Binding IsSection}">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <StackPanel Grid.Column="0" Spacing="4">
+                                        <TextBox Text="{Binding Title, UpdateSourceTrigger=LostFocus}" FontSize="14"
+                                                 FontWeight="SemiBold" PlaceholderText="Section title" />
+                                        <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}" FontSize="11"
+                                                 PlaceholderText="A line under the title" />
+                                        <TextBlock Text="{Binding ClipCountText}" FontSize="11"
+                                                   Foreground="{DynamicResource TextMid}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                                VerticalAlignment="Top">
+                                        <Button Content="{Binding ReviewText}" Classes="ghost" FontSize="11"
+                                                Padding="8 3"
+                                                Command="{Binding ToggleReviewedCommand}"
+                                                ToolTip.Tip="Mark this section's clips reviewed, or unreviewed again once all are. With a filter or a search on, only the clips it shows" />
+                                        <Button Content="{Binding ToggleText}" Classes="ghost" FontSize="11"
+                                                Padding="8 3"
+                                                Command="{Binding ToggleCommand}"
+                                                ToolTip.Tip="Show or hide this section's clips" />
+                                        <Button Content="▲" Classes="ghost" FontSize="11" Padding="6 3"
+                                                Command="{Binding MoveUpCommand}" ToolTip.Tip="Move up"
+                                                IsVisible="{Binding !IsCollapsed}" />
+                                        <Button Content="▼" Classes="ghost" FontSize="11" Padding="6 3"
+                                                Command="{Binding MoveDownCommand}" ToolTip.Tip="Move down"
+                                                IsVisible="{Binding !IsCollapsed}" />
+                                        <Button Content="✕" Classes="ghost" FontSize="11" Padding="6 3"
+                                                Command="{Binding RemoveCommand}"
+                                                ToolTip.Tip="Remove the title card; its clips join the section above" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- A clip. -->
+                            <Border Classes="reviewCard" IsVisible="{Binding IsClip}">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                    <TextBlock Grid.Column="0" Text="{Binding Position}" FontSize="12" Classes="mono"
+                                               Foreground="{DynamicResource TextMid}" VerticalAlignment="Top"
+                                               MinWidth="20" />
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding DemoLabel}" FontSize="12"
+                                                       Foreground="{DynamicResource TextValue}" />
+                                            <TextBlock Text="{Binding RangeText}" FontSize="11" Classes="mono"
+                                                       Foreground="{DynamicResource TextMid}" />
+                                            <TextBlock Text="{Binding SourceText}" FontSize="11"
                                                        Foreground="{DynamicResource TextMid}" />
                                         </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-                                            <Button Content="{Binding ReviewText}" Classes="ghost" FontSize="11" Padding="8 3"
-                                                    Command="{Binding ToggleReviewedCommand}"
-                                                    ToolTip.Tip="Mark this section's clips reviewed, or unreviewed again once all are. With a filter or a search on, only the clips it shows" />
-                                            <Button Content="{Binding ToggleText}" Classes="ghost" FontSize="11" Padding="8 3"
-                                                    Command="{Binding ToggleCommand}"
-                                                    ToolTip.Tip="Show or hide this section's clips" />
-                                            <Button Content="▲" Classes="ghost" FontSize="11" Padding="6 3"
-                                                    Command="{Binding MoveUpCommand}" ToolTip.Tip="Move up" IsVisible="{Binding !IsCollapsed}" />
-                                            <Button Content="▼" Classes="ghost" FontSize="11" Padding="6 3"
-                                                    Command="{Binding MoveDownCommand}" ToolTip.Tip="Move down" IsVisible="{Binding !IsCollapsed}" />
-                                            <Button Content="✕" Classes="ghost" FontSize="11" Padding="6 3"
-                                                    Command="{Binding RemoveCommand}"
-                                                    ToolTip.Tip="Remove the title card; its clips join the section above" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-
-                                <!-- A clip. -->
-                                <Border Classes="reviewCard" IsVisible="{Binding IsClip}">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                                        <TextBlock Grid.Column="0" Text="{Binding Position}" FontSize="12" Classes="mono"
-                                                   Foreground="{DynamicResource TextMid}" VerticalAlignment="Top" MinWidth="20" />
-                                        <StackPanel Grid.Column="1" Spacing="4">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="{Binding DemoLabel}" FontSize="12"
-                                                           Foreground="{DynamicResource TextValue}" />
-                                                <TextBlock Text="{Binding RangeText}" FontSize="11" Classes="mono"
-                                                           Foreground="{DynamicResource TextMid}" />
-                                                <TextBlock Text="{Binding SourceText}" FontSize="11"
-                                                           Foreground="{DynamicResource TextMid}" />
-                                            </StackPanel>
-                                            <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}" FontSize="11"
-                                                     PlaceholderText="What this clip is" />
-                                            <TextBox Text="{Binding Question, UpdateSourceTrigger=LostFocus}" FontSize="12"
-                                                     PlaceholderText="One question to answer while watching" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-                                            <Button Content="Open" Classes="ghost" FontSize="11" Padding="8 3"
-                                                    Command="{Binding OpenCommand}"
-                                                    ToolTip.Tip="Open 2D playback at the clip's first tick" />
-                                            <Button Content="{Binding ReviewText}" Classes="ghost" FontSize="11" Padding="8 3"
-                                                    Command="{Binding ToggleReviewedCommand}"
-                                                    ToolTip.Tip="Mark the clip reviewed; reviewed clips are hidden unless show reviewed is on" />
-                                            <Button Content="▲" Classes="ghost" FontSize="11" Padding="6 3"
-                                                    Command="{Binding MoveUpCommand}" ToolTip.Tip="Move up" />
-                                            <Button Content="▼" Classes="ghost" FontSize="11" Padding="6 3"
-                                                    Command="{Binding MoveDownCommand}" ToolTip.Tip="Move down" />
-                                            <Button Content="✕" Classes="ghost" FontSize="11" Padding="6 3"
-                                                    Command="{Binding RemoveCommand}" ToolTip.Tip="Remove from the queue" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
-                            </Panel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
+                                        <TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus}" FontSize="11"
+                                                 PlaceholderText="What this clip is" />
+                                        <TextBox Text="{Binding Question, UpdateSourceTrigger=LostFocus}" FontSize="12"
+                                                 PlaceholderText="One question to answer while watching" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
+                                                VerticalAlignment="Top">
+                                        <Button Content="Open" Classes="ghost" FontSize="11" Padding="8 3"
+                                                Command="{Binding OpenCommand}"
+                                                ToolTip.Tip="Open 2D playback at the clip's first tick" />
+                                        <Button Content="{Binding ReviewText}" Classes="ghost" FontSize="11"
+                                                Padding="8 3"
+                                                Command="{Binding ToggleReviewedCommand}"
+                                                ToolTip.Tip="Mark the clip reviewed; reviewed clips are hidden unless show reviewed is on" />
+                                        <Button Content="▲" Classes="ghost" FontSize="11" Padding="6 3"
+                                                Command="{Binding MoveUpCommand}" ToolTip.Tip="Move up" />
+                                        <Button Content="▼" Classes="ghost" FontSize="11" Padding="6 3"
+                                                Command="{Binding MoveDownCommand}" ToolTip.Tip="Move down" />
+                                        <Button Content="✕" Classes="ghost" FontSize="11" Padding="6 3"
+                                                Command="{Binding RemoveCommand}" ToolTip.Tip="Remove from the queue" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Panel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
             </ItemsControl>
         </Panel>
     </DockPanel>

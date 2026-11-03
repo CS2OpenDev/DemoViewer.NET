@@ -67,10 +67,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     // one `JsonSerializerDefaults.Web` added anywhere on the write path silently renames every property to
     // camelCase, this binds nothing, and the tray restores to empty with no error anywhere: the exact silent
     // loss this whole path exists to prevent. One flag makes the read immune to that.
-    private static readonly JsonSerializerOptions _restoreOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
+    private static readonly JsonSerializerOptions _restoreOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly DemoCacheStore _demoCache;
 

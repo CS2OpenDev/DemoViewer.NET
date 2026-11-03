@@ -63,7 +63,8 @@ public static class MapAssets
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(layerIds);
         IMapAssetsBackend backend = Backend
-                                    ?? throw new InvalidOperationException("Map pictures are rendered by the app, and none is running.");
+                                    ?? throw new InvalidOperationException(
+                                        "Map pictures are rendered by the app, and none is running.");
         return backend.RenderPng(frame, map, layerIds, camera, size, layers);
     }
 }

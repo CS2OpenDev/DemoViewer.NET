@@ -54,14 +54,16 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
 
         bool network = NetworkMounts.IsNetwork(path);
         // On a network mount a stat can stall like a read, so it is bounded the same way.
-        Func<string, FileStat> stat = network ? p => Bounded(() => MappedParsePolicy.StatFile(p), p) : MappedParsePolicy.StatFile;
+        Func<string, FileStat> stat =
+            network ? p => Bounded(() => MappedParsePolicy.StatFile(p), p) : MappedParsePolicy.StatFile;
         bool settled = MappedParsePolicy.IsSettled(path, time, stat);
         if (settled && !network)
         {
             if (want)
             {
                 FileStat now = stat(path);
-                (string? sha, DemoContentFingerprint? fingerprint) = DemoContentFingerprint.TryComputeWithContentHash(path, time);
+                (string? sha, DemoContentFingerprint? fingerprint) =
+                    DemoContentFingerprint.TryComputeWithContentHash(path, time);
                 if (sha is not null)
                 {
                     contentRead!(new DemoContentRead(path, sha, fingerprint, now));
@@ -163,7 +165,8 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
     }
 
     // Runs body over the open file on a thread of its own and waits while it keeps reading.
-    private static T Watched<T>(string path, TimeSpan noProgress, Func<Stream, T> body, CancellationToken cancellationToken)
+    private static T Watched<T>(string path, TimeSpan noProgress, Func<Stream, T> body,
+        CancellationToken cancellationToken)
     {
         ProgressStream? watched = null;
         Task<T> read = Task.Factory.StartNew(() =>
@@ -261,7 +264,9 @@ internal static class NetworkMounts
 {
     private static readonly TimeSpan Remember = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan Answer = TimeSpan.FromSeconds(5);
-    private static readonly Dictionary<string, (bool Network, DateTime At)> _byFolder = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly Dictionary<string, (bool Network, DateTime At)> _byFolder =
+        new(StringComparer.OrdinalIgnoreCase);
 
     // DriveInfo.GetDrives is not safe to call concurrently on macOS: overlapping calls read freed mount
     // strings and crash the process with an access violation.
@@ -282,7 +287,8 @@ internal static class NetworkMounts
         string folder = Path.GetDirectoryName(Path.GetFullPath(path)) ?? path;
         lock (_byFolder)
         {
-            if (_byFolder.TryGetValue(folder, out (bool Network, DateTime At) known) && DateTime.UtcNow - known.At < Remember)
+            if (_byFolder.TryGetValue(folder, out (bool Network, DateTime At) known)
+                && DateTime.UtcNow - known.At < Remember)
             {
                 return known.Network;
             }
@@ -326,7 +332,8 @@ internal static class NetworkMounts
 
     private static bool Under(string folder, string root)
     {
-        StringComparison comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        StringComparison comparison =
+            OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         string withSeparator = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
         return string.Equals(folder, root.TrimEnd(Path.DirectorySeparatorChar), comparison)
                || folder.StartsWith(withSeparator, comparison);

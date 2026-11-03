@@ -15,5 +15,6 @@ public sealed class ThemeEditorLauncher(IWindowService windows, UserThemeStore s
 
     /// <summary>Opens the window on <paramref name="themeId" />, or re-targets the open one.</summary>
     public void Open(string? themeId, bool missingOnly = false) =>
-        windows.ShowThemeEditor((id, missing) => new ThemeEditorViewModel(store, host, id, missing), themeId, missingOnly);
+        windows.ShowThemeEditor((id, missing) => new ThemeEditorViewModel(store, host, id, missing), themeId,
+            missingOnly);
 }

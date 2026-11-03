@@ -20,16 +20,12 @@ public class ErrorReportStoreTests
 
     private static DemoCacheRecord Record(string path, string sha = "sha-report") => new()
     {
-        Path = path,
-        Size = 100,
-        ModifiedTicks = First.Ticks,
-        Sha256 = sha
+        Path = path, Size = 100, ModifiedTicks = First.Ticks, Sha256 = sha
     };
 
     private static DemoErrorReportSnapshot Snapshot(string path) => new()
     {
-        CapturedAtUtcTicks = First.Ticks,
-        DemoPath = path
+        CapturedAtUtcTicks = First.Ticks, DemoPath = path
     };
 
     [Test]

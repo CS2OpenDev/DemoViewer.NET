@@ -82,6 +82,7 @@ public sealed class SuggestedTagsService : IExtensionPass
 
     /// <summary>The Round Facts rows the detectors read, for the tuning preview's re-runs.</summary>
     internal IRoundFacts RoundFacts => _roundFacts;
+
     private readonly Func<bool> _enabled;
 
     // Demos whose build threw this session: not wanted again until a forced request, so one bad file is
@@ -279,20 +280,23 @@ public sealed class SuggestedTagsService : IExtensionPass
 
     /// <inheritdoc />
     public DemoInterest Interest(string demoPath) =>
-        Wants(demoPath) ? DemoInterest.Yes : WantsAfterUpstream(demoPath) ? DemoInterest.AfterUpstream : DemoInterest.No;
+        Wants(demoPath) ? DemoInterest.Yes :
+        WantsAfterUpstream(demoPath) ? DemoInterest.AfterUpstream : DemoInterest.No;
 
     /// <inheritdoc />
     public void Run(IPassContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        Evaluate(context.DemoPath, context.Parsed!, context.Collected<List<RemovedProjectile>>(ThrowerCollector.CollectorId));
+        Evaluate(context.DemoPath, context.Parsed!,
+            context.Collected<List<RemovedProjectile>>(ThrowerCollector.CollectorId));
     }
 
     /// <summary>Does the pass's work on <paramref name="parsed" />.</summary>
     /// <param name="path">The demo's path.</param>
     /// <param name="parsed">The demo's parse.</param>
     /// <param name="removed">The <see cref="ThrowerCollector" />'s rows from the rules run; null walks the parse for them.</param>
-    public void Evaluate(string path, ParsedDemo parsed, IReadOnlyList<RemovedProjectile>? removed = null) => Refresh(path, parsed, removed);
+    public void Evaluate(string path, ParsedDemo parsed, IReadOnlyList<RemovedProjectile>? removed = null) =>
+        Refresh(path, parsed, removed);
 
     /// <inheritdoc />
     public void OnFailed(string demoPath) => ClearForced(demoPath);
@@ -417,9 +421,10 @@ public sealed class SuggestedTagsService : IExtensionPass
     {
         (_, ProposalSet set) = LoadCore(path, sha256);
         if (_tags is null || set.Sha256 is not { } sha
-            || set.Entries.FirstOrDefault(e => e.Proposal.Id == proposalId && e.State == GeneratedState.Dismissed) is not
-                { VerdictKey: { } key }
-            || !_tags.RestoreVerdict(sha, key, _utcNow()))
+                          || set.Entries.FirstOrDefault(e =>
+                                  e.Proposal.Id == proposalId && e.State == GeneratedState.Dismissed) is not
+                              { VerdictKey: { } key }
+                          || !_tags.RestoreVerdict(sha, key, _utcNow()))
         {
             return false;
         }
@@ -437,7 +442,8 @@ public sealed class SuggestedTagsService : IExtensionPass
     /// <param name="detector">The queue's detector filter, or null for every detector.</param>
     /// <param name="sha256">The demo's hash when the caller knows it better than the index.</param>
     /// <param name="round">The queue's round filter, or null for every round.</param>
-    public int AcceptAll(string path, double minConfidence, string? detector = null, string? sha256 = null, int? round = null)
+    public int AcceptAll(string path, double minConfidence, string? detector = null, string? sha256 = null,
+        int? round = null)
     {
         List<string> ids =
         [
@@ -473,14 +479,18 @@ public sealed class SuggestedTagsService : IExtensionPass
     /// <param name="edit">What the tagger changed, or null.</param>
     /// <param name="fingerprint">The detector set the proposal was made under.</param>
     /// <param name="utcNow">The creation time.</param>
-    public static TagInstance InstanceFor(TagProposal proposal, TagInstanceEdit? edit, string fingerprint, DateTime utcNow)
+    public static TagInstance InstanceFor(TagProposal proposal, TagInstanceEdit? edit, string fingerprint,
+        DateTime utcNow)
     {
         ArgumentNullException.ThrowIfNull(proposal);
         int from = edit?.FromTick ?? proposal.FromTick;
         int to = Math.Max(from, edit?.ToTick ?? proposal.ToTick);
         List<TagLabel> labels = edit?.Labels is { } edited
             ? [.. edited.Select(l => new TagLabel(l.Group, l.Value))]
-            : [.. proposal.Labels.OrderBy(l => l.Key, StringComparer.Ordinal).Select(l => new TagLabel(l.Key, l.Value))];
+            :
+            [
+                .. proposal.Labels.OrderBy(l => l.Key, StringComparer.Ordinal).Select(l => new TagLabel(l.Key, l.Value))
+            ];
 
         TagInstance instance = new()
         {
@@ -554,7 +564,8 @@ public sealed class SuggestedTagsService : IExtensionPass
             return false;
         }
 
-        string verdict = edit is null ? SuggestionVerdicts.Accepted
+        string verdict = edit is null
+            ? SuggestionVerdicts.Accepted
             : edit.Code is { Length: > 0 } code && !string.Equals(code, entry.Proposal.Code, StringComparison.Ordinal)
                 ? SuggestionVerdicts.Recoded
                 : SuggestionVerdicts.Edited;
@@ -581,7 +592,8 @@ public sealed class SuggestedTagsService : IExtensionPass
         return false;
     }
 
-    private SuggestionVerdict Verdict(string verdict, Guid? instanceId, TagProposal proposal, ProposalDocument document) =>
+    private SuggestionVerdict Verdict(string verdict, Guid? instanceId, TagProposal proposal,
+        ProposalDocument document) =>
         new()
         {
             Verdict = verdict,
@@ -603,12 +615,15 @@ public sealed class SuggestedTagsService : IExtensionPass
     }
 
     private (ProposalDocument? Document, ProposalSet Set) LoadCore(string path, string? sha256) =>
-        _proposals.TryRead(path) is { } document ? Resolve(path, sha256, document) : (null, ProposalSet.Empty(path, IsPersistent));
+        _proposals.TryRead(path) is { } document
+            ? Resolve(path, sha256, document)
+            : (null, ProposalSet.Empty(path, IsPersistent));
 
     private int CountPending(string path, ProposalDocument document) => Resolve(path, null, document).Set.Pending.Count;
 
     // The document's proposals matched against the demo's verdicts.
-    private (ProposalDocument? Document, ProposalSet Set) Resolve(string path, string? sha256, ProposalDocument document)
+    private (ProposalDocument? Document, ProposalSet Set) Resolve(string path, string? sha256,
+        ProposalDocument document)
     {
         bool persistent = IsPersistent;
         string? sha = Normalize(sha256) ?? Normalize(_library.Find(path)?.Sha256)
@@ -663,7 +678,8 @@ public sealed class SuggestedTagsService : IExtensionPass
 
         try
         {
-            if (_library.Find(path) is not { } record || _roundFacts.TryGet(path) is not { Schema: RoundFactsRows.CurrentSchema } facts)
+            if (_library.Find(path) is not { } record || _roundFacts.TryGet(path) is not
+                    { Schema: RoundFactsRows.CurrentSchema } facts)
             {
                 return; // nothing to bound rounds and seat sides with; Round Facts has not written this demo
             }
@@ -680,7 +696,8 @@ public sealed class SuggestedTagsService : IExtensionPass
 
             RoundFactsClock clock = RoundFactsClock.For(parsed);
             List<PlacedEvent> unplaced = DetonationEvents.From(parsed, removed ?? WalkRemoved(parsed));
-            DetectionInputs inputs = DetectionInputsFrom(path, map, clock.TickRate, unplaced, facts, record, parsed)!.Value;
+            DetectionInputs inputs = DetectionInputsFrom(path, map, clock.TickRate, unplaced, facts, record, parsed)!
+                .Value;
             lock (BuildLock(path))
             {
                 // Before the proposals: the record pass takes proposals written after this as built from it.
@@ -723,7 +740,10 @@ public sealed class SuggestedTagsService : IExtensionPass
     /// <param name="Events">Every placed detonation of the demo, tick order.</param>
     /// <param name="Source">"round-index" or "walk" (<see cref="ProposalDocument.FromRoundIndex" />/<see cref="ProposalDocument.FromWalk" />).</param>
     internal readonly record struct DetectionInputs(
-        int TickRate, IReadOnlyList<RoundOccupancy> Rounds, IReadOnlyList<PlacedEvent> Events, string Source);
+        int TickRate,
+        IReadOnlyList<RoundOccupancy> Rounds,
+        IReadOnlyList<PlacedEvent> Events,
+        string Source);
 
     /// <summary>
     ///     Builds a demo's occupancy and placed events: the index when it is current for the map, else
@@ -741,7 +761,8 @@ public sealed class SuggestedTagsService : IExtensionPass
         IReadOnlyList<RemovedProjectile>? removed = null)
     {
         int tickRate = parsed.TickRate > 0 ? parsed.TickRate : 64;
-        return DetectionInputsFrom(path, map, tickRate, DetonationEvents.From(parsed, removed ?? WalkRemoved(parsed)), facts, record,
+        return DetectionInputsFrom(path, map, tickRate, DetonationEvents.From(parsed, removed ?? WalkRemoved(parsed)),
+            facts, record,
             parsed)!.Value;
     }
 
@@ -755,7 +776,8 @@ public sealed class SuggestedTagsService : IExtensionPass
 
     // Null only without a parse to walk when the index is not current.
     private DetectionInputs? DetectionInputsFrom(
-        string path, string map, int tickRate, IReadOnlyList<PlacedEvent> unplaced, RoundFactsRows facts, LibraryDemo record,
+        string path, string map, int tickRate, IReadOnlyList<PlacedEvent> unplaced, RoundFactsRows facts,
+        LibraryDemo record,
         ParsedDemo? parsed)
     {
         IReadOnlyList<RoundOccupancy> rounds;
@@ -799,7 +821,8 @@ public sealed class SuggestedTagsService : IExtensionPass
         return new DetectionInputs(tickRate, rounds, events, source);
     }
 
-    private void WriteProposals(string path, LibraryDemo record, string map, RoundFactsClock clock, DetectionInputs inputs,
+    private void WriteProposals(string path, LibraryDemo record, string map, RoundFactsClock clock,
+        DetectionInputs inputs,
         DetectorProfile profile, SiteRegionTable? table, string fingerprint)
     {
         SiteRegions regions = SiteRegions.Compose(map, null, table, profile);
@@ -821,13 +844,14 @@ public sealed class SuggestedTagsService : IExtensionPass
                 SizeBytes = record.FileSizeBytes
             },
             Clock = clock,
-            DetectorSet = new ProposalDetectorSet
-            {
-                Fingerprint = fingerprint,
-                ProfileId = profile.Id,
-                ComputedAtTicks = _utcNow().Ticks,
-                Regions = regions.Source
-            },
+            DetectorSet =
+                new ProposalDetectorSet
+                {
+                    Fingerprint = fingerprint,
+                    ProfileId = profile.Id,
+                    ComputedAtTicks = _utcNow().Ticks,
+                    Regions = regions.Source
+                },
             OccupancySource = inputs.Source,
             Proposals = [.. proposals.Select(p => StoredProposal.From(p, roundStarts.GetValueOrDefault(p.Round)))]
         };
@@ -848,7 +872,8 @@ public sealed class SuggestedTagsService : IExtensionPass
     internal bool WantsRebuild(LibraryDemo demo)
     {
         if (_detonations is null || !_enabled() || !HasInputs(demo) || InputsKey(demo) is not { } key
-            || _proposals.Stamp(demo.FilePath) is not { } built || !built.IsCurrent(ProposalStore.Schema, FingerprintFor(demo.MapName)))
+            || _proposals.Stamp(demo.FilePath) is not { } built
+            || !built.IsCurrent(ProposalStore.Schema, FingerprintFor(demo.MapName)))
         {
             return false; // nothing stored to build from, or the visit pass owns the build
         }
@@ -858,7 +883,9 @@ public sealed class SuggestedTagsService : IExtensionPass
             if (!_builtOn.TryGetValue(demo.FilePath, out string? seen))
             {
                 // First sight this session: proposals written after every input were built from them.
-                long inputs = Math.Max(Math.Max(_detonations.Stamp(demo.FilePath)!.WrittenAtTicks, _index!.Stamp(demo.FilePath)!.WrittenAtTicks),
+                long inputs = Math.Max(
+                    Math.Max(_detonations.Stamp(demo.FilePath)!.WrittenAtTicks,
+                        _index!.Stamp(demo.FilePath)!.WrittenAtTicks),
                     demo.Fact(RoundFactsRows.FacetId)!.WrittenAtTicks);
                 seen = built.WrittenAtTicks >= inputs ? key : "";
                 _builtOn[demo.FilePath] = seen;
@@ -876,7 +903,8 @@ public sealed class SuggestedTagsService : IExtensionPass
         lock (BuildLock(path))
         {
             if (_detonations?.TryRead(path) is not { } stored || InputsKey(demo) is not { } key
-                || _roundFacts.TryGet(path) is not { Schema: RoundFactsRows.CurrentSchema } facts)
+                                                              || _roundFacts.TryGet(path) is not
+                                                                  { Schema: RoundFactsRows.CurrentSchema } facts)
             {
                 return;
             }
@@ -891,12 +919,14 @@ public sealed class SuggestedTagsService : IExtensionPass
 
             DetectorProfile profile = _profile();
             SiteRegionTable? table = TableFor(stored.Map);
-            if (DetectionInputsFrom(path, stored.Map, stored.Clock.TickRate, stored.ToEvents(), facts, demo, null) is not { } inputs)
+            if (DetectionInputsFrom(path, stored.Map, stored.Clock.TickRate, stored.ToEvents(), facts, demo, null) is
+                not { } inputs)
             {
                 return;
             }
 
-            WriteProposals(path, demo, stored.Map, stored.Clock, inputs, profile, table, SuggestionsFingerprint.Compose(profile, table));
+            WriteProposals(path, demo, stored.Map, stored.Clock, inputs, profile, table,
+                SuggestionsFingerprint.Compose(profile, table));
             lock (_gate)
             {
                 _builtOn[path] = key;
@@ -906,16 +936,21 @@ public sealed class SuggestedTagsService : IExtensionPass
         RaiseChanged(path);
     }
 
-    private object BuildLock(string path) => _buildLocks[(StringComparer.OrdinalIgnoreCase.GetHashCode(path) & int.MaxValue) % _buildLocks.Length];
+    private object BuildLock(string path) =>
+        _buildLocks[(StringComparer.OrdinalIgnoreCase.GetHashCode(path) & int.MaxValue) % _buildLocks.Length];
 
     // The input stamps a build reads, or null while one is missing, or the index or detonations are not current.
     private string? InputsKey(LibraryDemo demo)
     {
         string path = demo.FilePath;
         if (_detonations?.Stamp(path) is not { } detonations || !_detonations.IsCurrent(path)
-            || _indexSources?.FingerprintFor(demo.MapName ?? "") is not { } indexFingerprint || _index?.Stamp(path) is not { } index
-            || !index.IsCurrent(RoundIndexStore.Schema, indexFingerprint)
-            || demo.Fact(RoundFactsRows.FacetId) is not { IsWritten: true } roundFacts)
+                                                             || _indexSources?.FingerprintFor(demo.MapName ?? "") is not
+                                                                 { } indexFingerprint || _index?.Stamp(path) is not
+                                                                 { } index
+                                                             || !index.IsCurrent(RoundIndexStore.Schema,
+                                                                 indexFingerprint)
+                                                             || demo.Fact(RoundFactsRows.FacetId) is not
+                                                                 { IsWritten: true } roundFacts)
         {
             return null;
         }
@@ -1007,10 +1042,13 @@ internal static partial class SuggestedTagsLog
     public static partial void BuildFailed(ILogger logger, string fileName, Exception exception);
 
     [LoggerMessage(EventId = 2, Level = LogLevel.Warning,
-        Message = "{fileName}: round {round} sample alive/team disagreed with round facts ({sideMismatches} side, {aliveMismatches} alive)")]
-    public static partial void SampleDisagreedWithFacts(ILogger logger, string fileName, int round, int sideMismatches, int aliveMismatches);
+        Message =
+            "{fileName}: round {round} sample alive/team disagreed with round facts ({sideMismatches} side, {aliveMismatches} alive)")]
+    public static partial void SampleDisagreedWithFacts(ILogger logger, string fileName, int round, int sideMismatches,
+        int aliveMismatches);
 
     [LoggerMessage(EventId = 3, Level = LogLevel.Warning,
-        Message = "{fileName}: accepting {proposalId} wrote its tag but not its verdict, and the tag could not be taken back; the proposal is held until restart")]
+        Message =
+            "{fileName}: accepting {proposalId} wrote its tag but not its verdict, and the tag could not be taken back; the proposal is held until restart")]
     public static partial void AcceptRollbackFailed(ILogger logger, string fileName, string proposalId);
 }

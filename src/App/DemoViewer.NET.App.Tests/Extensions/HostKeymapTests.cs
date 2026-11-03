@@ -20,7 +20,7 @@ public class HostKeymapTests
         {
             await Assert.That(keymap.Bindings.Count).IsEqualTo(CommandRegistry.Default.EffectiveBindings.Count);
             await Assert.That(keymap.Bindings.Any(b => b.ActionId == "NextRound" && b.Gesture.Key == Key.E
-                                                       && b.Gesture.KeyModifiers == KeyModifiers.None && b.Scope == "playback2d"))
+                    && b.Gesture.KeyModifiers == KeyModifiers.None && b.Scope == "playback2d"))
                 .IsTrue();
             await Assert.That(keymap.ShellReserved.Count).IsEqualTo(Playback2DKeymap.ShellReservedGestures.Count);
             await Assert.That(keymap.BrowserReserved.Count).IsEqualTo(Playback2DKeymap.BrowserReservedGestures.Count);

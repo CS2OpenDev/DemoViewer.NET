@@ -228,10 +228,7 @@ public class InstallRecoveryTests
         using FakeInstall install = new();
         install.LeaveCrashedSession(null);
 
-        ReelJobService reel = new(null, null, new FixedMonitor(new AppSettings
-        {
-            LiveSync = install.Settings
-        }));
+        ReelJobService reel = new(null, null, new FixedMonitor(new AppSettings { LiveSync = install.Settings }));
         string demo = Path.Combine(install.Root, "x.dem");
         reel.Start(new ReelRequest(
             [new ReelClip(demo, null, 1, "p", 0, 64, 64, "clip")],
@@ -267,10 +264,7 @@ public class InstallRecoveryTests
             Root = Path.Combine(Path.GetTempPath(), "dv-fake-cs2-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(Root, "game", "csgo"));
             File.WriteAllText(GameInfo, Original);
-            Settings = new LiveSyncSettings
-            {
-                Cs2RootInstallationDirectory = Root
-            };
+            Settings = new LiveSyncSettings { Cs2RootInstallationDirectory = Root };
         }
 
         public string Root { get; }

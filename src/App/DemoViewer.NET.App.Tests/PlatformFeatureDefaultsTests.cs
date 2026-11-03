@@ -33,9 +33,12 @@ public class PlatformFeatureDefaultsTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(PlatformFeatureDefaults.DefaultFor("tab.highlights", _onForEveryone, category, isMacOs: true))
-                .IsFalse().Because("macOS is not a supported target for Reels, and an empty tab is worse than an absent one");
-            await Assert.That(PlatformFeatureDefaults.DefaultFor("tab.highlights", _onForEveryone, category, isMacOs: false))
+            await Assert
+                .That(PlatformFeatureDefaults.DefaultFor("tab.highlights", _onForEveryone, category, isMacOs: true))
+                .IsFalse().Because(
+                    "macOS is not a supported target for Reels, and an empty tab is worse than an absent one");
+            await Assert
+                .That(PlatformFeatureDefaults.DefaultFor("tab.highlights", _onForEveryone, category, isMacOs: false))
                 .IsTrue().Because("every other platform keeps the catalog default, Linux included");
         }
     }
@@ -45,9 +48,11 @@ public class PlatformFeatureDefaultsTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(PlatformFeatureDefaults.DefaultFor("tab.playback2d", _onForEveryone, UserCategory.Consumer, isMacOs: true))
+            await Assert.That(PlatformFeatureDefaults.DefaultFor("tab.playback2d", _onForEveryone,
+                    UserCategory.Consumer, isMacOs: true))
                 .IsTrue();
-            await Assert.That(PlatformFeatureDefaults.DefaultFor("tab.playback2d", _onForEveryone, UserCategory.Consumer, isMacOs: false))
+            await Assert.That(PlatformFeatureDefaults.DefaultFor("tab.playback2d", _onForEveryone,
+                    UserCategory.Consumer, isMacOs: false))
                 .IsTrue();
         }
     }
@@ -61,7 +66,8 @@ public class PlatformFeatureDefaultsTests
     {
         Dictionary<UserCategory, bool> offForConsumers = new() { [UserCategory.Consumer] = false };
 
-        await Assert.That(PlatformFeatureDefaults.DefaultFor("tab.highlights", offForConsumers, UserCategory.Consumer, isMacOs: false))
+        await Assert.That(PlatformFeatureDefaults.DefaultFor("tab.highlights", offForConsumers, UserCategory.Consumer,
+                isMacOs: false))
             .IsFalse();
     }
 
@@ -117,7 +123,8 @@ public class PlatformFeatureDefaultsTests
             using ServiceProvider sp = services.BuildServiceProvider();
 
             await Assert.That(sp.GetRequiredService<IFeatureGate>().IsEnabled("tab.highlights")).IsTrue()
-                .Because("the override is read before any default, so a user who switches Reels on keeps it on macOS too");
+                .Because(
+                    "the override is read before any default, so a user who switches Reels on keeps it on macOS too");
         }
         finally
         {

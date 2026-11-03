@@ -185,6 +185,7 @@ public class RulesetRoundTripTests
         {
             case YamlDotNet.RepresentationModel.YamlScalarNode:
                 yield return at;
+
                 break;
 
             case YamlDotNet.RepresentationModel.YamlMappingNode map:
@@ -232,7 +233,7 @@ public class RulesetRoundTripTests
 
         int tail = 0;
         while (tail < a.Length - head && tail < b.Length - head
-               && a[a.Length - 1 - tail] == b[b.Length - 1 - tail])
+                                      && a[a.Length - 1 - tail] == b[b.Length - 1 - tail])
         {
             tail++;
         }

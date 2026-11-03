@@ -232,7 +232,8 @@ public class AnalysisVerifyInCs2Tests
         await Assert.That(seenTick).IsEqualTo(54321).Because("the positioned frame's ServerTick, passed AS-IS");
         await Assert.That(seenName).IsEqualTo("s1mple").Because("the filter-selected player's raw in-demo name");
         await Assert.That(vm.IsVerifying).IsFalse().Because("the busy flag clears after arrival");
-        await Assert.That(vm.StatusText).IsEqualTo(statusBefore).Because("a successful verify surfaces no failure note");
+        await Assert.That(vm.StatusText).IsEqualTo(statusBefore)
+            .Because("a successful verify surfaces no failure note");
     }
 
     // ── Command flow: a false return surfaces the inline failure note ───────────────────────────
@@ -276,6 +277,7 @@ public class AnalysisVerifyInCs2Tests
         await running;
 
         await Assert.That(vm.IsVerifying).IsFalse();
-        await Assert.That(vm.VerifyInCs2Command.CanExecute(target)).IsTrue().Because("re-enabled once the verify completes");
+        await Assert.That(vm.VerifyInCs2Command.CanExecute(target)).IsTrue()
+            .Because("re-enabled once the verify completes");
     }
 }

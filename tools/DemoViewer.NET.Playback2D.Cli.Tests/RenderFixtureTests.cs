@@ -272,7 +272,8 @@ public class RenderFixtureTests
             Path.Combine(temp.Path, "overlay.png"), "--cpu", "--assets", Dv2d.AssetsDirectory,
             "--layers", "radar,zones", "--zones-overlay", overlayPath, "--json");
 
-        Console.WriteLine($"[zones] bare={bare.ExitCode} zones={zones.ExitCode} overlay={overlay.ExitCode}\n{overlay.StdErr}");
+        Console.WriteLine(
+            $"[zones] bare={bare.ExitCode} zones={zones.ExitCode} overlay={overlay.ExitCode}\n{overlay.StdErr}");
         await Assert.That(bare.ExitCode).IsEqualTo(0);
         await Assert.That(zones.ExitCode).IsEqualTo(0);
         await Assert.That(overlay.ExitCode).IsEqualTo(0);

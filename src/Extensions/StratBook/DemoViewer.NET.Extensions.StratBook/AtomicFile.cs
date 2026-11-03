@@ -42,7 +42,8 @@ internal static class AtomicFile
         string directory = Path.GetDirectoryName(full)!;
         Directory.CreateDirectory(directory);
         // Beside the target, so the move is a rename on the same volume.
-        string temp = Path.Combine(directory, "." + Path.GetFileName(full) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+        string temp = Path.Combine(directory,
+            "." + Path.GetFileName(full) + "." + Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
             using (FileStream stream = new(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
@@ -83,7 +84,8 @@ internal static class AtomicFile
                 File.Move(temp, target, overwrite: true);
                 return;
             }
-            catch (Exception ex) when (attempt < ReplaceRetryDelaysMs.Length && OperatingSystem.IsWindows() && IsTransientOnWindows(ex))
+            catch (Exception ex) when (attempt < ReplaceRetryDelaysMs.Length && OperatingSystem.IsWindows()
+                                                                             && IsTransientOnWindows(ex))
             {
                 Thread.Sleep(ReplaceRetryDelaysMs[attempt]);
             }

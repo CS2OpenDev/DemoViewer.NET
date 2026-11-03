@@ -144,12 +144,7 @@ public static class LegacyCacheMigration
                     [
                         .. (legacy.Players ?? [])
                         .Where(n => !string.IsNullOrWhiteSpace(n))
-                        .Select(n => new CachedPlayerInfo
-                        {
-                            Name = n,
-                            Slot = -1,
-                            Team = 0
-                        })
+                        .Select(n => new CachedPlayerInfo { Name = n, Slot = -1, Team = 0 })
                     ];
 
                     DemoCacheStore.StampParse(record);
@@ -219,10 +214,7 @@ public static class LegacyCacheMigration
                             [
                                 .. legacy.Players.Select(p => new CachedPlayerInfo
                                 {
-                                    Slot = p.Slot,
-                                    Name = p.Name,
-                                    SteamId64 = p.SteamId64,
-                                    Team = p.Team
+                                    Slot = p.Slot, Name = p.Name, SteamId64 = p.SteamId64, Team = p.Team
                                 })
                             ];
                         }
@@ -233,8 +225,7 @@ public static class LegacyCacheMigration
                             [
                                 .. legacy.Rounds.Select(r => new CachedRound
                                 {
-                                    Number = r.Number,
-                                    StartTickFrameClock = r.StartTickFrameClock
+                                    Number = r.Number, StartTickFrameClock = r.StartTickFrameClock
                                 })
                             ];
                         }

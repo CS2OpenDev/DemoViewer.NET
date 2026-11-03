@@ -196,7 +196,8 @@ public class ZoneResolverAgreementTests
         }
 
         Console.WriteLine($"[agreement] {chosen.Count} of {all.Length} demos selected " +
-                          $"({(perMap == int.MaxValue ? "no" : perMap.ToString(CultureInfo.InvariantCulture))} per-map cap): " +
+                          $"({(perMap == int.MaxValue ? "no" : perMap.ToString(CultureInfo.InvariantCulture))} per-map cap): "
+                          +
                           string.Join(", ", taken.OrderBy(t => t.Key).Select(t => $"{t.Key} x{t.Value}")));
         return [.. chosen];
     }
@@ -223,7 +224,8 @@ public class ZoneResolverAgreementTests
 
         public string Report(string map, double floor) => string.Create(CultureInfo.InvariantCulture,
             $"[agreement] POOLED {map}  demos={Demos}  placed={Placed}  agreed={Agreed}  " +
-            $"agree={AgreementPercent:F2} %  min={_demos.Min(d => d.Percent):F2} %  max={_demos.Max(d => d.Percent):F2} %  " +
+            $"agree={AgreementPercent:F2} %  min={_demos.Min(d => d.Percent):F2} %  max={_demos.Max(d => d.Percent):F2} %  "
+            +
             $"floor={floor} %  {(AgreementPercent >= floor ? "OK" : "UNDER")}");
     }
 

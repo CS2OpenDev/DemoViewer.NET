@@ -681,7 +681,9 @@ public static class DemoTestHelper
         }
 
         string path = Path.Combine(folder, fileName);
-        return File.Exists(path) ? path : throw new SkipTestException($"{fileName} is not in the {DemoPathEnvVar} folder: {folder}");
+        return File.Exists(path)
+            ? path
+            : throw new SkipTestException($"{fileName} is not in the {DemoPathEnvVar} folder: {folder}");
     }
 
     /// <summary>

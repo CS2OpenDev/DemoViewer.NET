@@ -34,7 +34,8 @@ public class ProtoIndexTests
         string? url = _idx.FieldUrl("CNETMsg_SetConVar", "convars");
 
         await Assert.That(url)
-            .IsEqualTo("https://github.com/SteamDatabase/GameTracking-CS2/blob/master/Protobufs/networkbasetypes.proto");
+            .IsEqualTo(
+                "https://github.com/SteamDatabase/GameTracking-CS2/blob/master/Protobufs/networkbasetypes.proto");
         await Assert.That(url!.Contains("#L", StringComparison.Ordinal)).IsFalse();
     }
 

@@ -17,7 +17,8 @@ public class StratMinerTests
 {
     private static readonly (float X, float Y)[] _stack = [(0, 0), (100, 0), (200, 0), (0, 800), (100, 800)];
 
-    private static RoundSignature Round(string demo, int round, (float X, float Y)[] players, IReadOnlyList<MinedThrow>? throws,
+    private static RoundSignature Round(string demo, int round, (float X, float Y)[] players,
+        IReadOnlyList<MinedThrow>? throws,
         string? site = "A", PatternKind kind = PatternKind.Execute, double takeSeconds = 30, int slotOffset = 0) =>
         new()
         {
@@ -33,7 +34,10 @@ public class StratMinerTests
             Won = round % 2 == 0,
             Anchors =
             [
-                [.. players.Select((p, i) => new MinedPawn((i + slotOffset) % 5, p.X, p.Y, 0, i < 3 ? "TRamp" : "Palace"))],
+                [
+                    .. players.Select((p, i) =>
+                        new MinedPawn((i + slotOffset) % 5, p.X, p.Y, 0, i < 3 ? "TRamp" : "Palace"))
+                ],
                 [.. players.Select((p, i) => new MinedPawn((i + slotOffset) % 5, p.X + 50, p.Y, 0, null))]
             ],
             Throws = throws
@@ -42,7 +46,8 @@ public class StratMinerTests
     private static MinedThrow Smoke(float x, float y, double seconds, Guid? lineup = null) =>
         new(GrenadeKind.Smoke, seconds, new WorldPoint(x, y, 0), "Stairs", new WorldPoint(0, 0, 0), 0, null, lineup);
 
-    private static (float X, float Y)[] Shift((float X, float Y)[] players, float by) => [.. players.Select(p => (p.X + by, p.Y))];
+    private static (float X, float Y)[] Shift((float X, float Y)[] players, float by) =>
+        [.. players.Select(p => (p.X + by, p.Y))];
 
     [Test]
     public async Task Players_PairByPosition_NotBySlot()
@@ -64,7 +69,8 @@ public class StratMinerTests
         {
             await Assert.That(StratMiner.Distance(threw, none)).IsEqualTo(StratMiner.UtilityWeight).Within(1e-9)
                 .Because("rows that show no grenade are a real difference");
-            await Assert.That(StratMiner.Distance(threw, unknown)).IsEqualTo(StratMiner.UnknownUtilityPenalty).Within(1e-9)
+            await Assert.That(StratMiner.Distance(threw, unknown)).IsEqualTo(StratMiner.UnknownUtilityPenalty)
+                .Within(1e-9)
                 .Because("a demo without grenade rows is unknown, not empty");
         }
     }
@@ -101,12 +107,14 @@ public class StratMinerTests
         MinedPattern pattern = patterns.Single();
         using (Assert.Multiple())
         {
-            await Assert.That(pattern.Members.Select(m => m.DemoPath)).IsEquivalentTo(["a.dem", "b.dem", "c.dem"], CollectionOrdering.Matching);
+            await Assert.That(pattern.Members.Select(m => m.DemoPath))
+                .IsEquivalentTo(["a.dem", "b.dem", "c.dem"], CollectionOrdering.Matching);
             await Assert.That(pattern.Members[0].DemoPath).IsEqualTo("a.dem").Because("the medoid comes first");
             await Assert.That(pattern.Site).IsEqualTo("A");
             await Assert.That(pattern.Wins).IsEqualTo(3);
             await Assert.That(pattern.UtilityCompared).IsTrue();
-            await Assert.That(pattern.CommonThrows.Select(c => c.Rounds)).IsEquivalentTo([3, 2], CollectionOrdering.Matching)
+            await Assert.That(pattern.CommonThrows.Select(c => c.Rounds))
+                .IsEquivalentTo([3, 2], CollectionOrdering.Matching)
                 .Because("both smokes are thrown in at least half the rounds");
         }
     }
@@ -116,7 +124,8 @@ public class StratMinerTests
     {
         List<RoundSignature> rounds = [Round("full.dem", 3, _stack, []), Round("trimmed.dem", 3, _stack, [])];
 
-        await Assert.That(StratMiner.DropCopies(rounds).Select(r => r.DemoPath)).IsEquivalentTo(["full.dem"], CollectionOrdering.Matching);
+        await Assert.That(StratMiner.DropCopies(rounds).Select(r => r.DemoPath))
+            .IsEquivalentTo(["full.dem"], CollectionOrdering.Matching);
         await Assert.That(StratMiner.Mine(rounds)).IsEmpty();
     }
 
@@ -138,8 +147,10 @@ public class StratMinerTests
         using (Assert.Multiple())
         {
             await Assert.That(backward.Key).IsEqualTo(forward.Key);
-            await Assert.That(backward.Members.Select(m => m.DemoPath)).IsEquivalentTo(forward.Members.Select(m => m.DemoPath), CollectionOrdering.Matching);
-            await Assert.That(fewer.Key).IsEqualTo(forward.Key).Because("the key follows the shape, not the member set");
+            await Assert.That(backward.Members.Select(m => m.DemoPath))
+                .IsEquivalentTo(forward.Members.Select(m => m.DemoPath), CollectionOrdering.Matching);
+            await Assert.That(fewer.Key).IsEqualTo(forward.Key)
+                .Because("the key follows the shape, not the member set");
         }
     }
 }

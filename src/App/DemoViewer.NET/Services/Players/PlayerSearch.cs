@@ -42,7 +42,8 @@ public sealed class PlayerSearch(PlayerDirectory directory, IVanityResolver? res
 
         if (parse.Form == SteamIdForm.VanityUrl)
         {
-            return new PlayerSearchResult(ByName(parse.Vanity!, null), null, parse.Form, false, parse.Vanity, VanityNotice);
+            return new PlayerSearchResult(ByName(parse.Vanity!, null), null, parse.Form, false, parse.Vanity,
+                VanityNotice);
         }
 
         ulong id = parse.SteamId64!.Value;
@@ -83,6 +84,7 @@ public sealed class PlayerSearch(PlayerDirectory directory, IVanityResolver? res
 
     private List<PlayerEntry> ByName(string query, ulong? except) =>
     [
-        .. directory.Players.Where(p => p.SteamId64 != except && p.Aliases.Any(a => a.Name.Contains(query, StringComparison.OrdinalIgnoreCase)))
+        .. directory.Players.Where(p =>
+            p.SteamId64 != except && p.Aliases.Any(a => a.Name.Contains(query, StringComparison.OrdinalIgnoreCase)))
     ];
 }

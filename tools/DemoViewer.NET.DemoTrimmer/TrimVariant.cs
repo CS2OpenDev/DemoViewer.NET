@@ -35,15 +35,9 @@ internal sealed record TrimVariant(
     ///     only exists to interpret the data.
     /// </summary>
     private static readonly FrozenSet<string> AnimationFrames =
-        new[]
-        {
-            "DEM_AnimationData", "DEM_AnimationHeader"
-        }.ToFrozenSet(StringComparer.Ordinal);
+        new[] { "DEM_AnimationData", "DEM_AnimationHeader" }.ToFrozenSet(StringComparer.Ordinal);
 
-    private static readonly FrozenSet<int> UserCmds = new[]
-    {
-        PacketRewriter.SvcUserCmdsTypeId
-    }.ToFrozenSet();
+    private static readonly FrozenSet<int> UserCmds = new[] { PacketRewriter.SvcUserCmdsTypeId }.ToFrozenSet();
 
     /// <summary>
     ///     V0: no mid-stream entry. Everything from frame 0 through the end of round N, verbatim.
@@ -104,7 +98,8 @@ internal sealed record TrimVariant(
     public static IReadOnlyList<TrimVariant> Parse(string spec)
     {
         List<TrimVariant> chosen = [];
-        foreach (string token in spec.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (string token in spec.Split(',',
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             TrimVariant? match = All.FirstOrDefault(v =>
                 v.Id.Equals(token, StringComparison.OrdinalIgnoreCase)

@@ -94,7 +94,8 @@ public sealed class PostPlantService
     /// <param name="roundFacts">The Round Facts rows per demo.</param>
     /// <param name="positions">The round positions files, for the spots, the holds and the retakes.</param>
     /// <param name="fingerprintFor">The fingerprint current positions carry per map; a file under another is stale.</param>
-    public PostPlantService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts, RoundIndexStore positions,
+    public PostPlantService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts,
+        RoundIndexStore positions,
         Func<string?, string> fingerprintFor)
     {
         ArgumentNullException.ThrowIfNull(teams);
@@ -129,7 +130,8 @@ public sealed class PostPlantService
             }
 
             read++;
-            RoundPositionsDocument? positions = _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
+            RoundPositionsDocument? positions =
+                _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
             if (positions is null)
             {
                 withoutPositions++;
@@ -172,10 +174,7 @@ public sealed class PostPlantService
 
         return new PostPlantSet
         {
-            TeamId = teamId,
-            Blocks = blocks,
-            DemosRead = read,
-            DemosWithoutPositions = withoutPositions
+            TeamId = teamId, Blocks = blocks, DemosRead = read, DemosWithoutPositions = withoutPositions
         };
     }
 
@@ -219,7 +218,8 @@ public sealed class PostPlantService
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
         if (round.PlantTick is not { } plant || round.PlanterSlot is not { } planter
-                                             || positions.Round(round.Number) is not { } stored || positions.CadenceTicks <= 0)
+                                             || positions.Round(round.Number) is not { } stored
+                                             || positions.CadenceTicks <= 0)
         {
             return null;
         }
@@ -248,11 +248,13 @@ public sealed class PostPlantService
     /// <param name="round">A round with a plant.</param>
     /// <param name="spot">The plant spot.</param>
     /// <param name="tickRate">The demo's tick rate.</param>
-    public static string? RetakeGroup(RoundPositionsDocument positions, RoundFacts round, RoundPosition spot, int tickRate)
+    public static string? RetakeGroup(RoundPositionsDocument positions, RoundFacts round, RoundPosition spot,
+        int tickRate)
     {
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
-        if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored || positions.CadenceTicks <= 0)
+        if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored
+                                             || positions.CadenceTicks <= 0)
         {
             return null;
         }
@@ -318,7 +320,8 @@ public sealed class PostPlantService
     {
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
-        if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored || positions.CadenceTicks <= 0)
+        if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored
+                                             || positions.CadenceTicks <= 0)
         {
             return null;
         }
@@ -429,7 +432,8 @@ public sealed class PostPlantService
         public void Add(DemoContext demo, RoundFacts round, int side)
         {
             int rate = demo.Rate;
-            _rounds.Add(Clip(demo, round, round.FreezeEndTick, round.EndTick ?? round.FreezeEndTick + 3 * PostPlantSeconds * rate));
+            _rounds.Add(Clip(demo, round, round.FreezeEndTick,
+                round.EndTick ?? round.FreezeEndTick + 3 * PostPlantSeconds * rate));
             if (round.PlantTick is not { } plant)
             {
                 return;
@@ -449,7 +453,8 @@ public sealed class PostPlantService
             RoundPosition? spot = PlantSpot(positions, round);
             if (side == 3)
             {
-                _retakes.Add(spot is { } bomb ? RetakeGroup(positions, round, bomb, rate) ?? SpotUnread : SpotUnread, clip);
+                _retakes.Add(spot is { } bomb ? RetakeGroup(positions, round, bomb, rate) ?? SpotUnread : SpotUnread,
+                    clip);
                 return;
             }
 
@@ -469,7 +474,8 @@ public sealed class PostPlantService
                 _holdShapes.Add(SpotUnread, clip);
             }
 
-            foreach (string place in hold.Select(p => positions.PlaceOf(p.PlaceId) ?? "unplaced").Distinct(StringComparer.Ordinal))
+            foreach (string place in hold.Select(p => positions.PlaceOf(p.PlaceId) ?? "unplaced")
+                         .Distinct(StringComparer.Ordinal))
             {
                 _holdPlaces.Add(place, clip);
             }
@@ -524,7 +530,8 @@ public sealed class PostPlantService
                 {
                     n++;
                     named.Add(new TendencyBucket(
-                        string.Create(CultureInfo.InvariantCulture, $"{site.Key} spot {n} ({Math.Round(c.X):0}, {Math.Round(c.Y):0})"),
+                        string.Create(CultureInfo.InvariantCulture,
+                            $"{site.Key} spot {n} ({Math.Round(c.X):0}, {Math.Round(c.Y):0})"),
                         c.Rounds));
                 }
             }

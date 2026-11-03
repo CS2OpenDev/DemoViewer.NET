@@ -24,7 +24,12 @@ public enum GrenadeGrouping
 /// <param name="Origin">The members' mean release point.</param>
 /// <param name="JumpThrow">Whether it is a jump-throw.</param>
 /// <param name="Throws">The members, oldest demo first, then by release tick.</param>
-public sealed record LineupTechnique(string Key, string Label, WorldPoint Origin, bool JumpThrow, IReadOnlyList<IndexedGrenade> Throws)
+public sealed record LineupTechnique(
+    string Key,
+    string Label,
+    WorldPoint Origin,
+    bool JumpThrow,
+    IReadOnlyList<IndexedGrenade> Throws)
 {
     /// <summary>The member released nearest the technique's mean origin: the one a card and a clip use.</summary>
     public IndexedGrenade Representative => GrenadeLineups.Medoid(Throws, Origin);
@@ -122,7 +127,8 @@ public static class GrenadeLineups
     /// <param name="store">The map's anchors; new ones are appended.</param>
     /// <param name="mint">False while the library is still loading: leftovers stay singles and nothing is stored.</param>
     /// <returns>Throw key to lineup id, and whether an anchor was added.</returns>
-    public static (Dictionary<string, Guid> Assignment, bool Minted) Assign(string map, IReadOnlyList<IndexedGrenade> throws,
+    public static (Dictionary<string, Guid> Assignment, bool Minted) Assign(string map,
+        IReadOnlyList<IndexedGrenade> throws,
         MapLineups store, bool mint)
     {
         ArgumentNullException.ThrowIfNull(map);
@@ -185,7 +191,8 @@ public static class GrenadeLineups
     ///     Maps every grid id (<see cref="GrenadeIndex.Cluster" />, v1) to exactly one lineup: the one that
     ///     received most of that grid position's throws, ties to the bigger lineup, then the lower id.
     /// </summary>
-    public static Dictionary<Guid, Guid> BuildAliases(IReadOnlyList<IndexedGrenade> throws, IReadOnlyDictionary<string, Guid> assignment)
+    public static Dictionary<Guid, Guid> BuildAliases(IReadOnlyList<IndexedGrenade> throws,
+        IReadOnlyDictionary<string, Guid> assignment)
     {
         ArgumentNullException.ThrowIfNull(throws);
         ArgumentNullException.ThrowIfNull(assignment);
@@ -227,7 +234,8 @@ public static class GrenadeLineups
     /// <param name="throws">The filtered throws.</param>
     /// <param name="lineupOf">A throw's lineup id.</param>
     /// <param name="aliasesOf">The old ids that resolve to a lineup.</param>
-    public static IReadOnlyList<GrenadeCluster> Group(IEnumerable<IndexedGrenade> throws, Func<IndexedGrenade, Guid> lineupOf,
+    public static IReadOnlyList<GrenadeCluster> Group(IEnumerable<IndexedGrenade> throws,
+        Func<IndexedGrenade, Guid> lineupOf,
         Func<Guid, IReadOnlyList<Guid>> aliasesOf)
     {
         ArgumentNullException.ThrowIfNull(throws);
@@ -236,10 +244,12 @@ public static class GrenadeLineups
         List<GrenadeCluster> clusters = [];
         foreach (IGrouping<GrenadeKind, IndexedGrenade> kind in throws.GroupBy(t => t.Kind))
         {
-            List<GrenadeLineup> lineups = [.. kind.GroupBy(lineupOf).Select(g => Shape(g.Key, [.. g], aliasesOf(g.Key)))];
+            List<GrenadeLineup> lineups =
+                [.. kind.GroupBy(lineupOf).Select(g => Shape(g.Key, [.. g], aliasesOf(g.Key)))];
             float radius = GroupRadius(kind.Key);
             List<(WorldPoint Centre, List<GrenadeLineup> Lineups)> groups = [];
-            foreach (Seed<GrenadeLineup> seed in Leader(lineups, Landing, radius, LandingHeight, null, l => l.Throws.Count))
+            foreach (Seed<GrenadeLineup> seed in Leader(lineups, Landing, radius, LandingHeight, null,
+                         l => l.Throws.Count))
             {
                 groups.Add((Weighted(seed.Members), seed.Members));
             }
@@ -326,13 +336,13 @@ public static class GrenadeLineups
         List<LineupTechnique> techniques =
         [
             .. throws.GroupBy(t => TechniqueKey(t.Row), StringComparer.Ordinal)
-                .Select(g => new LineupTechnique(g.Key, TechniqueLabel(g.Key), Mean(g.Select(t => t.Origin)), g.First().Row.JumpThrow, [.. g]))
+                .Select(g => new LineupTechnique(g.Key, TechniqueLabel(g.Key), Mean(g.Select(t => t.Origin)),
+                    g.First().Row.JumpThrow, [.. g]))
                 .OrderByDescending(t => t.Throws.Count).ThenBy(t => t.Key, StringComparer.Ordinal)
         ];
         return new GrenadeLineup(Mean(throws.Select(t => t.Origin)), techniques[0].JumpThrow, throws, id)
         {
-            AliasIds = [id, .. aliases],
-            Techniques = techniques
+            AliasIds = [id, .. aliases], Techniques = techniques
         };
     }
 
@@ -345,7 +355,8 @@ public static class GrenadeLineups
         static bool LandsWith(IndexedGrenade g, Seed<IndexedGrenade> s) =>
             Near(g.Landing, s.First.Landing, LineupLandingRadius, LandingHeight);
 
-        List<Seed<IndexedGrenade>> still = Leader([.. leftovers.Where(g => !IsRunning(g))], g => g.Origin, SpotRadius, SpotHeight,
+        List<Seed<IndexedGrenade>> still = Leader([.. leftovers.Where(g => !IsRunning(g))], g => g.Origin, SpotRadius,
+            SpotHeight,
             LandsWith, _ => 1);
         Dictionary<(int, int), List<Seed<IndexedGrenade>>> cells = [];
         foreach (Seed<IndexedGrenade> seed in still)
@@ -361,7 +372,8 @@ public static class GrenadeLineups
             foreach (Seed<IndexedGrenade> seed in Around(cells, g.Origin, RunningSpotRadius))
             {
                 float d = Planar(g.Origin, seed.Centre);
-                if (d <= RunningSpotRadius && d < bestDistance && MathF.Abs(g.Origin.Z - seed.Centre.Z) <= SpotHeight && LandsWith(g, seed))
+                if (d <= RunningSpotRadius && d < bestDistance && MathF.Abs(g.Origin.Z - seed.Centre.Z) <= SpotHeight
+                    && LandsWith(g, seed))
                 {
                     best = seed;
                     bestDistance = d;
@@ -378,12 +390,14 @@ public static class GrenadeLineups
             }
         }
 
-        List<Seed<IndexedGrenade>> running = Leader(unplaced, g => g.Origin, RunningSpotRadius, SpotHeight, LandsWith, _ => 1);
+        List<Seed<IndexedGrenade>> running = Leader(unplaced, g => g.Origin, RunningSpotRadius, SpotHeight, LandsWith,
+            _ => 1);
         return [.. still.Concat(running).Select(s => s.Members)];
     }
 
     private static IEnumerable<IndexedGrenade> Sorted(IEnumerable<IndexedGrenade> throws) =>
-        throws.OrderBy(g => g.Origin.X).ThenBy(g => g.Origin.Y).ThenBy(g => g.Origin.Z).ThenBy(g => g.Key, StringComparer.Ordinal);
+        throws.OrderBy(g => g.Origin.X).ThenBy(g => g.Origin.Y).ThenBy(g => g.Origin.Z)
+            .ThenBy(g => g.Key, StringComparer.Ordinal);
 
     private static LineupAnchor? Nearest(Dictionary<(int, int), List<LineupAnchor>> cells, IndexedGrenade g)
     {
@@ -441,7 +455,8 @@ public static class GrenadeLineups
             foreach (Seed<T> seed in Around(seedCells, p, radius))
             {
                 float d = Planar(p, seed.Centre);
-                if (d <= radius && d < bestDistance && MathF.Abs(p.Z - seed.Centre.Z) <= height && (fits is null || fits(item, seed)))
+                if (d <= radius && d < bestDistance && MathF.Abs(p.Z - seed.Centre.Z) <= height
+                    && (fits is null || fits(item, seed)))
                 {
                     best = seed;
                     bestDistance = d;
@@ -463,7 +478,8 @@ public static class GrenadeLineups
         return seeds;
     }
 
-    private static (int, int) Bucket(WorldPoint p, float size) => ((int)MathF.Floor(p.X / size), (int)MathF.Floor(p.Y / size));
+    private static (int, int) Bucket(WorldPoint p, float size) =>
+        ((int)MathF.Floor(p.X / size), (int)MathF.Floor(p.Y / size));
 
     private static IEnumerable<TItem> Around<TItem>(Dictionary<(int, int), List<TItem>> cells, WorldPoint p, float size)
     {
@@ -494,7 +510,8 @@ public static class GrenadeLineups
         list.Add(item);
     }
 
-    private static float Planar(WorldPoint a, WorldPoint b) => MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+    private static float Planar(WorldPoint a, WorldPoint b) =>
+        MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
 
     private static float Distance3(WorldPoint a, WorldPoint b) =>
         MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y) + (a.Z - b.Z) * (a.Z - b.Z));

@@ -204,12 +204,14 @@ public sealed class PackExporter
         {
             ct.ThrowIfCancellationRequested();
             PackClip clip = clips[i];
-            string path = clip.OutputPath ?? PackPlanner.ClipPath(plan.Settings.OutputPath, clip.Number, clip.Section, clip.Entry);
+            string path = clip.OutputPath
+                          ?? PackPlanner.ClipPath(plan.Settings.OutputPath, clip.Number, clip.Section, clip.Entry);
             progress?.Report(new PackProgress(i + 1, clips.Count, Label(clip)));
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                await _clips.RenderAsync(clip, plan.Settings, _encoder.Open(path, plan.Settings), ct).ConfigureAwait(false);
+                await _clips.RenderAsync(clip, plan.Settings, _encoder.Open(path, plan.Settings), ct)
+                    .ConfigureAwait(false);
                 outputs.Add(path);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -232,7 +234,8 @@ public sealed class PackExporter
     internal static async Task WriteTitleCardAsync(PackTitleCard card, PackSettings settings, IFrameSink sink,
         CancellationToken ct, ScenePalette? palette = null)
     {
-        byte[] rgba = PackTitleCardRenderer.Render(card.Title, card.Subtitle, settings.Side, palette ?? ScenePalette.Dark);
+        byte[] rgba =
+            PackTitleCardRenderer.Render(card.Title, card.Subtitle, settings.Side, palette ?? ScenePalette.Dark);
         for (int f = 0; f < card.Frames; f++)
         {
             ct.ThrowIfCancellationRequested();

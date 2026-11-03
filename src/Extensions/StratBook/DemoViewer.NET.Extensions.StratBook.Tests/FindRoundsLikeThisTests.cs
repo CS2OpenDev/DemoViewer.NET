@@ -72,7 +72,8 @@ public class FindRoundsLikeThisTests
                 await Assert.That(tool).IsEqualTo(StratBookActions.FindRoundsLikeThis);
 
                 // Not a shell accelerator and not one the browser eats, so a user may keep it on either head.
-                await Assert.That(Playback2DKeymap.ReservedGestures(true)).DoesNotContain((Key.F, KeyModifiers.Control));
+                await Assert.That(Playback2DKeymap.ReservedGestures(true))
+                    .DoesNotContain((Key.F, KeyModifiers.Control));
                 await Assert.That(keymap.GestureText(StratBookActions.FindRoundsLikeThis)).IsEqualTo("Ctrl+F");
             }
         });
@@ -84,7 +85,8 @@ public class FindRoundsLikeThisTests
         await HeadlessSession.RunOnUi(async () =>
         {
             SceneTime time = new(1000, 10, 15.6, 0.015625, false);
-            SituationSnapshot snapshot = SituationSnapshot.Capture("de_nuke", time, Markers(), PawnPlaceSource.Instance);
+            SituationSnapshot snapshot =
+                SituationSnapshot.Capture("de_nuke", time, Markers(), PawnPlaceSource.Instance);
 
             // The builder over the same ten positions at the same tick, seen through PositionSampler's eyes.
             RoundIndexDocument document = RoundIndexBuilder.Build(Demo(), Facts(Round(1, 1000, 1200)),
@@ -172,10 +174,12 @@ public class FindRoundsLikeThisTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(snapshot.Ct.Count).IsEqualTo(1).Because("the dead CT and the spectator are not alive players");
+                await Assert.That(snapshot.Ct.Count).IsEqualTo(1)
+                    .Because("the dead CT and the spectator are not alive players");
                 await Assert.That(snapshot.T.Count).IsEqualTo(2);
                 await Assert.That(snapshot.TokenFor(QuerySide.Ct)).IsEqualTo("BombsiteA:1");
-                await Assert.That(snapshot.TokenFor(QuerySide.T)).IsEqualTo(PlaceCountToken.EncodePlaces([null, "Lobby"]))
+                await Assert.That(snapshot.TokenFor(QuerySide.T))
+                    .IsEqualTo(PlaceCountToken.EncodePlaces([null, "Lobby"]))
                     .Because("the snapshot token is the builder's, unknown place included");
             }
 
@@ -189,7 +193,8 @@ public class FindRoundsLikeThisTests
                 await Assert.That(unknown.IsResolved).IsFalse();
                 await Assert.That(h.Vm.CtToken).IsEqualTo("BombsiteA:1");
                 await Assert.That(h.Vm.TToken).IsEqualTo("Lobby:1").Because("a query never targets ?");
-                await Assert.That(h.Vm.Draft.ToQuery().T).IsEquivalentTo([new PlaceQuery("Lobby", 1)], CollectionOrdering.Matching);
+                await Assert.That(h.Vm.Draft.ToQuery().T)
+                    .IsEquivalentTo([new PlaceQuery("Lobby", 1)], CollectionOrdering.Matching);
             }
         });
     }
@@ -292,7 +297,8 @@ public class FindRoundsLikeThisTests
         await HeadlessSession.RunOnUi(async () =>
         {
             RecordingSeam seam = new();
-            PlaybackContributionHost host = Extensions.StratBook.ReviewPanelsHarness.Host(null, new SituationsPlaybackContribution());
+            PlaybackContributionHost host =
+                Extensions.StratBook.ReviewPanelsHarness.Host(null, new SituationsPlaybackContribution());
             (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab(
                 contributions: host, configure: c =>
                 {
@@ -349,7 +355,8 @@ public class FindRoundsLikeThisTests
             Sources = new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn);
             Index = new SituationIndex(Cache.Library(), Sidecars, Sources);
             Index.Load();
-            Vm = new QueryCanvasViewModel(Index, new QueryPlaceResolver(Index, Sources.Zones), Cache.Library(), _ => null);
+            Vm = new QueryCanvasViewModel(Index, new QueryPlaceResolver(Index, Sources.Zones), Cache.Library(),
+                _ => null);
         }
 
         public DemoCacheStore Cache { get; }

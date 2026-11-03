@@ -27,7 +27,8 @@ internal static class SignalWaits
         this INotifyPropertyChanged source,
         Func<bool> condition,
         int timeoutMs = 30_000,
-        [CallerArgumentExpression(nameof(condition))] string? expression = null)
+        [CallerArgumentExpression(nameof(condition))]
+        string? expression = null)
     {
         TaskCompletionSource landed = new(TaskCreationOptions.RunContinuationsAsynchronously);
 

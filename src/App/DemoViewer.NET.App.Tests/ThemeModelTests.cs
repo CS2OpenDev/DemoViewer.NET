@@ -63,10 +63,12 @@ public class ThemeModelTests
     [Test]
     public async Task EveryBuiltIn_HasAValueForEveryToken()
     {
-        await Assert.That(BuiltInThemes.All.Select(p => p.Id)).IsEquivalentTo(["dark", "light", "high-contrast", "egirl"]);
+        await Assert.That(BuiltInThemes.All.Select(p => p.Id))
+            .IsEquivalentTo(["dark", "light", "high-contrast", "egirl"]);
         foreach (ThemePalette palette in BuiltInThemes.All)
         {
-            string[] missing = [.. ThemeTokens.All.Where(t => !palette.Colors.ContainsKey(t) && !palette.Gradients.ContainsKey(t))];
+            string[] missing =
+                [.. ThemeTokens.All.Where(t => !palette.Colors.ContainsKey(t) && !palette.Gradients.ContainsKey(t))];
             await Assert.That(missing).IsEmpty().Because(palette.Id);
         }
     }
@@ -75,7 +77,8 @@ public class ThemeModelTests
     public async Task BuiltInPalettes_CannotBeChanged()
     {
         ThemePalette dark = BuiltInThemes.Dark;
-        await Assert.That(() => ((IDictionary<string, Color>)dark.Colors)["ShellBg"] = Colors.Red).Throws<NotSupportedException>();
+        await Assert.That(() => ((IDictionary<string, Color>)dark.Colors)["ShellBg"] = Colors.Red)
+            .Throws<NotSupportedException>();
         await Assert.That(BuiltInThemes.Find("dark")!.Colors["ShellBg"]).IsEqualTo(Color.Parse("#080816"));
     }
 
@@ -103,15 +106,21 @@ public class ThemeModelTests
         List<string> diffs = [];
         await HeadlessSession.RunOnUi(() =>
         {
-            foreach ((ThemePalette palette, ThemeVariant variant) in new[] { (BuiltInThemes.Dark, ThemeVariant.Dark), (BuiltInThemes.Light, ThemeVariant.Light) })
+            foreach ((ThemePalette palette, ThemeVariant variant) in new[]
+                     {
+                         (BuiltInThemes.Dark, ThemeVariant.Dark), (BuiltInThemes.Light, ThemeVariant.Light)
+                     })
             {
                 foreach (string token in ThemeTokens.All)
                 {
                     Application.Current!.TryGetResource(token, variant, out object? compiled);
-                    object? model = palette.Colors.TryGetValue(token, out Color c) ? new SolidColorBrush(c) : palette.Gradients[token].ToBrush();
+                    object? model = palette.Colors.TryGetValue(token, out Color c)
+                        ? new SolidColorBrush(c)
+                        : palette.Gradients[token].ToBrush();
                     if (!ThemeSampleFileTests.SameBrush(compiled, model))
                     {
-                        diffs.Add($"{palette.Id} {token}: compiled {ThemeSampleFileTests.Describe(compiled)}, model {ThemeSampleFileTests.Describe(model)}");
+                        diffs.Add(
+                            $"{palette.Id} {token}: compiled {ThemeSampleFileTests.Describe(compiled)}, model {ThemeSampleFileTests.Describe(model)}");
                     }
                 }
             }
@@ -138,7 +147,9 @@ public class ThemeModelTests
                     foreach (string token in ThemeTokens.All)
                     {
                         Application.Current!.TryGetResource(token, variant, out object? live);
-                        object model = palette.Colors.TryGetValue(token, out Color c) ? new SolidColorBrush(c) : palette.Gradients[token].ToBrush();
+                        object model = palette.Colors.TryGetValue(token, out Color c)
+                            ? new SolidColorBrush(c)
+                            : palette.Gradients[token].ToBrush();
                         if (!ThemeSampleFileTests.SameBrush(live, model))
                         {
                             diffs.Add($"{palette.Id} {token}");
@@ -181,7 +192,8 @@ public class ThemeModelTests
     {
         ThemePalette egirl = BuiltInThemes.Find("egirl")!;
         string json = ThemeExport.ToJson(egirl);
-        string pb2dTeamCt = json.Split('\n').Single(l => l.TrimStart().StartsWith("\"Pb2dTeamCt\"", StringComparison.Ordinal));
+        string pb2dTeamCt = json.Split('\n')
+            .Single(l => l.TrimStart().StartsWith("\"Pb2dTeamCt\"", StringComparison.Ordinal));
         string shell = json.Split('\n').Single(l => l.TrimStart().StartsWith("\"ShellBg\"", StringComparison.Ordinal));
 
         await Assert.That(egirl.Inherited.Contains("Pb2dTeamCt")).IsTrue();
@@ -197,21 +209,24 @@ public class ThemeModelTests
     public async Task MissingTokens_FallBackToTheBase_AndAreReported()
     {
         using TempThemesFolder folder = new();
-        folder.Write("partial.json", """{ "id": "partial", "name": "Partial", "base": "light", "tokens": { "ShellBg": "#010203", "PanelBg": "nope" } }""");
+        folder.Write("partial.json",
+            """{ "id": "partial", "name": "Partial", "base": "light", "tokens": { "ShellBg": "#010203", "PanelBg": "nope" } }""");
         ThemeRegistry registry = new();
         registry.Reload();
         Theme theme = registry.Find("partial")!;
 
         await Assert.That(theme.MissingTokens.Count).IsEqualTo(ThemeTokens.All.Count - 1);
         await Assert.That(theme.MissingTokens).Contains("PanelBg").Because("a bad value falls back like a missing one");
-        await Assert.That(theme.MissingTokens).Contains("LibraryCardScrim").Because("a missing gradient follows the same rule");
+        await Assert.That(theme.MissingTokens).Contains("LibraryCardScrim")
+            .Because("a missing gradient follows the same rule");
         await Assert.That(theme.BadValues).IsEquivalentTo(["PanelBg"]);
         await Assert.That(theme.MissingTokens[0]).IsEqualTo(ThemeTokens.All[1]).Because("palette order");
 
         ThemePalette palette = registry.PaletteFor("partial")!;
         await Assert.That(palette.Colors["ShellBg"]).IsEqualTo(Color.Parse("#010203"));
         await Assert.That(palette.Colors["PanelBg"]).IsEqualTo(BuiltInThemes.Light.Colors["PanelBg"]);
-        await Assert.That(palette.Gradients["LibraryCardScrim"]).IsEqualTo(BuiltInThemes.Light.Gradients["LibraryCardScrim"]);
+        await Assert.That(palette.Gradients["LibraryCardScrim"])
+            .IsEqualTo(BuiltInThemes.Light.Gradients["LibraryCardScrim"]);
 
         object? live = null;
         await HeadlessSession.RunOnUi(() =>
@@ -242,7 +257,8 @@ public class ThemeModelTests
         ThemeDefinition again = ThemeJson.TryParse(json, "again")!;
         await Assert.That(again.UnknownTokens["ShinyNewToken"]).IsEqualTo("\"#445566\"");
         await Assert.That(again.UnknownTokens["Odd"]).IsEqualTo("""{ "x": [1, 2] }""");
-        await Assert.That(again.Tokens.Keys).IsEquivalentTo(["ShellBg"]).Because("inherited tokens left out stay missing");
+        await Assert.That(again.Tokens.Keys).IsEquivalentTo(["ShellBg"])
+            .Because("inherited tokens left out stay missing");
 
         using TempThemesFolder folder = new();
         folder.Write("future.json", json);
@@ -263,7 +279,8 @@ public class ThemeModelTests
 
         await Assert.That(registry.Contains("ok")).IsTrue();
         await Assert.That(registry.LoadProblems.Select(p => p.FileName)).IsEquivalentTo(["broken.json", "noid.json"]);
-        await Assert.That(registry.LoadProblems.First(p => p.FileName == "broken.json").Reason).Contains("not valid JSON");
+        await Assert.That(registry.LoadProblems.First(p => p.FileName == "broken.json").Reason)
+            .Contains("not valid JSON");
         await Assert.That(registry.LoadProblems.First(p => p.FileName == "noid.json").Reason).Contains("no \"id\"");
     }
 
@@ -272,15 +289,16 @@ public class ThemeModelTests
     {
         using TempThemesFolder folder = new();
         folder.Write("g.json", """
-            { "id": "g", "tokens": { "LibraryCardScrim": { "start": "0%,0%", "end": "100%,0%",
-              "stops": [ { "offset": 0, "color": "#FF0000" }, { "offset": 1, "color": "#800000FF" } ] } } }
-            """);
+                               { "id": "g", "tokens": { "LibraryCardScrim": { "start": "0%,0%", "end": "100%,0%",
+                                 "stops": [ { "offset": 0, "color": "#FF0000" }, { "offset": 1, "color": "#800000FF" } ] } } }
+                               """);
         ThemeRegistry registry = new();
         registry.Reload();
 
         ThemeGradient g = registry.PaletteFor("g")!.Gradients["LibraryCardScrim"];
         await Assert.That(registry.Find("g")!.MissingTokens).DoesNotContain("LibraryCardScrim");
-        await Assert.That(g.Stops.Select(s => s.Color)).IsEquivalentTo([Color.Parse("#FF0000"), Color.Parse("#800000FF")]);
+        await Assert.That(g.Stops.Select(s => s.Color))
+            .IsEquivalentTo([Color.Parse("#FF0000"), Color.Parse("#800000FF")]);
         await Assert.That(g.End).IsEqualTo(RelativePoint.Parse("100%,0%"));
     }
 
@@ -297,7 +315,8 @@ public class ThemeModelTests
             try
             {
                 Views.RuleWorkbench.WorkbenchYamlHighlighting.ClearCache();
-                AvaloniaEdit.Highlighting.IHighlightingDefinition def = Views.RuleWorkbench.WorkbenchYamlHighlighting.DefinitionFor(theme.Variant);
+                AvaloniaEdit.Highlighting.IHighlightingDefinition def =
+                    Views.RuleWorkbench.WorkbenchYamlHighlighting.DefinitionFor(theme.Variant);
                 comment = (def.GetNamedColor("Comment").Foreground.GetBrush(null) as ISolidColorBrush)?.Color;
             }
             finally

@@ -54,7 +54,8 @@ internal sealed class ExtensionRecordPassHost(
         }
 
         // A pending stamp has no write behind it yet. The count is left out: it moves without a write.
-        if (owners?.Invoke(key.Owner)?.Data.Stamp(entry.Path, key.Facet) is not { } stamp || stamp.State == DemoDataState.Pending)
+        if (owners?.Invoke(key.Owner)?.Data.Stamp(entry.Path, key.Facet) is not { } stamp
+            || stamp.State == DemoDataState.Pending)
         {
             return null;
         }
@@ -76,7 +77,8 @@ internal sealed class ExtensionRecordPassHost(
         // A facet name the data store would reject as a path segment can never be written, so it refuses too.
         List<string> unknown =
         [
-            .. _dataInputs.Values.Where(k => !ExtensionFolders.IsSafeName(k.Facet) || owners?.Invoke(k.Owner) is null).Select(k => k.ToString())
+            .. _dataInputs.Values.Where(k => !ExtensionFolders.IsSafeName(k.Facet) || owners?.Invoke(k.Owner) is null)
+                .Select(k => k.ToString())
         ];
         return RefusalOf([.. DependsOn.OfType<FactKey>()], library.Facts.Declared, IsOff(), unknown);
     }
@@ -96,7 +98,8 @@ internal sealed class ExtensionRecordPassHost(
     /// <param name="declared">The outputs the host runs now.</param>
     /// <param name="isOff">True for a ruleset that is known but off now; its keys wait instead of refusing.</param>
     /// <param name="unknownData">Facets the pass named whose owner the host does not know.</param>
-    public static string? RefusalOf(IReadOnlyList<FactKey> dependsOn, IReadOnlyList<FactKey> declared, Func<string, bool> isOff,
+    public static string? RefusalOf(IReadOnlyList<FactKey> dependsOn, IReadOnlyList<FactKey> declared,
+        Func<string, bool> isOff,
         IReadOnlyList<string>? unknownData = null)
     {
         ArgumentNullException.ThrowIfNull(dependsOn);
@@ -170,7 +173,8 @@ internal sealed class ExtensionRecordPassHost(
             {
                 if (cached is null || !ReferenceEquals(cached.Inner, pass))
                 {
-                    cached = new ExtensionRecordPassHost(pass, contribution.Guard, library(), contribution.DependsOn, owners);
+                    cached = new ExtensionRecordPassHost(pass, contribution.Guard, library(), contribution.DependsOn,
+                        owners);
                 }
 
                 return cached;

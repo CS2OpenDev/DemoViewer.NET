@@ -34,7 +34,8 @@ public sealed partial class WatchedSituationsViewModel : ExtensionViewModel, IDi
     /// <param name="service">The watches and their badges.</param>
     /// <param name="canvas">The canvas a watch is saved from and re-run onto.</param>
     /// <param name="teams">Team Identity, so a row can name the opponent; null shows the id-free line.</param>
-    public WatchedSituationsViewModel(WatchedSituationsService service, QueryCanvasViewModel canvas, TeamIdentityService? teams = null)
+    public WatchedSituationsViewModel(WatchedSituationsService service, QueryCanvasViewModel canvas,
+        TeamIdentityService? teams = null)
     {
         ArgumentNullException.ThrowIfNull(service);
         ArgumentNullException.ThrowIfNull(canvas);

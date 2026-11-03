@@ -120,9 +120,12 @@ public sealed class DemoLibraryPruneTests : IDisposable
             using (Assert.Multiple())
             {
                 await Assert.That(before.Count).IsEqualTo(5);
-                await Assert.That(changes).IsEquivalentTo([System.Collections.Specialized.NotifyCollectionChangedAction.Reset], CollectionOrdering.Matching);
+                await Assert.That(changes)
+                    .IsEquivalentTo([System.Collections.Specialized.NotifyCollectionChangedAction.Reset],
+                        CollectionOrdering.Matching);
                 await Assert.That(svc.Entries.Select(e => e.FilePath))
-                    .IsEquivalentTo(before.Where(p => p != files[1] && p != files[2] && p != files[4]), CollectionOrdering.Matching);
+                    .IsEquivalentTo(before.Where(p => p != files[1] && p != files[2] && p != files[4]),
+                        CollectionOrdering.Matching);
             }
         }
         finally
@@ -180,7 +183,8 @@ public sealed class DemoLibraryPruneTests : IDisposable
             using (Assert.Multiple())
             {
                 await Assert.That(placements).IsEqualTo(2);
-                await Assert.That(svc.Entries.Select(e => Path.GetFileName(e.FilePath)).Order()).IsEquivalentTo(["d1.dem", "d4.dem"], CollectionOrdering.Matching);
+                await Assert.That(svc.Entries.Select(e => Path.GetFileName(e.FilePath)).Order())
+                    .IsEquivalentTo(["d1.dem", "d4.dem"], CollectionOrdering.Matching);
             }
         }
         finally
@@ -378,7 +382,8 @@ public sealed class DemoLibraryPruneTests : IDisposable
             {
                 await Assert.That(cache.TryGetIndex(deleted)).IsNull();
                 await Assert.That(cache.TryGetOrphan("sha-deleted")).IsNotNull();
-                await Assert.That(File.Exists(Path.Combine(dir, "cache", "demos", "sha-deleted" + DemoCacheStore.RecordSuffix)))
+                await Assert
+                    .That(File.Exists(Path.Combine(dir, "cache", "demos", "sha-deleted" + DemoCacheStore.RecordSuffix)))
                     .IsTrue().Because("the orphan's record moves off the path's key and stays");
             }
 

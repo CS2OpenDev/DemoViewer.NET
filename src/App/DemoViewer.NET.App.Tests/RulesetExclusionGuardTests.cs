@@ -56,19 +56,19 @@ public class RulesetExclusionGuardTests
     private const string UncomposableId = "net_example_fixture__uncomposable";
 
     private const string UncomposableYaml = """
-                                             ruleset: net_example_fixture__uncomposable
-                                             for: each_player
-                                             stats:
-                                               kills:
-                                                 count: kill
-                                                 per: match
-                                             show:
-                                               tables:
-                                                 fixture_uncomposable:
-                                                   per: player_match
-                                                   columns:
-                                                     - { stat: no_such_stat_anywhere, label: nope }
-                                             """;
+                                            ruleset: net_example_fixture__uncomposable
+                                            for: each_player
+                                            stats:
+                                              kills:
+                                                count: kill
+                                                per: match
+                                            show:
+                                              tables:
+                                                fixture_uncomposable:
+                                                  per: player_match
+                                                  columns:
+                                                    - { stat: no_such_stat_anywhere, label: nope }
+                                            """;
 
     private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
@@ -165,7 +165,8 @@ public class RulesetExclusionGuardTests
         RuleConfigLoadResult shipped = YamlConfigLoader.LoadWithOverlay(Shipped, null);
         HashSet<string> shippedIds = new(shipped.Rulesets.Select(r => r.Id), StringComparer.Ordinal);
         MergedRulesBuild rules = new(
-            () => RuleLayers.WithExtensions(YamlConfigLoader.LoadWithOverlay(Shipped, null), shippedIds, new HashSet<string>(),
+            () => RuleLayers.WithExtensions(YamlConfigLoader.LoadWithOverlay(Shipped, null), shippedIds,
+                new HashSet<string>(),
                 contributed, NullLogger.Instance),
             () => [.. contributed.Select(c => new StampedRuleset(c.RulesetId, c.Owner, static () => true))]);
 
@@ -192,11 +193,14 @@ public class RulesetExclusionGuardTests
         using (Assert.Multiple())
         {
             await Assert.That(excluded.Id).IsEqualTo(BadId);
-            await Assert.That(excluded.Diagnostics.Select(d => d.Code)).IsEquivalentTo([BuildDiagnosticCodes.LoweringFailed], CollectionOrdering.Matching);
+            await Assert.That(excluded.Diagnostics.Select(d => d.Code))
+                .IsEquivalentTo([BuildDiagnosticCodes.LoweringFailed], CollectionOrdering.Matching);
             await Assert.That(first.Build.Outputs!.Select(o => o.Id)).Contains("fixture_kills")
                 .Because("the sibling builds and its table rides the run");
-            await Assert.That(second.Build.ExcludedRulesets.Select(r => r.Id)).IsEquivalentTo([BadId], CollectionOrdering.Matching);
-            await Assert.That(third.Build.ExcludedRulesets.Select(r => r.Id)).IsEquivalentTo([BadId], CollectionOrdering.Matching);
+            await Assert.That(second.Build.ExcludedRulesets.Select(r => r.Id))
+                .IsEquivalentTo([BadId], CollectionOrdering.Matching);
+            await Assert.That(third.Build.ExcludedRulesets.Select(r => r.Id))
+                .IsEquivalentTo([BadId], CollectionOrdering.Matching);
             await Assert.That(state.Count).IsEqualTo(1).Because("one report per ruleset content, not one per build");
             await Assert.That(state.LastSite).IsEqualTo("ruleset " + BadId);
             await Assert.That(state.Suspended).IsFalse();
@@ -230,7 +234,8 @@ public class RulesetExclusionGuardTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(run.Build.ExcludedRulesets.Select(r => r.Id)).IsEquivalentTo([BadId], CollectionOrdering.Matching);
+                await Assert.That(run.Build.ExcludedRulesets.Select(r => r.Id))
+                    .IsEquivalentTo([BadId], CollectionOrdering.Matching);
                 await Assert.That(asked).IsEqualTo(0).Because("the user's file is the user's, not the extension's");
             }
         }

@@ -35,13 +35,7 @@ public class SceneFrameBuilderTests
             .With("m_pMovementServices.m_flDuckAmount", 0.25f)
             .With("m_szLastPlaceName", "BombsiteA");
 
-        FakePlayer alive = new()
-        {
-            Slot = 0,
-            Team = 2,
-            Pawn = pawn,
-            WorldPosition = (100f, -200f, 64f)
-        };
+        FakePlayer alive = new() { Slot = 0, Team = 2, Pawn = pawn, WorldPosition = (100f, -200f, 64f) };
 
         Scene2DFrame frame = Build(builder, Input([alive], new FakeEntityView(), 10, 640));
 
@@ -62,13 +56,7 @@ public class SceneFrameBuilderTests
         // The pawn orphans on death: no live position this tick, so the death marker holds the last
         // known spot with a Dead ring rather than vanishing.
         FakeEntity deadPawn = new FakeEntity("CCSPlayerPawn").With("m_iHealth", 0).With("m_lifeState", 1);
-        FakePlayer dead = new()
-        {
-            Slot = 0,
-            Team = 2,
-            HasLivePawn = false,
-            Pawn = deadPawn
-        };
+        FakePlayer dead = new() { Slot = 0, Team = 2, HasLivePawn = false, Pawn = deadPawn };
 
         frame = Build(builder, Input([dead], new FakeEntityView(), 11, 704));
 
@@ -176,13 +164,7 @@ public class SceneFrameBuilderTests
     {
         SceneFrameBuilder builder = new();
         FakeEntity pawn = new FakeEntity("CCSPlayerPawn").With("m_iHealth", 100);
-        FakePlayer player = new()
-        {
-            Slot = 0,
-            Team = 2,
-            Pawn = pawn,
-            WorldPosition = (0f, 0f, 64f)
-        };
+        FakePlayer player = new() { Slot = 0, Team = 2, Pawn = pawn, WorldPosition = (0f, 0f, 64f) };
 
         Build(builder, Input([player], new FakeEntityView(), 1, 64));
         IReadOnlyList<HudPlayerRow> a = builder.LastRoster;
@@ -287,12 +269,7 @@ public class SceneFrameBuilderTests
     {
         SceneFrameBuilder builder = new();
         FakeEntity pawn = new FakeEntity("CCSPlayerPawn").With("m_iHealth", 100);
-        FakePlayer player = new()
-        {
-            Slot = 0,
-            Pawn = pawn,
-            WorldPosition = (0f, 0f, 64f)
-        };
+        FakePlayer player = new() { Slot = 0, Pawn = pawn, WorldPosition = (0f, 0f, 64f) };
 
         Build(builder, Input([player], new FakeEntityView(), 10, 640));
 
@@ -457,10 +434,7 @@ public class SceneFrameBuilderTests
         {
             players.Add(new FakePlayer
             {
-                Slot = slot,
-                Team = slot < 5 ? 2 : 3,
-                Pawn = pawn,
-                WorldPosition = (slot * 10f, slot * -10f, 64f)
+                Slot = slot, Team = slot < 5 ? 2 : 3, Pawn = pawn, WorldPosition = (slot * 10f, slot * -10f, 64f)
             });
         }
 
@@ -513,13 +487,7 @@ public class SceneFrameBuilderTests
         FakeEntity pawn = new FakeEntity("CCSPlayerPawn").With("m_iHealth", 100);
         List<IPlayerState> players =
         [
-            new FakePlayer
-            {
-                Slot = 0,
-                Team = 2,
-                Pawn = pawn,
-                WorldPosition = (0f, 0f, 64f)
-            }
+            new FakePlayer { Slot = 0, Team = 2, Pawn = pawn, WorldPosition = (0f, 0f, 64f) }
         ];
 
         // No section heights at all: a single-floor map.

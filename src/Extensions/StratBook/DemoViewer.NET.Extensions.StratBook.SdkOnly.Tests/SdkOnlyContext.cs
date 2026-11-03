@@ -88,7 +88,9 @@ internal sealed class NoQueue : IExtensionJobs
         return Task.CompletedTask;
     }
 
-    public void CancelAll() { }
+    public void CancelAll()
+    {
+    }
 }
 
 internal sealed class RejectedJob : IJobHandle
@@ -103,7 +105,9 @@ internal sealed class RejectedJob : IJobHandle
         remove { }
     }
 
-    public void Cancel() { }
+    public void Cancel()
+    {
+    }
 }
 
 internal sealed class NoPasses : IExtensionPasses
@@ -141,11 +145,15 @@ internal sealed class NoShell : IExtensionShell
 
     public Task<bool> OpenDemoAsync(string path) => Task.FromResult(false);
 
-    public void SeekToTick(int tick) { }
+    public void SeekToTick(int tick)
+    {
+    }
 
     public bool SelectTab(string tabId) => false;
 
-    public void RevealInFileManager(string path) { }
+    public void RevealInFileManager(string path)
+    {
+    }
 
     public event Action? CurrentDemoChanged
     {
@@ -209,15 +217,25 @@ internal sealed class NoDemoData : IExtensionDemoData
 
     public DemoDataStamp? Write(string demoPath, DemoDataWrite write) => null;
 
-    public void MarkFailed(string demoPath, string facet) { }
+    public void MarkFailed(string demoPath, string facet)
+    {
+    }
 
-    public void ClearFailed(string demoPath, string facet) { }
+    public void ClearFailed(string demoPath, string facet)
+    {
+    }
 
-    public void Invalidate(string facet, string? demoPath = null) { }
+    public void Invalidate(string facet, string? demoPath = null)
+    {
+    }
 
-    public void SetCount(string demoPath, string facet, int count) { }
+    public void SetCount(string demoPath, string facet, int count)
+    {
+    }
 
-    public void Delete(string demoPath, string facet) { }
+    public void Delete(string demoPath, string facet)
+    {
+    }
 
     public event Action<string?>? Changed
     {
@@ -292,7 +310,9 @@ internal sealed class NoNotifications : IExtensionNotifications
         _posted.Add(notification.Id);
     }
 
-    public void Dismiss(string id) { }
+    public void Dismiss(string id)
+    {
+    }
 }
 
 internal sealed class NoKeymap : IExtensionKeymap
@@ -341,13 +361,19 @@ internal sealed class EmptyReviewQueue : IExtensionReviewQueue
 
     public int Add(IEnumerable<ReviewClip> clips, string? sectionTitle = null, string sectionSubtitle = "") => 0;
 
-    public void AddSection(string title) { }
+    public void AddSection(string title)
+    {
+    }
 
     public int Remove(IEnumerable<Guid> ids) => 0;
 
-    public void MoveBy(Guid id, int delta) { }
+    public void MoveBy(Guid id, int delta)
+    {
+    }
 
-    public void Clear() { }
+    public void Clear()
+    {
+    }
 
     public int SetReviewed(IEnumerable<Guid> ids, bool reviewed) => 0;
 

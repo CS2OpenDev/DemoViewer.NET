@@ -34,11 +34,13 @@ internal static class CacheRecordTestExtensions
         record.PackStamps.RemoveAll(s => s.Id == RoundFactsEvaluator.EvaluatorId);
         if (fingerprint is not null)
         {
-            record.SetStamp(new PackStamp(RoundFactsEvaluator.EvaluatorId, 0, fingerprint) { State = DemoAnalysisState.Pending });
+            record.SetStamp(
+                new PackStamp(RoundFactsEvaluator.EvaluatorId, 0, fingerprint) { State = DemoAnalysisState.Pending });
         }
     }
 
-    public static void UpdateRoundFacts(this DemoCacheRecord record, Action<RoundFactsRows> mutate) => mutate(record.RoundFacts!);
+    public static void UpdateRoundFacts(this DemoCacheRecord record, Action<RoundFactsRows> mutate) =>
+        mutate(record.RoundFacts!);
 
     public static string? RoundFactsFingerprint(this DemoCacheRecord record) => record.RoundFactsStamp()?.Fingerprint;
 
@@ -56,7 +58,8 @@ internal static class CacheRecordTestExtensions
     /// <summary>The host's on-disk per-demo data of the Strat Book under <paramref name="cacheRoot" />, over <paramref name="cache" />.</summary>
     public static IExtensionDemoData DiskData(this DemoCacheStore cache, string cacheRoot) =>
         new DemoViewer.NET.Extensions.ExtensionDemoDataStore(StratBookPack.PackId,
-            Path.Combine(cacheRoot, DemoViewer.NET.Extensions.ExtensionFolders.DataDirectoryName, StratBookPack.PackId), cache, a => a(), null);
+            Path.Combine(cacheRoot, DemoViewer.NET.Extensions.ExtensionFolders.DataDirectoryName, StratBookPack.PackId),
+            cache, a => a(), null);
 
     // ── Round index ──────────────────────────────────────────────────────────
 
@@ -67,33 +70,42 @@ internal static class CacheRecordTestExtensions
     ///     A written round index stamp at <paramref name="computedAt" /> (now when 0), over whatever index and positions the
     ///     demo already has.
     /// </summary>
-    public static void StampRoundIndex(this DemoCacheStore cache, string path, string? fingerprint, long computedAt = 0, int rowCount = 0)
+    public static void StampRoundIndex(this DemoCacheStore cache, string path, string? fingerprint, long computedAt = 0,
+        int rowCount = 0)
     {
         MemoryDemoData data = cache.Data();
-        data.Put(new DemoDataStamp(path, cache.TryGetIndex(path)?.Sha256, RoundIndexStore.Facet, RoundIndexStore.Schema, fingerprint,
-            DemoDataState.Written, computedAt == 0 ? DateTime.UtcNow.Ticks : computedAt, rowCount), data.ReadAny(path, RoundIndexStore.Facet)?.Content ?? [],
+        data.Put(new DemoDataStamp(path, cache.TryGetIndex(path)?.Sha256, RoundIndexStore.Facet, RoundIndexStore.Schema,
+                fingerprint,
+                DemoDataState.Written, computedAt == 0 ? DateTime.UtcNow.Ticks : computedAt, rowCount),
+            data.ReadAny(path, RoundIndexStore.Facet)?.Content ?? [],
             Parts(data, path));
     }
 
     public static DemoDataState RoundIndexState(this DemoCacheStore cache, string path) =>
         cache.RoundIndexStamp(path)?.State ?? DemoDataState.Pending;
 
-    public static string? RoundIndexFingerprint(this DemoCacheStore cache, string path) => cache.RoundIndexStamp(path)?.Fingerprint;
+    public static string? RoundIndexFingerprint(this DemoCacheStore cache, string path) =>
+        cache.RoundIndexStamp(path)?.Fingerprint;
 
-    public static int RoundIndexSchema(this DemoCacheStore cache, string path) => cache.RoundIndexStamp(path)?.Schema ?? 0;
+    public static int RoundIndexSchema(this DemoCacheStore cache, string path) =>
+        cache.RoundIndexStamp(path)?.Schema ?? 0;
 
-    public static long RoundIndexComputedAtTicks(this DemoCacheStore cache, string path) => cache.RoundIndexStamp(path)?.WrittenAtTicks ?? 0;
+    public static long RoundIndexComputedAtTicks(this DemoCacheStore cache, string path) =>
+        cache.RoundIndexStamp(path)?.WrittenAtTicks ?? 0;
 
-    public static int RoundIndexRowCount(this DemoCacheStore cache, string path) => cache.RoundIndexStamp(path)?.Count ?? 0;
+    public static int RoundIndexRowCount(this DemoCacheStore cache, string path) =>
+        cache.RoundIndexStamp(path)?.Count ?? 0;
 
     /// <summary>Puts <paramref name="document" /> as a demo's index, keeping its positions and its stamp when it has them.</summary>
     public static void Write(this RoundIndexStore store, string path, RoundIndexDocument document)
     {
         MemoryDemoData data = (MemoryDemoData)store.Data;
         DemoDataStamp stamp = data.Stamp(path, RoundIndexStore.Facet)
-                              ?? new DemoDataStamp(path, null, RoundIndexStore.Facet, RoundIndexStore.Schema, document.Fingerprint,
+                              ?? new DemoDataStamp(path, null, RoundIndexStore.Facet, RoundIndexStore.Schema,
+                                  document.Fingerprint,
                                   DemoDataState.Written, DateTime.UtcNow.Ticks, document.RowCount);
-        data.Put(stamp with { Schema = RoundIndexStore.Schema }, System.Text.Encoding.UTF8.GetBytes(document.Serialize()), Parts(data, path));
+        data.Put(stamp with { Schema = RoundIndexStore.Schema },
+            System.Text.Encoding.UTF8.GetBytes(document.Serialize()), Parts(data, path));
     }
 
     /// <summary>Puts <paramref name="positions" /> as a demo's positions, keeping its index and its stamp when it has them.</summary>
@@ -101,9 +113,11 @@ internal static class CacheRecordTestExtensions
     {
         MemoryDemoData data = (MemoryDemoData)store.Data;
         DemoDataStamp stamp = data.Stamp(path, RoundIndexStore.Facet)
-                              ?? new DemoDataStamp(path, null, RoundIndexStore.Facet, RoundIndexStore.Schema, positions.Fingerprint,
+                              ?? new DemoDataStamp(path, null, RoundIndexStore.Facet, RoundIndexStore.Schema,
+                                  positions.Fingerprint,
                                   DemoDataState.Written, DateTime.UtcNow.Ticks, 0);
-        data.Put(stamp with { Schema = RoundIndexStore.Schema }, data.ReadAny(path, RoundIndexStore.Facet)?.Content ?? [],
+        data.Put(stamp with { Schema = RoundIndexStore.Schema },
+            data.ReadAny(path, RoundIndexStore.Facet)?.Content ?? [],
             new Dictionary<string, byte[]> { [RoundIndexStore.PositionsPart] = positions.SerializeUtf8() });
     }
 
@@ -114,11 +128,14 @@ internal static class CacheRecordTestExtensions
 
     // ── Suggestions ──────────────────────────────────────────────────────────
 
-    public static DemoDataStamp? SuggestionsStamp(this DemoCacheStore cache, string path) => cache.Data().Stamp(path, ProposalStore.Facet);
+    public static DemoDataStamp? SuggestionsStamp(this DemoCacheStore cache, string path) =>
+        cache.Data().Stamp(path, ProposalStore.Facet);
 
-    public static string? SuggestionsFingerprint(this DemoCacheStore cache, string path) => cache.SuggestionsStamp(path)?.Fingerprint;
+    public static string? SuggestionsFingerprint(this DemoCacheStore cache, string path) =>
+        cache.SuggestionsStamp(path)?.Fingerprint;
 
-    public static int SuggestionCount(this DemoCacheStore cache, string path) => cache.SuggestionsStamp(path)?.Count ?? 0;
+    public static int SuggestionCount(this DemoCacheStore cache, string path) =>
+        cache.SuggestionsStamp(path)?.Count ?? 0;
 
     public static void SetSuggestionCount(this DemoCacheStore cache, string path, int pending) =>
         cache.Data().SetCount(path, ProposalStore.Facet, pending);
@@ -127,11 +144,13 @@ internal static class CacheRecordTestExtensions
 
     public static GrenadeStore Grenades(this DemoCacheStore cache) => new(cache.Data());
 
-    public static DemoDataStamp? GrenadesStamp(this DemoCacheStore cache, string path) => cache.Data().Stamp(path, GrenadeStore.Facet);
+    public static DemoDataStamp? GrenadesStamp(this DemoCacheStore cache, string path) =>
+        cache.Data().Stamp(path, GrenadeStore.Facet);
 
     public static DemoDataState GrenadeState(this DemoCacheStore cache, string path) =>
         cache.GrenadesStamp(path)?.State ?? DemoDataState.Pending;
 
     /// <summary>Writes <paramref name="rows" /> as the demo's grenades, stamped as walked by the current walker.</summary>
-    public static void WriteGrenades(this DemoCacheStore cache, string path, GrenadeDocument rows) => cache.Grenades().Write(path, rows);
+    public static void WriteGrenades(this DemoCacheStore cache, string path, GrenadeDocument rows) =>
+        cache.Grenades().Write(path, rows);
 }

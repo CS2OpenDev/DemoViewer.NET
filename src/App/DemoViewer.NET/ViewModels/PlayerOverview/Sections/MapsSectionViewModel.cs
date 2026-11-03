@@ -59,9 +59,15 @@ public sealed partial class MapsSectionViewModel : PlayerOverviewSection
         }
 
         Rows = Build(context.Window,
-            context.Ranks is { } ranks ? RankSectionViewModel.LatestByMap(context.Demos.Select(d => d.Match), ranks) : null);
+            context.Ranks is { } ranks
+                ? RankSectionViewModel.LatestByMap(context.Demos.Select(d => d.Match), ranks)
+                : null);
         PlayerAggregate window = PlayerAggregate.Of(context.Window);
-        Sides = [new SideSplitItem("CT", window, "CTW", "CTL", "CTFK", "CTFD"), new SideSplitItem("T", window, "TW", "TL", "TFK", "TFD")];
+        Sides =
+        [
+            new SideSplitItem("CT", window, "CTW", "CTL", "CTFK", "CTFD"),
+            new SideSplitItem("T", window, "TW", "TL", "TFK", "TFD")
+        ];
         SideNote = NoteOf(window);
         CountText = Rows.Count == 1 ? "1 map" : string.Create(CultureInfo.InvariantCulture, $"{Rows.Count} maps");
         IsVisible = true;
@@ -70,7 +76,8 @@ public sealed partial class MapsSectionViewModel : PlayerOverviewSection
     /// <summary>One row per map of <paramref name="demos" />, most demos first, then by name.</summary>
     /// <param name="demos">The window's demos.</param>
     /// <param name="ranks">Each map's latest Competitive rank over all the subject's demos; null before the records are read.</param>
-    internal static IReadOnlyList<MapRowItem> Build(IReadOnlyList<PlayerDemo> demos, IReadOnlyDictionary<string, MapRankItem>? ranks = null) =>
+    internal static IReadOnlyList<MapRowItem> Build(IReadOnlyList<PlayerDemo> demos,
+        IReadOnlyDictionary<string, MapRankItem>? ranks = null) =>
     [
         .. demos.GroupBy(d => d.Match.Row.Map ?? "", StringComparer.OrdinalIgnoreCase)
             .Select(g => new MapRowItem(g.Key, PlayerAggregate.Of([.. g]), ranks?.GetValueOrDefault(g.Key)))
@@ -128,7 +135,13 @@ public sealed class MapRowItem
         CtText = MapsSectionViewModel.Split(pool, "CTW", "CTL");
         TText = MapsSectionViewModel.Split(pool, "TW", "TL");
         MatchesWord = pool.Matches == 1 ? "match" : "matches";
-        ResultBar = pool.WithStats == 0 ? [] : [new StatSegment(pool.Wins, Slot: 0), new StatSegment(pool.Losses, Slot: 1), new StatSegment(pool.Ties, Slot: 2)];
+        ResultBar = pool.WithStats == 0
+            ? []
+            :
+            [
+                new StatSegment(pool.Wins, Slot: 0), new StatSegment(pool.Losses, Slot: 1),
+                new StatSegment(pool.Ties, Slot: 2)
+            ];
         (CtBar, CtShareText) = Bar(pool, "CTW", "CTL");
         (TBar, TShareText) = Bar(pool, "TW", "TL");
     }
@@ -136,7 +149,8 @@ public sealed class MapRowItem
     // Rounds won (slot 0) against lost (slot 1), and the share won; empty and a dash with neither.
     private static (IReadOnlyList<StatSegment> Bar, string Share) Bar(PlayerAggregate pool, string won, string lost) =>
         pool[won] is { } w && pool[lost] is { } l && w + l > 0
-            ? ([new StatSegment(w, Slot: 0), new StatSegment(l, Slot: 1)], string.Create(CultureInfo.InvariantCulture, $"{100 * w / (w + l):0}%"))
+            ? ([new StatSegment(w, Slot: 0), new StatSegment(l, Slot: 1)],
+                string.Create(CultureInfo.InvariantCulture, $"{100 * w / (w + l):0}%"))
             : ([], "–");
 
     /// <summary>The map as the index holds it.</summary>
@@ -206,7 +220,8 @@ public sealed class SideSplitItem
     /// <param name="lost">The side's rounds-lost column.</param>
     /// <param name="openingKills">The side's opening-kill column.</param>
     /// <param name="openingDeaths">The side's opening-death column.</param>
-    public SideSplitItem(string side, PlayerAggregate pool, string won, string lost, string openingKills, string openingDeaths)
+    public SideSplitItem(string side, PlayerAggregate pool, string won, string lost, string openingKills,
+        string openingDeaths)
     {
         ArgumentNullException.ThrowIfNull(pool);
         Side = side;

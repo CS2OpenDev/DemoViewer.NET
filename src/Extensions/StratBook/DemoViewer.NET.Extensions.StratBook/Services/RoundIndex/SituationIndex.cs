@@ -32,7 +32,9 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
     private readonly IExtensionLibrary _library;
     private readonly RoundIndexEvaluator? _evaluator;
     private readonly IRoundFacts? _facts;
+
     private readonly object _gate = new();
+
     // By demo (DemoKey): two paths of one content are one demo, whichever path merged it.
     private readonly Dictionary<string, LoadedDemo> _loaded = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MapIndex> _maps = new(StringComparer.OrdinalIgnoreCase);
@@ -127,7 +129,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         LibraryDemo? entry = _library.Find(demoPath);
         lock (_gate)
         {
-            return (entry is not null && _loaded.TryGetValue(DemoKey(entry), out LoadedDemo? demo)) || LoadedAtLocked(demoPath, out demo)
+            return (entry is not null && _loaded.TryGetValue(DemoKey(entry), out LoadedDemo? demo))
+                   || LoadedAtLocked(demoPath, out demo)
                 ? demo.ComputedAtTicks
                 : 0;
         }
@@ -278,7 +281,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             }
 
             List<PlaceSummary> summaries = [];
-            foreach ((string place, PlaceAggregate aggregate) in index.Places.OrderBy(p => p.Key, StringComparer.Ordinal))
+            foreach ((string place, PlaceAggregate aggregate) in index.Places.OrderBy(p => p.Key,
+                         StringComparer.Ordinal))
             {
                 List<PlaceZBucket> buckets =
                 [
@@ -309,7 +313,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
     // In the library and stamped written at the current schema; the fingerprint is not checked here on
     // purpose (see Load).
     private bool IsLoadable(LibraryDemo? entry) =>
-        entry is not null && _store.Stamp(entry.FilePath) is { State: DemoDataState.Written, Schema: RoundIndexStore.Schema };
+        entry is not null && _store.Stamp(entry.FilePath) is
+            { State: DemoDataState.Written, Schema: RoundIndexStore.Schema };
 
     // Reads one sidecar and replaces whatever the demo contributed before. Returns the merged event, or
     // null when the file is missing, unreadable, or belongs to another demo.
@@ -340,7 +345,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         // A reader that has a hash compares it and ignores a mismatching file: the sidecar belongs to a
         // different demo that happens to share the path.
         if (entry.Sha256 is { Length: > 0 } sha && document.Demo.Sha256 is { Length: > 0 } written
-            && !string.Equals(sha, written, StringComparison.Ordinal))
+                                                && !string.Equals(sha, written, StringComparison.Ordinal))
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "content hash differs");
             return null;
@@ -442,7 +447,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             }
 
             foreach (LoadedDemo demo in _loaded.Values
-                         .Where(d => path is null || string.Equals(d.Path, path, StringComparison.OrdinalIgnoreCase)).ToList())
+                         .Where(d => path is null || string.Equals(d.Path, path, StringComparison.OrdinalIgnoreCase))
+                         .ToList())
             {
                 if (IsLoadable(_library.Find(demo.Path)))
                 {
@@ -666,7 +672,13 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
 
     private readonly record struct TransitionContribution(string A, string B, int Count);
 
-    private sealed class LoadedDemo(MapIndex map, int id, LibraryDemo entry, int tickRate, int cadenceTicks, long computedAtTicks)
+    private sealed class LoadedDemo(
+        MapIndex map,
+        int id,
+        LibraryDemo entry,
+        int tickRate,
+        int cadenceTicks,
+        long computedAtTicks)
     {
         public MapIndex Map { get; } = map;
 
@@ -918,7 +930,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         ///     neighbourhood would otherwise count the same players twice and let a tolerant match exceed
         ///     the AnyPlace one, which is the monotonicity the slider promises.
         /// </summary>
-        public bool[] MatchTokens(IReadOnlyList<PlaceQuery> queried, SituationTolerance tolerance, IPlaceAdjacency? adjacency)
+        public bool[] MatchTokens(IReadOnlyList<PlaceQuery> queried, SituationTolerance tolerance,
+            IPlaceAdjacency? adjacency)
         {
             bool[] match = new bool[_tokens.Count];
             Dictionary<string, int> merged = new(StringComparer.Ordinal);
@@ -971,7 +984,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
                 match[t] = tolerance switch
                 {
                     SituationTolerance.AnyPlace => token.Alive >= total,
-                    SituationTolerance.Exact => resolved.All(p => p.PlaceId >= 0 && CountOf(token, p.PlaceId) == p.Count),
+                    SituationTolerance.Exact => resolved.All(p =>
+                        p.PlaceId >= 0 && CountOf(token, p.PlaceId) == p.Count),
                     _ => token.Alive >= total && resolved.All(p => SumOver(token, p.Neighbourhood!) >= p.Count)
                 };
             }

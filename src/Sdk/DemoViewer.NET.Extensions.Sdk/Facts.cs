@@ -97,7 +97,8 @@ public sealed class FactValue : IEquatable<FactValue>
     private readonly double _number;
     private readonly string? _text;
 
-    private FactValue(FactValueKind kind, long integer = 0, double number = 0, bool boolean = false, string? text = null,
+    private FactValue(FactValueKind kind, long integer = 0, double number = 0, bool boolean = false,
+        string? text = null,
         IReadOnlyList<FactValue>? items = null)
     {
         Kind = kind;
@@ -191,7 +192,9 @@ public sealed class FactValue : IEquatable<FactValue>
 /// <summary>One row of a <see cref="FactTable" />.</summary>
 /// <param name="Dimensions">The row's key columns, such as <c>round_number</c> and <c>side</c>.</param>
 /// <param name="Values">The row's value columns.</param>
-public sealed record FactRow(IReadOnlyDictionary<string, FactValue> Dimensions, IReadOnlyDictionary<string, FactValue> Values);
+public sealed record FactRow(
+    IReadOnlyDictionary<string, FactValue> Dimensions,
+    IReadOnlyDictionary<string, FactValue> Values);
 
 /// <summary>One output of one ruleset for one demo, as the library stored it.</summary>
 /// <param name="Key">Which output.</param>

@@ -78,9 +78,5 @@ public record ConjunctionSampleEdge(
     public VisualEdgeEffect Effect => VisualEdgeEffect.Conjunction;
 
     /// <summary>Style.</summary>
-    public EdgeStyle? Style => new()
-    {
-        Color = Color.Parse("#7986CB"),
-        IsDashed = true
-    };
+    public EdgeStyle? Style => new() { Color = Color.Parse("#7986CB"), IsDashed = true };
 }

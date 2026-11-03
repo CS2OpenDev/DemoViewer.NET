@@ -124,7 +124,8 @@ public class ReviewModeTests
         bool offPalette = true, onPalette = false, toggleShown = false;
         await HeadlessSession.RunOnUi(() =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             ctx.Push(1, 2);
             (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm, 1280, 800);
             ListBox cards = view.FindControl<ListBox>("PlayerCards")!;
@@ -133,13 +134,15 @@ public class ReviewModeTests
             offPalette = view.GetVisualDescendants().OfType<TagPaletteView>().Any(p => p.IsEffectivelyVisible);
             toggleShown = view.GetVisualDescendants().OfType<ToggleButton>()
                 .Any(t => t.IsEffectivelyVisible && Equals(t.Content, review.ReviewMode!.Label));
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "review-off.png"), new PngBitmapEncoderOptions());
+            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "review-off.png"),
+                new PngBitmapEncoderOptions());
 
             review.ReviewMode!.IsOn = true;
             Playback2DTimelineHarness.Pump();
             onCards = cards.Bounds.Height;
             onPalette = view.GetVisualDescendants().OfType<TagPaletteView>().Any(p => p.IsEffectivelyVisible);
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "review-on.png"), new PngBitmapEncoderOptions());
+            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "review-on.png"),
+                new PngBitmapEncoderOptions());
             window.Close();
             vm.Dispose();
             return Task.CompletedTask;

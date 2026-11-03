@@ -120,7 +120,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // One host tab and what it carries. The hub VM exists from BuildWorkspaceTabs: the shell reconciles
     // sections and restores the session through it before the tab is ever selected.
     private sealed class SectionHostEntry(
-        string hostId, WorkspaceTabDescriptor tab, TabSectionHost sections, HubTabViewModel? viewModel, ContributedHub? hub)
+        string hostId,
+        WorkspaceTabDescriptor tab,
+        TabSectionHost sections,
+        HubTabViewModel? viewModel,
+        ContributedHub? hub)
     {
         public string HostId { get; } = hostId;
         public WorkspaceTabDescriptor Tab { get; } = tab;
@@ -683,10 +687,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                             _ = reels.AddClipsForAsync(steamId64.ToString(CultureInfo.InvariantCulture));
                         }
                     },
-                    playerRanks)
-                {
-                    Events = facts is null ? null : new PlayerEventCache(facts.TryGet)
-                },
+                    playerRanks) { Events = facts is null ? null : new PlayerEventCache(facts.TryGet) },
                 processingQueue,
                 action => Dispatcher.UIThread.Post(action));
             StatsTab.PlayerOverviewOpener = (steamId64, name) => OpenPlayerOverview(steamId64, name);
@@ -787,10 +788,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (_process is not null)
         {
             _lastCpuUse = _process.TotalProcessorTime;
-            _perfTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1)
-            };
+            _perfTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _perfTimer.Tick += (_, _) => UpdatePerfStats();
             _perfTimer.Start();
         }
@@ -1038,7 +1036,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // thread, so the reconcile handler runs there; a gate flip reconciles via ApplyGateChange.
         if (_processingQueue is not null)
         {
-            _processingQueueStatus = new ProcessingQueueStatusViewModel(_processingQueue, OpenSettings, checks: _scheduler);
+            _processingQueueStatus =
+                new ProcessingQueueStatusViewModel(_processingQueue, OpenSettings, checks: _scheduler);
             _processingQueue.Changed += OnProcessingQueueChanged;
             ReconcileQueueChip();
         }
@@ -2370,11 +2369,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             string target = File.Exists(path)
                 ? Path.GetDirectoryName(path) ?? path
                 : path;
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = target,
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo { FileName = target, UseShellExecute = true });
         }
         catch
         {
@@ -2501,7 +2496,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // A contributed chip holds the id: the export has no chip this session, and says so once.
             if (_refusedExportChips.Add(chipId))
             {
-                RouteModuleLog(ModuleLogLevel.Error, $"Status chip '{taken.Id}' is already on the strip; the export chip is left out.");
+                RouteModuleLog(ModuleLogLevel.Error,
+                    $"Status chip '{taken.Id}' is already on the strip; the export chip is left out.");
             }
 
             return;
@@ -2522,7 +2518,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         if (_shellChips.Any(c => c.Id == chip.Id))
         {
-            RouteModuleLog(ModuleLogLevel.Error, $"Status chip '{chip.Id}' is already on the strip; the second one is left out.");
+            RouteModuleLog(ModuleLogLevel.Error,
+                $"Status chip '{chip.Id}' is already on the strip; the second one is left out.");
             return;
         }
 
@@ -2598,7 +2595,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         // Ensure the built-in tabs are registered (idempotent by Id) even if the composition root
         // passed a registry without them, so the shell always has its four tabs.
-        _moduleRegistry.Register(new BuiltInTabsModule(this, Diagnostics, LibraryTab, StatsTab, MatchOverviewTab, PlayerOverviewTab));
+        _moduleRegistry.Register(new BuiltInTabsModule(this, Diagnostics, LibraryTab, StatsTab, MatchOverviewTab,
+            PlayerOverviewTab));
 
         List<WorkspaceTabDescriptor> descriptors = new();
         foreach (IWorkspaceModule module in _moduleRegistry.Modules)
@@ -2625,14 +2623,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _hosts.Clear();
         LibraryTab.Sections.PropertyChanged -= OnLibrarySectionChanged;
         LibraryTab.Sections.PropertyChanged += OnLibrarySectionChanged;
-        _hosts.Add(new SectionHostEntry(LibraryTabViewModel.HostId, descriptors.First(d => d.TabId == LibraryTabViewModel.HostId),
+        _hosts.Add(new SectionHostEntry(LibraryTabViewModel.HostId,
+            descriptors.First(d => d.TabId == LibraryTabViewModel.HostId),
             LibraryTab.Sections, null, null));
         foreach (ContributedHub hub in _hubTabs)
         {
             // A hub id is a tab id and a host id at once: one already taken would hijack another's sections.
             if (descriptors.Any(d => d.TabId == hub.Id) || _hosts.Any(h => h.HostId == hub.Id))
             {
-                RouteModuleLog(ModuleLogLevel.Error, $"Hub tab '{hub.Id}' from '{hub.PackId}' uses an id already taken; left out.");
+                RouteModuleLog(ModuleLogLevel.Error,
+                    $"Hub tab '{hub.Id}' from '{hub.PackId}' uses an id already taken; left out.");
                 continue;
             }
 
@@ -2826,7 +2826,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 // host is special-cased: its order-neighbor can be any tab to its left, but a disabled pack
                 // must land on Library specifically, not whatever happens to sort just before it.
                 SelectedTab = HostFor(removed) is { Contributed: true }
-                    ? Tabs.FirstOrDefault(t => t.TabId == LibraryTabViewModel.HostId) ?? ChooseNeighbor(removed, desired)
+                    ? Tabs.FirstOrDefault(t => t.TabId == LibraryTabViewModel.HostId)
+                      ?? ChooseNeighbor(removed, desired)
                     : ChooseNeighbor(removed, desired);
             }
 
@@ -3043,9 +3044,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // team: team is per-tick via the host player-join).
             _moduleContext?.SetRoster(parsed.Players.Values.Select(p => new PlayerRosterEntry
             {
-                Slot = p.Slot,
-                SteamId = p.SteamId64,
-                Name = p.Name
+                Slot = p.Slot, SteamId = p.SteamId64, Name = p.Name
             }));
             _moduleContext?.SetGameEvents(parsed.AllGameEvents); // pre-decoded timeline for event-driven modules
             _moduleContext?.SetMapName(parsed.MapName); // data-driven map identity for asset selection
@@ -3075,7 +3074,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             open.Report(0.6, "Analysing");
             await Analysis.RunOpenAsync(parsed, demoKey, path, clock);
             ThrowIfSuperseded(open);
-            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.TeamScoresBySort, StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
+            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.TeamScoresBySort, StatsTab.Rounds.Count,
+                StatsTab.AccountsBySlot);
             // Per-team round wins from the same evaluation: each team's total across BOTH halves.
             MatchOverviewTab.SetTeamScores(
                 path,
@@ -3091,7 +3091,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             Analysis.SeedOpenVisit(parsed, path);
             _openPassesTask = RunOpenVisitAsync(open, path, parsed);
         }
-        catch (Exception ex) when (open.IsSuperseded || (ex is OperationCanceledException && open.CancellationToken.IsCancellationRequested))
+        catch (Exception ex) when (open.IsSuperseded
+                                   || (ex is OperationCanceledException
+                                       && open.CancellationToken.IsCancellationRequested))
         {
             superseded = open.IsSuperseded;
             open.Dispose();
@@ -3643,14 +3645,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("CS2 Demo")
-                {
-                    Patterns = ["*.dem"]
-                },
-                new FilePickerFileType("All Files")
-                {
-                    Patterns = ["*.*"]
-                }
+                new FilePickerFileType("CS2 Demo") { Patterns = ["*.dem"] },
+                new FilePickerFileType("All Files") { Patterns = ["*.*"] }
             ]
         });
 
@@ -3709,7 +3705,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (_ownedQueue is null)
         {
             _ownedGate = _heavyJobGate is null ? new HeavyJobGate() : null;
-            _ownedQueue = new DemoProcessingQueue(_heavyJobGate ?? _ownedGate!) { ShellDemo = new ShellDemoLease(this) };
+            _ownedQueue =
+                new DemoProcessingQueue(_heavyJobGate ?? _ownedGate!) { ShellDemo = new ShellDemoLease(this) };
         }
 
         return _ownedQueue;
@@ -4298,7 +4295,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task LoadDemoFromBytesCoreAsync(byte[] rawBytes, string? localPath, string fileName, IDemoOpenTicket open)
+    private async Task LoadDemoFromBytesCoreAsync(byte[] rawBytes, string? localPath, string fileName,
+        IDemoOpenTicket open)
     {
         // A read that finished after a newer open started must not reset the shell under it.
         if (IsStale(open))
@@ -4319,7 +4317,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         string? quickMap = null;
         string? quickServer = null;
         int headSpan = Math.Min(rawBytes.Length, 262144);
-        if (headSpan > 0 && DownstreamUtilities.TryReadQuickInfo(rawBytes.AsSpan(0, headSpan), out DownstreamUtilities.DemoQuickInfo qi))
+        if (headSpan > 0
+            && DownstreamUtilities.TryReadQuickInfo(rawBytes.AsSpan(0, headSpan),
+                out DownstreamUtilities.DemoQuickInfo qi))
         {
             quickMap = string.IsNullOrEmpty(qi.MapName) ? null : DemoEntry.PrettifyMap(qi.MapName);
             quickServer = qi.ServerName;
@@ -4413,9 +4413,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // team: team is per-tick via the host player-join).
             _moduleContext?.SetRoster(parsed.Players.Values.Select(p => new PlayerRosterEntry
             {
-                Slot = p.Slot,
-                SteamId = p.SteamId64,
-                Name = p.Name
+                Slot = p.Slot, SteamId = p.SteamId64, Name = p.Name
             }));
             _moduleContext?.SetGameEvents(parsed.AllGameEvents); // pre-decoded timeline for event-driven modules
             _moduleContext?.SetMapName(parsed.MapName); // data-driven map identity for asset selection
@@ -4456,7 +4454,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // RunAsync (AnalysisViewModel.cs), so its tables are already built by the time this await
             // returns. Reading them here rather than subscribing keeps the Match Overview's score and
             // scoreboard byte-identical to the Stats tab's with no handler-order dependency.
-            MatchOverviewTab.SetAnalysis(subjectKey, StatsTab.GameTable, StatsTab.TeamScoresBySort, StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
+            MatchOverviewTab.SetAnalysis(subjectKey, StatsTab.GameTable, StatsTab.TeamScoresBySort,
+                StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
             // Per-team round wins from the same evaluation: each team's total across BOTH halves.
             MatchOverviewTab.SetTeamScores(
                 subjectKey,
@@ -4510,7 +4509,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // want of an open demo. No-op unless the tour is awaiting a load, so it is safe on every open.
             _tutorial.NotifyDemoLoaded();
         }
-        catch (Exception ex) when (open.IsSuperseded || (ex is OperationCanceledException && open.CancellationToken.IsCancellationRequested))
+        catch (Exception ex) when (open.IsSuperseded
+                                   || (ex is OperationCanceledException
+                                       && open.CancellationToken.IsCancellationRequested))
         {
             superseded = open.IsSuperseded;
             open.Dispose();
@@ -4571,11 +4572,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         IReadOnlyList<IStorageFolder> folders = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Add demo folder",
-                AllowMultiple = true
-            });
+            new FolderPickerOpenOptions { Title = "Add demo folder", AllowMultiple = true });
 
         return folders
             .Select(f => f.TryGetLocalPath())
@@ -5099,7 +5096,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return n2;
         }
 
-        if (_playersByUserId is not null && _playersByUserId.TryGetValue(userId, out PlayerInfo? byId) && byId.Name.Length > 0)
+        if (_playersByUserId is not null && _playersByUserId.TryGetValue(userId, out PlayerInfo? byId)
+                                         && byId.Name.Length > 0)
         {
             return byId.Name;
         }
@@ -5312,7 +5310,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             frameNumber = i;
         }
-        else if (!int.TryParse(frameNumberObj.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out frameNumber))
+        else if (!int.TryParse(frameNumberObj.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture,
+                     out frameNumber))
         {
             return;
         }
@@ -5389,7 +5388,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         DemoScheduler? scheduler = _scheduler;
         try
         {
-            await open.RunPassesAsync(parsed, scheduler is null ? null : () => scheduler.PlanOpenDemo(path)).ConfigureAwait(false);
+            await open.RunPassesAsync(parsed, scheduler is null ? null : () => scheduler.PlanOpenDemo(path))
+                .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

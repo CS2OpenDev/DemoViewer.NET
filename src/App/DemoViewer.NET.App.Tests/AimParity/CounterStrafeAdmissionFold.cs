@@ -198,7 +198,8 @@ public static class CounterStrafeAdmissionFold
         // denominator rather than admitting it on zeros that read as a perfectly still player. The
         // fold has to make the same call or its denominator is not the engine's.
         if (!maxSpeedPreFrame.TryGetValue(slot, out float maxSpeed) || maxSpeed <= 0f
-            || !histories.TryGetValue(slot, out SlotSpeedHistory? history))
+                                                                    || !histories.TryGetValue(slot,
+                                                                        out SlotSpeedHistory? history))
         {
             unmeasurable++;
             return new AdmissionShot(slot, tick, AdmissionShot.NotAdmittedWithinRange, false, 0f, 0f);
@@ -469,7 +470,7 @@ public sealed record AdmissionFoldResult(
         foreach (AdmissionShot shot in Shots)
         {
             if (!shot.AdmittedAt(windowTicks) || !shot.CleanAtShot
-                || !NamesBySlot.TryGetValue(shot.Slot, out string? name))
+                                              || !NamesBySlot.TryGetValue(shot.Slot, out string? name))
             {
                 continue;
             }

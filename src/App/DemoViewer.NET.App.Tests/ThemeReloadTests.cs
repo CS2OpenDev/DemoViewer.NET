@@ -122,10 +122,7 @@ public class ThemeReloadTests
             try
             {
                 registry.RegisterCustom("reloadme", "Reload Me", ThemeVariant.Dark,
-                    new Dictionary<string, Color>
-                    {
-                        ["ShellBg"] = Color.Parse("#111111")
-                    });
+                    new Dictionary<string, Color> { ["ShellBg"] = Color.Parse("#111111") });
                 registry.Install(app);
                 app.RequestedThemeVariant = registry.VariantFor("reloadme");
 
@@ -137,10 +134,7 @@ public class ThemeReloadTests
 
                 // Simulate an edit + reload: same id, new colour.
                 registry.RegisterCustom("reloadme", "Reload Me", ThemeVariant.Dark,
-                    new Dictionary<string, Color>
-                    {
-                        ["ShellBg"] = Color.Parse("#222222")
-                    });
+                    new Dictionary<string, Color> { ["ShellBg"] = Color.Parse("#222222") });
 
                 // The repaint mechanism: bounce the active variant so the live resource re-resolves.
                 app.RequestedThemeVariant = ThemeVariant.Default;

@@ -132,7 +132,8 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
 
     public string HandHeader => string.Create(CultureInfo.InvariantCulture, $"Yours ({HandLabels.Count})");
 
-    public string MachineHeader => string.Create(CultureInfo.InvariantCulture, $"From suggestions ({MachineLabels.Count})");
+    public string MachineHeader =>
+        string.Create(CultureInfo.InvariantCulture, $"From suggestions ({MachineLabels.Count})");
 
     /// <summary>The label list's heading, with the count.</summary>
     public string LabelsHeader => string.Create(CultureInfo.InvariantCulture, $"Labels: {Labels.Count}");
@@ -437,7 +438,8 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
         HandLabels.Clear();
         MachineLabels.Clear();
         int rate = _tickRate();
-        foreach (TagInstance instance in (_session.Document?.Instances ?? []).OrderBy(i => i.FromTick).ThenBy(i => i.Code, StringComparer.Ordinal))
+        foreach (TagInstance instance in (_session.Document?.Instances ?? []).OrderBy(i => i.FromTick)
+                 .ThenBy(i => i.Code, StringComparer.Ordinal))
         {
             int roundStart = TagEditorViewModel.RoundBounds(_session.Rounds, instance.FromTick)?.Start ?? 0;
             TagRowViewModel row = new(instance, roundStart, rate);

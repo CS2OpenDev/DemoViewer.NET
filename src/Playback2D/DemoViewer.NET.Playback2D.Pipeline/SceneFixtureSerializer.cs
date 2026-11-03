@@ -28,11 +28,7 @@ public static class SceneFixtureSerializer
     // after every Windows App-suite run: staging normalised it back, so nothing ever reached a commit and
     // nothing ever stopped happening either. Fixed here, because
     // "your checkout is dirty and it does not matter" is a thing every contributor has to learn once.
-    private static readonly JsonWriterOptions _writerOptions = new()
-    {
-        Indented = true,
-        NewLine = "\n"
-    };
+    private static readonly JsonWriterOptions _writerOptions = new() { Indented = true, NewLine = "\n" };
 
     /// <summary>Reads a fixture from a stream.</summary>
     /// <param name="source">The stream to read. Not closed.</param>
@@ -150,9 +146,7 @@ public static class SceneFixtureSerializer
     {
         GrenadeTrail trail = new()
         {
-            Kind = ParseEnum<GrenadeKind>(dto.Kind),
-            LastTick = dto.LastTick,
-            Alpha = dto.Alpha
+            Kind = ParseEnum<GrenadeKind>(dto.Kind), LastTick = dto.LastTick, Alpha = dto.Alpha
         };
 
         if (dto.Points is { } points)
@@ -251,11 +245,7 @@ public static class SceneFixtureSerializer
         SchemaVersion = fixture.SchemaVersion,
         Time = ToDto(fixture.Time),
         Camera = ToDto(fixture.Camera),
-        Size = new SizeDto
-        {
-            Width = fixture.Size.Width,
-            Height = fixture.Size.Height
-        },
+        Size = new SizeDto { Width = fixture.Size.Width, Height = fixture.Size.Height },
         MapName = fixture.MapName,
         MapVersion = fixture.MapVersion,
         Annotations = fixture.Annotations,
@@ -273,11 +263,12 @@ public static class SceneFixtureSerializer
         Trails = MapList(frame.Trails, ToDto),
         Routes = frame.Routes.Count == 0
             ? null
-            : MapList(frame.Routes, static r => new TokenRouteDto
-            {
-                Team = r.Team,
-                Points = MapList(r.Points, static p => new TrailPointDto { X = p.X, Y = p.Y, Z = p.Z })
-            }),
+            : MapList(frame.Routes,
+                static r => new TokenRouteDto
+                {
+                    Team = r.Team,
+                    Points = MapList(r.Points, static p => new TrailPointDto { X = p.X, Y = p.Y, Z = p.Z })
+                }),
         Bomb = frame.Bomb is { } b
             ? new BombMarkerDto
             {
@@ -349,12 +340,7 @@ public static class SceneFixtureSerializer
         Kind = t.Kind.ToString(),
         LastTick = t.LastTick,
         Alpha = t.Alpha,
-        Points = MapList(t.Points, static p => new TrailPointDto
-        {
-            X = p.X,
-            Y = p.Y,
-            Z = p.Z
-        })
+        Points = MapList(t.Points, static p => new TrailPointDto { X = p.X, Y = p.Y, Z = p.Z })
     };
 
     private static KillFeedRowDto ToDto(KillFeedRow k) => new()
@@ -396,53 +382,43 @@ public static class SceneFixtureSerializer
         NetworkedBounds = ToDtoOrNull(m.NetworkedBounds),
         ObservedBounds = ToDtoOrNull(m.ObservedBounds),
         SectionHeights = m.SectionHeights is null ? null : [.. m.SectionHeights],
-        Radars = MapList(m.Radars, static r => new MapRadarImageDto
-        {
-            Name = r.Name,
-            Bounds = ToDtoOrNull(r.Bounds),
-            MinZ = r.MinZ,
-            MaxZ = r.MaxZ
-        })
+        Radars = MapList(m.Radars,
+            static r => new MapRadarImageDto
+            {
+                Name = r.Name, Bounds = ToDtoOrNull(r.Bounds), MinZ = r.MinZ, MaxZ = r.MaxZ
+            })
     };
 
     private static SceneVisionDto ToDto(SceneVision v) => new()
     {
         IsAvailable = v.IsAvailable,
-        Cones = MapList(v.Cones, static c => new VisionConeDto
-        {
-            Slot = c.Slot,
-            Team = c.Team,
-            ApexX = c.ApexX,
-            ApexY = c.ApexY,
-            ApexZ = c.ApexZ,
-            Fan = MapList(c.Fan, static p => new ConePointDto
+        Cones = MapList(v.Cones,
+            static c => new VisionConeDto
             {
-                X = p.X,
-                Y = p.Y
+                Slot = c.Slot,
+                Team = c.Team,
+                ApexX = c.ApexX,
+                ApexY = c.ApexY,
+                ApexZ = c.ApexZ,
+                Fan = MapList(c.Fan, static p => new ConePointDto { X = p.X, Y = p.Y })
+            }),
+        Sightlines = MapList(v.Sightlines,
+            static s => new SightlineDto
+            {
+                ViewerSlot = s.ViewerSlot,
+                ViewerTeam = s.ViewerTeam,
+                X0 = s.X0,
+                Y0 = s.Y0,
+                Z0 = s.Z0,
+                X1 = s.X1,
+                Y1 = s.Y1,
+                Z1 = s.Z1
             })
-        }),
-        Sightlines = MapList(v.Sightlines, static s => new SightlineDto
-        {
-            ViewerSlot = s.ViewerSlot,
-            ViewerTeam = s.ViewerTeam,
-            X0 = s.X0,
-            Y0 = s.Y0,
-            Z0 = s.Z0,
-            X1 = s.X1,
-            Y1 = s.Y1,
-            Z1 = s.Z1
-        })
     };
 
     private static WorldBoundsDto? ToDtoOrNull(WorldBounds? bounds) => bounds is not { } b
         ? null
-        : new WorldBoundsDto
-        {
-            MinX = b.MinX,
-            MinY = b.MinY,
-            MaxX = b.MaxX,
-            MaxY = b.MaxY
-        };
+        : new WorldBoundsDto { MinX = b.MinX, MinY = b.MinY, MaxX = b.MaxX, MaxY = b.MaxY };
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────────
 

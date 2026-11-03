@@ -220,18 +220,8 @@ public class Playback2DExportHudSourceTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = new();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 1,
-            Name = "Smith",
-            SteamId = 2
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 1, Name = "Smith", SteamId = 2 });
         vm.OnActivated(ctx);
         return (vm, ctx);
     }
@@ -249,7 +239,8 @@ public class Playback2DExportHudSourceTests
 
     private static string ResolveNuke()
     {
-        string bundled = Path.Combine(DemoTestHelper.RequireRepoRoot(), NukeSample.Replace('/', Path.DirectorySeparatorChar));
+        string bundled = Path.Combine(DemoTestHelper.RequireRepoRoot(),
+            NukeSample.Replace('/', Path.DirectorySeparatorChar));
         return File.Exists(bundled)
             ? bundled
             : DemoTestHelper.FindDemoPath()

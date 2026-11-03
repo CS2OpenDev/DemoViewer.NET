@@ -110,7 +110,8 @@ public sealed class RetakeDetector : IProposalDetector
             last = run[^1].Second;
             group = run.Count;
             evidence.AddRange(run.Select(e => new ProposalEvidence("occupancy", round.TickAt(e.Second),
-                string.Create(CultureInfo.InvariantCulture, $"CT slot {e.Slot} enters {round.PlaceOf(e.Slot, e.Second)}"))));
+                string.Create(CultureInfo.InvariantCulture,
+                    $"CT slot {e.Slot} enters {round.PlaceOf(e.Slot, e.Second)}"))));
         }
         else
         {
@@ -120,7 +121,8 @@ public sealed class RetakeDetector : IProposalDetector
             {
                 int at = round.CountIn(3, b, region);
                 int lower = Math.Max(plantSecond, b - gap);
-                if (at < minGroup || !Enumerable.Range(lower, b - lower).Any(a => round.CountIn(3, a, region) < minGroup))
+                if (at < minGroup || !Enumerable.Range(lower, b - lower)
+                        .Any(a => round.CountIn(3, a, region) < minGroup))
                 {
                     continue;
                 }

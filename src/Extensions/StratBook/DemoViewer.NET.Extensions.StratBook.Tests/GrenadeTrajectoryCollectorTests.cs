@@ -43,7 +43,8 @@ public class GrenadeTrajectoryCollectorTests
                 }
 
                 float x = t <= 190 ? 10 + (t - 100) * 5 : 10 + 90 * 5;
-                ObservedProjectile row = Row(HeIndex, 7, GrenadeProjectileClasses.HEGrenade, new Vector3(x, 0, 64), bounces,
+                ObservedProjectile row = Row(HeIndex, 7, GrenadeProjectileClasses.HEGrenade, new Vector3(x, 0, 64),
+                    bounces,
                     t == 100 ? new Vector3(0, 0, 64) : null);
                 (t == 100 ? created : live).Add(row);
                 if (t == 100)
@@ -56,7 +57,8 @@ public class GrenadeTrajectoryCollectorTests
             }
             else if (t == 204)
             {
-                removed.Add(Row(HeIndex, 7, GrenadeProjectileClasses.HEGrenade, new Vector3(460, 0, 64), bounces, null));
+                removed.Add(Row(HeIndex, 7, GrenadeProjectileClasses.HEGrenade, new Vector3(460, 0, 64), bounces,
+                    null));
             }
 
             // The smoke has no release point and no position on its first frame: the line starts at its first read.
@@ -86,17 +88,22 @@ public class GrenadeTrajectoryCollectorTests
         using (Assert.Multiple())
         {
             await Assert.That(flights.Stride).IsEqualTo(stride);
-            await Assert.That(flights.Flights.Keys).IsEquivalentTo([(HeIndex, 7), (SmokeIndex, 9)], CollectionOrdering.Matching);
+            await Assert.That(flights.Flights.Keys)
+                .IsEquivalentTo([(HeIndex, 7), (SmokeIndex, 9)], CollectionOrdering.Matching);
             await Assert.That(flights.Of(HeIndex, 7)).IsEquivalentTo(he.Finish(), CollectionOrdering.Matching);
             await Assert.That(flights.Of(HeIndex, 7)[0]).IsEqualTo(new TrajectoryPoint(100, 0, 0, 64, 0));
-            await Assert.That(flights.Of(HeIndex, 7)[^1].Tick).IsEqualTo(190).Because("at rest from 190: the last moved sample ends the line");
-            await Assert.That(flights.Of(HeIndex, 7).Any(p => p.X == 999)).IsFalse().Because("the spawn frame's live row is not offered again");
+            await Assert.That(flights.Of(HeIndex, 7)[^1].Tick).IsEqualTo(190)
+                .Because("at rest from 190: the last moved sample ends the line");
+            await Assert.That(flights.Of(HeIndex, 7).Any(p => p.X == 999)).IsFalse()
+                .Because("the spawn frame's live row is not offered again");
             await Assert.That(flights.Of(SmokeIndex, 9)).IsEquivalentTo(smoke.Finish(), CollectionOrdering.Matching);
             await Assert.That(flights.Of(SmokeIndex, 9)[0].Tick).IsEqualTo(151);
             await Assert.That(flights.Of(1, 1)).IsEmpty();
-            await Assert.That(flights.Facts[(HeIndex, 7)]).IsEqualTo(new FlightFacts(GrenadeProjectileClasses.HEGrenade, 100, new Vector3(0, 0, 64),
+            await Assert.That(flights.Facts[(HeIndex, 7)]).IsEqualTo(new FlightFacts(GrenadeProjectileClasses.HEGrenade,
+                100, new Vector3(0, 0, 64),
                 new Vector3(500, 0, 100), null, 204, true, new Vector3(460, 0, 64), 190, 2));
-            await Assert.That(flights.Facts[(SmokeIndex, 9)]).IsEqualTo(new FlightFacts(GrenadeProjectileClasses.Smoke, 150, null, null, null, 210,
+            await Assert.That(flights.Facts[(SmokeIndex, 9)]).IsEqualTo(new FlightFacts(GrenadeProjectileClasses.Smoke,
+                150, null, null, null, 210,
                 false, new Vector3(500, 580, 8), 191, 0)).Because("still live when the run ended");
         }
     }
@@ -116,7 +123,8 @@ public class GrenadeTrajectoryCollectorTests
         {
             await Assert.That(contribution.Id).IsEqualTo(GrenadeTrajectoryCollector.CollectorId);
             await Assert.That(contribution.PassId).IsEqualTo(GrenadeIndexEvaluator.EvaluatorId);
-            await Assert.That(contribution.ProjectileClasses).IsEquivalentTo(GrenadeProjectileClasses.All, CollectionOrdering.Matching);
+            await Assert.That(contribution.ProjectileClasses)
+                .IsEquivalentTo(GrenadeProjectileClasses.All, CollectionOrdering.Matching);
             await Assert.That(contribution.Providers).IsEmpty();
             await Assert.That(contribution.ReadsUserCommands).IsFalse();
             await Assert.That(contribution.GameEvents).IsEmpty();
@@ -126,8 +134,10 @@ public class GrenadeTrajectoryCollectorTests
         }
     }
 
-    private static ObservedProjectile Row(int index, int serial, string cls, Vector3? at, int bounces, Vector3? initial) =>
-        new(index, serial, cls, 3, 2, at, initial, initial is null ? null : new Vector3(500, 0, 100), bounces, 0, null, null);
+    private static ObservedProjectile Row(int index, int serial, string cls, Vector3? at, int bounces,
+        Vector3? initial) =>
+        new(index, serial, cls, 3, 2, at, initial, initial is null ? null : new Vector3(500, 0, 100), bounces, 0, null,
+            null);
 
     private sealed class Sink : ICollectorSink
     {
@@ -136,7 +146,11 @@ public class GrenadeTrajectoryCollectorTests
         public void Put<T>(T result) where T : class => Result = result;
     }
 
-    private sealed class View(int tick, List<ObservedProjectile> created, List<ObservedProjectile> live, List<ObservedProjectile> removed) : IFrameReadView
+    private sealed class View(
+        int tick,
+        List<ObservedProjectile> created,
+        List<ObservedProjectile> live,
+        List<ObservedProjectile> removed) : IFrameReadView
     {
         public DemoFrame Frame => throw new NotSupportedException();
 

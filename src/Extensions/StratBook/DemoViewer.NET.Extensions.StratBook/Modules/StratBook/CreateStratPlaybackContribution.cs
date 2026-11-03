@@ -21,7 +21,10 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.StratBook;
 /// <param name="post">Marshals the walk's result onto the UI thread; synchronous when omitted (tests).</param>
 /// <param name="jobs">The queue the round's walk runs on; the pool when null (tests).</param>
 /// <param name="roundFacts">The library's Round Facts, which end the round's walk; none when null (tests).</param>
-public sealed class CreateStratPlaybackContribution(Action<Action>? post = null, IExtensionJobs? jobs = null, IRoundFacts? roundFacts = null)
+public sealed class CreateStratPlaybackContribution(
+    Action<Action>? post = null,
+    IExtensionJobs? jobs = null,
+    IRoundFacts? roundFacts = null)
     : Sdk.Playback.IPlaybackContribution
 {
     /// <summary>The round band's menu entry.</summary>
@@ -121,9 +124,11 @@ public sealed class CreateStratPlaybackContribution(Action<Action>? post = null,
             facts = null;
         }
 
-        StratCaptureRequest request = BuildRequest(host, context, round, windowEnd, facts, demo.MapName, Levels(surface));
+        StratCaptureRequest request =
+            BuildRequest(host, context, round, windowEnd, facts, demo.MapName, Levels(surface));
         OpenWith(request,
-            (progress, ct) => RoundCaptureWalker.Walk(demo, round.Number, round.StartTickFrameClock, windowEnd, facts?.EndTick,
+            (progress, ct) => RoundCaptureWalker.Walk(demo, round.Number, round.StartTickFrameClock, windowEnd,
+                facts?.EndTick,
                 progress, ct),
             host);
     }
@@ -153,11 +158,13 @@ public sealed class CreateStratPlaybackContribution(Action<Action>? post = null,
     // The SDK's floors as the capture's level keys read them.
     private static List<MapLevel> Levels(Sdk.Playback.IPlaybackSurface surface) =>
     [
-        .. surface.Levels.Select(l => new MapLevel { Id = MapSpace.IdForZMin(l.ZMin), Name = l.Name, ZMin = l.ZMin, ZMax = l.ZMax })
+        .. surface.Levels.Select(l =>
+            new MapLevel { Id = MapSpace.IdForZMin(l.ZMin), Name = l.Name, ZMin = l.ZMin, ZMax = l.ZMax })
     ];
 
     private object BuildPane() =>
-        _next?.Invoke() ?? throw new InvalidOperationException("The Create Strat pane opens from a round band's menu entry.");
+        _next?.Invoke()
+        ?? throw new InvalidOperationException("The Create Strat pane opens from a round band's menu entry.");
 
     // Our side's key and book from Team Identity: the side key of our end-of-demo side when the demo has one,
     // else the me accounts; the team's book when that side is a known team, else the user's own.
@@ -180,7 +187,8 @@ public sealed class CreateStratPlaybackContribution(Action<Action>? post = null,
 
         Func<double, double> levelKeys = StratFromRound.LevelKeys(levels.Count > 0 ? levels : null);
         string? fileName = context.DemoPath is { } demoPath ? Path.GetFileName(demoPath) : null;
-        return new StratCaptureRequest((context.MapName ?? demoMap ?? "").ToLowerInvariant(), round.Number, round.StartTickFrameClock,
+        return new StratCaptureRequest((context.MapName ?? demoMap ?? "").ToLowerInvariant(), round.Number,
+            round.StartTickFrameClock,
             windowEnd, context.DemoSha256, fileName, facts, key, owner, ownerLabel, epoch, levelKeys);
     }
 }

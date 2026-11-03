@@ -112,19 +112,13 @@ public class UnknownMessageCardTests
 
         await HeadlessSession.RunOnUi(async () =>
         {
-            OutputPanelViewModel output = new(new FrameNavigationViewModel())
-            {
-                IsVisible = true
-            };
+            OutputPanelViewModel output = new(new FrameNavigationViewModel()) { IsVisible = true };
             foreach (UnknownTypeRow row in c.GroupedRows)
             {
                 output.UnknownMessages.Append(new OutputRow(row.FirstFrame, row.Tick, "WARN", row.Message));
             }
 
-            OutputPanel view = new()
-            {
-                DataContext = output
-            };
+            OutputPanel view = new() { DataContext = output };
 
             string path = Capture(view, 900, 320, "grouped_output.png");
             Console.WriteLine($"[capture] {path}");
@@ -144,12 +138,7 @@ public class UnknownMessageCardTests
 
     private static string Capture(Control content, int width, int height, string fileName)
     {
-        Window window = new()
-        {
-            Width = width,
-            Height = height,
-            Content = content
-        };
+        Window window = new() { Width = width, Height = height, Content = content };
         window.Show();
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -208,10 +197,8 @@ public sealed class DemoCensus
         // callback sees this parse and nothing else. It fires on pass-2 worker threads, which is why
         // the bag is concurrent.
         ConcurrentBag<UnknownMessageInfo> bag = new();
-        ParsedDemo demo = DemoParser.Parse(bytes.AsMemory(), new ParseOptions
-        {
-            OnUnknownMessage = info => bag.Add(info)
-        });
+        ParsedDemo demo =
+            DemoParser.Parse(bytes.AsMemory(), new ParseOptions { OnUnknownMessage = info => bag.Add(info) });
 
         Dictionary<int, List<UnknownMessageInfo>> census = new();
         Dictionary<int, (string Name, int First, int Size, int Count)> byType = new();
@@ -246,7 +233,8 @@ public sealed class DemoCensus
                 string tick = f >= 0 && f < demo.Frames.Count
                     ? (demo.Frames[f].GameTick ?? demo.Frames[f].ServerTick).ToString(CultureInfo.InvariantCulture)
                     : "—";
-                string msg = $"type {kv.Key} ({kv.Value.Name})  ×{kv.Value.Count}  •  ~{kv.Value.Size} B  •  first @ frame {f}";
+                string msg =
+                    $"type {kv.Key} ({kv.Value.Name})  ×{kv.Value.Count}  •  ~{kv.Value.Size} B  •  first @ frame {f}";
                 return new UnknownTypeRow(f, tick, msg);
             })
             .ToList();

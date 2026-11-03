@@ -148,7 +148,8 @@ public class StratGoldenCaptureTests
         document.Steps[1].Strokes =
         [
             JsonNode.Parse(
-                """{ "kind": "arrow", "space": { "kind": "world", "levelMinZ": -256 }, "points": [[380, -1700], [180, -1900]], "color": "#4FC3F7", "width": 3 }""")!
+                    """{ "kind": "arrow", "space": { "kind": "world", "levelMinZ": -256 }, "points": [[380, -1700], [180, -1900]], "color": "#4FC3F7", "width": 3 }""")
+                !
                 .AsObject()
         ];
 
@@ -225,10 +226,7 @@ public class StratGoldenCaptureTests
             }
 
             GoldenCorpus.Upsert(corpus, new GoldenCorpusEntry(name, scenePath, size, document.Map,
-                asset.Bundle.MapVersion, _layerIds, GoldenBudget.Default, true)
-            {
-                Notes = notes
-            });
+                asset.Bundle.MapVersion, _layerIds, GoldenBudget.Default, true) { Notes = notes });
 
             Console.WriteLine($"[golden] wrote {scenePath}");
             Console.WriteLine($"[golden] wrote {goldenPath} ({png.Length} bytes)");
@@ -239,7 +237,8 @@ public class StratGoldenCaptureTests
         {
             throw new InvalidOperationException(
                 $"no golden at {goldenPath}. Regenerate deliberately with " +
-                $"{UpdateEnvVar}=1 dotnet run --project src/Extensions/StratBook/DemoViewer.NET.Extensions.StratBook.Tests -c Release " +
+                $"{UpdateEnvVar}=1 dotnet run --project src/Extensions/StratBook/DemoViewer.NET.Extensions.StratBook.Tests -c Release "
+                +
                 "-- --treenode-filter \"/*/*/StratGoldenCaptureTests/*\".");
         }
 
@@ -291,8 +290,7 @@ public class StratGoldenCaptureTests
         using CpuSurfaceProvider surfaces = new();
         using HeadlessSceneRenderer renderer = new(surfaces, compositor)
         {
-            AutoFitOnFirstMapBounds = true,
-            AdvanceCameras = false
+            AutoFitOnFirstMapBounds = true, AdvanceCameras = false
         };
         renderer.Levels.SetAuthoritativeFloors(asset.Floors);
         renderer.Levels.RadarBinder = new MapRadarBinder(asset);

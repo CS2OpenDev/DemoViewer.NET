@@ -51,12 +51,15 @@ public class RecordPassDependsOnTests
         new(new HeavyJobGate(), _inline, _ => throw new InvalidOperationException("a record pass never parses"));
 
     private static void Stamp(DemoCacheStore store, string rulesetId, long computedAt) =>
-        store.UpdateExisting(Demo, r => r.SetStamp(new PackStamp(StampedFacts.StampId(rulesetId), StampedFacts.Schema, "fp")
-        {
-            ComputedAtTicks = computedAt
-        }));
+        store.UpdateExisting(Demo,
+            r => r.SetStamp(
+                new PackStamp(StampedFacts.StampId(rulesetId), StampedFacts.Schema, "fp")
+                {
+                    ComputedAtTicks = computedAt
+                }));
 
-    private static (PackContributions Contributions, HostLibrary Library) Host(DemoCacheStore store, params FactKey[] declared)
+    private static (PackContributions Contributions, HostLibrary Library) Host(DemoCacheStore store,
+        params FactKey[] declared)
     {
         PackContributions contributions = new(new HostLibraryTests.LibraryTestExtension(),
             () => throw new NotSupportedException("record passes read no context"));
@@ -186,13 +189,15 @@ public class RecordPassDependsOnTests
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
         await Assert.That(reader.Seen.Count).IsEqualTo(0).Because("no rows are written yet");
 
-        store.UpdateExisting(Demo, r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "a")));
+        store.UpdateExisting(Demo,
+            r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "a")));
         await WaitFor(() => reader.Seen.Count == 1, "the rows");
         store.UpdateExisting(Demo, r => r.Map = "de_nuke");
         await WaitFor(() => barrier.Seen.Count == 3, "the unrelated row write");
         await Assert.That(reader.Seen.Count).IsEqualTo(1);
 
-        store.UpdateExisting(Demo, r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "b")));
+        store.UpdateExisting(Demo,
+            r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "b")));
         await WaitFor(() => reader.Seen.Count == 2, "the rows written again");
         await Assert.That(faults).IsEmpty();
     }
@@ -224,7 +229,8 @@ public class RecordPassDependsOnTests
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
-        store.UpdateExisting(Demo, r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "a")));
+        store.UpdateExisting(Demo,
+            r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "a")));
         await WaitFor(() => barrier.Seen.Count == 2, "the rows");
         await Assert.That(reader.Seen.Count).IsEqualTo(0).Because("the facet is not written yet");
 
@@ -298,7 +304,8 @@ public class RecordPassDependsOnTests
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
         await Assert.That(reader.Seen).IsEmpty();
         await Assert.That(faults.ToArray())
-            .IsEquivalentTo(["test.library.reader: depends on test.owner:bad/facet, which the library does not write."], CollectionOrdering.Matching);
+            .IsEquivalentTo(["test.library.reader: depends on test.owner:bad/facet, which the library does not write."],
+                CollectionOrdering.Matching);
     }
 
     private sealed class FakeData : IExtensionDemoData
@@ -308,13 +315,15 @@ public class RecordPassDependsOnTests
         public bool IsAvailable => true;
 
         public void Set(string path, string facet, string fingerprint, long writtenAt) =>
-            _stamps[(path, facet)] = new DemoDataStamp(path, null, facet, 1, fingerprint, DemoDataState.Written, writtenAt, 0);
+            _stamps[(path, facet)] =
+                new DemoDataStamp(path, null, facet, 1, fingerprint, DemoDataState.Written, writtenAt, 0);
 
         public DemoDataStamp? Stamp(string demoPath, string facet) => _stamps.GetValueOrDefault((demoPath, facet));
 
         public IReadOnlyList<DemoDataStamp> Stamps(string facet) => [.. _stamps.Values.Where(s => s.Facet == facet)];
 
-        public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null) => null;
+        public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null) =>
+            null;
 
         public DemoDataRecord? ReadAny(string demoPath, string facet, string? part = null) => null;
 

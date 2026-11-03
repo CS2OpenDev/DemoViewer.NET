@@ -275,16 +275,8 @@ public class Playback2DExportStatusSurfaceTests
     private static (Window Window, Playback2DExportStatusView View) Show(
         Playback2DExportStatusViewModel status)
     {
-        Playback2DExportStatusView view = new()
-        {
-            DataContext = status
-        };
-        Window window = new()
-        {
-            Width = 420,
-            Height = 420,
-            Content = view
-        };
+        Playback2DExportStatusView view = new() { DataContext = status };
+        Window window = new() { Width = 420, Height = 420, Content = view };
         window.Show();
         Playback2DTimelineHarness.Pump();
         return (window, view);
@@ -377,10 +369,7 @@ public class Playback2DExportSetupTests
                 .Because("with no Application there is no affinity to violate and this proves nothing");
 
             ScenePalette captured = vm.CaptureExportPalette(); // what Start does, on the UI thread
-            Scene2DExportRequest request = Request(null) with
-            {
-                Palette = captured
-            };
+            Scene2DExportRequest request = Request(null) with { Palette = captured };
 
             // Task.Run, not the dispatcher: this is the runner's thread.
             ExportSceneSetup setup = await Task.Run(() => vm.BuildExportSetup(host, request));

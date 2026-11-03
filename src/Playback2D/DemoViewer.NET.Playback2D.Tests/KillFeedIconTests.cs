@@ -81,7 +81,7 @@ public class KillFeedIconTests
 
         // Same key, same bucket → the identical image, because a feed redraws it every frame.
         await Assert.That(icons.Lookup("equipment/ak47", 12f))
-                    .IsSameReferenceAs(icons.Lookup("equipment/ak47", 12f));
+            .IsSameReferenceAs(icons.Lookup("equipment/ak47", 12f));
     }
 
     private static KillFeedRow Row() =>

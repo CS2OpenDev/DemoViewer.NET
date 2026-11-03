@@ -158,7 +158,8 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(layer);
-        (string filed, Func<ISceneLayer> build) = ContributedSceneLayer.File(id, layer, "map view layer factory", Faults);
+        (string filed, Func<ISceneLayer> build) =
+            ContributedSceneLayer.File(id, layer, "map view layer factory", Faults);
 
         // On the FILED id, not the local one: an owner's layer is composed to ext.<owner>.<local> and can
         // never collide, so only an unowned caller can reach these two. The SDK side used to refuse the
@@ -207,7 +208,8 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     /// <inheritdoc />
     public void SetPrimaryTool(IMapTool? tool)
     {
-        if (ReferenceEquals(_primary?.Tool, tool) || (tool is not null && ReferenceEquals(Unwrap(_primary?.Tool), tool)))
+        if (ReferenceEquals(_primary?.Tool, tool)
+            || (tool is not null && ReferenceEquals(Unwrap(_primary?.Tool), tool)))
         {
             return;
         }
@@ -304,7 +306,8 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
         // The primary tool refused a left press: nothing armed, nothing under the pointer. That drag is a
         // pan, and the router only diverts on Space, middle and Ctrl, so the diversion is made here and
         // undone at the release.
-        if (sample.Button == ToolPointerButton.Left && PrimaryKind != ToolKind.PanZoom && Router.ActiveKind == PrimaryKind)
+        if (sample.Button == ToolPointerButton.Left && PrimaryKind != ToolKind.PanZoom
+                                                    && Router.ActiveKind == PrimaryKind)
         {
             Router.SetActive(ToolKind.PanZoom);
             if (Router.OnPressed(in sample))
@@ -536,10 +539,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     {
         _text = new TextBlobCache();
         _radarLayer = new RadarLayer();
-        _compositor = new SceneCompositor
-        {
-            Gate = _gate
-        };
+        _compositor = new SceneCompositor { Gate = _gate };
         _compositor.Add(_radarLayer);
         _compositor.Add(new FloorLabelLayer(_text));
         foreach (Func<ISceneLayer> layer in _layers.Values)
@@ -631,7 +631,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     private void BindMap(string map, MapBundleLease? asset)
     {
         if (ReferenceEquals(asset, _boundAsset) && string.Equals(_boundMap, map, StringComparison.Ordinal)
-            && _frame.Map.MapName == map)
+                                                && _frame.Map.MapName == map)
         {
             InvalidateVisual();
             return;
@@ -661,13 +661,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     {
         if (asset is null)
         {
-            return new Scene2DFrame
-            {
-                Map = new SceneMapInfo
-                {
-                    MapName = map
-                }
-            };
+            return new Scene2DFrame { Map = new SceneMapInfo { MapName = map } };
         }
 
         WorldBounds bounds = asset.RadarBounds;

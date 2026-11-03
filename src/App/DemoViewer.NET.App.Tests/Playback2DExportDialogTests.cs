@@ -67,7 +67,8 @@ public class Playback2DExportDialogTests
 
         // GIF frame delays are whole centiseconds, so 60 does not exist there. The list is
         // SceneExportSession's, and the nearest supported rate is chosen rather than resetting to the head.
-        await Assert.That(vm.AvailableFps).IsEquivalentTo(SceneExportSession.SupportedFps(ExportFormats.Gif), CollectionOrdering.Matching);
+        await Assert.That(vm.AvailableFps).IsEquivalentTo(SceneExportSession.SupportedFps(ExportFormats.Gif),
+            CollectionOrdering.Matching);
         await Assert.That(vm.AvailableFps.Contains(vm.SelectedFps)).IsTrue();
         await Assert.That(vm.SelectedFps).IsEqualTo(50);
     }
@@ -152,10 +153,7 @@ public class Playback2DExportDialogTests
         // rather than becoming an override the three sub-toggles can win against.
         IReadOnlySet<string> ids = vm.BuildRequest(vm.Ranges[0]).LayerIds;
 
-        foreach (string id in new[]
-                 {
-                     SceneLayerIds.HudClock, SceneLayerIds.HudKillFeed, SceneLayerIds.HudRoster
-                 })
+        foreach (string id in new[] { SceneLayerIds.HudClock, SceneLayerIds.HudKillFeed, SceneLayerIds.HudRoster })
         {
             await Assert.That(ids.Contains(id)).IsFalse().Because($"{id} is under the master switch");
         }
@@ -164,11 +162,7 @@ public class Playback2DExportDialogTests
     [Test]
     public async Task TheHudToggles_SeedFromSettings_AndPersistBack()
     {
-        Playback2DSettings saved = new()
-        {
-            ExportIncludeHudClock = false,
-            ExportIncludeHudRoster = false
-        };
+        Playback2DSettings saved = new() { ExportIncludeHudClock = false, ExportIncludeHudRoster = false };
 
         AppSettings written = new();
         Playback2DExportDialogViewModel vm = Dialog(
@@ -339,11 +333,7 @@ public class Playback2DExportDialogTests
     {
         Playback2DExportDialogViewModel vm = new(
             [new ExportRangeOption("Current round", 100, 400)],
-            new Playback2DSettings
-            {
-                ExportFormatId = ExportFormats.WebM,
-                ExportEncoder = "h264_nvenc"
-            },
+            new Playback2DSettings { ExportFormatId = ExportFormats.WebM, ExportEncoder = "h264_nvenc" },
             null,
             ffmpegLocator: () => new FfmpegLocation(true, "/usr/bin", FfmpegOrigin.SystemPath),
             fileExists: _ => false);
@@ -357,10 +347,7 @@ public class Playback2DExportDialogTests
     {
         Playback2DExportDialogViewModel vm = new(
             [new ExportRangeOption("Current round", 100, 400)],
-            new Playback2DSettings
-            {
-                ExportQuality = "insane"
-            },
+            new Playback2DSettings { ExportQuality = "insane" },
             null,
             ffmpegLocator: () => new FfmpegLocation(true, "/usr/bin", FfmpegOrigin.SystemPath),
             fileExists: _ => false);
@@ -534,10 +521,7 @@ public class Playback2DExportDialogTests
     {
         AppSettings written = new();
         Playback2DExportDialogViewModel seeded = Dialog(
-            defaults: new Playback2DSettings
-            {
-                ExportIncludeVision = true
-            });
+            defaults: new Playback2DSettings { ExportIncludeVision = true });
 
         await Assert.That(seeded.IncludeVision).IsTrue();
         await Assert.That(seeded.BuildRequest(seeded.Ranges[0]).LayerIds.Contains(SceneLayerIds.Vision))
@@ -669,10 +653,7 @@ public class Playback2DExportDialogTests
     private sealed class EmptyHud : IHudDataSource
     {
         public HudSnapshot At(int tick) =>
-            HudSnapshot.Empty with
-            {
-                Tick = tick
-            };
+            HudSnapshot.Empty with { Tick = tick };
     }
 
     /// <summary>Records the one request the dialog hands off, and nothing else.</summary>
@@ -883,11 +864,7 @@ public class Playback2DExportVisibilityTests
         await HeadlessSession.RunOnUi(async () =>
         {
             using Playback2DTabViewModel vm = new();
-            Playback2DFakeContext ctx = new()
-            {
-                HasDemo = false,
-                Gate = new FakeModuleFeatureGate()
-            };
+            Playback2DFakeContext ctx = new() { HasDemo = false, Gate = new FakeModuleFeatureGate() };
             vm.OnActivated(ctx);
 
             List<string> raised = [];
@@ -914,10 +891,7 @@ public class Playback2DExportVisibilityTests
         {
             using Playback2DTabViewModel vm = new();
             FakeModuleFeatureGate gate = new();
-            Playback2DFakeContext ctx = new()
-            {
-                Gate = gate
-            };
+            Playback2DFakeContext ctx = new() { Gate = gate };
             vm.OnActivated(ctx);
 
             List<string> raised = [];

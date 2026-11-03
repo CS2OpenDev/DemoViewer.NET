@@ -28,9 +28,11 @@ public class PlayerRoundFacetTests
 
     private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
-    private static readonly string[] Dimensions = ["match_id", "map", "round_number", "player_slot", "player_name", "steam_id", "team"];
+    private static readonly string[] Dimensions =
+        ["match_id", "map", "round_number", "player_slot", "player_name", "steam_id", "team"];
 
-    internal static string SamplePath(string repo) => Path.Combine(repo, "tests", "fixtures", "player-round", "player_round.sample.facts.json");
+    internal static string SamplePath(string repo) =>
+        Path.Combine(repo, "tests", "fixtures", "player-round", "player_round.sample.facts.json");
 
     // The first rounds of a real demo, the accounts and names replaced by slot.
     internal static void WriteSample(string path, FactTable table)
@@ -42,16 +44,19 @@ public class PlayerRoundFacetTests
             Dictionary<string, FactValue> dimensions = new(real.Dimensions, StringComparer.Ordinal)
             {
                 ["player_name"] = FactValue.Of(string.Create(CultureInfo.InvariantCulture, $"player_{slot}")),
-                ["steam_id"] = FactValue.Of(string.Create(CultureInfo.InvariantCulture, $"765611900000000{slot:00}"))
+                ["steam_id"] =
+                    FactValue.Of(string.Create(CultureInfo.InvariantCulture, $"765611900000000{slot:00}"))
             };
             rows.Add(new FactRow(dimensions, real.Values));
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, PlayerMatchFacetTests.Indent(FactsCodec.Encode(table with { Fingerprint = "sample", Rows = rows })));
+        File.WriteAllText(path,
+            PlayerMatchFacetTests.Indent(FactsCodec.Encode(table with { Fingerprint = "sample", Rows = rows })));
     }
 
-    private static FactRow Round(long round, long slot, string? steamId, long side, long kills = 0, long deaths = 0, long damage = 0, bool kast = false) => new(
+    private static FactRow Round(long round, long slot, string? steamId, long side, long kills = 0, long deaths = 0,
+        long damage = 0, bool kast = false) => new(
         new Dictionary<string, FactValue>
         {
             ["round_number"] = FactValue.Of(round),
@@ -81,7 +86,8 @@ public class PlayerRoundFacetTests
         string path = SamplePath(repo);
         if (!File.Exists(path))
         {
-            throw new SkipTestException($"missing the player_round sample; regenerate with {SampleUpdateVar}=1 through PlayerMatchParityRealDemoTests");
+            throw new SkipTestException(
+                $"missing the player_round sample; regenerate with {SampleUpdateVar}=1 through PlayerMatchParityRealDemoTests");
         }
 
         MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, null));
@@ -89,7 +95,8 @@ public class PlayerRoundFacetTests
         FactTable? table = FactsCodec.Decode(PlayerMatchFacetTests.Gzip(committed));
         IReadOnlyList<string> declared =
         [
-            .. rules.EnabledDoc(PlayerRoundFacet.RulesetId)!.Show!.Tables.Single(t => t.Name == PlayerRoundFacet.Table).Columns.Select(c => c.Label ?? c.Stat)
+            .. rules.EnabledDoc(PlayerRoundFacet.RulesetId)!.Show!.Tables.Single(t => t.Name == PlayerRoundFacet.Table)
+                .Columns.Select(c => c.Label ?? c.Stat)
         ];
 
         await Assert.That(table).IsNotNull().Because("the sample is a format-1 facts sidecar");
@@ -99,13 +106,15 @@ public class PlayerRoundFacetTests
             await Assert.That(table.Schema).IsEqualTo(StampedFacts.Schema);
             await Assert.That(table.Grain).IsEqualTo("player_round");
             await Assert.That(string.Join(",", table.Values)).IsEqualTo(string.Join(",", declared))
-                .Because("the shipped ruleset declares the committed columns, in order; a change is a new facet version");
+                .Because(
+                    "the shipped ruleset declares the committed columns, in order; a change is a new facet version");
             await Assert.That(string.Join(",", table.Dimensions)).IsEqualTo(string.Join(",", Dimensions));
             await Assert.That(table.Rows.Count).IsGreaterThanOrEqualTo(20).Because("two rounds of ten players");
             await Assert.That(table.Rows.All(r => declared.All(r.Values.ContainsKey))).IsTrue();
             await Assert.That(table.Rows.Count(r => r.Values["side"].AsInteger() == PlayerRoundFacet.Ct))
                 .IsEqualTo(table.Rows.Count(r => r.Values["side"].AsInteger() == PlayerRoundFacet.T));
-            await Assert.That(PlayerMatchFacetTests.Indent(FactsCodec.Encode(table))).IsEqualTo(committed).Because("round trip");
+            await Assert.That(PlayerMatchFacetTests.Indent(FactsCodec.Encode(table))).IsEqualTo(committed)
+                .Because("round trip");
         }
     }
 
@@ -130,7 +139,8 @@ public class PlayerRoundFacetTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(sides.Keys.Count).IsEqualTo(2).Because("a bot and a slot with no account count for no one");
+            await Assert.That(sides.Keys.Count).IsEqualTo(2)
+                .Because("a bot and a slot with no account count for no one");
             await Assert.That(a["CT:rounds"]).IsEqualTo(2);
             await Assert.That(a["T:rounds"]).IsEqualTo(2).Because("a round on no side counts nowhere");
             await Assert.That(a["CT:kills"]).IsEqualTo(2);
@@ -169,7 +179,12 @@ public class PlayerRoundFacetTests
         StampedFacts stamped = new(rules);
         DemoCacheStore cache = new(null);
         const string path = "/demos/a.dem";
-        cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+        cache.Upsert(new DemoCacheRecord
+        {
+            Path = path,
+            Size = 1,
+            Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+        });
         FactsEvaluator evaluator = new(cache, stamped);
         AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
         bool wanted = evaluator.Records(path, PlayerRoundFacet.RulesetId);
@@ -182,7 +197,8 @@ public class PlayerRoundFacetTests
             await Assert.That(wanted).IsTrue().Because("a parsed demo with no facet is the backlog");
             await Assert.That(facts.Declared).Contains(PlayerRoundFacet.Key);
             await Assert.That(facts.Status(path, PlayerRoundFacet.Key)).IsEqualTo(FactStatus.Current);
-            await Assert.That(row.Stamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId))?.State).IsEqualTo(DemoAnalysisState.Indexed);
+            await Assert.That(row.Stamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId))?.State)
+                .IsEqualTo(DemoAnalysisState.Indexed);
             await Assert.That(row.Stamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId))?.Fingerprint)
                 .IsNotEqualTo(row.Stamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId))?.Fingerprint);
             await Assert.That(evaluator.Records(path, PlayerRoundFacet.RulesetId)).IsFalse();
@@ -216,7 +232,8 @@ public class PlayerRoundFacetTests
                 await Assert.That(stamped.Fingerprint(PlayerMatchFacet.RulesetId, 64)).IsEqualTo(playerMatch)
                     .Because("a later table re-walks only its own backlog");
                 await Assert.That(stamped.Fingerprint(PlayerEventFacet.RulesetId, 64)).IsEqualTo(playerEvent);
-                await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
+                await Assert.That(rules.Fingerprint(64).Fingerprint)
+                    .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
             }
         }
         finally

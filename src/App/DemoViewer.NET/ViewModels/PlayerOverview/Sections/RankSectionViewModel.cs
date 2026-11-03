@@ -42,7 +42,9 @@ public sealed partial class RankSectionViewModel : PlayerOverviewSection
     {
         ArgumentNullException.ThrowIfNull(context);
         LoadText = context.IsReadingRanks ? "Reading ranks" : "";
-        Charts = context.Player is not null && context.Ranks is { } ranks ? Build([.. context.Window.Select(d => d.Match)], ranks) : [];
+        Charts = context.Player is not null && context.Ranks is { } ranks
+            ? Build([.. context.Window.Select(d => d.Match)], ranks)
+            : [];
         IsVisible = Charts.Count > 0;
     }
 
@@ -154,7 +156,8 @@ public sealed class RankChartItem
             }
 
             values.Add(value);
-            tips.Add($"{RankDisplay.DateOf(match)} · {DemoEntry.PrettifyMap(match.Row.Map)} · {RankDisplay.Describe(rank)}");
+            tips.Add(
+                $"{RankDisplay.DateOf(match)} · {DemoEntry.PrettifyMap(match.Row.Map)} · {RankDisplay.Describe(rank)}");
         }
 
         Values = values;
@@ -172,17 +175,20 @@ public sealed class RankChartItem
             Maximum = 18;
         }
 
-        string count = rows.Count == 1 ? "1 match" : string.Create(CultureInfo.InvariantCulture, $"{rows.Count} matches");
+        string count = rows.Count == 1
+            ? "1 match"
+            : string.Create(CultureInfo.InvariantCulture, $"{rows.Count} matches");
         if (values.Count == 0)
         {
             SummaryText = $"{count} · unranked";
             return;
         }
 
-        string latest = RankDisplay.Value(rankType, (int) values[^1]);
-        string peak = RankDisplay.Value(rankType, (int) values.Max());
+        string latest = RankDisplay.Value(rankType, (int)values[^1]);
+        string peak = RankDisplay.Value(rankType, (int)values.Max());
         string net = values.Count > 1 && rankType == RankDisplay.Premier
-            ? " · " + (values[^1] - values[0] >= 0 ? "+" : "") + (values[^1] - values[0]).ToString("N0", CultureInfo.InvariantCulture)
+            ? " · " + (values[^1] - values[0] >= 0 ? "+" : "")
+                    + (values[^1] - values[0]).ToString("N0", CultureInfo.InvariantCulture)
             : "";
         SummaryText = $"{count} · latest {latest} · peak {peak}{net}";
     }
@@ -227,7 +233,8 @@ public sealed class RankCardItem
         ChangeText = RankDisplay.Change(rank) ?? "";
         IsUp = rank.RankChange > 0;
         IsDown = rank.RankChange < 0;
-        Tooltip = $"{RankDisplay.Describe(rank)} · {RankDisplay.DateOf(match)} · {DemoEntry.PrettifyMap(match.Row.Map)}";
+        Tooltip =
+            $"{RankDisplay.Describe(rank)} · {RankDisplay.DateOf(match)} · {DemoEntry.PrettifyMap(match.Row.Map)}";
     }
 
     /// <summary>The rank system.</summary>
@@ -317,7 +324,9 @@ internal static class RankDisplay
     /// <summary>"+189", "-12" or "0"; null when the change is not known.</summary>
     public static string? Change(MatchRankRow? rank) =>
         rank?.RankChange is { } change
-            ? change > 0 ? string.Create(CultureInfo.InvariantCulture, $"+{change}") : change.ToString(CultureInfo.InvariantCulture)
+            ? change > 0
+                ? string.Create(CultureInfo.InvariantCulture, $"+{change}")
+                : change.ToString(CultureInfo.InvariantCulture)
             : null;
 
     /// <summary>"Premier 14,213 → 14,402 (+189)", "Competitive Gold Nova II", "Premier unranked".</summary>

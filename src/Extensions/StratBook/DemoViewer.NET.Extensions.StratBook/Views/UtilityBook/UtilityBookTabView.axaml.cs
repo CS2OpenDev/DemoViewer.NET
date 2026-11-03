@@ -82,7 +82,9 @@ public partial class UtilityBookTabView : UserControl
     {
         if (this.FindControl<Border>("Card") is { } card && _wired is not null)
         {
-            card.HorizontalAlignment = _wired.CardOnLeft ? Avalonia.Layout.HorizontalAlignment.Left : Avalonia.Layout.HorizontalAlignment.Right;
+            card.HorizontalAlignment = _wired.CardOnLeft
+                ? Avalonia.Layout.HorizontalAlignment.Left
+                : Avalonia.Layout.HorizontalAlignment.Right;
         }
     }
 }

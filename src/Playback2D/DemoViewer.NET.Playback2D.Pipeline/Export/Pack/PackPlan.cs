@@ -90,7 +90,10 @@ public sealed record PackSkip(ReviewEntry Entry, string Reason);
 /// <param name="Settings">What it renders as.</param>
 /// <param name="Segments">Title cards and clips, in order.</param>
 /// <param name="Skipped">Clips that cannot be rendered.</param>
-public sealed record PackPlan(PackSettings Settings, IReadOnlyList<PackSegment> Segments, IReadOnlyList<PackSkip> Skipped)
+public sealed record PackPlan(
+    PackSettings Settings,
+    IReadOnlyList<PackSegment> Segments,
+    IReadOnlyList<PackSkip> Skipped)
 {
     /// <summary>The clips, in order.</summary>
     public IReadOnlyList<PackClip> Clips => [.. Segments.OfType<PackClip>()];
@@ -175,12 +178,14 @@ public static class PackPlanner
         {
             if (!_gifFps.Contains(settings.Fps))
             {
-                return string.Create(CultureInfo.InvariantCulture, $"GIF cannot run at {settings.Fps} fps exactly; use 10, 20, 25 or 50");
+                return string.Create(CultureInfo.InvariantCulture,
+                    $"GIF cannot run at {settings.Fps} fps exactly; use 10, 20, 25 or 50");
             }
 
             if (settings.Side is < 16 or > SceneExportSession.GifMaxWidth)
             {
-                return string.Create(CultureInfo.InvariantCulture, $"a GIF side of {settings.Side} is outside 16 to {SceneExportSession.GifMaxWidth}");
+                return string.Create(CultureInfo.InvariantCulture,
+                    $"a GIF side of {settings.Side} is outside 16 to {SceneExportSession.GifMaxWidth}");
             }
 
             return null;
@@ -188,12 +193,14 @@ public static class PackPlanner
 
         if (!_videoFps.Contains(settings.Fps))
         {
-            return string.Create(CultureInfo.InvariantCulture, $"{settings.Fps} fps is not a video rate; use 24, 25, 30, 50, 60 or 64");
+            return string.Create(CultureInfo.InvariantCulture,
+                $"{settings.Fps} fps is not a video rate; use 24, 25, 30, 50, 60 or 64");
         }
 
         // yuv420p halves both axes, and phones' hardware decoders stop at 4096.
         return settings.Side is < 16 or > 4096 || settings.Side % 2 != 0
-            ? string.Create(CultureInfo.InvariantCulture, $"a video side of {settings.Side} must be even and from 16 to 4096")
+            ? string.Create(CultureInfo.InvariantCulture,
+                $"a video side of {settings.Side} must be even and from 16 to 4096")
             : null;
     }
 
@@ -204,7 +211,8 @@ public static class PackPlanner
     /// <param name="entries">The queue, title cards and clips, in order.</param>
     /// <param name="settings">What the pack renders as.</param>
     /// <param name="fileExists">The existence probe; <see cref="File.Exists" /> in the app.</param>
-    public static PackPlan Plan(IReadOnlyList<ReviewEntry> entries, PackSettings settings, Func<string, bool> fileExists)
+    public static PackPlan Plan(IReadOnlyList<ReviewEntry> entries, PackSettings settings,
+        Func<string, bool> fileExists)
     {
         ArgumentNullException.ThrowIfNull(entries);
         ArgumentNullException.ThrowIfNull(settings);
@@ -313,7 +321,8 @@ public static class PackPlanner
             return null;
         }
 
-        int start = Math.Max(0, TrackerFrameSource.FrameIndexForTick(frames, Math.Max(entry.FromTick, frames[0].ServerTick)));
+        int start = Math.Max(0,
+            TrackerFrameSource.FrameIndexForTick(frames, Math.Max(entry.FromTick, frames[0].ServerTick)));
         int end = TrackerFrameSource.FrameIndexForTick(frames, Math.Min(entry.ToTick, frames[^1].ServerTick));
         if (end < start)
         {
@@ -326,7 +335,8 @@ public static class PackPlanner
             count = Math.Min(count, cap);
         }
 
-        ExportRequest core = new(0, Math.Max(0, count - 1), settings.Fps, new SKSizeI(settings.Side, settings.Side), 1.0,
+        ExportRequest core = new(0, Math.Max(0, count - 1), settings.Fps, new SKSizeI(settings.Side, settings.Side),
+            1.0,
             settings.FormatId, LayerIds, new CameraScript.Fixed(new Dictionary<MapLevelId, ViewportTransform>()));
         return new Scene2DExportRequest(core, clip.OutputPath ?? settings.OutputPath, entry.DemoPath, start, end,
             settings.EncoderOverride, settings.Quality, Palette: ScenePalette.Dark);

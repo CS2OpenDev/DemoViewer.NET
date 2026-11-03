@@ -91,7 +91,8 @@ public class RecordPassRunnerTests
         runner.DemoChanged("/smb/one.dem");
         runner.RecheckAll();
         await Task.Delay(100);
-        await Assert.That(a.Runs).IsEquivalentTo(["/nfs/one.dem"], CollectionOrdering.Matching).Because("two paths of one row are one demo");
+        await Assert.That(a.Runs).IsEquivalentTo(["/nfs/one.dem"], CollectionOrdering.Matching)
+            .Because("two paths of one row are one demo");
 
         store.UpdateExisting("/smb/one.dem", r => r.Map = "de_nuke");
         await WaitFor(() => a.Runs.Count == 2, "the changed row");
@@ -138,10 +139,12 @@ public class RecordPassRunnerTests
         store.Upsert(HostLibraryTests.Parsed("/d/two.dem", sha: new string('b', 64)));
         await WaitFor(() => other.Runs.Count == 2, "the other pass on both demos");
 
-        await Assert.That(other.Runs.Order(StringComparer.Ordinal)).IsEquivalentTo(["/d/one.dem", "/d/two.dem"], CollectionOrdering.Matching);
+        await Assert.That(other.Runs.Order(StringComparer.Ordinal))
+            .IsEquivalentTo(["/d/one.dem", "/d/two.dem"], CollectionOrdering.Matching);
         await Assert.That(runner.IsFaulted("stamps", "/d/one.dem")).IsTrue();
         await Assert.That(runner.IsFaulted("stamps", "/d/two.dem")).IsTrue();
-        await Assert.That(faults.Order(StringComparer.Ordinal)).IsEquivalentTo(["stamps@/d/one.dem", "stamps@/d/two.dem"], CollectionOrdering.Matching);
+        await Assert.That(faults.Order(StringComparer.Ordinal))
+            .IsEquivalentTo(["stamps@/d/one.dem", "stamps@/d/two.dem"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -151,7 +154,8 @@ public class RecordPassRunnerTests
         DemoCacheStore store = new(null);
         HostLibrary library = new(store, null, () => false);
         SdkPass inner = new();
-        ExtensionRecordPassHost host = new(inner, ExtensionGuard.Standalone(new HostLibraryTests.LibraryTestExtension()), library);
+        ExtensionRecordPassHost host = new(inner,
+            ExtensionGuard.Standalone(new HostLibraryTests.LibraryTestExtension()), library);
         using RecordPassRunner runner = new(() => [host], store, queue);
 
         store.Upsert(HostLibraryTests.Parsed("/d/one.dem"));
@@ -175,7 +179,8 @@ public class RecordPassRunnerTests
         store.Upsert(HostLibraryTests.Parsed("/d/one.dem"));
         await WaitFor(() => queue.Items.Any(i => i.Kind == QueueJobKind.RecordPass), "the queued run");
         queue.CancelOwned(RecordPassRunner.Owner);
-        await WaitFor(() => !queue.Items.Any(i => i.Kind == QueueJobKind.RecordPass && i.State == DemoQueueItemState.Queued),
+        await WaitFor(
+            () => !queue.Items.Any(i => i.Kind == QueueJobKind.RecordPass && i.State == DemoQueueItemState.Queued),
             "the run's removal");
         queue.Resume();
 
@@ -208,7 +213,8 @@ public class RecordPassRunnerTests
         store.Upsert(HostLibraryTests.Parsed("/d/one.dem"));
         await WaitFor(() => queue.Items.Any(i => i.Kind == QueueJobKind.RecordPass), "the queued run");
         queue.CancelOwned(RecordPassRunner.Owner);
-        await WaitFor(() => !queue.Items.Any(i => i.Kind == QueueJobKind.RecordPass && i.State == DemoQueueItemState.Queued),
+        await WaitFor(
+            () => !queue.Items.Any(i => i.Kind == QueueJobKind.RecordPass && i.State == DemoQueueItemState.Queued),
             "the run's removal");
         store.Upsert(HostLibraryTests.Parsed("/d/two.dem", sha: "bb"));
         changed.Set();
@@ -234,12 +240,14 @@ public class RecordPassRunnerTests
         queue.Resume();
         await WaitFor(() => pass.Started.IsSet, "the run inside its first row");
 
-        await QueueWork.Run(queue, QueueJobKind.StoreSave, "user save", "test", _ => { }, DemoJobPriority.UserRequested);
+        await QueueWork.Run(queue, QueueJobKind.StoreSave, "user save", "test", _ => { },
+            DemoJobPriority.UserRequested);
         await WaitFor(() => pass.Finished.Count == 2, "every row finished after the requeue");
 
         using (Assert.Multiple())
         {
-            await Assert.That(pass.Finished.Order()).IsEquivalentTo(["/d/one.dem", "/d/two.dem"], CollectionOrdering.Matching);
+            await Assert.That(pass.Finished.Order())
+                .IsEquivalentTo(["/d/one.dem", "/d/two.dem"], CollectionOrdering.Matching);
             await Assert.That(pass.Interruptions).IsEqualTo(1);
         }
     }
@@ -302,7 +310,8 @@ public class RecordPassRunnerTests
 
         public bool Wants(DemoCacheIndexEntry entry) => true;
 
-        public void Run(DemoCacheRecord record, CancellationToken cancellationToken) => throw new InvalidOperationException("never runs");
+        public void Run(DemoCacheRecord record, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("never runs");
     }
 
     private sealed class SdkPass : IExtensionRecordPass

@@ -22,7 +22,8 @@ public class RankRowMappingTests
     private const ulong A = 76561198000000001, B = 76561198000000002;
 
     private static ControllerRank Premier(ulong id, int team, int ranking = 14213, int wins = 300) =>
-        new(id, team, ranking, wins, 11, ranking == 0 ? 0 : ranking + 189, ranking == 0 ? 0 : ranking - 150, ranking == 0 ? 0 : ranking + 10);
+        new(id, team, ranking, wins, 11, ranking == 0 ? 0 : ranking + 189, ranking == 0 ? 0 : ranking - 150,
+            ranking == 0 ? 0 : ranking + 10);
 
     [Test]
     public async Task TheUpdate_JoinsEachAccountToItsSteamId64()
@@ -31,7 +32,15 @@ public class RankRowMappingTests
         {
             RankUpdate =
             {
-                new CCSUsrMsg_ServerRankUpdate.Types.RankUpdate { AccountId = 39734273, RankOld = 14213, RankNew = 14402, RankChange = 189, NumWins = 312, RankTypeId = 11 }
+                new CCSUsrMsg_ServerRankUpdate.Types.RankUpdate
+                {
+                    AccountId = 39734273,
+                    RankOld = 14213,
+                    RankNew = 14402,
+                    RankChange = 189,
+                    NumWins = 312,
+                    RankTypeId = 11
+                }
             }
         };
 
@@ -53,7 +62,8 @@ public class RankRowMappingTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(rows.Select(r => r.SteamId64)).IsEquivalentTo(["76561198000000001", "76561198000000002"], CollectionOrdering.Matching);
+            await Assert.That(rows.Select(r => r.SteamId64)).IsEquivalentTo(["76561198000000001", "76561198000000002"],
+                CollectionOrdering.Matching);
             await Assert.That(rows[0].RankOld).IsEqualTo(14213);
             await Assert.That(rows[0].RankNew).IsEqualTo(14402);
             await Assert.That(rows[0].RankChange).IsEqualTo(189);
@@ -88,7 +98,8 @@ public class RankRowMappingTests
     public async Task WithoutAnUpdate_AnUnknownResultOrACompetitiveRank_HasNoRankAfter()
     {
         List<MatchRankRow> unknown = MatchMetaEvaluator.RankRows([Premier(A, 3)], [], () => null);
-        List<MatchRankRow> competitive = MatchMetaEvaluator.RankRows([new ControllerRank(A, 3, 8, 2, 12, 0, 0, 0)], [], () => 3);
+        List<MatchRankRow> competitive =
+            MatchMetaEvaluator.RankRows([new ControllerRank(A, 3, 8, 2, 12, 0, 0, 0)], [], () => 3);
         List<MatchRankRow> placement = MatchMetaEvaluator.RankRows([Premier(A, 3, ranking: 0, wins: 5)], [], () => 3);
 
         using (Assert.Multiple())
@@ -97,7 +108,8 @@ public class RankRowMappingTests
             await Assert.That(unknown[0].RankNew).IsNull();
             await Assert.That(unknown[0].Wins).IsNull();
             await Assert.That(unknown[0].RankSource).IsEqualTo(RankSource.Controller);
-            await Assert.That(competitive[0].RankOld).IsEqualTo(8).Because("a competitive rank under 10 wins is still a rank");
+            await Assert.That(competitive[0].RankOld).IsEqualTo(8)
+                .Because("a competitive rank under 10 wins is still a rank");
             await Assert.That(competitive[0].RankNew).IsNull().Because("competitive predictions are all 0");
             await Assert.That(competitive[0].IsUnranked).IsFalse();
             await Assert.That(placement[0].IsUnranked).IsTrue();
@@ -107,7 +119,8 @@ public class RankRowMappingTests
     [Test]
     public async Task AControllerWithNoRankSystem_IsNoRow()
     {
-        List<MatchRankRow> rows = MatchMetaEvaluator.RankRows([new ControllerRank(A, 3, 0, 0, 0, 0, 0, 0)], [], () => 3);
+        List<MatchRankRow> rows =
+            MatchMetaEvaluator.RankRows([new ControllerRank(A, 3, 0, 0, 0, 0, 0, 0)], [], () => 3);
 
         await Assert.That(rows).IsEmpty();
     }
@@ -120,15 +133,18 @@ public class RankRowMappingTests
     [Arguments(7, 3, null)]
     public async Task TheWinner_IsAFinishedResultOrATie(int ct, int t, int? winner)
     {
-        await Assert.That(MatchMetaEvaluator.WinningTeam(new LibraryTeamState(ct, t, null, null, []))).IsEqualTo(winner);
+        await Assert.That(MatchMetaEvaluator.WinningTeam(new LibraryTeamState(ct, t, null, null, [])))
+            .IsEqualTo(winner);
     }
 
     [Test]
     public async Task TheMode_FallsBackToTheRankSystem_AndAFaceitServerReadsAsFaceit()
     {
-        (string? mode, string source, _) = MatchMetaEvaluator.Capture(null, DemoSourceKind.Unknown, "FACEIT.com register to play here",
+        (string? mode, string source, _) = MatchMetaEvaluator.Capture(null, DemoSourceKind.Unknown,
+            "FACEIT.com register to play here",
             [new ControllerRank(A, 3, 8, 2, 12, 0, 0, 0), new ControllerRank(B, 2, 9, 4, 12, 0, 0, 0)], [], () => null);
-        (string? named, string valve, _) = MatchMetaEvaluator.Capture("premier", DemoSourceKind.GotvMatchmaking, "Valve CS2", [], [], () => null);
+        (string? named, string valve, _) = MatchMetaEvaluator.Capture("premier", DemoSourceKind.GotvMatchmaking,
+            "Valve CS2", [], [], () => null);
 
         using (Assert.Multiple())
         {
@@ -144,21 +160,29 @@ public class RankRowMappingTests
     {
         const string path = "/d/match730_003826256877184877003_0981591541_410.dem";
         DemoCacheStore store = new(null);
-        store.Upsert(new DemoCacheRecord { Path = path, Size = 1, ModifiedTicks = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+        store.Upsert(new DemoCacheRecord
+        {
+            Path = path,
+            Size = 1,
+            ModifiedTicks = 1,
+            Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+        });
         MatchMetaEvaluator evaluator = new(store);
         bool wanted = evaluator.Wants(path);
 
-        evaluator.EvaluateForward(path, new ForwardDemoResult
-        {
-            Demo = new DemoDescriptor("de_test", 64, 1f / 64, 1000, 0, "test", "test", 0, DemoProfile.Unknown, new Dictionary<int, PlayerInfo>()),
-            Rounds = [],
-            FrameCount = 10,
-            FirstServerTick = 0,
-            LastServerTick = 1000,
-            GameMode = "premier",
-            ControllerRanks = [Premier(A, 3)],
-            RankUpdates = [new ServerRankUpdate(A, 14213, 14402, 189, 301, 11)]
-        });
+        evaluator.EvaluateForward(path,
+            new ForwardDemoResult
+            {
+                Demo = new DemoDescriptor("de_test", 64, 1f / 64, 1000, 0, "test", "test", 0, DemoProfile.Unknown,
+                    new Dictionary<int, PlayerInfo>()),
+                Rounds = [],
+                FrameCount = 10,
+                FirstServerTick = 0,
+                LastServerTick = 1000,
+                GameMode = "premier",
+                ControllerRanks = [Premier(A, 3)],
+                RankUpdates = [new ServerRankUpdate(A, 14213, 14402, 189, 301, 11)]
+            });
         DemoCacheRecord record = store.TryLoadRecord(path, false)!;
         DemoCacheIndexEntry row = store.TryGetIndex(path)!;
         MatchMetaPass matchMeta = new(store, _ => null, _ => new DateTime(2026, 6, 18, 0, 0, 0, DateTimeKind.Utc));
@@ -175,7 +199,8 @@ public class RankRowMappingTests
             await Assert.That(after.MatchTimeSource).IsEqualTo(MatchTimeSource.FileWriteTime);
             await Assert.That(after.GameMode).IsEqualTo("premier").Because("the record pass keeps what the visit read");
             await Assert.That(after.Players!.Single().RankNew).IsEqualTo(14402);
-            await Assert.That(json).Contains("\"RankSource\":\"ServerRankUpdate\"").Because("the source is written by name");
+            await Assert.That(json).Contains("\"RankSource\":\"ServerRankUpdate\"")
+                .Because("the source is written by name");
         }
     }
 
@@ -188,14 +213,22 @@ public class RankRowMappingTests
         ParsedDemo parsed = SyntheticParsedDemo.Create();
         foreach (string path in new[] { withUpdate, withoutUpdate })
         {
-            store.Upsert(new DemoCacheRecord { Path = path, Size = 1, ModifiedTicks = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+            store.Upsert(new DemoCacheRecord
+            {
+                Path = path,
+                Size = 1,
+                ModifiedTicks = 1,
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+            });
         }
 
-        evaluator.Evaluate(withUpdate, new PassInput(new VisitedDemo(withUpdate), PassLevel.Background, parsed, null, CancellationToken.None)
-        {
-            RetainedRanks = [new ServerRankUpdate(A, 14213, 14402, 189, 312, 11)]
-        });
-        evaluator.Evaluate(withoutUpdate, new PassInput(new VisitedDemo(withoutUpdate), PassLevel.Background, parsed, null, CancellationToken.None));
+        evaluator.Evaluate(withUpdate,
+            new PassInput(new VisitedDemo(withUpdate), PassLevel.Background, parsed, null, CancellationToken.None)
+            {
+                RetainedRanks = [new ServerRankUpdate(A, 14213, 14402, 189, 312, 11)]
+            });
+        evaluator.Evaluate(withoutUpdate,
+            new PassInput(new VisitedDemo(withoutUpdate), PassLevel.Background, parsed, null, CancellationToken.None));
         List<MatchRankRow> captured = [.. store.TryLoadRecord(withUpdate, false)!.MatchMeta!.Players!];
         DemoMatchMeta bare = store.TryLoadRecord(withoutUpdate, false)!.MatchMeta!;
 

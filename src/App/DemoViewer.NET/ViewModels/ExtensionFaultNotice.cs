@@ -34,7 +34,8 @@ public sealed partial class ExtensionFaultNotice : ObservableObject
     /// <param name="turnOnAgain">Lifts the suspension.</param>
     /// <param name="keepOff">Turns the master switch off in settings.</param>
     /// <param name="openLog">Opens the diagnostics log, or null where there is none.</param>
-    public ExtensionFaultNotice(string featureId, string name, Action<string> turnOnAgain, Action<string> keepOff, Action? openLog)
+    public ExtensionFaultNotice(string featureId, string name, Action<string> turnOnAgain, Action<string> keepOff,
+        Action? openLog)
     {
         ArgumentException.ThrowIfNullOrEmpty(featureId);
         ArgumentNullException.ThrowIfNull(turnOnAgain);

@@ -24,7 +24,8 @@ public class SettingsSchemaPageTests
     [
         SettingDescriptor.Toggle("walk", "Walk in the background", false, "About two seconds per demo."),
         SettingDescriptor.Number("stride", "Stride", 4, 1, 16),
-        SettingDescriptor.Choice("source", "Names from", "pawn", [new SettingChoice("pawn", "Pawn"), new SettingChoice("zones", "Zones")]),
+        SettingDescriptor.Choice("source", "Names from", "pawn",
+            [new SettingChoice("pawn", "Pawn"), new SettingChoice("zones", "Zones")]),
         SettingDescriptor.Text("note", "Note"),
         SettingDescriptor.Folder("out", "Output folder")
     ]);
@@ -62,7 +63,8 @@ public class SettingsSchemaPageTests
         }
 
         stride.Value = 40.4m;
-        await Assert.That(settings.Get("stride", 0)).IsEqualTo(16).Because("a whole step stores the clamped whole number");
+        await Assert.That(settings.Get("stride", 0)).IsEqualTo(16)
+            .Because("a whole step stores the clamped whole number");
 
         folder.ClearCommand.Execute(null);
         await Assert.That(settings.Get<string?>("out", "none")).IsEqualTo("none").Because("clearing forgets the key");

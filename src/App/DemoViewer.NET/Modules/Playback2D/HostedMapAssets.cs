@@ -45,7 +45,8 @@ internal sealed class HostedMapAssets : IMapAssetsBackend
     public IIconSource CreateIcons() => new SkiaIconSource();
 
     /// <inheritdoc />
-    public byte[] RenderPng(Scene2DFrame frame, IMapAsset? map, IReadOnlyList<string> layerIds, ViewportTransform camera,
+    public byte[] RenderPng(Scene2DFrame frame, IMapAsset? map, IReadOnlyList<string> layerIds,
+        ViewportTransform camera,
         SKSizeI size, IReadOnlyList<Func<ISceneLayer>>? layers)
     {
         using CpuSurfaceProvider provider = new();
@@ -53,9 +54,7 @@ internal sealed class HostedMapAssets : IMapAssetsBackend
         Compose(compositor, layers);
         using HeadlessSceneRenderer renderer = new(provider, compositor)
         {
-            Palette = ScenePalette.Dark,
-            Purpose = RenderPurpose.Export,
-            Camera = camera
+            Palette = ScenePalette.Dark, Purpose = RenderPurpose.Export, Camera = camera
         };
         renderer.Levels.SetAuthoritativeFloors(map?.Floors);
         renderer.Levels.RadarBinder = map?.CreateRadarBinder();

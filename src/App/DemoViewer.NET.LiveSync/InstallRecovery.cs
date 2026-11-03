@@ -268,7 +268,10 @@ internal static class InstallRecovery
     ///     <see cref="SafeToAutoRestore" /> lets the app undo it unattended.
     /// </summary>
     internal sealed record LeftoverState(
-        bool GameInfoPatched, bool PluginFilesPresent, bool Cs2Running, bool SafeToAutoRestore)
+        bool GameInfoPatched,
+        bool PluginFilesPresent,
+        bool Cs2Running,
+        bool SafeToAutoRestore)
     {
         public bool Any => GameInfoPatched || PluginFilesPresent;
 

@@ -52,10 +52,10 @@
                                  CWeaponAWP is recognisable at a glance in a list of hundreds of entities.
                                  Non-weapon classes resolve to nothing and leave the column empty. -->
                             <ui:GameIcon Grid.Column="1" IconHeight="9"
-                                               Key="{Binding ClassName, Converter={x:Static controls:WeaponIconKey.EntityClass}}"
-                                               Foreground="{DynamicResource TextDim}"
-                                               HorizontalAlignment="Left" VerticalAlignment="Center"
-                                               Margin="0 0 4 0" />
+                                         Key="{Binding ClassName, Converter={x:Static controls:WeaponIconKey.EntityClass}}"
+                                         Foreground="{DynamicResource TextDim}"
+                                         HorizontalAlignment="Left" VerticalAlignment="Center"
+                                         Margin="0 0 4 0" />
                             <TextBlock Grid.Column="2" Text="{Binding ClassName}" Classes="entCell"
                                        Foreground="{DynamicResource TextMid}" />
                             <TextBlock Grid.Column="3" Text="{Binding Serial}" Classes="entCell"

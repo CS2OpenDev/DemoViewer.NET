@@ -26,7 +26,8 @@ public class ExtensionPlaybackFaultTests
     private static readonly TimelineBandViewModel RoundBand =
         new(new TimelineBand("round", 0, 10, "7", "round 7", 0), 0, 1, Brushes.Gray);
 
-    private static (Playback2DTabViewModel Vm, FaultRig Rig, SdkPlaybackContribution Hosted, ThrowingContribution Fake) Attach()
+    private static (Playback2DTabViewModel Vm, FaultRig Rig, SdkPlaybackContribution Hosted, ThrowingContribution Fake)
+        Attach()
     {
         (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
         FaultRig rig = new();
@@ -85,7 +86,8 @@ public class ExtensionPlaybackFaultTests
         (Playback2DTabViewModel vm, FaultRig rig, SdkPlaybackContribution hosted, ThrowingContribution fake) = Attach();
 
         IReadOnlyList<Sdk.MenuEntry> menu = vm.Timeline.MenuFor(RoundBand);
-        await Assert.That(menu.Select(m => m.Header)).IsEquivalentTo([ThrowingContribution.EntryHeader], CollectionOrdering.Matching)
+        await Assert.That(menu.Select(m => m.Header))
+            .IsEquivalentTo([ThrowingContribution.EntryHeader], CollectionOrdering.Matching)
             .Because("the throwing menu contributed nothing; the good one its entry");
 
         menu[0].Run();
@@ -106,7 +108,8 @@ public class ExtensionPlaybackFaultTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(lanes).Contains("ext.pack.fake.track").Because("a throwing Id reads as the extension's fallback id");
+            await Assert.That(lanes).Contains("ext.pack.fake.track")
+                .Because("a throwing Id reads as the extension's fallback id");
             await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsGreaterThanOrEqualTo(1);
         }
 
@@ -148,7 +151,8 @@ public class ExtensionPlaybackFaultTests
             _owned.Add(surface.AddKeyHandler((_, _) => throw new InvalidOperationException("key")));
             _owned.Add(surface.AddActionHandler(_ => throw new InvalidOperationException("action")));
             _owned.Add(surface.AddBandMenu(_ => throw new InvalidOperationException("menu")));
-            _owned.Add(surface.AddBandMenu(_ => [new Sdk.MenuEntry(EntryHeader, () => throw new InvalidOperationException("entry"))]));
+            _owned.Add(surface.AddBandMenu(_ =>
+                [new Sdk.MenuEntry(EntryHeader, () => throw new InvalidOperationException("entry"))]));
             _owned.Add(surface.AddLane(new ThrowingTrack(), new ThrowingLane()));
             Panel = surface.AddPanel(0, () => throw new InvalidOperationException("panel vm"),
                 () => throw new InvalidOperationException("panel view"));
@@ -175,14 +179,16 @@ public class ExtensionPlaybackFaultTests
 
         public bool IsAvailable(ITimelineData data) => true;
 
-        public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => throw new InvalidOperationException("markers");
+        public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) =>
+            throw new InvalidOperationException("markers");
 
-        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => throw new InvalidOperationException("bands");
+        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
+            throw new InvalidOperationException("bands");
     }
 
     private sealed class ThrowingLane : Sdk.ILaneBehaviour
     {
-        public IEnumerable<Sdk.MenuEntry> MenuFor(Sdk.PlaybackBand band) => throw new InvalidOperationException("lane menu");
+        public IEnumerable<Sdk.MenuEntry> MenuFor(Sdk.PlaybackBand band) =>
+            throw new InvalidOperationException("lane menu");
     }
-
 }

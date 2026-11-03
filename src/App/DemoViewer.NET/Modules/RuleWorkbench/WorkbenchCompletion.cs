@@ -92,9 +92,7 @@ public static class WorkbenchCompletionSource
     // Fixed-value keys: closed sets that a given key's value must come from (e.g. `per: round|match`).
     private static readonly Dictionary<string, string[]> _valueEnums = new(StringComparer.Ordinal)
     {
-        ["per"] = ["round", "match", "game", "half"],
-        ["for"] = ["each_player", "match"],
-        ["keep"] = ["list"]
+        ["per"] = ["round", "match", "game", "half"], ["for"] = ["each_player", "match"], ["keep"] = ["list"]
     };
 
     // Keys whose value is a triggering event/view (plus its facets). `on:` and the event-taking kinds.
@@ -187,10 +185,7 @@ public static class WorkbenchCompletionSource
             return new WorkbenchCompletionContext(null, true, TopLevelBlock);
         }
 
-        return ContextFor(lineBeforeCaret) with
-        {
-            Block = EnclosingBlock(textBeforeCaret)
-        };
+        return ContextFor(lineBeforeCaret) with { Block = EnclosingBlock(textBeforeCaret) };
     }
 
     // The last column-0 `key:` on any line ABOVE the caret's line: the enclosing section.

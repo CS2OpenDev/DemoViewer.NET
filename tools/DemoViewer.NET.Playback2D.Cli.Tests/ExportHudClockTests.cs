@@ -189,13 +189,7 @@ public class ExportHudClockTests
             RenderPurpose.Export, ScenePalette.Dark, 1f)
         {
             Pane = new LevelPaneSnapshot(default, 0,
-                new MapLevel
-                {
-                    Id = default,
-                    Name = "l",
-                    ZMin = 0,
-                    ZMax = 100
-                },
+                new MapLevel { Id = default, Name = "l", ZMin = 0, ZMax = 100 },
                 ViewportTransform.Fit(400, 120, -100, -100, 100, 100), default, 0)
         };
 

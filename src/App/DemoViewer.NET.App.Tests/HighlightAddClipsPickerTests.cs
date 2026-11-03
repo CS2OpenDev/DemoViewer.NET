@@ -35,12 +35,7 @@ public class HighlightAddClipsPickerTests
             {
                 slot = slotOf.Count;
                 slotOf[e.Steam] = slot;
-                roster.Add(new CachedPlayerInfo
-                {
-                    Slot = slot,
-                    Name = e.Name,
-                    SteamId64 = e.Steam
-                });
+                roster.Add(new CachedPlayerInfo { Slot = slot, Name = e.Name, SteamId64 = e.Steam });
             }
 
             int dot = e.Type.IndexOf('.', StringComparison.Ordinal);
@@ -62,19 +57,11 @@ public class HighlightAddClipsPickerTests
             TickRate = 64,
             TickCount = 200_000,
             ModifiedTicks = modified,
-            Analysis = new TierStamp
-            {
-                Schema = DemoCacheRecord.AnalysisSchema,
-                ComputedAtTicks = 1
-            },
+            Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
             AnalysisState = state,
             Rounds =
             [
-                new CachedRound
-                {
-                    Number = 1,
-                    StartTickFrameClock = 1000
-                }
+                new CachedRound { Number = 1, StartTickFrameClock = 1000 }
             ],
             Players = roster,
             Highlights = harvested

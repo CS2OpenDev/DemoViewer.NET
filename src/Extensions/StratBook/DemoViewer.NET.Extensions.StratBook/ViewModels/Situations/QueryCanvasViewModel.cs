@@ -67,7 +67,8 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         SituationTolerance.Exact, SituationTolerance.Adjacent, SituationTolerance.TwoHops, SituationTolerance.AnyPlace
     ];
 
-    private static readonly SituationTolerance[] _degradedStops = [SituationTolerance.Exact, SituationTolerance.AnyPlace];
+    private static readonly SituationTolerance[] _degradedStops =
+        [SituationTolerance.Exact, SituationTolerance.AnyPlace];
 
     private IPlaceAdjacency? _adjacency;
     private bool _disposed;
@@ -187,7 +188,9 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
     /// <summary>"over 240 of 277 demos" beside the count, "counting" while one is in flight, empty with no map.</summary>
     public string CoverageLine => LiveCount is not null
         ? $"over {_index.IndexedDemoCount} of {_library.Demos.Count} demos"
-        : IsCounting ? "counting" : "";
+        : IsCounting
+            ? "counting"
+            : "";
 
     /// <summary>
     ///     How loosely the pairs match: the draft's tolerance, which the slider drives. Setting it re-asks
@@ -531,7 +534,9 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
     // the cheaper change, then a token.
     private string LoosenHint() => Filters.IsActive
         ? Draft.IsEmpty ? "clear a filter" : "clear a filter or lift a token"
-        : Draft.IsEmpty ? "the map has no indexed rounds under this query" : "lift a token";
+        : Draft.IsEmpty
+            ? "the map has no indexed rounds under this query"
+            : "lift a token";
 
     /// <summary>
     ///     Asks for a fresh count of the draft, or drops the pending one when there is nothing to count.
@@ -771,7 +776,9 @@ public sealed partial class QueryRailSlotViewModel : ObservableObject
     public string Label => $"{(Side == QuerySide.Ct ? "CT" : "T")} {Slot + 1}";
 
     /// <summary>The place, in the default owner's word for it, or what the slot is doing instead.</summary>
-    public string Status => Place is { } place ? _owner.DisplayPlace(place) : IsPlaced ? "no place" : IsArmed ? "click the map" : "";
+    public string Status => Place is { } place ? _owner.DisplayPlace(place) :
+        IsPlaced ? "no place" :
+        IsArmed ? "click the map" : "";
 
     /// <summary>Arms or disarms this slot.</summary>
     [RelayCommand]

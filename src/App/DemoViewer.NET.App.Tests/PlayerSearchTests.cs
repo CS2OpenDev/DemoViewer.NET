@@ -21,7 +21,14 @@ public class PlayerSearchTests
 
     private static void Add(DemoCacheStore store, string path, params CachedPlayerInfo[] players)
     {
-        DemoCacheRecord record = new() { Path = path, Size = 100, ModifiedTicks = 1, Map = "de_nuke", Players = [.. players] };
+        DemoCacheRecord record = new()
+        {
+            Path = path,
+            Size = 100,
+            ModifiedTicks = 1,
+            Map = "de_nuke",
+            Players = [.. players]
+        };
         DemoCacheStore.StampHeader(record);
         DemoCacheStore.StampParse(record);
         store.Upsert(record);
@@ -46,7 +53,8 @@ public class PlayerSearchTests
         using (Assert.Multiple())
         {
             await Assert.That(result.SteamId64).IsEqualTo(Grim);
-            await Assert.That(result.Candidates.Select(c => c.SteamId64).ToArray()).IsEquivalentTo([Grim], CollectionOrdering.Matching);
+            await Assert.That(result.Candidates.Select(c => c.SteamId64).ToArray())
+                .IsEquivalentTo([Grim], CollectionOrdering.Matching);
             await Assert.That(result.IsFlagged).IsFalse();
         }
     }
@@ -81,8 +89,10 @@ public class PlayerSearchTests
         using (Assert.Multiple())
         {
             await Assert.That(result.SteamId64).IsNull();
-            await Assert.That(result.Candidates.Select(c => c.SteamId64).ToArray()).IsEquivalentTo([Other, Third], CollectionOrdering.Matching);
-            await Assert.That(result.Candidates[0].SteamId64).IsEqualTo(Other).Because("it is in two demos, the other in one");
+            await Assert.That(result.Candidates.Select(c => c.SteamId64).ToArray())
+                .IsEquivalentTo([Other, Third], CollectionOrdering.Matching);
+            await Assert.That(result.Candidates[0].SteamId64).IsEqualTo(Other)
+                .Because("it is in two demos, the other in one");
         }
     }
 
@@ -102,7 +112,8 @@ public class PlayerSearchTests
     [Test]
     public async Task AResolver_TurnsAVanityUrlIntoItsAccount()
     {
-        PlayerSearchResult result = await Library(new FixedResolver(Other)).SearchAsync("steamcommunity.com/id/anything");
+        PlayerSearchResult result =
+            await Library(new FixedResolver(Other)).SearchAsync("steamcommunity.com/id/anything");
         using (Assert.Multiple())
         {
             await Assert.That(result.SteamId64).IsEqualTo(Other);
@@ -119,10 +130,12 @@ public class PlayerSearchTests
     }
 
     [Test]
-    public async Task BlankText_FindsNothing() => await Assert.That(Library().Search("  ").Candidates.Count).IsEqualTo(0);
+    public async Task BlankText_FindsNothing() =>
+        await Assert.That(Library().Search("  ").Candidates.Count).IsEqualTo(0);
 
     private sealed class FixedResolver(ulong id) : IVanityResolver
     {
-        public Task<ulong?> ResolveAsync(string vanity, CancellationToken cancellationToken) => Task.FromResult<ulong?>(id);
+        public Task<ulong?> ResolveAsync(string vanity, CancellationToken cancellationToken) =>
+            Task.FromResult<ulong?>(id);
     }
 }

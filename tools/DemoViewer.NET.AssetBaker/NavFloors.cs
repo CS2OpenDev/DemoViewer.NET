@@ -93,10 +93,7 @@ public static class NavFloors
 
         if (samples.Count == 0)
         {
-            return new Result(new List<FloorBand>
-            {
-                new(-OuterEdge, OuterEdge)
-            }, 0, 0, 0, "(no nav areas)");
+            return new Result(new List<FloorBand> { new(-OuterEdge, OuterEdge) }, 0, 0, 0, "(no nav areas)");
         }
 
         double minZ = samples.Min(s => s.Z);
@@ -321,7 +318,8 @@ public static class NavFloors
             }
         }
 
-        sb.AppendLine($"  → boundaries: [{string.Join(", ", boundaries.Select(x => x.ToString("F0", CultureInfo.InvariantCulture)))}]");
+        sb.AppendLine(
+            $"  → boundaries: [{string.Join(", ", boundaries.Select(x => x.ToString("F0", CultureInfo.InvariantCulture)))}]");
         sb.AppendLine($"  → floors: {floors.Count}  " +
                       string.Join("  ", floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
         return sb.ToString();

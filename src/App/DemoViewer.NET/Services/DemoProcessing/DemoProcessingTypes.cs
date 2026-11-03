@@ -357,9 +357,7 @@ public interface IDemoProcessingQueue
     IShellDemoLease? ShellDemo
     {
         get => null;
-        set
-        {
-        }
+        set { }
     }
 
     // ── Counts (status line) ──────────────────────────────────────────────────

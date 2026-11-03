@@ -95,14 +95,17 @@ public sealed partial class HeaderSectionViewModel : PlayerOverviewSection
         Aliases = AliasLine(player.Aliases);
         SteamId64 = id;
         ProfileUrl = "https://steamcommunity.com/profiles/" + id;
-        DemoCountText = player.DemoCount == 1 ? "1 demo" : string.Create(CultureInfo.InvariantCulture, $"{player.DemoCount} demos");
+        DemoCountText = player.DemoCount == 1
+            ? "1 demo"
+            : string.Create(CultureInfo.InvariantCulture, $"{player.DemoCount} demos");
         SeenText = player.FirstSeenTicks == player.LastSeenTicks
             ? "seen " + DateOf(player.LastSeenTicks)
             : $"first seen {DateOf(player.FirstSeenTicks)} · last seen {DateOf(player.LastSeenTicks)}";
         Ranks = context.Ranks is { } ranks ? RankSectionViewModel.Latest(context.Matches, ranks) : [];
         IsMine = context.IsMine;
         CanSetAsMe = !context.IsMine;
-        CanSetActive = context.IsMine && !string.Equals(_services.Identity.ActiveSteamId64, id, StringComparison.Ordinal);
+        CanSetActive = context.IsMine
+                       && !string.Equals(_services.Identity.ActiveSteamId64, id, StringComparison.Ordinal);
         IsVisible = true;
     }
 
@@ -116,7 +119,9 @@ public sealed partial class HeaderSectionViewModel : PlayerOverviewSection
 
         string shown = string.Join(", ", aliases.Skip(1).Take(AliasesShown).Select(a => DisplayText.Sanitize(a.Name)));
         int more = aliases.Count - 1 - AliasesShown;
-        return more > 0 ? string.Create(CultureInfo.InvariantCulture, $"also {shown} and {more} more") : "also " + shown;
+        return more > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"also {shown} and {more} more")
+            : "also " + shown;
     }
 
     // The first letter or digit of each of the first two words; "?" for a name with none.

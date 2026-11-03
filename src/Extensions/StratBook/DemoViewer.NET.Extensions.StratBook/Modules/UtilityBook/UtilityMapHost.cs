@@ -91,7 +91,8 @@ public sealed class UtilityMapHost : Decorator
             return;
         }
 
-        _layer = _map.AddLayer(SceneLayerIds.Utility, () => new UtilityMapLayer(vm.Document, _icons ??= new MapIcons()));
+        _layer = _map.AddLayer(SceneLayerIds.Utility,
+            () => new UtilityMapLayer(vm.Document, _icons ??= new MapIcons()));
         vm.MapChanged += OnMapChanged;
         vm.Document.Changed += OnDocumentChanged;
         OnMapChanged();
@@ -131,9 +132,12 @@ public sealed class UtilityMapHost : Decorator
         }
 
         SKPoint local = new(x - pane.ViewportRect.Left, y - pane.ViewportRect.Top);
-        bool Belongs(double z) => pane.LevelIndex < 0 || space.Levels.Count <= 1 || space.LevelIndexFor(z) == pane.LevelIndex;
 
-        IReadOnlyList<UtilityMapThrow> throws = UtilityMapLayer.ThrowsAt(_vm.Document, pane.Camera.Current, Belongs, local);
+        bool Belongs(double z) =>
+            pane.LevelIndex < 0 || space.Levels.Count <= 1 || space.LevelIndexFor(z) == pane.LevelIndex;
+
+        IReadOnlyList<UtilityMapThrow> throws =
+            UtilityMapLayer.ThrowsAt(_vm.Document, pane.Camera.Current, Belongs, local);
         if (throws.Count > 0)
         {
             // A second click on a stack moves to the next one under the pointer; on a lone disc it toggles.
@@ -152,7 +156,8 @@ public sealed class UtilityMapHost : Decorator
             return;
         }
 
-        IReadOnlyList<UtilityMapLanding> landings = UtilityMapLayer.LandingsAt(_vm.Document, pane.Camera.Current, Belongs, local);
+        IReadOnlyList<UtilityMapLanding> landings =
+            UtilityMapLayer.LandingsAt(_vm.Document, pane.Camera.Current, Belongs, local);
         if (landings.Count > 0)
         {
             string? current = landings.Where(l => l.Focused).Select(l => l.Id).FirstOrDefault();

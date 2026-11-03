@@ -113,7 +113,8 @@ public sealed class StratBookSettings
     /// <summary>True when a change to <paramref name="key" /> can change what a pass wants, so the library is asked again.</summary>
     /// <param name="key">The key that changed.</param>
     public static bool WidensPasses(string key) =>
-        key is SituationsBackgroundIndexKey or TokenSourceKey or GrenadesBackgroundIndexKey or SuggestedTagsBackgroundKey;
+        key is SituationsBackgroundIndexKey or TokenSourceKey or GrenadesBackgroundIndexKey
+            or SuggestedTagsBackgroundKey;
 
     /// <summary>The Grenade Index settings page, drawn by the host.</summary>
     public static SettingsSchema GrenadeIndexSchema { get; } = new("stratbook.grenade-index", "GRENADE INDEX",
@@ -126,9 +127,5 @@ public sealed class StratBookSettings
             "Past it the least recently used clips are deleted after a render. 0 caps nothing."),
         SettingDescriptor.Number(TrajectoryStrideKey, "Flight sample stride", 4, 1, 64, 1,
             "Keep every n-th moved sample of a flight. Read when a demo is walked.")
-    ])
-    {
-        Order = 1,
-        Keywords = "grenade index utility book lineup clip render walk background"
-    };
+    ]) { Order = 1, Keywords = "grenade index utility book lineup clip render walk background" };
 }

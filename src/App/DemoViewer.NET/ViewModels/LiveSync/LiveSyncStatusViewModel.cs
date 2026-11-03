@@ -174,10 +174,7 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         _acknowledgeLaunchNotice = acknowledgeLaunchNotice;
         _installRecovery = installRecovery;
 
-        Chip = new StatusChipViewModel
-        {
-            FlyoutContent = this
-        };
+        Chip = new StatusChipViewModel { FlyoutContent = this };
 
         _liveSync.StateChanged += OnStateChanged;
         if (_moduleContext is not null)
@@ -561,7 +558,8 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
                 or LiveSyncStateKind.SyncedSeekPending => LiveSyncHudDot.Good,
             LiveSyncStateKind.Degraded => LiveSyncHudDot.Degraded,
             LiveSyncStateKind.Faulted => LiveSyncHudDot.Error,
-            _ => LiveSyncHudDot.Working // HostStarting / LaunchingCs2 / Connecting / LoadingDemo / ConnectedIdle / SuspendedForReel
+            _ => LiveSyncHudDot
+                .Working // HostStarting / LaunchingCs2 / Connecting / LoadingDemo / ConnectedIdle / SuspendedForReel
         };
 
         _hudChanged?.Invoke(this, EventArgs.Empty);

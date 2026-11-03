@@ -43,10 +43,7 @@ public class DemoCacheTier2Tests
             throw new SkipTestException("demo carries no named players");
         }
 
-        DemoCacheRecord record = new()
-        {
-            Players = players
-        };
+        DemoCacheRecord record = new() { Players = players };
 
         using (Assert.Multiple())
         {
@@ -70,10 +67,7 @@ public class DemoCacheTier2Tests
     {
         ParsedDemo parsed = Parse();
         (List<CachedPlayerInfo> players, _) = DemoLibraryService.ProjectTier2(parsed);
-        DemoCacheRecord record = new()
-        {
-            Players = players
-        };
+        DemoCacheRecord record = new() { Players = players };
 
         // Recompute the same numbers straight from the parse, the way SetSummary does.
         int liveT = 0, liveCt = 0, liveSpectators = 0;

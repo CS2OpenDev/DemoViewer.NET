@@ -13,5 +13,6 @@ public sealed class FakeDetailViewModel : ExtensionViewModel
         set => SetProperty(ref _title, value);
     }
 
-    public string Notes { get; } = "Drawn with the **host's** tokens and classes.\n\n- `TextMid` label\n- `ghost` and `primary` buttons";
+    public string Notes { get; } =
+        "Drawn with the **host's** tokens and classes.\n\n- `TextMid` label\n- `ghost` and `primary` buttons";
 }

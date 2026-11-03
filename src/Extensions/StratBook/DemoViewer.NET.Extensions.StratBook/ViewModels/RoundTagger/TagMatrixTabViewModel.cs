@@ -146,7 +146,8 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
             new SearchFilterOption<int?>("T side", 2),
             new SearchFilterOption<int?>("CT side", 3)
         ]);
-        Filter = new SearchFilterField<TagMatrixAxis?>("Filter", [new SearchFilterOption<TagMatrixAxis?>("No filter", null)]);
+        Filter = new SearchFilterField<TagMatrixAxis?>("Filter",
+            [new SearchFilterOption<TagMatrixAxis?>("No filter", null)]);
         FilterValue = new SearchFilterField<string?>("Value", [new SearchFilterOption<string?>("Any value", null)]);
         Source = new SearchFilterField<TagSource?>("Source",
         [
@@ -230,7 +231,8 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
     public string GrandTotal => Table is null ? "" : Table.Total.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>What the empty table says.</summary>
-    public string EmptyLine { get; private set; } = "Nothing tagged yet. Tag rounds with the palette in 2D Playback; the counts land here.";
+    public string EmptyLine { get; private set; } =
+        "Nothing tagged yet. Tag rounds with the palette in 2D Playback; the counts land here.";
 
     /// <summary>The newest rebuild; tests await it.</summary>
     public Task Pending { get; private set; } = Task.CompletedTask;
@@ -327,7 +329,8 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
         int missing = 0;
         foreach (TagInstanceRef instance in cell.Refs)
         {
-            if (TagClips.FromTag(instance, sha => _indexBySha(sha)?.FilePath, _tickRates.GetValueOrDefault(instance.Sha256)) is { } clip)
+            if (TagClips.FromTag(instance, sha => _indexBySha(sha)?.FilePath,
+                    _tickRates.GetValueOrDefault(instance.Sha256)) is { } clip)
             {
                 clips.Add(clip);
             }
@@ -479,6 +482,7 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
     private IEnumerable<SearchFilterOption<Guid?>> TeamOptions()
     {
         yield return _allDemos;
+
         if (_teams is null)
         {
             yield break;
@@ -553,11 +557,16 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
     // the pivot. Reads the store, the cache index and Team Identity, all of which lock for themselves.
     private MatrixResult Compute(MatrixInputs inputs)
     {
-        HashSet<string> tagged = new(_store.Index.Where(e => e.InstanceCount > 0).Select(e => e.Sha256), StringComparer.Ordinal);
+        HashSet<string> tagged = new(_store.Index.Where(e => e.InstanceCount > 0).Select(e => e.Sha256),
+            StringComparer.Ordinal);
 
         // Newest first either way, so "last N" is a Take.
         List<(string Sha, string? Path)> scope = inputs.Team is Guid team && _teams is not null
-            ? [.. _teams.DemosOf(team).Where(d => d.Sha256 is { } sha && tagged.Contains(sha)).Select(d => (d.Sha256!, (string?)d.Path))]
+            ?
+            [
+                .. _teams.DemosOf(team).Where(d => d.Sha256 is { } sha && tagged.Contains(sha))
+                    .Select(d => (d.Sha256!, (string?)d.Path))
+            ]
             :
             [
                 .. tagged.Select(sha => (Sha: sha, Row: _indexBySha(sha)))
@@ -566,7 +575,11 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
                     .Select(d => (d.Sha, d.Row?.FilePath))
             ];
 
-        List<string> maps = [.. scope.Select(d => _indexBySha(d.Sha)?.MapName).OfType<string>().Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
+        List<string> maps =
+        [
+            .. scope.Select(d => _indexBySha(d.Sha)?.MapName).OfType<string>().Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+        ];
         if (inputs.Map is { } map)
         {
             scope = [.. scope.Where(d => string.Equals(_indexBySha(d.Sha)?.MapName, map, StringComparison.Ordinal))];
@@ -608,14 +621,16 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
         List<LabelPredicate> where = [];
         if (inputs.Filter?.Axis is PivotAxis.Label held && inputs.FilterValue is { } value)
         {
-            where.Add(new LabelPredicate(held.Namespace, held.Group, new HashSet<string>(StringComparer.Ordinal) { value }));
+            where.Add(new LabelPredicate(held.Namespace, held.Group,
+                new HashSet<string>(StringComparer.Ordinal) { value }));
         }
 
         // The first build picks a human label group for the columns, the mock's shape, unless the user
         // has picked columns already.
         TagMatrixAxis columns = inputs.Columns;
         if (inputs.DefaultColumns
-            && axes.FirstOrDefault(a => a.Axis is PivotAxis.Label { Namespace: LabelNamespace.Human } && !a.Equals(inputs.Rows)) is { } label)
+            && axes.FirstOrDefault(a =>
+                a.Axis is PivotAxis.Label { Namespace: LabelNamespace.Human } && !a.Equals(inputs.Rows)) is { } label)
         {
             columns = label;
         }
@@ -630,7 +645,9 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
         {
             string sha = doc.Demo.Sha256;
             string? path = scope.FirstOrDefault(d => d.Sha == sha).Path ?? _indexBySha(sha)?.FilePath;
-            names[sha] = path is not null ? Path.GetFileName(path) : doc.Demo.FileName ?? sha[..Math.Min(12, sha.Length)];
+            names[sha] = path is not null
+                ? Path.GetFileName(path)
+                : doc.Demo.FileName ?? sha[..Math.Min(12, sha.Length)];
             rates[sha] = doc.Clock.TickRate;
         }
 
@@ -647,9 +664,12 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
             Filter.Replace(
             [
                 Filter.Options[0],
-                .. result.Axes.Where(a => a.Axis is PivotAxis.Label).Select(a => new SearchFilterOption<TagMatrixAxis?>(a.Display, a))
+                .. result.Axes.Where(a => a.Axis is PivotAxis.Label)
+                    .Select(a => new SearchFilterOption<TagMatrixAxis?>(a.Display, a))
             ]);
-            FilterValue.Replace([FilterValue.Options[0], .. result.FilterValues.Select(v => new SearchFilterOption<string?>(Shown(v), v))]);
+            FilterValue.Replace([
+                FilterValue.Options[0], .. result.FilterValues.Select(v => new SearchFilterOption<string?>(Shown(v), v))
+            ]);
         }
         finally
         {
@@ -817,7 +837,8 @@ public sealed partial class TagMatrixCellViewModel : ObservableObject
     /// <param name="rowDisplay">The row key as shown.</param>
     /// <param name="columnDisplay">The column key as shown.</param>
     /// <param name="refs">The instances in the cell.</param>
-    public TagMatrixCellViewModel(TagMatrixTabViewModel owner, string rowDisplay, string columnDisplay, IReadOnlyList<TagInstanceRef> refs)
+    public TagMatrixCellViewModel(TagMatrixTabViewModel owner, string rowDisplay, string columnDisplay,
+        IReadOnlyList<TagInstanceRef> refs)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(refs);

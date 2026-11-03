@@ -67,7 +67,8 @@ public class SpraySamplerProbe
             double mean = trackedShots.Average(x =>
                 Math.Sqrt((x.OffsetYawDeg * x.OffsetYawDeg) + (x.OffsetPitchDeg * x.OffsetPitchDeg)));
             Console.WriteLine($"[track] mean offset from victim chest = {mean:F2} deg");
-            Console.WriteLine($"[track] anchor offsets are NOT zero: {trackedShots.Count(x => x.ShotIndex == 0 && Math.Abs(x.OffsetYawDeg) > 0.001)} of {trackedShots.Count(x => x.ShotIndex == 0)}");
+            Console.WriteLine(
+                $"[track] anchor offsets are NOT zero: {trackedShots.Count(x => x.ShotIndex == 0 && Math.Abs(x.OffsetYawDeg) > 0.001)} of {trackedShots.Count(x => x.ShotIndex == 0)}");
         }
 
         await Assert.That(model.Players.Count).IsGreaterThan(0)

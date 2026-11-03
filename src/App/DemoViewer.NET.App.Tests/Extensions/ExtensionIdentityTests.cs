@@ -50,7 +50,10 @@ public class ExtensionIdentityTests
         int slot = 0;
         foreach ((string id, int team) in t.Select(id => (id, 2)).Concat(ct.Select(id => (id, 3))))
         {
-            record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = $"p{id[^4..]}", SteamId64 = id, Team = team });
+            record.Players.Add(new CachedPlayerInfo
+            {
+                Slot = slot++, Name = $"p{id[^4..]}", SteamId64 = id, Team = team
+            });
         }
 
         DemoCacheStore.StampParse(record);
@@ -116,7 +119,8 @@ public class ExtensionIdentityTests
             using IdentityService service = new(new SettingsService(dir));
             HostIdentity identity = new(() => service, ExtensionPassHostTests.StandaloneGuard());
             DemoCacheStore cache = new(null);
-            using TeamIdentityService teams = new(new TeamIdentityFiles(StoredFile.At(teamsPath), null), cache.Library(), run: _inline, identity: identity);
+            using TeamIdentityService teams = new(new TeamIdentityFiles(StoredFile.At(teamsPath), null),
+                cache.Library(), run: _inline, identity: identity);
             await teams.StartAsync();
             string[] mine = [A, .. Five(1)[1..]];
             string[] other = [B, .. Five(11)[1..]];
@@ -146,8 +150,10 @@ public class ExtensionIdentityTests
             using (Assert.Multiple())
             {
                 await Assert.That(file.Me.SteamIds).IsEquivalentTo([B], CollectionOrdering.Matching);
-                await Assert.That(teams.GetAssignment("/d/a.dem")!.OurSide).IsNull().Because("the account that resolved it was removed");
-                await Assert.That(teams.OurDemos().Select(d => d.Path)).IsEquivalentTo(["/d/b.dem"], CollectionOrdering.Matching);
+                await Assert.That(teams.GetAssignment("/d/a.dem")!.OurSide).IsNull()
+                    .Because("the account that resolved it was removed");
+                await Assert.That(teams.OurDemos().Select(d => d.Path))
+                    .IsEquivalentTo(["/d/b.dem"], CollectionOrdering.Matching);
             }
         }
         finally

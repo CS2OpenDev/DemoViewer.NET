@@ -100,21 +100,24 @@ public static class TeamSuggestions
     /// <param name="teams">The user file.</param>
     /// <param name="index">The derived index.</param>
     /// <param name="activeAccount">The user's active account, which leads a squad it played in; null for the most played.</param>
-    public static IReadOnlyList<TeamSuggestion> Compute(TeamsFile teams, TeamIndexFile index, string? activeAccount = null) =>
+    public static IReadOnlyList<TeamSuggestion> Compute(TeamsFile teams, TeamIndexFile index,
+        string? activeAccount = null) =>
         [.. ComputeAll(teams, index, activeAccount).Where(s => !IsDismissed(s, teams))];
 
     /// <summary>The suggestions the user dismissed that still hold: what "Show settled" lists, with Restore.</summary>
     /// <param name="teams">The user file.</param>
     /// <param name="index">The derived index.</param>
     /// <param name="activeAccount">The user's active account, or null.</param>
-    public static IReadOnlyList<TeamSuggestion> Dismissed(TeamsFile teams, TeamIndexFile index, string? activeAccount = null) =>
+    public static IReadOnlyList<TeamSuggestion> Dismissed(TeamsFile teams, TeamIndexFile index,
+        string? activeAccount = null) =>
         [.. ComputeAll(teams, index, activeAccount).Where(s => IsDismissed(s, teams))];
 
     /// <summary>Every suggestion the files support, dismissed or not.</summary>
     /// <param name="teams">The user file.</param>
     /// <param name="index">The derived index.</param>
     /// <param name="activeAccount">The user's active account, or null.</param>
-    public static IReadOnlyList<TeamSuggestion> ComputeAll(TeamsFile teams, TeamIndexFile index, string? activeAccount = null)
+    public static IReadOnlyList<TeamSuggestion> ComputeAll(TeamsFile teams, TeamIndexFile index,
+        string? activeAccount = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(index);
@@ -147,11 +150,12 @@ public static class TeamSuggestions
             if (string.Equals(id, suggestion.Id, StringComparison.Ordinal))
             {
                 yield return id;
+
                 continue;
             }
 
             if (own is not { } mine || PlayersOf(id, teams.Me.SteamIds) is not { } other
-                || !string.Equals(mine.Prefix, other.Prefix, StringComparison.Ordinal))
+                                    || !string.Equals(mine.Prefix, other.Prefix, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -173,12 +177,14 @@ public static class TeamSuggestions
     private static (string Prefix, HashSet<string> Players)? PlayersOf(string id, IEnumerable<string> me)
     {
         int cut = id.LastIndexOf(':');
-        if (cut < 0 || !(id.StartsWith("squad:", StringComparison.Ordinal) || id.StartsWith("roster:", StringComparison.Ordinal)))
+        if (cut < 0 || !(id.StartsWith("squad:", StringComparison.Ordinal)
+                         || id.StartsWith("roster:", StringComparison.Ordinal)))
         {
             return null;
         }
 
-        HashSet<string> players = new(id[(cut + 1)..].Split(',', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
+        HashSet<string> players = new(id[(cut + 1)..].Split(',', StringSplitOptions.RemoveEmptyEntries),
+            StringComparer.Ordinal);
         if (id.StartsWith("squad:", StringComparison.Ordinal))
         {
             players.ExceptWith(me);
@@ -195,7 +201,8 @@ public static class TeamSuggestions
     /// <param name="teams">The user file (for the me accounts).</param>
     /// <param name="index">The derived index.</param>
     /// <param name="activeAccount">The user's active account, or null.</param>
-    public static (IReadOnlyList<SuggestedPlayer> CoPlayers, int MyGames, string? MainAccount) CoPlayers(TeamsFile teams, TeamIndexFile index,
+    public static (IReadOnlyList<SuggestedPlayer> CoPlayers, int MyGames, string? MainAccount) CoPlayers(
+        TeamsFile teams, TeamIndexFile index,
         string? activeAccount = null)
     {
         HashSet<string> me = new(teams.Me.SteamIds, StringComparer.Ordinal);
@@ -233,7 +240,8 @@ public static class TeamSuggestions
 
         string? main = activeAccount is not null && mine.ContainsKey(activeAccount)
             ? activeAccount
-            : mine.OrderByDescending(m => m.Value).ThenBy(m => m.Key, StringComparer.Ordinal).Select(m => m.Key).FirstOrDefault();
+            : mine.OrderByDescending(m => m.Value).ThenBy(m => m.Key, StringComparer.Ordinal).Select(m => m.Key)
+                .FirstOrDefault();
         List<SuggestedPlayer> players =
         [
             .. counts.OrderByDescending(c => c.Value).ThenBy(c => c.Key, StringComparer.Ordinal)
@@ -365,7 +373,8 @@ public static class TeamSuggestions
                      .GroupBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                      .Where(g => g.Count() > 1))
         {
-            List<Team> ordered = [.. group.OrderBy(t => t.Rosters.Count == 0 ? DateOnly.MaxValue : t.Rosters.Min(r => r.Since))];
+            List<Team> ordered =
+                [.. group.OrderBy(t => t.Rosters.Count == 0 ? DateOnly.MaxValue : t.Rosters.Min(r => r.Since))];
             Team into = ordered[0];
             foreach (Team from in ordered.Skip(1))
             {
@@ -382,16 +391,19 @@ public static class TeamSuggestions
     }
 
     // A team's sides newest first, optionally one roster's.
-    private static IEnumerable<(TeamIndexDemo Row, TeamIndexSide Side)> SidesOf(TeamIndexFile index, Guid teamId, string? rosterId) =>
+    private static IEnumerable<(TeamIndexDemo Row, TeamIndexSide Side)> SidesOf(TeamIndexFile index, Guid teamId,
+        string? rosterId) =>
         index.Demos.Values
             .SelectMany(row => row.Sides.Values.Select(side => (Row: row, Side: side)))
-            .Where(p => p.Side.TeamId == teamId && (rosterId is null || string.Equals(p.Side.RosterId, rosterId, StringComparison.Ordinal)))
+            .Where(p => p.Side.TeamId == teamId
+                        && (rosterId is null || string.Equals(p.Side.RosterId, rosterId, StringComparison.Ordinal)))
             .OrderByDescending(p => p.Row.OrderTicks)
             .ThenByDescending(p => p.Row.Path, StringComparer.Ordinal);
 
     // model/team.js setActiveRoster: the last ten matches, players with five or more, ordered by how
     // recently they last played, at most five.
-    private static IReadOnlyList<SuggestedPlayer> ActiveOf(IReadOnlyList<(TeamIndexDemo Row, TeamIndexSide Side)> newestFirst)
+    private static IReadOnlyList<SuggestedPlayer> ActiveOf(
+        IReadOnlyList<(TeamIndexDemo Row, TeamIndexSide Side)> newestFirst)
     {
         Dictionary<string, (int Count, int MostRecent)> seen = new(StringComparer.Ordinal);
         List<(TeamIndexDemo Row, TeamIndexSide Side)> window = [.. newestFirst.Take(ActiveWindow)];
@@ -399,7 +411,9 @@ public static class TeamSuggestions
         {
             foreach (string id in window[i].Side.Key)
             {
-                seen[id] = seen.TryGetValue(id, out (int Count, int MostRecent) s) ? (s.Count + 1, s.MostRecent) : (1, i);
+                seen[id] = seen.TryGetValue(id, out (int Count, int MostRecent) s)
+                    ? (s.Count + 1, s.MostRecent)
+                    : (1, i);
             }
         }
 
@@ -407,7 +421,8 @@ public static class TeamSuggestions
         return
         [
             .. seen.Where(s => s.Value.Count >= ActiveMinAppearances)
-                .OrderBy(s => s.Value.MostRecent).ThenByDescending(s => s.Value.Count).ThenBy(s => s.Key, StringComparer.Ordinal)
+                .OrderBy(s => s.Value.MostRecent).ThenByDescending(s => s.Value.Count)
+                .ThenBy(s => s.Key, StringComparer.Ordinal)
                 .Take(5)
                 .Select(s => new SuggestedPlayer(s.Key, names.GetValueOrDefault(s.Key, s.Key), s.Value.Count))
         ];
@@ -443,5 +458,6 @@ public static class TeamSuggestions
         string.Join(", ", players.Select(p => p.Name));
 
     /// <summary>A count with its noun, pluralised.</summary>
-    public static string Count(int n, string noun) => n.ToString(CultureInfo.InvariantCulture) + " " + noun + (n == 1 ? "" : "s");
+    public static string Count(int n, string noun) =>
+        n.ToString(CultureInfo.InvariantCulture) + " " + noun + (n == 1 ? "" : "s");
 }

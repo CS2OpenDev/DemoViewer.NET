@@ -50,9 +50,7 @@ public sealed class RoundIndexDocument
         WriteIndented = false,
         Converters =
         {
-            new RoundIndexRunConverter(),
-            new PlaceZBucketSumConverter(),
-            new PlaceTransitionConverter()
+            new RoundIndexRunConverter(), new PlaceZBucketSumConverter(), new PlaceTransitionConverter()
         }
     };
 

@@ -30,19 +30,26 @@ public class StratStepEditingTests
         return vm;
     }
 
-    internal static StratStep Step(double atSeconds, string actor, string verb, params StepPosition[] positions) => new()
-    {
-        Id = Guid.NewGuid(), AtSeconds = atSeconds, Actor = actor, Verb = verb, Positions = [.. positions],
-        To = verb == "move" ? new PlaceRef { Place = "BombsiteA" } : null
-    };
+    internal static StratStep Step(double atSeconds, string actor, string verb, params StepPosition[] positions) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            AtSeconds = atSeconds,
+            Actor = actor,
+            Verb = verb,
+            Positions = [.. positions],
+            To = verb == "move" ? new PlaceRef { Place = "BombsiteA" } : null
+        };
 
-    internal static StepPosition At(string slot, double x, double y = 0) => new() { Slot = slot, X = x, Y = y, LevelMinZ = 0 };
+    internal static StepPosition At(string slot, double x, double y = 0) =>
+        new() { Slot = slot, X = x, Y = y, LevelMinZ = 0 };
 
     internal static void Seed(StratBookTabViewModel vm, params StratStep[] steps)
     {
         foreach (StratStep step in steps)
         {
-            vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep)));
+            vm.Session.Apply(PatchOp.AddOp("/steps/-",
+                JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep)));
         }
     }
 
@@ -76,7 +83,8 @@ public class StratStepEditingTests
                 await Assert.That(copy.To?.Place).IsEqualTo("BombsiteA");
                 await Assert.That(copy.Positions.Single().X).IsEqualTo(100);
                 await Assert.That(copy.Strokes.Single()["kind"]?.GetValue<string>()).IsEqualTo("arrow");
-                await Assert.That(copy.Strokes.Single()["id"]?.GetValue<string>()).IsNotEqualTo(source.Strokes[0]["id"]!.GetValue<string>())
+                await Assert.That(copy.Strokes.Single()["id"]?.GetValue<string>())
+                    .IsNotEqualTo(source.Strokes[0]["id"]!.GetValue<string>())
                     .Because("two strokes with one id cannot both draw");
                 await Assert.That(copy.AtSeconds).IsEqualTo(88).Because("5 s later would pass the next step at 1:28");
                 await Assert.That(vm.Session.Issues.Any(i => i.Severity == StratIssueSeverity.Refusal)).IsFalse();
@@ -108,8 +116,10 @@ public class StratStepEditingTests
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
                 await Assert.That(added.AtSeconds).IsEqualTo(95);
                 await Assert.That(added.Strokes).IsEmpty();
-                await Assert.That(added.Positions.Select(p => $"{p.Slot}={p.X}")).IsEquivalentTo(["A=1", "B=2", "C=3", "O1=9"], CollectionOrdering.Matching)
-                    .Because("without a catalog B's lineup does not resolve, so the projection keeps B where it was authored");
+                await Assert.That(added.Positions.Select(p => $"{p.Slot}={p.X}"))
+                    .IsEquivalentTo(["A=1", "B=2", "C=3", "O1=9"], CollectionOrdering.Matching)
+                    .Because(
+                        "without a catalog B's lineup does not resolve, so the projection keeps B where it was authored");
             }
 
             // A copy: dragging A on the first step leaves the new step's A where it was.
@@ -121,7 +131,8 @@ public class StratStepEditingTests
     // A tab over the Grenade Index fixture, its posts queued so the test runs them on its own thread.
     private static StratBookTabViewModel OpenWithLineups(GrenadeIndex index, PostedActions posted)
     {
-        StratBookTabViewModel vm = new(new StratStore(null), null, posted.Enqueue, false, canvasMapLoader: _ => null, grenades: index);
+        StratBookTabViewModel vm = new(new StratStore(null), null, posted.Enqueue, false, canvasMapLoader: _ => null,
+            grenades: index);
         vm.Session.AutoSaveDelay = TimeSpan.FromHours(1);
         vm.Session.IdleCommitDelay = TimeSpan.FromHours(1);
         vm.SelectedMap = "de_mirage";
@@ -193,7 +204,9 @@ public class StratStepEditingTests
             PostedActions posted = new();
             using StratBookTabViewModel vm = OpenWithLineups(index, posted);
             Func<string, Func<string, Guid, bool>?>? wired = vm.Session.LineupLookup;
-            StratIssue? Lineup(int step) => vm.Session.Issues.FirstOrDefault(i => i.Field == $"/steps/{step}/utility/lineupId");
+
+            StratIssue? Lineup(int step) =>
+                vm.Session.Issues.FirstOrDefault(i => i.Field == $"/steps/{step}/utility/lineupId");
 
             // Grouping runs off the UI thread and may land at any time, so "still grouping" is held here.
             vm.Session.LineupLookup = _ => null;
@@ -207,7 +220,8 @@ public class StratStepEditingTests
 
             vm.Session.LineupLookup = wired;
             vm.Session.InvalidateIssues();
-            await posted.DrainUntilAsync(() => vm.Editor.ResolveLineup(lineup.Id) is not null && vm.Editor.Steps[0].LineupIssue is not null);
+            await posted.DrainUntilAsync(() =>
+                vm.Editor.ResolveLineup(lineup.Id) is not null && vm.Editor.Steps[0].LineupIssue is not null);
             using (Assert.Multiple())
             {
                 await Assert.That(Lineup(0)?.Severity).IsEqualTo(StratIssueSeverity.Warning);
@@ -225,7 +239,8 @@ public class StratStepEditingTests
         {
             using StratBookTabViewModel vm = OpenNew();
             vm.Editor.AddStepCommand.Execute(null);
-            await Assert.That(vm.Session.Document!.Steps.Single().AtSeconds).IsEqualTo(vm.Session.Document.Clock.RoundSeconds);
+            await Assert.That(vm.Session.Document!.Steps.Single().AtSeconds)
+                .IsEqualTo(vm.Session.Document.Clock.RoundSeconds);
 
             Seed(vm, Step(-58, "E", "move"));
             vm.Editor.AddStepCommand.Execute(null);
@@ -250,7 +265,8 @@ public class StratStepEditingTests
             StratStepRow row = vm.Editor.Steps[0];
             using (Assert.Multiple())
             {
-                await Assert.That(row.ToIssue).IsNotNull().Because("the checks follow the document, not the last commit");
+                await Assert.That(row.ToIssue).IsNotNull()
+                    .Because("the checks follow the document, not the last commit");
                 await Assert.That(row.ToIssue!.IsRefusal).IsFalse();
                 await Assert.That(row.ToIssue.Message).Contains("destination");
                 await Assert.That(row.RowIssue).IsNull();
@@ -263,7 +279,8 @@ public class StratStepEditingTests
             {
                 await Assert.That(vm.Editor.Steps[0].ToIssue).IsNull();
                 await Assert.That(vm.Editor.Steps[0].HasIssues).IsFalse();
-                await Assert.That(vm.Editor.Issues.Any(i => i.Contains("/steps/0/to", StringComparison.Ordinal))).IsFalse();
+                await Assert.That(vm.Editor.Issues.Any(i => i.Contains("/steps/0/to", StringComparison.Ordinal)))
+                    .IsFalse();
             }
         });
     }

@@ -598,15 +598,13 @@ public sealed class TagStore
         TagIndexFile file;
         lock (_gate)
         {
-            file = new TagIndexFile
-            {
-                Entries = [.. _index.Values.OrderBy(e => e.Sha256, StringComparer.Ordinal)]
-            };
+            file = new TagIndexFile { Entries = [.. _index.Values.OrderBy(e => e.Sha256, StringComparer.Ordinal)] };
         }
 
         try
         {
-            FolderText.Write(_folder, IndexFileName, JsonSerializer.Serialize(file, TagJsonContext.Default.TagIndexFile));
+            FolderText.Write(_folder, IndexFileName,
+                JsonSerializer.Serialize(file, TagJsonContext.Default.TagIndexFile));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
         {

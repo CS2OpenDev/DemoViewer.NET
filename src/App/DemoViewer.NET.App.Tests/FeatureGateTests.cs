@@ -196,7 +196,8 @@ public class FeatureGateTests
             await Assert.That(gate.HiddenCount).IsEqualTo(0).Because("a developer sees every gated feature");
 
             svc.Write(s => s.UserCategory = UserCategory.Consumer);
-            await Assert.That(gate.HiddenCount).IsGreaterThan(0).Because("a consumer has developer-visible features hidden");
+            await Assert.That(gate.HiddenCount).IsGreaterThan(0)
+                .Because("a consumer has developer-visible features hidden");
 
             // DeveloperMode is the master unlock: category stays Consumer on disk but resolves to Developer.
             svc.Write(s => s.Features.DeveloperMode = true);
@@ -279,7 +280,8 @@ public class FeatureGateTests
             await Assert.That(owned.All(gate.IsEnabled)).IsTrue();
 
             gate.SuspendForSession("tab.parser");
-            await Assert.That(gate.IsEnabled("tab.parser")).IsTrue().Because("only a pack's master switch can be suspended");
+            await Assert.That(gate.IsEnabled("tab.parser")).IsTrue()
+                .Because("only a pack's master switch can be suspended");
         });
     }
 

@@ -109,10 +109,7 @@ internal static class RealTimeFakes
         new(
             Guid.NewGuid(),
             AnnotationKind.Freehand,
-            AnnotationStyle.Default with
-            {
-                WidthWorld = width
-            },
+            AnnotationStyle.Default with { WidthWorld = width },
             new SpaceRef.World(0),
             new TimeEnvelope(from, from + hold, 0, fadeOut),
             Line(count, y),
@@ -133,10 +130,7 @@ internal static class RealTimeFakes
         new(
             Guid.NewGuid(),
             AnnotationKind.Freehand,
-            AnnotationStyle.Default with
-            {
-                WidthWorld = width
-            },
+            AnnotationStyle.Default with { WidthWorld = width },
             new SpaceRef.World(0),
             new TimeEnvelope(from, from + hold, 0, 0),
             Line(count, y),

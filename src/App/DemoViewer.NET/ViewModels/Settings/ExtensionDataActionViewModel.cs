@@ -94,9 +94,9 @@ public sealed partial class ExtensionDataActionViewModel(IExtensionDataRemoval r
             ExtensionDataRemovalResult result = await removal.DeleteAsync();
             StatusText = result.Ran
                 ? $"Deleted {result.Removed.Items.Sum(i => i.FileCount)} files ({FormatBytes(result.Removed.TotalBytes)})."
-                      + (result.Skipped > 0
-                          ? $" {result.Skipped} file{(result.Skipped == 1 ? "" : "s")} could not be removed (first: {result.FirstSkippedPath})."
-                          : "")
+                  + (result.Skipped > 0
+                      ? $" {result.Skipped} file{(result.Skipped == 1 ? "" : "s")} could not be removed (first: {result.FirstSkippedPath})."
+                      : "")
                 : "Cancelled: the extension was turned back on before this ran.";
         }
         finally

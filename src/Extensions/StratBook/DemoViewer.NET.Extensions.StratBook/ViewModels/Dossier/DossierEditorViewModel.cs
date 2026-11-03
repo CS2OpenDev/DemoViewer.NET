@@ -21,7 +21,12 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
 /// <param name="Generated">The generated text.</param>
 /// <param name="Image">Reads the line's PNG when it is exported; null for a text line.</param>
 /// <param name="Map">The map a map-specific line is about; null for the team as a whole.</param>
-public sealed record DossierFindingSource(string Key, string Section, string Generated, Func<byte[]?>? Image = null, string? Map = null);
+public sealed record DossierFindingSource(
+    string Key,
+    string Section,
+    string Generated,
+    Func<byte[]?>? Image = null,
+    string? Map = null);
 
 /// <summary>
 ///     Dossier Editing And Export: every built section's numbers as findings, the
@@ -85,7 +90,8 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     /// <param name="store">Where stars, edits, notes and the summary persist.</param>
     /// <param name="isBrowser">Whether the host is the WASM head; Export has no file to write there.</param>
     /// <param name="export">Writes (text, stem, extension) and opens it, returning the path or null; the temp-file writer when null.</param>
-    public DossierEditorViewModel(DossierNotesStore store, bool isBrowser = false, Func<string, string, string, string?>? export = null)
+    public DossierEditorViewModel(DossierNotesStore store, bool isBrowser = false,
+        Func<string, string, string, string?>? export = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
@@ -178,7 +184,8 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     public bool CanExport => HasTeam && !IsBrowser;
 
     /// <summary>What the Export slot says when there is no file to write.</summary>
-    public string ExportUnavailableNote => IsBrowser ? "Export dossier: unavailable in the browser; copy the markdown instead" : "";
+    public string ExportUnavailableNote =>
+        IsBrowser ? "Export dossier: unavailable in the browser; copy the markdown instead" : "";
 
     public bool HasExportUnavailableNote => ExportUnavailableNote.Length > 0;
 
@@ -238,7 +245,9 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     public string MarkdownText() => DossierExporter.Markdown(Document(), ExportForm);
 
     /// <summary>The line the Copy button leaves once the clipboard took the text.</summary>
-    public void ReportCopied() => ExportLine = ExportForm == DossierForm.OnePager ? "one-pager copied as markdown" : "long form copied as markdown";
+    public void ReportCopied() => ExportLine = ExportForm == DossierForm.OnePager
+        ? "one-pager copied as markdown"
+        : "long form copied as markdown";
 
     /// <summary>The Copy button's fallback when the host refused the clipboard.</summary>
     public void ReportCopyFailed() => ExportLine = "could not reach the clipboard";
@@ -273,7 +282,8 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         (string text, string extension) = ExportFormat == DossierFormat.Html
             ? (DossierExporter.Html(doc, ExportForm), ".html")
             : (DossierExporter.Markdown(doc, ExportForm), ".md");
-        string stem = StratBookTabViewModel.ExportFileStem(_teamName) + (ExportForm == DossierForm.OnePager ? "-one-pager" : "-dossier");
+        string stem = StratBookTabViewModel.ExportFileStem(_teamName)
+                      + (ExportForm == DossierForm.OnePager ? "-one-pager" : "-dossier");
         string? path;
         try
         {
@@ -321,7 +331,8 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         if (row.IsNote)
         {
             _store.EditNote(id, row.Key, row.EditText);
-            row.Text = _store.For(id).Notes.FirstOrDefault(n => DossierNotesStore.NoteKey(n.Id) == row.Key)?.Text ?? row.Text;
+            row.Text = _store.For(id).Notes.FirstOrDefault(n => DossierNotesStore.NoteKey(n.Id) == row.Key)?.Text
+                       ?? row.Text;
         }
         else
         {
@@ -399,12 +410,14 @@ public sealed partial class DossierEditorViewModel : ObservableObject
                 foreach (DossierFindingSource source in _sources)
                 {
                     string text = notes.Edits.TryGetValue(source.Key, out string? edit) ? edit : source.Generated;
-                    _rows.Add(new DossierFindingViewModel(source.Key, source.Section, source.Generated, text, false, source.Image)
-                    {
-                        Map = source.Map,
-                        IsStarred = starred.Contains(source.Key),
-                        IsHidden = hidden.Contains(source.Key)
-                    });
+                    _rows.Add(
+                        new DossierFindingViewModel(source.Key, source.Section, source.Generated, text, false,
+                            source.Image)
+                        {
+                            Map = source.Map,
+                            IsStarred = starred.Contains(source.Key),
+                            IsHidden = hidden.Contains(source.Key)
+                        });
                 }
 
                 foreach (DossierNote note in notes.Notes)
@@ -499,12 +512,14 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     /// <summary>One line per map played, and the decider line when there is one.</summary>
     /// <param name="maps">The Map Pool Record's rows.</param>
     /// <param name="deciderLine">The decider line, or empty.</param>
-    public static IEnumerable<DossierFindingSource> FromMapPool(IEnumerable<MapPoolRowViewModel> maps, string deciderLine)
+    public static IEnumerable<DossierFindingSource> FromMapPool(IEnumerable<MapPoolRowViewModel> maps,
+        string deciderLine)
     {
         foreach (MapPoolRowViewModel map in maps)
         {
             yield return new DossierFindingSource($"map|{map.Map}", MapPoolSection,
-                $"{map.Map}: {map.PlayedLabel}, {map.RecordLabel}, win rate {map.WinRateLabel}, {map.SideLabel}", Map: map.Map);
+                $"{map.Map}: {map.PlayedLabel}, {map.RecordLabel}, win rate {map.WinRateLabel}, {map.SideLabel}",
+                Map: map.Map);
         }
 
         if (deciderLine.Length > 0)
@@ -531,8 +546,10 @@ public sealed partial class DossierEditorViewModel : ObservableObject
                 yield return s;
             }
 
-            foreach (DossierFindingSource s in Links("openings", OpeningsSection, b.Map, b.Block.UtilityRounds, b.UtilityClock, b.UtilityPlaces)
-                         .Concat(Links("openings", OpeningsSection, b.Map, rounds, b.ContactClock, b.SiteSplit, b.Entries))
+            foreach (DossierFindingSource s in Links("openings", OpeningsSection, b.Map, b.Block.UtilityRounds,
+                             b.UtilityClock, b.UtilityPlaces)
+                         .Concat(Links("openings", OpeningsSection, b.Map, rounds, b.ContactClock, b.SiteSplit,
+                             b.Entries))
                          .Concat(Links("openings", OpeningsSection, b.Map, b.Block.LurkRounds, b.LurkClock, b.Lurkers)))
             {
                 yield return s;
@@ -547,8 +564,10 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         foreach (PostPlantBlockViewModel b in blocks)
         {
             int planted = b.PlantedLink.Count;
-            foreach (DossierFindingSource s in Links("postplant", PostPlantSection, b.Map, b.RoundsLink.Count, [b.PlantedLink])
-                         .Concat(Links("postplant", PostPlantSection, b.Map, planted, b.ManCount, b.Outcomes, b.PlantClusters,
+            foreach (DossierFindingSource s in Links("postplant", PostPlantSection, b.Map, b.RoundsLink.Count,
+                             [b.PlantedLink])
+                         .Concat(Links("postplant", PostPlantSection, b.Map, planted, b.ManCount, b.Outcomes,
+                             b.PlantClusters,
                              b.HoldShapes, b.HoldPlaces, b.RetakeGroups)))
             {
                 yield return s;
@@ -564,14 +583,18 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         {
             int rounds = b.RoundsLink.Count;
             foreach (DossierFindingSource s in Links("situational", SituationalSection, b.Map, rounds, [b.PistolLink])
-                         .Concat(Links("situational", SituationalSection, b.Map, b.PistolLink.Count, b.PistolOutcomes, b.PistolFollowUp))
+                         .Concat(Links("situational", SituationalSection, b.Map, b.PistolLink.Count, b.PistolOutcomes,
+                             b.PistolFollowUp))
                          .Concat(Links("situational", SituationalSection, b.Map, rounds, [b.AntiEcoLink]))
-                         .Concat(Links("situational", SituationalSection, b.Map, b.AntiEcoLink.Count, b.AntiEcoBuyTypes, b.AntiEcoOutcomes,
+                         .Concat(Links("situational", SituationalSection, b.Map, b.AntiEcoLink.Count, b.AntiEcoBuyTypes,
+                             b.AntiEcoOutcomes,
                              b.AntiEcoContactClock))
                          .Concat(Links("situational", SituationalSection, b.Map, rounds, [b.ManAdvantageLink]))
-                         .Concat(Links("situational", SituationalSection, b.Map, b.ManAdvantageLink.Count, b.ManAdvantage, b.ManAdvantageOutcomes))
+                         .Concat(Links("situational", SituationalSection, b.Map, b.ManAdvantageLink.Count,
+                             b.ManAdvantage, b.ManAdvantageOutcomes))
                          .Concat(Links("situational", SituationalSection, b.Map, rounds, [b.RoundsLostLink]))
-                         .Concat(Links("situational", SituationalSection, b.Map, b.RoundsLostLink.Count, b.SaveDiscipline)))
+                         .Concat(Links("situational", SituationalSection, b.Map, b.RoundsLostLink.Count,
+                             b.SaveDiscipline)))
             {
                 yield return s;
             }
@@ -582,7 +605,8 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     /// <param name="recent">The last period, or null with no diff.</param>
     /// <param name="previous">The period before it, or null.</param>
     /// <param name="note">The section's note.</param>
-    public static IEnumerable<DossierFindingSource> FromPeriodDiff(PeriodDiffRowViewModel? recent, PeriodDiffRowViewModel? previous, string note)
+    public static IEnumerable<DossierFindingSource> FromPeriodDiff(PeriodDiffRowViewModel? recent,
+        PeriodDiffRowViewModel? previous, string note)
     {
         if (recent is null)
         {
@@ -597,13 +621,15 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         PeriodDiffRowViewModel[] periods = previous is null ? [recent] : [recent, previous];
         foreach (PeriodDiffRowViewModel p in periods)
         {
-            List<string> parts = [p.CountLabel, p.RecordLabel, $"win rate {p.WinRateLabel}", p.SideLabel, p.RosterLabel];
+            List<string> parts =
+                [p.CountLabel, p.RecordLabel, $"win rate {p.WinRateLabel}", p.SideLabel, p.RosterLabel];
             if (p.HasStandIn)
             {
                 parts.Add(p.StandInLabel);
             }
 
-            yield return new DossierFindingSource($"period|{p.Label}", PeriodDiffSection, $"{p.Label}: {string.Join(", ", parts)}");
+            yield return new DossierFindingSource($"period|{p.Label}", PeriodDiffSection,
+                $"{p.Label}: {string.Join(", ", parts)}");
         }
     }
 
@@ -613,11 +639,13 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         vetoes.Select(v => new DossierFindingSource($"veto|{v.Id:N}", VetoSection,
             $"{v.Order}. {v.ActionLabel} {v.Map} by {v.ByLabel}" + (v.Note.Length > 0 ? $" ({v.Note})" : "")));
 
-    private static IEnumerable<DossierFindingSource> Sample(string slug, string section, TendencyLinkViewModel link, string map, string side)
+    private static IEnumerable<DossierFindingSource> Sample(string slug, string section, TendencyLinkViewModel link,
+        string map, string side)
     {
         if (link.Count > 0)
         {
-            yield return new DossierFindingSource($"{slug}|{link.Title}", section, $"{map} {side}: {Plural(link.Count, "round")}", Map: map);
+            yield return new DossierFindingSource($"{slug}|{link.Title}", section,
+                $"{map} {side}: {Plural(link.Count, "round")}", Map: map);
         }
     }
 
@@ -625,7 +653,9 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         params IReadOnlyList<TendencyLinkViewModel>[] lists) =>
         lists.SelectMany(l => l)
             .Where(l => l.Count > 0)
-            .Select(l => new DossierFindingSource($"{slug}|{l.Title}", section, $"{l.Title}: {CountText(l.Count, of)}", Map: map));
+            .Select(l =>
+                new DossierFindingSource($"{slug}|{l.Title}", section, $"{l.Title}: {CountText(l.Count, of)}",
+                    Map: map));
 }
 
 /// <summary>One choice in an export picker: the value and the words shown for it.</summary>
@@ -667,7 +697,8 @@ public sealed partial class DossierFindingViewModel : ObservableObject
     /// <param name="text">The text shown.</param>
     /// <param name="isNote">True for a line the user wrote.</param>
     /// <param name="image">Reads the line's PNG at export time, or null.</param>
-    public DossierFindingViewModel(string key, string section, string generated, string text, bool isNote, Func<byte[]?>? image)
+    public DossierFindingViewModel(string key, string section, string generated, string text, bool isNote,
+        Func<byte[]?>? image)
     {
         Key = key;
         Section = section;

@@ -64,7 +64,10 @@ public class ReviewQueuePerfTests
                 // The app has its shell up before the section opens; pay the controls' first-use cost here.
                 using (ReviewQueueTabViewModel warm = new(new ExtensionReviewQueue(new ReviewQueue(null))))
                 {
-                    Window first = new() { Width = 400, Height = 300, Content = new ReviewQueueTabView { DataContext = warm } };
+                    Window first = new()
+                    {
+                        Width = 400, Height = 300, Content = new ReviewQueueTabView { DataContext = warm }
+                    };
                     first.Show();
                     warm.AddSectionCommand.Execute(null);
                     Settle();
@@ -100,7 +103,10 @@ public class ReviewQueuePerfTests
 
                 // The same section opened again in a second window: open without first-use costs.
                 sw.Restart();
-                Window again = new() { Width = 1280, Height = 900, Content = new ReviewQueueTabView { DataContext = vm } };
+                Window again = new()
+                {
+                    Width = 1280, Height = 900, Content = new ReviewQueueTabView { DataContext = vm }
+                };
                 again.Show();
                 Settle();
                 double reopen = sw.Elapsed.TotalMilliseconds;
@@ -158,7 +164,8 @@ public class ReviewQueuePerfTests
                 Guid? topAfter = TopRow(view, scroller);
                 Console.WriteLine($"[review-perf] reading position across a batch: offset {offsetBefore.Y:F0} to "
                                   + $"{scroller?.Offset.Y ?? 0:F0}, top row kept={topBefore == topAfter}");
-                await Assert.That(topAfter).IsEqualTo(topBefore).Because("a batch landing must not move what the reviewer is reading");
+                await Assert.That(topAfter).IsEqualTo(topBefore)
+                    .Because("a batch landing must not move what the reviewer is reading");
                 sw.Restart();
                 using (queue.Defer())
                 {
@@ -199,7 +206,8 @@ public class ReviewQueuePerfTests
         }
 
         return view.GetVisualDescendants().OfType<ContentPresenter>()
-            .Where(c => c.DataContext is ReviewRowViewModel && c.IsVisible && c.TranslatePoint(default, scroller) is { Y: >= -1 })
+            .Where(c => c.DataContext is ReviewRowViewModel && c.IsVisible
+                                                            && c.TranslatePoint(default, scroller) is { Y: >= -1 })
             .OrderBy(c => c.TranslatePoint(default, scroller)!.Value.Y)
             .Select(c => ((ReviewRowViewModel)c.DataContext!).Entry.Id)
             .Cast<Guid?>()

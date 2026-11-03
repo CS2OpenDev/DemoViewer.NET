@@ -39,8 +39,14 @@ public readonly record struct FiredProposal(string Demo, TagProposal Proposal);
 /// <param name="Recall">Matched hand tags over every hand tag of the code, or null with none to score.</param>
 /// <param name="Precision">Matched proposals over every fired proposal, or null with nothing fired.</param>
 public sealed record DetectorTuningRow(
-    string Detector, int Made, int Accepted, int Edited, int Rejected, int Pending,
-    double? Recall, double? Precision);
+    string Detector,
+    int Made,
+    int Accepted,
+    int Edited,
+    int Rejected,
+    int Pending,
+    double? Recall,
+    double? Precision);
 
 /// <summary>The tuning view's whole table, plus how many demos fed each half of it.</summary>
 /// <param name="Rows">One row per detector, in <see cref="ProposalDetection.All" /> order.</param>

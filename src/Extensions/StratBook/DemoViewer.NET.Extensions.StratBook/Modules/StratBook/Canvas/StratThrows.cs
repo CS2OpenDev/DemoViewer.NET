@@ -119,7 +119,8 @@ public static class StratThrows
     {
         double airSeconds = lineup.AirSeconds > 0
             ? lineup.AirSeconds
-            : FlightSecondsFor(Distance(lineup.Origin.X, lineup.Origin.Y, (float)lineup.LandingX, (float)lineup.LandingY));
+            : FlightSecondsFor(Distance(lineup.Origin.X, lineup.Origin.Y, (float)lineup.LandingX,
+                (float)lineup.LandingY));
         int air = Math.Max(1, (int)Math.Round(airSeconds * StepSchedule.TicksPerSecond));
         int pop = Math.Max(air, (int)Math.Round(lineup.PopSeconds * StepSchedule.TicksPerSecond));
         float originZ = MarkerZ(lineup.Origin.LevelMinZ);
@@ -148,7 +149,10 @@ public static class StratThrows
             }
 
             flight[0] = flight[0] with { X = lineup.Origin.X, Y = lineup.Origin.Y, Z = originZ };
-            flight[^1] = flight[^1] with { Tick = tick + air, X = (float)lineup.LandingX, Y = (float)lineup.LandingY, Z = landingZ };
+            flight[^1] = flight[^1] with
+            {
+                Tick = tick + air, X = (float)lineup.LandingX, Y = (float)lineup.LandingY, Z = landingZ
+            };
         }
 
         if (flight.Count < 2)
@@ -162,15 +166,16 @@ public static class StratThrows
 
         return new UtilityCue(tick + pop, kind, (float)lineup.LandingX, (float)lineup.LandingY, landingZ)
         {
-            Team = team,
-            Flight = flight
+            Team = team, Flight = flight
         };
     }
 
-    private static UtilityCue StraightCue(int tick, GrenadeKind kind, int team, (float X, float Y, double LevelMinZ) from,
+    private static UtilityCue StraightCue(int tick, GrenadeKind kind, int team,
+        (float X, float Y, double LevelMinZ) from,
         (float X, float Y, double LevelMinZ) to)
     {
-        int air = Math.Max(1, (int)Math.Round(FlightSecondsFor(Distance(from.X, from.Y, to.X, to.Y)) * StepSchedule.TicksPerSecond));
+        int air = Math.Max(1,
+            (int)Math.Round(FlightSecondsFor(Distance(from.X, from.Y, to.X, to.Y)) * StepSchedule.TicksPerSecond));
         float landingZ = MarkerZ(to.LevelMinZ);
         return new UtilityCue(tick + air, kind, to.X, to.Y, landingZ)
         {
@@ -183,7 +188,8 @@ public static class StratThrows
         };
     }
 
-    private static (float X, float Y, double LevelMinZ)? LandingOf(UtilityLanding? landing, PlaceArrivalResolver? arrivals,
+    private static (float X, float Y, double LevelMinZ)? LandingOf(UtilityLanding? landing,
+        PlaceArrivalResolver? arrivals,
         double defaultLevelMinZ)
     {
         if (landing is null)
@@ -207,7 +213,10 @@ public static class StratThrows
 
     // Each line's slot, or the single actor; none for "all" without lines.
     private static List<string> ThrowersOf(StratStep step) =>
-        [.. StratStepLines.Of(step).Select(l => l.Slot).Where(StratVocabulary.Slots.Contains).Distinct(StringComparer.Ordinal)];
+    [
+        .. StratStepLines.Of(step).Select(l => l.Slot).Where(StratVocabulary.Slots.Contains)
+            .Distinct(StringComparer.Ordinal)
+    ];
 
     private static int TeamOf(string? slot, IReadOnlyList<TokenLabel> labels) =>
         labels.FirstOrDefault(l => string.Equals(l.Slot, slot ?? TokenSlots.Own[0], StringComparison.Ordinal)).Team;

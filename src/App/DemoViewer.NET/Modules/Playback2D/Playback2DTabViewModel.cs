@@ -82,24 +82,15 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
 
     private static readonly string[] _myWeaponsPaths = BuildMyWeaponsPaths();
 
-    private static readonly string[] _killEventFilter =
-    {
-        KillEventName
-    };
+    private static readonly string[] _killEventFilter = { KillEventName };
 
     // CS2 rounds OPEN at round_freeze_end (not round_start), the same fact RoundTrack's band layout rests
     // on, so Q/E round nav and the timeline's bands can never disagree about where a round starts.
-    private static readonly string[] _roundEventFilter =
-    {
-        RoundTrack.FreezeEndEvent
-    };
+    private static readonly string[] _roundEventFilter = { RoundTrack.FreezeEndEvent };
 
     // The NavStrip speed ComboBox's ladder. ↑/↓ step within it rather than multiplying, so the keys and the
     // ComboBox always offer the same set of speeds.
-    private static readonly double[] _speedPresets =
-    {
-        0.25, 0.5, 1, 2, 4, 8
-    };
+    private static readonly double[] _speedPresets = { 0.25, 0.5, 1, 2, 4, 8 };
 
     // The WHOLE demo's kills, pre-built ONCE at load from IModuleContext.GetEventTimeline("player_death")
     // (decoupling display from the push cadence, no kill lost to a render-skipped frame). Rebuilt if the
@@ -1333,7 +1324,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     /// <param name="press">The press, resolved to a pane and world coordinates.</param>
     public bool TryPointerPreHandler(ScenePointer press) => Surface.TryHandlePointerPress(press);
 
-    IReadOnlyList<KeyValuePair<string, Func<global::DemoViewer.NET.Playback2D.Compositing.ISceneLayer>>> ISceneFrameHost.ContributedLayers =>
+    IReadOnlyList<KeyValuePair<string, Func<global::DemoViewer.NET.Playback2D.Compositing.ISceneLayer>>> ISceneFrameHost
+        .ContributedLayers =>
         Surface.Layers;
 
     IReadOnlyList<global::DemoViewer.NET.Playback2D.Tools.IMapTool> ISceneFrameHost.ContributedTools => Surface.Tools;

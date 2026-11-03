@@ -54,11 +54,7 @@ public class ReviewRegressionTests
         SceneTime frameClock = new(100, 100, 1.0, 1.0 / 64, false);
         SceneTime injected = new(999, 4242, 66.5, 1.0 / 30, true);
 
-        Scene2DFrame frame = new()
-        {
-            Time = frameClock,
-            Markers = OneMarker
-        };
+        Scene2DFrame frame = new() { Time = frameClock, Markers = OneMarker };
 
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = new();
@@ -82,11 +78,7 @@ public class ReviewRegressionTests
     public async Task Render_PassesTheInjectedClockToTheRenderContext()
     {
         SceneTime injected = new(7, 7, 0.5, 1.0 / 64, true);
-        Scene2DFrame frame = new()
-        {
-            Time = new SceneTime(1, 1, 0, 0, false),
-            Markers = OneMarker
-        };
+        Scene2DFrame frame = new() { Time = new SceneTime(1, 1, 0, 0, false), Markers = OneMarker };
 
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = new();

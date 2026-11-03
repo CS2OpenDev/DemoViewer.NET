@@ -142,7 +142,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     /// <param name="extensionRulesets">The rulesets the loaded extensions contribute; listed read-only beside the files.</param>
     /// <param name="extensionOn">Whether a contributed ruleset's feature is on; an off one is labelled so.</param>
     public RuleWorkbenchTabViewModel(IOptionsMonitor<AppSettings>? settings = null,
-        Func<IReadOnlyList<ContributedRuleset>>? extensionRulesets = null, Func<ContributedRuleset, bool>? extensionOn = null)
+        Func<IReadOnlyList<ContributedRuleset>>? extensionRulesets = null,
+        Func<ContributedRuleset, bool>? extensionOn = null)
         : this(settings, extensionRulesets, extensionOn, DefaultDirs())
     {
     }
@@ -568,10 +569,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         }
 
         List<RulesetDoc> docs = [open];
-        HashSet<string> seen = new(StringComparer.Ordinal)
-        {
-            open.Id
-        };
+        HashSet<string> seen = new(StringComparer.Ordinal) { open.Id };
         Queue<string> pending = new(open.Use);
         while (pending.Count > 0)
         {
@@ -595,10 +593,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         HashSet<string> wasSelected = EvaluableFiles.Where(f => f.IsSelected)
             .Select(f => f.FullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
         EvaluableFiles.Clear();
-        foreach (string? dir in new[]
-                 {
-                     _shippedDir, _userDir
-                 })
+        foreach (string? dir in new[] { _shippedDir, _userDir })
         {
             if (dir is null || !Directory.Exists(dir))
             {
@@ -1021,10 +1016,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     private IEnumerable<(string Path, string Text)> EnumerateSources()
     {
         string? openPath = OpenFilePath();
-        foreach (string? dir in new[]
-                 {
-                     _shippedDir, _userDir
-                 })
+        foreach (string? dir in new[] { _shippedDir, _userDir })
         {
             if (dir is null || !Directory.Exists(dir))
             {
@@ -1061,10 +1053,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     {
         string? previousPath = SelectedFile?.FullPath;
         OpenableFiles.Clear();
-        foreach (string? dir in new[]
-                 {
-                     _shippedDir, _userDir
-                 })
+        foreach (string? dir in new[] { _shippedDir, _userDir })
         {
             if (dir is null || !Directory.Exists(dir))
             {
@@ -1103,8 +1092,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         {
             _watcher = new FileSystemWatcher(_userDir, "*.rules.yaml")
             {
-                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName,
-                EnableRaisingEvents = true
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName, EnableRaisingEvents = true
             };
             _watcher.Changed += OnUserDirChanged;
             _watcher.Created += OnUserDirChanged;

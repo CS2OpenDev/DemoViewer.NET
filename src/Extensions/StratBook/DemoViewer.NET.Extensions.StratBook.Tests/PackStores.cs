@@ -19,7 +19,8 @@ internal static class PackStores
     /// <param name="storeId">A <see cref="StratBookStores" /> id of a store declared under the config root.</param>
     public static IExtensionFolder Folder(string configRoot, string storeId) =>
         // The cache root is a sibling path that nothing here opens, so it is never created.
-        new ExtensionStores(StratBookPack.PackId, configRoot, configRoot + "-cache", StratBookStores.All).Open(storeId)!;
+        new ExtensionStores(StratBookPack.PackId, configRoot, configRoot + "-cache", StratBookStores.All)
+            .Open(storeId)!;
 
     /// <summary>
     ///     A store folder rooted exactly at <paramref name="path" />, for the cases that already have a temp

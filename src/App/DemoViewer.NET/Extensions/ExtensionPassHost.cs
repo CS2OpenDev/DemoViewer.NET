@@ -51,7 +51,8 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
     /// <param name="tablesReadUserCommands">True when one of <paramref name="tableRulesets" /> reads player commands.</param>
     public ExtensionPassHost(IExtensionPass inner, IReadOnlyList<string> after, ExtensionGuard guard,
         Func<bool>? onUiThread = null, TimeSpan? budget = null, int maxOverruns = DefaultMaxOverruns,
-        CollectorSet? collectors = null, IReadOnlyList<string>? tableRulesets = null, bool tablesReadUserCommands = false)
+        CollectorSet? collectors = null, IReadOnlyList<string>? tableRulesets = null,
+        bool tablesReadUserCommands = false)
     {
         Collectors = collectors ?? CollectorSet.Empty;
         TableRulesets = tableRulesets ?? [];
@@ -174,7 +175,8 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
         _quarantined = true;
         AppLog.PassQuarantined(Log, Id, _guard.Scope.Name, _budget, _maxOverruns);
         _guard.Report("pass " + Id,
-            new TimeoutException($"Pass {Id} overran its {_budget} budget {_maxOverruns} times and is off for this session."));
+            new TimeoutException(
+                $"Pass {Id} overran its {_budget} budget {_maxOverruns} times and is off for this session."));
     }
 
     private sealed class Context : IPassContext
@@ -268,7 +270,9 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
             get
             {
                 ThrowIfEnded();
-                return _read?.LastFrameTick ?? (_parsed!.Frames.Count > 0 ? _parsed.Frames[^1].GameTick ?? _parsed.Frames[^1].ServerTick : 0);
+                return _read?.LastFrameTick ?? (_parsed!.Frames.Count > 0
+                    ? _parsed.Frames[^1].GameTick ?? _parsed.Frames[^1].ServerTick
+                    : 0);
             }
         }
 
@@ -277,7 +281,11 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
             get
             {
                 ThrowIfEnded();
-                return _rounds ??= [.. (_read?.Rounds ?? ClipRounds.Derive(_parsed!)).Select(r => new PassRound(r.Number, r.StartTickFrameClock))];
+                return _rounds ??=
+                [
+                    .. (_read?.Rounds ?? ClipRounds.Derive(_parsed!)).Select(r =>
+                        new PassRound(r.Number, r.StartTickFrameClock))
+                ];
             }
         }
 
@@ -298,7 +306,8 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
             ArgumentNullException.ThrowIfNull(table);
             return _tableRulesets.Count > 0
                 ? _input.Table(table, _tableRulesets)
-                : throw new InvalidOperationException($"no ruleset names this pass in ReadBy, so table {table} is not one it reads");
+                : throw new InvalidOperationException(
+                    $"no ruleset names this pass in ReadBy, so table {table} is not one it reads");
         }
 
         public void End()

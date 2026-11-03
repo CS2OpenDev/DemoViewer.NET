@@ -70,8 +70,7 @@ internal sealed class SingleLayout : ILevelLayoutPolicy
         ArrangedLevelIndex = index;
         _arranged.Add(new LevelPane(levels[index], default, ManualRig.Instance)
         {
-            LevelIndex = index,
-            ViewportRect = new SKRect(0, 0, host.Width, host.Height)
+            LevelIndex = index, ViewportRect = new SKRect(0, 0, host.Width, host.Height)
         });
 
         return _arranged;

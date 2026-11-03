@@ -25,7 +25,8 @@ public static partial class Variants
     private static StratBookTabView StratLineupPicker()
     {
         GrenadeIndex index = PickerIndex();
-        StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false, grenades: index,
+        StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false,
+            grenades: index,
             lineupMap: map => new UtilityBookTabViewModel(index, lockedMap: map));
         vm.Session.AutoSaveDelay = TimeSpan.FromHours(1);
         vm.Session.IdleCommitDelay = TimeSpan.FromHours(1);
@@ -98,7 +99,8 @@ public static partial class Variants
                 Grenades = rows
             };
             cache.Upsert(record);
-            new GrenadeStore(MemoryDemoData.For(DemoViewer.NET.Extensions.HostLibrary.For(cache, null))).Write(path, document);
+            new GrenadeStore(MemoryDemoData.For(DemoViewer.NET.Extensions.HostLibrary.For(cache, null))).Write(path,
+                document);
         }
 
         GrenadeIndex index = new(DemoViewer.NET.Extensions.HostLibrary.For(cache, null));

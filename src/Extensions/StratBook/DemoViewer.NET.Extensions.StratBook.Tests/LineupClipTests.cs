@@ -45,7 +45,10 @@ public class LineupClipTests
     };
 
     private static IndexedGrenade Throw(string demo, GrenadeRow row) =>
-        new(new global::DemoViewer.NET.Extensions.StratBook.DemoRef(demo, global::DemoViewer.NET.Extensions.StratBook.DemoKeys.StableKey(demo), "sha-" + Path.GetFileNameWithoutExtension(demo)),
+        new(
+            new global::DemoViewer.NET.Extensions.StratBook.DemoRef(demo,
+                global::DemoViewer.NET.Extensions.StratBook.DemoKeys.StableKey(demo),
+                "sha-" + Path.GetFileNameWithoutExtension(demo)),
             Mirage, row, row.ReleasePosition ?? default, new WorldPoint(-1500, 800, 0), "CTSpawn", "zones:1");
 
     // The id is the position's, stable across calls, as GrenadeIndex.LineupId is; here keyed by the first row.
@@ -106,11 +109,13 @@ public class LineupClipTests
         await Assert.That(job.TickRate).IsEqualTo(64);
 
         // The pair: one stem, the GIF and the sidecar beside it, stable for the same throw.
-        await Assert.That(Path.GetDirectoryName(job.GifPath)).IsEqualTo(Path.GetDirectoryName(Path.Combine(Directory, "x")));
+        await Assert.That(Path.GetDirectoryName(job.GifPath))
+            .IsEqualTo(Path.GetDirectoryName(Path.Combine(Directory, "x")));
         await Assert.That(Path.GetFileName(job.GifPath)).StartsWith("de_mirage-smoke-");
         await Assert.That(job.GifPath).EndsWith(".gif");
         await Assert.That(job.SetposPath).IsEqualTo(job.GifPath[..^".gif".Length] + LineupClipPlanner.SetposExtension);
-        await Assert.That(LineupClipPlanner.Plan(lineup, "Smoke into CTSpawn", Directory)!.GifPath).IsEqualTo(job.GifPath);
+        await Assert.That(LineupClipPlanner.Plan(lineup, "Smoke into CTSpawn", Directory)!.GifPath)
+            .IsEqualTo(job.GifPath);
     }
 
     [Test]
@@ -127,7 +132,8 @@ public class LineupClipTests
             await Assert.That(job.FromTick).IsEqualTo(3000 - 64);
             await Assert.That(job.Key).IsEqualTo("sha-a/a1").Because("the pair is still the representative's to plan");
             await Assert.That(job.GifPath).IsEqualTo(LineupClipPlanner.Plan(lineup, "t", Directory)!.GifPath);
-            await Assert.That(elsewhere.DemoPath).IsEqualTo("/d/a.dem").Because("a demo with no throw of it falls back");
+            await Assert.That(elsewhere.DemoPath).IsEqualTo("/d/a.dem")
+                .Because("a demo with no throw of it falls back");
         }
     }
 
@@ -148,10 +154,13 @@ public class LineupClipTests
             using (Assert.Multiple())
             {
                 await Assert.That(written).IsEqualTo(2).Because("both repeated lineups have a throw in b");
-                await Assert.That(renderer.Calls.Select(c => c.Demo)).IsEquivalentTo(["/d/b.dem"], CollectionOrdering.Matching);
+                await Assert.That(renderer.Calls.Select(c => c.Demo))
+                    .IsEquivalentTo(["/d/b.dem"], CollectionOrdering.Matching);
                 await Assert.That(renderer.Calls[0].Jobs.All(j => j.DemoPath == "/d/b.dem")).IsTrue();
-                await Assert.That(planned).IsEqualTo(0).Because("a demo the visit already served is not read for its clips");
-                await Assert.That(System.IO.Directory.GetFiles(clips, "*" + LineupClipPlanner.SetposExtension).Length).IsEqualTo(2);
+                await Assert.That(planned).IsEqualTo(0)
+                    .Because("a demo the visit already served is not read for its clips");
+                await Assert.That(System.IO.Directory.GetFiles(clips, "*" + LineupClipPlanner.SetposExtension).Length)
+                    .IsEqualTo(2);
             }
         }
         finally
@@ -169,7 +178,8 @@ public class LineupClipTests
             FakeRenderer queued = new() { Hold = new TaskCompletionSource() };
             FileRenderer renderer = new();
             ILineupClipRenderer current = queued;
-            using LineupClipService service = new(() => [TwoLineups()], PackStores.At(clips), () => true, new Switch(() => current));
+            using LineupClipService service = new(() => [TwoLineups()], PackStores.At(clips), () => true,
+                new Switch(() => current));
 
             // Planned for a's and b's own reads; a's read is held, so b's clips still wait.
             service.Plan();
@@ -265,14 +275,18 @@ public class LineupClipTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(jobs.Select(j => j.TechniqueKey ?? "")).IsEquivalentTo(["stand-jump-left", "stand-throw-left"], CollectionOrdering.Matching)
+            await Assert.That(jobs.Select(j => j.TechniqueKey ?? ""))
+                .IsEquivalentTo(["stand-jump-left", "stand-throw-left"], CollectionOrdering.Matching)
                 .Because("a technique other than the first needs two throws of its own");
             await Assert.That(jobs[0].Stem).IsEqualTo(old + "-stand-jump-left");
-            await Assert.That(jobs[1].DemoPath).IsEqualTo("/d/c.dem").Because("each technique's clip shows its own throw");
-            await Assert.That(jobs[0].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f) ?? "")).Contains(old);
+            await Assert.That(jobs[1].DemoPath).IsEqualTo("/d/c.dem")
+                .Because("each technique's clip shows its own throw");
+            await Assert.That(jobs[0].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f) ?? ""))
+                .Contains(old);
             await Assert.That(jobs[0].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f) ?? ""))
                 .Contains(LineupClipPlanner.FileStem(Mirage, GrenadeKind.Smoke, IdOf("older")));
-            await Assert.That(jobs[1].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f) ?? "")).DoesNotContain(old);
+            await Assert.That(jobs[1].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f) ?? ""))
+                .DoesNotContain(old);
         }
 
         string clips = TempClips();
@@ -287,10 +301,13 @@ public class LineupClipTests
             IReadOnlyList<LineupClipJob> onDisk = LineupClipPlanner.PlanEvery([Cluster(lineup)], clips);
             using (Assert.Multiple())
             {
-                await Assert.That(renderer.Calls.SelectMany(c => c.Jobs).Select(j => j.TechniqueKey ?? "")).IsEquivalentTo(["stand-throw-left"], CollectionOrdering.Matching);
-                await Assert.That(HasPair(clips, onDisk[0].Stem)).IsTrue().Because("the old per-lineup pair was renamed");
+                await Assert.That(renderer.Calls.SelectMany(c => c.Jobs).Select(j => j.TechniqueKey ?? ""))
+                    .IsEquivalentTo(["stand-throw-left"], CollectionOrdering.Matching);
+                await Assert.That(HasPair(clips, onDisk[0].Stem)).IsTrue()
+                    .Because("the old per-lineup pair was renamed");
                 await Assert.That(HasPair(clips, old)).IsFalse();
-                await Assert.That(LineupClipPlanner.FinishedGif(clips, Mirage, GrenadeKind.Smoke, IdOf("spot"), "stand-throw-left"))
+                await Assert.That(LineupClipPlanner.FinishedGif(clips, Mirage, GrenadeKind.Smoke, IdOf("spot"),
+                        "stand-throw-left"))
                     .IsEqualTo(onDisk[1].GifPath);
             }
         }
@@ -314,7 +331,8 @@ public class LineupClipTests
                 Interlocked.Increment(ref calls);
                 ranInCall |= Volatile.Read(ref inCall);
                 return [TwoLineups()];
-            }, PackStores.At(Directory), () => true, renderer, _ => false, (_, _) => { }, planDebounce: TimeSpan.FromMilliseconds(50));
+            }, PackStores.At(Directory), () => true, renderer, _ => false, (_, _) => { },
+            planDebounce: TimeSpan.FromMilliseconds(50));
 
         Volatile.Write(ref inCall, true);
         Task first = service.PlanSoon();
@@ -353,7 +371,8 @@ public class LineupClipTests
             using (Assert.Multiple())
             {
                 await Assert.That(HasPair(clips, old + "-stand-jump-left")).IsTrue();
-                await Assert.That(await File.ReadAllTextAsync(Path.Combine(clips, old + "-stand-jump-left" + LineupClipPlanner.SetposExtension)))
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(clips,
+                        old + "-stand-jump-left" + LineupClipPlanner.SetposExtension)))
                     .IsEqualTo(Setpos + Environment.NewLine);
                 await Assert.That(HasPair(clips, old)).IsFalse().Because("the old pair goes once the new one exists");
             }
@@ -425,7 +444,8 @@ public class LineupClipTests
         LineupClipJob job = LineupClipPlanner.PlanAll([TwoLineups()], Directory, _ => false)[0];
 
         DemoFrame[] inside = Frames(1000, 1150);
-        Scene2DExportRequest? clipped = SceneExportScenes.Resolve(LineupClipPlanner.BuildClip(job, Scene(inside)), inside);
+        Scene2DExportRequest? clipped =
+            SceneExportScenes.Resolve(LineupClipPlanner.BuildClip(job, Scene(inside)), inside);
         await Assert.That(clipped!.DemoStartFrame).IsEqualTo(0);
         await Assert.That(clipped.DemoEndFrame).IsEqualTo(150);
 
@@ -435,7 +455,8 @@ public class LineupClipTests
 
         LineupClipJob anonymous = job with { ThrowerSteamId = null };
         DemoFrame[] all = Frames(0, 2000);
-        await Assert.That(SceneExportScenes.Resolve(LineupClipPlanner.BuildClip(anonymous, Scene(all)), all)!.Core.Camera)
+        await Assert.That(SceneExportScenes.Resolve(LineupClipPlanner.BuildClip(anonymous, Scene(all)), all)!.Core
+                .Camera)
             .IsTypeOf<CameraScript.Fixed>();
     }
 
@@ -456,7 +477,8 @@ public class LineupClipTests
         await Assert.That(planned).IsEqualTo(2);
 
         // One render call per demo, each parsed once; every GIF has its setpos beside it.
-        await Assert.That(renderer.Calls.Select(c => c.Demo)).IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
+        await Assert.That(renderer.Calls.Select(c => c.Demo))
+            .IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
         foreach (LineupClipJob job in renderer.Calls.SelectMany(c => c.Jobs))
         {
             await Assert.That(written[job.SetposPath]).IsEqualTo(Setpos + Environment.NewLine);
@@ -481,7 +503,8 @@ public class LineupClipTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(renderer.Calls.Select(c => c.Demo)).IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
+            await Assert.That(renderer.Calls.Select(c => c.Demo))
+                .IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
             await Assert.That(written.Count).IsEqualTo(0).Because("no sidecar without its GIF");
         }
     }
@@ -490,7 +513,8 @@ public class LineupClipTests
     public async Task Service_PlansNothing_WhenOff_OrWithNoDirectory()
     {
         FakeRenderer renderer = new();
-        using LineupClipService off = new(() => [TwoLineups()], PackStores.At(Directory), () => false, renderer, _ => false);
+        using LineupClipService off = new(() => [TwoLineups()], PackStores.At(Directory), () => false, renderer,
+            _ => false);
         using LineupClipService browser = new(() => [TwoLineups()], null, () => true, renderer, _ => false);
 
         await Assert.That(off.Plan()).IsEqualTo(0);
@@ -532,7 +556,8 @@ public class LineupClipTests
             await Assert.That(second.Key).IsNotEqualTo(first.Key);
             await Assert.That(second.GifPath).IsEqualTo(first.GifPath);
             await Assert.That(second.SetposPath).IsEqualTo(first.SetposPath);
-            await Assert.That(first.Stem).IsEqualTo(LineupClipPlanner.FileStem(Mirage, GrenadeKind.Smoke, IdOf("spot")));
+            await Assert.That(first.Stem)
+                .IsEqualTo(LineupClipPlanner.FileStem(Mirage, GrenadeKind.Smoke, IdOf("spot")));
         }
 
         string clips = TempClips();
@@ -548,7 +573,8 @@ public class LineupClipTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(service.Plan()).IsEqualTo(0).Because("the pair on disk is the lineup's, whoever represents it");
+                await Assert.That(service.Plan()).IsEqualTo(0)
+                    .Because("the pair on disk is the lineup's, whoever represents it");
                 await Assert.That(renderer.Calls.Count).IsEqualTo(1);
             }
         }
@@ -603,12 +629,14 @@ public class LineupClipTests
             File.WriteAllText(Path.Combine(clips, "notes.txt"), "not a clip");
 
             bool complete = false;
-            using (LineupClipService loading = new(() => [cluster], PackStores.At(clips), () => true, new FileRenderer(),
+            using (LineupClipService loading = new(() => [cluster], PackStores.At(clips), () => true,
+                       new FileRenderer(),
                        complete: () => complete, orphanGrace: TimeSpan.Zero))
             {
                 loading.Plan();
                 await loading.SweepTask;
-                await Assert.That(HasPair(clips, "de_mirage-smoke-0123456789ab")).IsTrue().Because("half an index is not the library");
+                await Assert.That(HasPair(clips, "de_mirage-smoke-0123456789ab")).IsTrue()
+                    .Because("half an index is not the library");
 
                 complete = true;
                 loading.Plan();
@@ -624,7 +652,8 @@ public class LineupClipTests
 
             // With a grace period, the first sighting only starts the clock.
             WritePair(clips, "de_mirage-smoke-ba9876543210", 100, DateTime.UtcNow);
-            using LineupClipService patient = new(() => [cluster], PackStores.At(clips), () => true, new FileRenderer());
+            using LineupClipService patient = new(() => [cluster], PackStores.At(clips), () => true,
+                new FileRenderer());
             patient.Plan();
             await patient.SweepTask;
             await Assert.That(HasPair(clips, "de_mirage-smoke-ba9876543210")).IsTrue();
@@ -648,7 +677,9 @@ public class LineupClipTests
             WritePair(clips, "de_mirage-smoke-000000000002", 1000, now.AddHours(-2));
 
             // Two old pairs and two new GIFs of 1000 bytes, four setpos lines: a 3,000-byte cap takes one old pair.
-            long setpos = new FileInfo(Path.Combine(clips, "de_mirage-smoke-000000000001" + LineupClipPlanner.SetposExtension)).Length;
+            long setpos =
+                new FileInfo(Path.Combine(clips, "de_mirage-smoke-000000000001" + LineupClipPlanner.SetposExtension))
+                    .Length;
             long cap = 3000 + (4 * setpos);
             FileRenderer renderer = new() { Bytes = 1000 };
             using (LineupClipService service = new(() => [cluster], PackStores.At(clips), () => true, renderer,
@@ -659,10 +690,12 @@ public class LineupClipTests
 
                 using (Assert.Multiple())
                 {
-                    await Assert.That(HasPair(clips, "de_mirage-smoke-000000000001")).IsFalse().Because("the oldest write goes first");
+                    await Assert.That(HasPair(clips, "de_mirage-smoke-000000000001")).IsFalse()
+                        .Because("the oldest write goes first");
                     await Assert.That(HasPair(clips, "de_mirage-smoke-000000000002")).IsTrue();
                     await Assert.That(jobs.All(j => HasPair(clips, j.Stem))).IsTrue();
-                    await Assert.That(service.Evicted).IsEquivalentTo(["de_mirage-smoke-000000000001"], CollectionOrdering.Matching);
+                    await Assert.That(service.Evicted)
+                        .IsEquivalentTo(["de_mirage-smoke-000000000001"], CollectionOrdering.Matching);
                 }
             }
 
@@ -702,7 +735,8 @@ public class LineupClipTests
 
             // A re-index drops the demo's rows for a moment, then puts them back.
             bool present = true;
-            using (LineupClipService service = new(() => present ? [cluster] : [], PackStores.At(clips), () => true, new FileRenderer()))
+            using (LineupClipService service = new(() => present ? [cluster] : [], PackStores.At(clips), () => true,
+                       new FileRenderer()))
             {
                 present = false;
                 service.Plan();
@@ -711,7 +745,8 @@ public class LineupClipTests
                 await Assert.That(service.Evicted).IsEquivalentTo([jobs[1].Stem], CollectionOrdering.Matching);
             }
 
-            using LineupClipService impatient = new(() => present ? [cluster] : [], PackStores.At(clips), () => true, new FileRenderer(),
+            using LineupClipService impatient = new(() => present ? [cluster] : [], PackStores.At(clips), () => true,
+                new FileRenderer(),
                 orphanGrace: TimeSpan.Zero);
             present = false;
             impatient.Plan();
@@ -763,7 +798,8 @@ public class LineupClipTests
             using (Assert.Multiple())
             {
                 await Assert.That(waited).IsTrue().Because("the request waits for the pass it arrived in");
-                await Assert.That(renderer.Calls.SelectMany(c => c.Jobs).Count(j => j.LineupId == jobs[0].LineupId)).IsEqualTo(1)
+                await Assert.That(renderer.Calls.SelectMany(c => c.Jobs).Count(j => j.LineupId == jobs[0].LineupId))
+                    .IsEqualTo(1)
                     .Because("the pass evicted it, and the request put it back");
                 await Assert.That(HasPair(clips, jobs[0].Stem)).IsTrue();
                 await Assert.That(service.Evicted).DoesNotContain(jobs[0].Stem);
@@ -788,12 +824,14 @@ public class LineupClipTests
 
         ReviewEntry a2 = ReviewEntry.Clip("/d/a.dem", 5, 9, "a2", ReviewSources.Lineup) with { LineupId = IdOf("a") };
         ReviewEntry c = ReviewEntry.Clip("/d/c.dem", 1, 2, "c", ReviewSources.Lineup) with { LineupId = IdOf("c") };
-        int merged = queue.Merge([a2, c], "Lineup clips, de_mirage", (old, incoming) => old.LineupId == incoming.LineupId);
+        int merged = queue.Merge([a2, c], "Lineup clips, de_mirage",
+            (old, incoming) => old.LineupId == incoming.LineupId);
 
         using (Assert.Multiple())
         {
             await Assert.That(merged).IsEqualTo(2);
-            await Assert.That(string.Join("|", queue.Entries.Select(e => e.Kind == ReviewEntryKind.Section ? e.Title : e.Note)))
+            await Assert.That(string.Join("|",
+                    queue.Entries.Select(e => e.Kind == ReviewEntryKind.Section ? e.Title : e.Note)))
                 .IsEqualTo("Lineup clips, de_mirage|a2|b|c|Other|x");
             await Assert.That(queue.Clips[0].Id).IsEqualTo(a.Id);
         }
@@ -803,14 +841,19 @@ public class LineupClipTests
 
     // A lineup thrown `times` times, all in one demo.
     private static GrenadeLineup Thrown(string demo, string id, int times) =>
-        Lineup([.. Enumerable.Range(0, times).Select(i => Throw(demo, Row(i == 0 ? id : $"{id}-{i}", 1000 + (i * 500), 1100 + (i * 500))))]);
+        Lineup([
+            .. Enumerable.Range(0, times).Select(i =>
+                Throw(demo, Row(i == 0 ? id : $"{id}-{i}", 1000 + (i * 500), 1100 + (i * 500))))
+        ]);
 
     [Test]
     public async Task ThePlan_RendersTheMostThrownLineupsFirst()
     {
         FakeRenderer renderer = new();
-        GrenadeCluster cluster = Cluster(Thrown("/d/two.dem", "t", 2), Thrown("/d/five.dem", "f", 5), Thrown("/d/three.dem", "h", 3));
-        using LineupClipService service = new(() => [cluster], PackStores.At(Directory), () => true, renderer, _ => false, (_, _) => { });
+        GrenadeCluster cluster = Cluster(Thrown("/d/two.dem", "t", 2), Thrown("/d/five.dem", "f", 5),
+            Thrown("/d/three.dem", "h", 3));
+        using LineupClipService service = new(() => [cluster], PackStores.At(Directory), () => true, renderer,
+            _ => false, (_, _) => { });
 
         await Assert.That(service.Plan()).IsEqualTo(3);
         await service.WorkerTask;
@@ -831,12 +874,14 @@ public class LineupClipTests
             List<GrenadeLineup> lineups = [keptOld, keptNew, lower, equal];
             GrenadeCluster Current() => Cluster([.. lineups]);
 
-            Dictionary<Guid, string> stems = LineupClipPlanner.PlanEvery([Cluster(keptOld, keptNew, lower, equal, higher)], clips)
+            Dictionary<Guid, string> stems = LineupClipPlanner
+                .PlanEvery([Cluster(keptOld, keptNew, lower, equal, higher)], clips)
                 .ToDictionary(j => j.LineupId, j => j.Stem);
             DateTime now = DateTime.UtcNow;
             WritePair(clips, stems[keptOld.Id], 1000, now.AddHours(-2));
             WritePair(clips, stems[keptNew.Id], 1000, now.AddHours(-1));
-            long cap = new System.IO.DirectoryInfo(clips).EnumerateFiles().Sum(f => f.Length) + 100; // less than one more pair
+            long cap = new System.IO.DirectoryInfo(clips).EnumerateFiles().Sum(f => f.Length)
+                       + 100; // less than one more pair
 
             FileRenderer renderer = new() { Bytes = 1000 };
             using LineupClipService service = new(() => [Current()], PackStores.At(clips), () => true, renderer,
@@ -853,7 +898,8 @@ public class LineupClipTests
             {
                 await Assert.That(renderer.Calls.Single().Jobs.Single().LineupId).IsEqualTo(higher.Id);
                 await Assert.That(HasPair(clips, stems[higher.Id])).IsTrue();
-                await Assert.That(HasPair(clips, stems[keptOld.Id])).IsFalse().Because("the lowest rank, then the oldest, goes");
+                await Assert.That(HasPair(clips, stems[keptOld.Id])).IsFalse()
+                    .Because("the lowest rank, then the oldest, goes");
                 await Assert.That(HasPair(clips, stems[keptNew.Id])).IsTrue();
                 await Assert.That(service.Evicted).IsEquivalentTo([stems[keptOld.Id]], CollectionOrdering.Matching);
             }
@@ -895,7 +941,8 @@ public class LineupClipTests
         processing.Resume();
         await service.WorkerTask.WaitAsync(TimeSpan.FromSeconds(10));
 
-        List<DemoQueueItemSnapshot> items = processing.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing).ToList();
+        List<DemoQueueItemSnapshot> items = processing.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing)
+            .ToList();
         await Assert.That(items.Count).IsEqualTo(2);
         await Assert.That(string.Join(",", items.Select(i => i.State))).IsEqualTo("Completed,Completed")
             .Because("every batch ends on its own");
@@ -1046,7 +1093,8 @@ public class LineupClipTests
 
         public int Bytes { get; init; } = 100;
 
-        public Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, ParsedDemo? demo, IReadOnlyList<LineupClipJob> jobs,
+        public Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, ParsedDemo? demo,
+            IReadOnlyList<LineupClipJob> jobs,
             CancellationToken ct)
         {
             lock (_calls)
@@ -1065,7 +1113,8 @@ public class LineupClipTests
 
     private sealed class Switch(Func<ILineupClipRenderer> current) : ILineupClipRenderer
     {
-        public Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, ParsedDemo? demo, IReadOnlyList<LineupClipJob> jobs,
+        public Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, ParsedDemo? demo,
+            IReadOnlyList<LineupClipJob> jobs,
             CancellationToken ct) => current().RenderAsync(demoPath, demo, jobs, ct);
     }
 
@@ -1090,7 +1139,8 @@ public class LineupClipTests
 
         public bool Fail { get; set; }
 
-        public async Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, ParsedDemo? demo, IReadOnlyList<LineupClipJob> jobs,
+        public async Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, ParsedDemo? demo,
+            IReadOnlyList<LineupClipJob> jobs,
             CancellationToken ct)
         {
             lock (_calls)

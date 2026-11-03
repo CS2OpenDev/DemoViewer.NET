@@ -83,18 +83,12 @@ public static class DemoStateGraphSample
                     8 => $"{50 + p * 5}%",
                     _ => null
                 };
-                cells.Add(new SampleTableCell
-                {
-                    IsActive = isActive,
-                    DisplayValue = value
-                });
+                cells.Add(new SampleTableCell { IsActive = isActive, DisplayValue = value });
             }
 
             tableRows.Add(new SampleTableRow
             {
-                Label = playerNames[p],
-                FilterAnnotation = $"slot == {p}",
-                Cells = cells
+                Label = playerNames[p], FilterAnnotation = $"slot == {p}", Cells = cells
             });
         }
 
@@ -107,12 +101,7 @@ public static class DemoStateGraphSample
             new SampleColumnEdge(root, 3, "player_death", VisualEdgeEffect.Deactivate, "victim == player")
         ];
 
-        SampleTable table = new()
-        {
-            ColumnNames = columnNames,
-            Rows = tableRows,
-            ColumnEdges = columnEdges
-        };
+        SampleTable table = new() { ColumnNames = columnNames, Rows = tableRows, ColumnEdges = columnEdges };
 
         return (nodes, edges, groups, table);
     }

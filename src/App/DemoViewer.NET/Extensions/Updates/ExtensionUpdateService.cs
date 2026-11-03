@@ -73,7 +73,9 @@ public sealed class ExtensionUpdateService
 
     // Windows and macOS file systems fold case by default; a path there is the same path in any case.
     private static StringComparison PathComparison =>
-        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
 
     /// <summary>How long a check result stands before opening Settings checks again.</summary>
     public static TimeSpan AutoCheckInterval => _autoCheckInterval;
@@ -171,7 +173,8 @@ public sealed class ExtensionUpdateService
         ExtensionUpdateState?[] found = new ExtensionUpdateState?[_statuses.Count];
         await QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, "Check for extension updates", Owner, async ctx =>
         {
-            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
+            using CancellationTokenSource linked =
+                CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
             for (int i = 0; i < _statuses.Count; i++)
             {
                 found[i] = await CheckCore(_statuses[i], linked.Token).ConfigureAwait(false);
@@ -199,7 +202,8 @@ public sealed class ExtensionUpdateService
         string name = status.Manifest?.Name ?? status.Pack.Id;
         await QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, $"Check for updates: {name}", Owner, async ctx =>
         {
-            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
+            using CancellationTokenSource linked =
+                CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
             state = await CheckCore(status, linked.Token).ConfigureAwait(false);
         }, DemoJobPriority.UserRequested).ConfigureAwait(false);
 
@@ -217,15 +221,18 @@ public sealed class ExtensionUpdateService
     ///     <c>&lt;id&gt;/&lt;version&gt;/</c>. Any refusal removes the staging files. An already present target is
     ///     <see cref="StageOutcome.AlreadyInstalled" />, and nothing is changed.
     /// </summary>
-    public async Task<StageResult> DownloadAndStageAsync(ExtensionFeedEntry entry, IProgress<ExtensionDownloadProgress>? progress = null,
+    public async Task<StageResult> DownloadAndStageAsync(ExtensionFeedEntry entry,
+        IProgress<ExtensionDownloadProgress>? progress = null,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
         StageResult? result = null;
-        await QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, $"Download extension update: {entry.Manifest.Name} {entry.Version}", Owner,
+        await QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate,
+            $"Download extension update: {entry.Manifest.Name} {entry.Version}", Owner,
             async ctx =>
             {
-                using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
+                using CancellationTokenSource linked =
+                    CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
                 result = await StageCore(entry, ctx, progress, linked.Token).ConfigureAwait(false);
             }, DemoJobPriority.UserRequested).ConfigureAwait(false);
 
@@ -271,7 +278,9 @@ public sealed class ExtensionUpdateService
                     continue;
                 }
 
-                string? runningDirectory = status.Source is PackSource.Staged staged ? Path.GetFullPath(staged.Directory) : null;
+                string? runningDirectory = status.Source is PackSource.Staged staged
+                    ? Path.GetFullPath(staged.Directory)
+                    : null;
                 foreach (ExtensionCandidate candidate in discovery.Candidates)
                 {
                     if (!string.Equals(candidate.Manifest.Id, status.Pack.Id, StringComparison.Ordinal)
@@ -325,7 +334,8 @@ public sealed class ExtensionUpdateService
             AppLog.ExtensionFeedNotPublished(Log, packId, url);
             SemVersion? staged = PendingVersion(packId);
             return new ExtensionUpdateState(packId, manifest.Name, manifest.Version, status.Source,
-                staged is null ? ExtensionUpdateStatus.NotPublished : ExtensionUpdateStatus.PendingRestart, Pending: staged,
+                staged is null ? ExtensionUpdateStatus.NotPublished : ExtensionUpdateStatus.PendingRestart,
+                Pending: staged,
                 CheckedAt: DateTimeOffset.UtcNow);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -342,7 +352,8 @@ public sealed class ExtensionUpdateService
         catch (ExtensionFeedException ex)
         {
             AppLog.ExtensionFeedCheckFailed(Log, packId, nameof(ExtensionUpdateStatus.FeedInvalid), ex.Message);
-            return new ExtensionUpdateState(packId, manifest.Name, manifest.Version, status.Source, ExtensionUpdateStatus.FeedInvalid,
+            return new ExtensionUpdateState(packId, manifest.Name, manifest.Version, status.Source,
+                ExtensionUpdateStatus.FeedInvalid,
                 Error: "the update feed could not be read", LogDetail: ex.Message, CheckedAt: DateTimeOffset.UtcNow);
         }
 
@@ -350,7 +361,8 @@ public sealed class ExtensionUpdateService
         {
             string detail = $"the feed is for '{feed.Id}'";
             AppLog.ExtensionFeedCheckFailed(Log, packId, nameof(ExtensionUpdateStatus.FeedInvalid), detail);
-            return new ExtensionUpdateState(packId, manifest.Name, manifest.Version, status.Source, ExtensionUpdateStatus.FeedInvalid,
+            return new ExtensionUpdateState(packId, manifest.Name, manifest.Version, status.Source,
+                ExtensionUpdateStatus.FeedInvalid,
                 Error: "the update feed is for another extension", LogDetail: detail, CheckedAt: DateTimeOffset.UtcNow);
         }
 
@@ -380,7 +392,8 @@ public sealed class ExtensionUpdateService
             state = ExtensionUpdateStatus.UpToDate;
         }
 
-        return new ExtensionUpdateState(packId, manifest.Name, installed, status.Source, state, offered, latest, latestCompatibility, pending,
+        return new ExtensionUpdateState(packId, manifest.Name, installed, status.Source, state, offered, latest,
+            latestCompatibility, pending,
             CheckedAt: DateTimeOffset.UtcNow);
     }
 
@@ -410,9 +423,11 @@ public sealed class ExtensionUpdateService
 
     private static ExtensionUpdateState Unreachable(PackStatus status, string error, string? logDetail) =>
         new(status.Pack.Id, status.Manifest?.Name ?? status.Pack.Id, status.Manifest?.Version, status.Source,
-            ExtensionUpdateStatus.FeedUnreachable, Error: error, LogDetail: logDetail, CheckedAt: DateTimeOffset.UtcNow);
+            ExtensionUpdateStatus.FeedUnreachable, Error: error, LogDetail: logDetail,
+            CheckedAt: DateTimeOffset.UtcNow);
 
-    private async Task<StageResult> StageCore(ExtensionFeedEntry entry, IQueueJobContext ctx, IProgress<ExtensionDownloadProgress>? progress,
+    private async Task<StageResult> StageCore(ExtensionFeedEntry entry, IQueueJobContext ctx,
+        IProgress<ExtensionDownloadProgress>? progress,
         CancellationToken ct)
     {
         string id = entry.Manifest.Id;
@@ -424,7 +439,8 @@ public sealed class ExtensionUpdateService
 
         // The id was validated by the feed parser and the version is a SemVersion's own text, so these
         // cannot leave the tree; the check stands so a future caller cannot either.
-        if (!ExtensionStaging.IsInside(_extensionsDirectory, installed) || !ExtensionStaging.IsInside(_extensionsDirectory, extracted))
+        if (!ExtensionStaging.IsInside(_extensionsDirectory, installed)
+            || !ExtensionStaging.IsInside(_extensionsDirectory, extracted))
         {
             return Refuse(entry, "the extension's id or version is not a valid folder name", null);
         }
@@ -451,9 +467,11 @@ public sealed class ExtensionUpdateService
             InlineProgress bytes = new(received =>
             {
                 progress?.Report(new ExtensionDownloadProgress(received, total));
-                ctx.Report((int)Math.Min(100, received * 100 / Math.Max(1, total)), 100, $"{Megabytes(received)} of {Megabytes(total)} MB");
+                ctx.Report((int)Math.Min(100, received * 100 / Math.Max(1, total)), 100,
+                    $"{Megabytes(received)} of {Megabytes(total)} MB");
             });
-            await using (FileStream destination = new(part, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16, useAsync: true))
+            await using (FileStream destination = new(part, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16,
+                             useAsync: true))
             {
                 await _client.DownloadAsync(entry.Url, destination, total, bytes, ct).ConfigureAwait(false);
             }
@@ -468,7 +486,8 @@ public sealed class ExtensionUpdateService
                 return Refuse(entry, badArchive, null);
             }
 
-            ExtensionManifest? manifest = ExtensionStaging.ReadStagedManifest(extracted, id, version, out string? badManifest);
+            ExtensionManifest? manifest =
+                ExtensionStaging.ReadStagedManifest(extracted, id, version, out string? badManifest);
             if (manifest is null)
             {
                 return Refuse(entry, badManifest!, null);
@@ -486,7 +505,8 @@ public sealed class ExtensionUpdateService
 
             if (!verdict.Trusted)
             {
-                return Refuse(entry, verdict.Reason ?? "the copy is not signed by this app's publisher", verdict.LogDetail);
+                return Refuse(entry, verdict.Reason ?? "the copy is not signed by this app's publisher",
+                    verdict.LogDetail);
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(installed)!);
@@ -510,7 +530,8 @@ public sealed class ExtensionUpdateService
             RemoveStaging(part, extracted);
             return new StageResult(StageOutcome.Cancelled, null);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HttpRequestException or ExtensionDownloadException
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HttpRequestException
+                                       or ExtensionDownloadException
                                        or InvalidOperationException or OperationCanceledException)
         {
             string detail = ex is HttpRequestException or ExtensionDownloadException or OperationCanceledException
@@ -540,13 +561,15 @@ public sealed class ExtensionUpdateService
                 ExtensionStaging.DeleteTree(extracted);
             }
 
-            if (File.Exists(part) && ExtensionStaging.IsInside(ExtensionStaging.StagingRoot(_extensionsDirectory), part))
+            if (File.Exists(part)
+                && ExtensionStaging.IsInside(ExtensionStaging.StagingRoot(_extensionsDirectory), part))
             {
                 File.Delete(part);
             }
 
             string? idFolder = Path.GetDirectoryName(part);
-            if (idFolder is not null && Directory.Exists(idFolder) && !Directory.EnumerateFileSystemEntries(idFolder).Any())
+            if (idFolder is not null && Directory.Exists(idFolder)
+                                     && !Directory.EnumerateFileSystemEntries(idFolder).Any())
             {
                 Directory.Delete(idFolder);
             }
@@ -562,5 +585,6 @@ public sealed class ExtensionUpdateService
         public void Report(long value) => report(value);
     }
 
-    private static string Megabytes(long bytes) => (bytes / (1024.0 * 1024.0)).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Megabytes(long bytes) =>
+        (bytes / (1024.0 * 1024.0)).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 }

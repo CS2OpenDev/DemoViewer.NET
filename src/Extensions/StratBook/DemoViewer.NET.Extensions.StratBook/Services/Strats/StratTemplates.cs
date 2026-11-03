@@ -20,8 +20,15 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Strats;
 ///     <paramref name="To" /> are then <see cref="StratStepLines.ActorFor" /> of the lines and null.
 /// </param>
 /// <param name="RotateWhen">A lurk's rotate condition, or null for no lurk.</param>
-public sealed record StratTemplateStep(double AtSeconds, string Actor, string Verb, string? To = null, string? Utility = null,
-    string? Note = null, IReadOnlyList<StratTemplateLine>? Lines = null, string? RotateWhen = null);
+public sealed record StratTemplateStep(
+    double AtSeconds,
+    string Actor,
+    string Verb,
+    string? To = null,
+    string? Utility = null,
+    string? Note = null,
+    IReadOnlyList<StratTemplateLine>? Lines = null,
+    string? RotateWhen = null);
 
 /// <summary>One line of a template step: a slot and its place, or null for none.</summary>
 public sealed record StratTemplateLine(string Slot, string? To = null);
@@ -85,7 +92,8 @@ public static class StratTemplates
     /// <summary>The template's steps as new strat steps, each with a fresh id and no positions.</summary>
     /// <param name="template">The template.</param>
     /// <param name="roundSeconds">The strat's round length; a round-start step is clamped to it.</param>
-    public static List<StratStep> BuildSteps(StratTemplate template, double roundSeconds = StratClock.DefaultRoundSeconds) =>
+    public static List<StratStep> BuildSteps(StratTemplate template,
+        double roundSeconds = StratClock.DefaultRoundSeconds) =>
         BuildSteps(template, new StratClockInfo { RoundSeconds = roundSeconds });
 
     /// <summary>
@@ -102,7 +110,8 @@ public static class StratTemplates
         ArgumentNullException.ThrowIfNull(template);
         if (template.Steps.FirstOrDefault(s => s.Lines is not null && s.To is not null) is { } mixed)
         {
-            throw new InvalidOperationException($"template {template.Id}: the step at {mixed.AtSeconds} has lines and a step-level to");
+            throw new InvalidOperationException(
+                $"template {template.Id}: the step at {mixed.AtSeconds} has lines and a step-level to");
         }
 
         return
@@ -110,7 +119,10 @@ public static class StratTemplates
             .. template.Steps.Select(s => new StratStep
             {
                 Id = Guid.NewGuid(),
-                AtSeconds = trigger ? StratClock.Convert(Math.Min(s.AtSeconds, roundSeconds), roundSeconds) : Math.Min(s.AtSeconds, roundSeconds),
+                AtSeconds =
+                    trigger
+                        ? StratClock.Convert(Math.Min(s.AtSeconds, roundSeconds), roundSeconds)
+                        : Math.Min(s.AtSeconds, roundSeconds),
                 Actor = s.Actor,
                 Verb = s.Verb,
                 To = s.To is null ? null : new PlaceRef { Place = s.To },
@@ -118,7 +130,13 @@ public static class StratTemplates
                 Note = s.Note,
                 Assignments = s.Lines is null
                     ? null
-                    : [.. s.Lines.Select(l => new StepAssignment { Slot = l.Slot, To = l.To is null ? null : new PlaceRef { Place = l.To } })],
+                    :
+                    [
+                        .. s.Lines.Select(l => new StepAssignment
+                        {
+                            Slot = l.Slot, To = l.To is null ? null : new PlaceRef { Place = l.To }
+                        })
+                    ],
                 Lurk = s.RotateWhen is null ? null : new StepLurk { Rotate = new LurkRotate { When = s.RotateWhen } }
             })
         ];
@@ -213,7 +231,8 @@ public static class StratTemplates
         int index = document.Steps.Count;
         foreach (StratStep step in BuildSteps(template, document.Clock))
         {
-            ops.Add(PatchOp.AddOp($"/steps/{index++}", JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep)));
+            ops.Add(PatchOp.AddOp($"/steps/{index++}",
+                JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep)));
         }
 
         return ops;
@@ -265,7 +284,8 @@ public static class StratTemplates
         ]);
 
     private static StratTemplate Fake(string fakeSite, string site) => new(
-        "fake-" + fakeSite.ToLowerInvariant() + "-" + site.ToLowerInvariant(), "Fake", fakeSite + ", hit " + site, "fake",
+        "fake-" + fakeSite.ToLowerInvariant() + "-" + site.ToLowerInvariant(), "Fake", fakeSite + ", hit " + site,
+        "fake",
         StratVocabulary.SideT, site, ["entry", "support", "fake", "fake", "lurk"],
         [
             new(85, "C", "fake", Site(fakeSite), "smoke", "show utility at " + fakeSite),
@@ -302,7 +322,8 @@ public static class StratTemplates
         "setup", "Setup", "2-1-2 hold", "setup", StratVocabulary.SideCt, null,
         ["A anchor", "A support", "rotator", "B anchor", "B support"],
         [
-            new(115, All, "hold", Note: "A and D anchor, B and E take the second angles, C holds the middle and rotates on the call",
+            new(115, All, "hold",
+                Note: "A and D anchor, B and E take the second angles, C holds the middle and rotates on the call",
                 Lines: [new("A", Site("A")), new("B", Site("A")), new("C"), new("D", Site("B")), new("E", Site("B"))]),
             new(105, "C", "throw", Utility: "smoke", Note: "early smoke to slow the push"),
             new(100, "D", "throw", Utility: "molotov", Note: "stall an early rush"),

@@ -263,7 +263,9 @@ internal static class TrimVerifier
 
         report.Check(firstDiff < 0,
             string.Create(CultureInfo.InvariantCulture, $"game-event stream ({expected.Count} events)"),
-            firstDiff < 0 ? "" : $"first difference at #{firstDiff}: expected '{expected[firstDiff]}', got '{actual[firstDiff]}'");
+            firstDiff < 0
+                ? ""
+                : $"first difference at #{firstDiff}: expected '{expected[firstDiff]}', got '{actual[firstDiff]}'");
     }
 
     /// <summary>
@@ -280,7 +282,8 @@ internal static class TrimVerifier
             "0 player_death events — the window is probably warmup");
         report.Check(boundaries >= result.Window.RoundsKept,
             string.Create(CultureInfo.InvariantCulture, $"retained round boundaries >= {result.Window.RoundsKept}"),
-            string.Create(CultureInfo.InvariantCulture, $"only {boundaries} '{WindowSelector.DefaultBoundaryEvent}' events"));
+            string.Create(CultureInfo.InvariantCulture,
+                $"only {boundaries} '{WindowSelector.DefaultBoundaryEvent}' events"));
         report.Notes.Add(string.Create(CultureInfo.InvariantCulture,
             $"retained content: {kills} kills, {boundaries} round boundaries, {trimmed.Players.Count} players"));
     }

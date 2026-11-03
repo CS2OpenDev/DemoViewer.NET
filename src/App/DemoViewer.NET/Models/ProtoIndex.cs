@@ -37,10 +37,7 @@ public sealed class ProtoIndex
     public static ProtoIndex Build()
     {
         List<FileDescriptor> files = ProtoFileDescriptors();
-        ProtoIndex idx = new()
-        {
-            ProtoFiles = files.Select(f => f.Name).ToList()
-        };
+        ProtoIndex idx = new() { ProtoFiles = files.Select(f => f.Name).ToList() };
 
         foreach (FileDescriptor file in files)
         {

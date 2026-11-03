@@ -52,7 +52,8 @@ public sealed class SemanticNavigator
     ///     it occurs. This is the demo-derived event set: the same data <c>GameEventFilters</c> is
     ///     populated from. Empty until <see cref="Build" /> runs.
     /// </summary>
-    public IReadOnlyDictionary<string, int[]> EventBoundaryFramesByName { get; private set; } = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, int[]> EventBoundaryFramesByName { get; private set; } =
+        new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     ///     First frame index of each distinct <see cref="DemoFrame.ServerTick" />. Sorted ascending.

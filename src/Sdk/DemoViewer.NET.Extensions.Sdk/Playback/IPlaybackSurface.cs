@@ -212,8 +212,15 @@ public sealed record MenuEntry(string Header, Action Run);
 /// <param name="PlaceAt">The map's named place at the press, or null where the map has no zones. Read it only if you need it.</param>
 /// <param name="Frame">The frame on screen. Valid only during the call: the tab refills it for the next one.</param>
 public sealed record PlaybackPointer(
-    string? Level, double WorldX, double WorldY, double ScreenX, double ScreenY, KeyModifiers Modifiers, int Tick,
-    Func<string?> PlaceAt, Scene2DFrame Frame);
+    string? Level,
+    double WorldX,
+    double WorldY,
+    double ScreenX,
+    double ScreenY,
+    KeyModifiers Modifiers,
+    int Tick,
+    Func<string?> PlaceAt,
+    Scene2DFrame Frame);
 
 /// <summary>The moment a toolbar item ran at.</summary>
 /// <param name="Tick">The tick shown.</param>

@@ -47,12 +47,7 @@ public class TutorialAnchorTests
             TutorialAnchor.SetTarget(anchor, target);
             host.Children.Add(anchor);
 
-            Window window = new()
-            {
-                Width = 400,
-                Height = 300,
-                Content = host
-            };
+            Window window = new() { Width = 400, Height = 300, Content = host };
             window.Show();
             Pump();
 
@@ -78,12 +73,7 @@ public class TutorialAnchorTests
         {
             // A plain control with no TutorialAnchor.Target must not register for any target.
             Border plain = new();
-            Window window = new()
-            {
-                Width = 200,
-                Height = 200,
-                Content = plain
-            };
+            Window window = new() { Width = 200, Height = 200, Content = plain };
             window.Show();
             Pump();
 

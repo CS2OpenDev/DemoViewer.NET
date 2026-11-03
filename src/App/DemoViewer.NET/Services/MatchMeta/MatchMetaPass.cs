@@ -27,7 +27,8 @@ public sealed partial class MatchMetaPass : IRecordPass
     /// <param name="store">The demo cache the pass writes into.</param>
     /// <param name="readInfo">A <c>.dem.info</c> file's bytes, or null when there is none. The file system by default.</param>
     /// <param name="writeTimeUtc">A demo's write time, or null when the file is gone. The file system by default.</param>
-    public MatchMetaPass(DemoCacheStore store, Func<string, byte[]?>? readInfo = null, Func<string, DateTime?>? writeTimeUtc = null)
+    public MatchMetaPass(DemoCacheStore store, Func<string, byte[]?>? readInfo = null,
+        Func<string, DateTime?>? writeTimeUtc = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _readInfo = readInfo ?? ReadFile;
@@ -44,7 +45,8 @@ public sealed partial class MatchMetaPass : IRecordPass
         List<string> paths =
         [
             record.Path,
-            .. record.Locations.Select(l => l.Path).Where(p => !string.Equals(p, record.Path, StringComparison.OrdinalIgnoreCase))
+            .. record.Locations.Select(l => l.Path)
+                .Where(p => !string.Equals(p, record.Path, StringComparison.OrdinalIgnoreCase))
         ];
         (ulong Reservation, long Outcome, long Token)? named = null;
         MatchInfo? info = null;
@@ -60,7 +62,10 @@ public sealed partial class MatchMetaPass : IRecordPass
         _store.UpdateExisting(record.Path, r =>
         {
             r.MatchMeta = Resolve(r.MatchMeta, named, info, written ?? FromRecord(r.ModifiedTicks));
-            r.SetStamp(new PackStamp(StampId, DemoMatchMeta.CurrentSchema, MatchInfoReader.Version) { ComputedAtTicks = now });
+            r.SetStamp(new PackStamp(StampId, DemoMatchMeta.CurrentSchema, MatchInfoReader.Version)
+            {
+                ComputedAtTicks = now
+            });
         });
     }
 
@@ -73,12 +78,15 @@ public sealed partial class MatchMetaPass : IRecordPass
     /// <param name="named">The Valve file name's three numbers, or null when the name is not one.</param>
     /// <param name="info">The decoded <c>.dem.info</c>, or null when none was found.</param>
     /// <param name="written">The demo file's write time, or null when unknown.</param>
-    public static DemoMatchMeta Resolve(DemoMatchMeta? previous, (ulong Reservation, long Outcome, long Token)? named, MatchInfo? info,
+    public static DemoMatchMeta Resolve(DemoMatchMeta? previous, (ulong Reservation, long Outcome, long Token)? named,
+        MatchInfo? info,
         DateTime? written)
     {
-        (MatchTimeSource source, long? ticks) = info?.MatchTimeUtc is { } played ? (MatchTimeSource.ValveMatchInfo, played.Ticks)
-            : written is { } time ? (MatchTimeSource.FileWriteTime, time.Ticks)
-            : (MatchTimeSource.Unknown, (long?)null);
+        (MatchTimeSource source, long? ticks) = info?.MatchTimeUtc is { } played
+            ? (MatchTimeSource.ValveMatchInfo, played.Ticks)
+            : written is { } time
+                ? (MatchTimeSource.FileWriteTime, time.Ticks)
+                : (MatchTimeSource.Unknown, (long?)null);
         if (previous is not null && previous.MatchTimeSource < source)
         {
             (source, ticks) = (previous.MatchTimeSource, previous.MatchTimeUtcTicks);
@@ -104,9 +112,12 @@ public sealed partial class MatchMetaPass : IRecordPass
     {
         Match match = ValveName().Match(Path.GetFileName(path));
         return match.Success
-               && ulong.TryParse(match.Groups[1].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture, out ulong reservation)
-               && long.TryParse(match.Groups[2].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture, out long outcome)
-               && long.TryParse(match.Groups[3].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture, out long token)
+               && ulong.TryParse(match.Groups[1].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture,
+                   out ulong reservation)
+               && long.TryParse(match.Groups[2].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture,
+                   out long outcome)
+               && long.TryParse(match.Groups[3].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture,
+                   out long token)
             ? (reservation, outcome, token)
             : null;
     }

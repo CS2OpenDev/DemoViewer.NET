@@ -47,16 +47,8 @@ public class ErrorReportViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             ErrorReportViewModel vm = new();
-            ErrorReportView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 680,
-                Height = 720,
-                Content = view
-            };
+            ErrorReportView view = new() { DataContext = vm };
+            Window window = new() { Width = 680, Height = 720, Content = view };
             window.Show();
             Pump();
 
@@ -100,16 +92,8 @@ public class ErrorReportViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             ErrorReportViewModel vm = new();
-            ErrorReportView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = w,
-                Height = h,
-                Content = view
-            };
+            ErrorReportView view = new() { DataContext = vm };
+            Window window = new() { Width = w, Height = h, Content = view };
             window.Show();
             Pump();
 
@@ -161,16 +145,8 @@ public class ErrorReportViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             ErrorReportViewModel vm = new();
-            ErrorReportView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 680,
-                Height = 720,
-                Content = view
-            };
+            ErrorReportView view = new() { DataContext = vm };
+            Window window = new() { Width = 680, Height = 720, Content = view };
             window.Show();
             Pump();
 
@@ -184,21 +160,10 @@ public class ErrorReportViewTests
             Pump();
 
             // Negative control: the same disabled shape WITHOUT the flag, hovered the same way.
-            Button bare = new()
-            {
-                Content = "control",
-                IsEnabled = false,
-                Width = 80,
-                Height = 24
-            };
+            Button bare = new() { Content = "control", IsEnabled = false, Width = 80, Height = 24 };
             ToolTip.SetTip(bare, "never shown");
             ToolTip.SetShowDelay(bare, 0);
-            Window probe = new()
-            {
-                Width = 200,
-                Height = 100,
-                Content = bare
-            };
+            Window probe = new() { Width = 200, Height = 100, Content = bare };
             probe.Show();
             Pump();
             probe.MouseMove(bare.TranslatePoint(new Point(40, 12), probe)!.Value);

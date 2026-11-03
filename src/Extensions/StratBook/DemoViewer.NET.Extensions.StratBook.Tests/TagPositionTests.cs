@@ -34,8 +34,15 @@ public class TagPositionTests
     private static readonly List<LibraryRound> _rounds = [new LibraryRound(1, 0)];
 
     // The upper floor of a two-floor map: band [-500, 100000), key QuantizeZ(-500) = -512.
-    private static readonly MapLevel Upper = new() { Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000 };
-    private static readonly MapLevel Lower = new() { Id = MapSpace.IdForZMin(-2000), Name = "lower", ZMin = -2000, ZMax = -500 };
+    private static readonly MapLevel Upper = new()
+    {
+        Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000
+    };
+
+    private static readonly MapLevel Lower = new()
+    {
+        Id = MapSpace.IdForZMin(-2000), Name = "lower", ZMin = -2000, ZMax = -500
+    };
 
     private static readonly string[] HutOnly = ["Hut"];
     private static readonly string[] RampOnly = ["Ramp"];
@@ -56,16 +63,25 @@ public class TagPositionTests
 
     private static async Task<TagSession> Attached()
     {
-        TagSession session = new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        TagSession session =
+            new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
+            {
+                AutoSaveDelay = TimeSpan.FromHours(1)
+            };
         await session.AttachAsync(Demo, Clock, DemoPath);
         return session;
     }
 
     private static TagPosition Point(double x, double y, string? place) =>
-        new() { X = x, Y = y, LevelMinZ = -512, Tick = 100, Place = place, PlaceSource = place is null ? null : "pawn" };
+        new()
+        {
+            X = x,
+            Y = y,
+            LevelMinZ = -512,
+            Tick = 100,
+            Place = place,
+            PlaceSource = place is null ? null : "pawn"
+        };
 
     [Test]
     public async Task WithZones_TheClickResolvesOnTheClickedFloor_AndIsStampedWithTheEffectiveVersion()
@@ -74,16 +90,20 @@ public class TagPositionTests
         {
             PlaceResolver zones = Zones();
             TagPosition hut = TagPositionResolver.Resolve(50, 50, Upper, 4_000, zones, [Pawn(0, 150, 50, 0, "Ramp")]);
-            TagPosition nowhere = TagPositionResolver.Resolve(5_000, 5_000, Upper, 4_000, zones, [Pawn(0, 5_010, 5_000, 0, "Ramp")]);
+            TagPosition nowhere =
+                TagPositionResolver.Resolve(5_000, 5_000, Upper, 4_000, zones, [Pawn(0, 5_010, 5_000, 0, "Ramp")]);
 
             using (Assert.Multiple())
             {
-                await Assert.That(hut.Place).IsEqualTo("Hut").Because("the zones answer, not the pawn standing next door");
+                await Assert.That(hut.Place).IsEqualTo("Hut")
+                    .Because("the zones answer, not the pawn standing next door");
                 await Assert.That(hut.PlaceSource).IsEqualTo("zones:9f1c02aa");
-                await Assert.That(hut.LevelMinZ).IsEqualTo(-512).Because("the band floor quantized, the annotation anchor rule");
+                await Assert.That(hut.LevelMinZ).IsEqualTo(-512)
+                    .Because("the band floor quantized, the annotation anchor rule");
                 await Assert.That(hut.X).IsEqualTo(50);
                 await Assert.That(hut.Tick).IsEqualTo(4_000);
-                await Assert.That(nowhere.Place).IsNull().Because("a zones miss is unresolved, not guessed from a pawn");
+                await Assert.That(nowhere.Place).IsNull()
+                    .Because("a zones miss is unresolved, not guessed from a pawn");
                 await Assert.That(nowhere.PlaceSource).IsNull();
             }
         });
@@ -149,7 +169,8 @@ public class TagPositionTests
                 await Assert.That(tag.Positions[0].X).IsEqualTo(400);
                 await Assert.That(session.UndoDepth).IsEqualTo(1).Because("the clicks ride the code press's batch");
                 await Assert.That(palette.LastText).Contains("Ramp→BombsiteA");
-                await Assert.That(palette.LastText).Contains("@400,400").Because("an unresolved point shows where it was clicked");
+                await Assert.That(palette.LastText).Contains("@400,400")
+                    .Because("an unresolved point shows where it was clicked");
             }
 
             session.Undo();
@@ -218,9 +239,15 @@ public class TagPositionTests
             IReadOnlyList<TagInstanceRef> atRamp = TagQuery.Find(docs,
                 TagSlice.Everything with { Positions = [new PositionPredicate(new HashSet<string>(RampOnly))] });
             IReadOnlyList<TagInstanceRef> inSquare = TagQuery.Find(docs,
-                TagSlice.Everything with { Positions = [new PositionPredicate(null, [(0, 0), (100, 0), (100, 100), (0, 100)])] });
+                TagSlice.Everything with
+                {
+                    Positions = [new PositionPredicate(null, [(0, 0), (100, 0), (100, 100), (0, 100)])]
+                });
             IReadOnlyList<TagInstanceRef> belowAnywhere = TagQuery.Find(docs,
-                TagSlice.Everything with { Positions = [new PositionPredicate(null, LevelMinZ: MapSpace.QuantizeZ(-2000))] });
+                TagSlice.Everything with
+                {
+                    Positions = [new PositionPredicate(null, LevelMinZ: MapSpace.QuantizeZ(-2000))]
+                });
             IReadOnlyList<TagInstanceRef> rampAndBelow = TagQuery.Find(docs, TagSlice.Everything with
             {
                 Positions =
@@ -229,19 +256,28 @@ public class TagPositionTests
                     new PositionPredicate(null, LevelMinZ: MapSpace.QuantizeZ(-2000))
                 ]
             });
-            IReadOnlyList<TagInstanceRef> rampBelow = TagQuery.Find(docs, TagSlice.Everything with
-            {
-                Positions = [new PositionPredicate(new HashSet<string>(RampOnly), LevelMinZ: MapSpace.QuantizeZ(-2000))]
-            });
+            IReadOnlyList<TagInstanceRef> rampBelow = TagQuery.Find(docs,
+                TagSlice.Everything with
+                {
+                    Positions =
+                    [
+                        new PositionPredicate(new HashSet<string>(RampOnly), LevelMinZ: MapSpace.QuantizeZ(-2000))
+                    ]
+                });
 
             using (Assert.Multiple())
             {
-                await Assert.That(atHut.Select(r => r.Id)).IsEquivalentTo(new[] { hutTag }, CollectionOrdering.Matching);
-                await Assert.That(atRamp.Select(r => r.Id)).IsEquivalentTo(new[] { moveTag }, CollectionOrdering.Matching)
+                await Assert.That(atHut.Select(r => r.Id))
+                    .IsEquivalentTo(new[] { hutTag }, CollectionOrdering.Matching);
+                await Assert.That(atRamp.Select(r => r.Id))
+                    .IsEquivalentTo(new[] { moveTag }, CollectionOrdering.Matching)
                     .Because("a movement's end counts as a point of the tag");
-                await Assert.That(inSquare.Select(r => r.Id)).IsEquivalentTo(new[] { hutTag }, CollectionOrdering.Matching);
-                await Assert.That(belowAnywhere.Select(r => r.Id)).IsEquivalentTo(new[] { moveTag }, CollectionOrdering.Matching);
-                await Assert.That(rampAndBelow.Select(r => r.Id)).IsEquivalentTo(new[] { moveTag }, CollectionOrdering.Matching)
+                await Assert.That(inSquare.Select(r => r.Id))
+                    .IsEquivalentTo(new[] { hutTag }, CollectionOrdering.Matching);
+                await Assert.That(belowAnywhere.Select(r => r.Id))
+                    .IsEquivalentTo(new[] { moveTag }, CollectionOrdering.Matching);
+                await Assert.That(rampAndBelow.Select(r => r.Id))
+                    .IsEquivalentTo(new[] { moveTag }, CollectionOrdering.Matching)
                     .Because("separate predicates may be met by separate points");
                 await Assert.That(rampBelow).IsEmpty().Because("one predicate's clauses must hold on the same point");
                 await Assert.That(TagQuery.Find(docs, TagSlice.Everything).Count).IsEqualTo(2)
@@ -271,7 +307,8 @@ public class TagPositionTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             review.ReviewMode!.IsOn = true; // tagging and its lanes live in Review mode
             ctx.PushPlacedMarkers((0, 2, -800f, 600f, 64f, "Ramp"), (1, 3, 900f, -500f, 64f, "BombsiteA"));
             TagSession tags = review.Session!;

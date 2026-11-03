@@ -88,7 +88,11 @@ public class PlayerOverviewTabTests
                     new CachedPlayerInfo { Slot = 2, Name = "alt", SteamId64 = Id(Alt), Team = 3 },
                     new CachedPlayerInfo { Slot = 3, Name = "other", SteamId64 = Id(Other), Team = 3 }
                 ],
-                MatchMeta = new DemoMatchMeta { MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo }
+                MatchMeta = new DemoMatchMeta
+                {
+                    MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay,
+                    MatchTimeSource = MatchTimeSource.ValveMatchInfo
+                }
             };
             DemoCacheStore.StampHeader(record);
             DemoCacheStore.StampParse(record);
@@ -110,11 +114,13 @@ public class PlayerOverviewTabTests
         return identity;
     }
 
-    private static PlayerOverviewServices Services(PlayerDirectory directory, IdentityService identity, List<string?>? settingsOpened = null) =>
+    private static PlayerOverviewServices Services(PlayerDirectory directory, IdentityService identity,
+        List<string?>? settingsOpened = null) =>
         new(directory, identity, null, _ => { }, _ => { }, (_, _) => { }, section => settingsOpened?.Add(section));
 
     // A shown tab over the store, so every change refreshes at once.
-    private static PlayerOverviewTabViewModel Shown(DemoCacheStore store, IdentityService identity, FakeQueue? queue = null,
+    private static PlayerOverviewTabViewModel Shown(DemoCacheStore store, IdentityService identity,
+        FakeQueue? queue = null,
         List<string?>? settingsOpened = null)
     {
         PlayerOverviewTabViewModel vm = new(Services(new PlayerDirectory(store), identity, settingsOpened), queue);
@@ -144,7 +150,8 @@ public class PlayerOverviewTabTests
                 stale.Dispose();
 
                 settings.SaveSession(new SessionPayload(null, null, null, false, false, "builtin.library"));
-                MainViewModel remembered = new(null, new ModuleRegistry(), TestLibraries.Empty(), settingsService: settings,
+                MainViewModel remembered = new(null, new ModuleRegistry(), TestLibraries.Empty(),
+                    settingsService: settings,
                     players: new PlayerDirectory(Library(1, 0)), identity: identity);
                 remembered.RestoreSession();
                 await Assert.That(remembered.SelectedTab!.TabId).IsEqualTo("builtin.library");
@@ -169,7 +176,8 @@ public class PlayerOverviewTabTests
             {
                 List<string> ids = [.. vm.Tabs.Select(t => t.TabId)];
                 await Assert.That(vm.PlayerOverviewTab).IsNotNull();
-                await Assert.That(ids.Take(2)).IsEquivalentTo([HostIds.PlayerOverviewTab, "builtin.library"], CollectionOrdering.Matching);
+                await Assert.That(ids.Take(2)).IsEquivalentTo([HostIds.PlayerOverviewTab, "builtin.library"],
+                    CollectionOrdering.Matching);
                 await Assert.That(vm.SelectedTab!.TabId).IsEqualTo(HostIds.PlayerOverviewTab);
             }
             finally
@@ -237,7 +245,8 @@ public class PlayerOverviewTabTests
     public async Task BrowserGate_ClosesTheTab_DesktopKeepsIt()
     {
         await Assert.That(FeatureCatalog.All.Any(d => d.Id == PlayerOverviewTabViewModel.FeatureId)).IsTrue();
-        await Assert.That(ShellModuleFeatureGate.DesktopOnlyIds.Contains(PlayerOverviewTabViewModel.FeatureId)).IsTrue();
+        await Assert.That(ShellModuleFeatureGate.DesktopOnlyIds.Contains(PlayerOverviewTabViewModel.FeatureId))
+            .IsTrue();
         using ShellModuleFeatureGate browser = new(null, () => true);
         using ShellModuleFeatureGate desktop = new(null, () => false);
         await Assert.That(browser.IsEnabled(PlayerOverviewTabViewModel.FeatureId)).IsFalse();
@@ -290,7 +299,8 @@ public class PlayerOverviewTabTests
 
             using PlayerOverviewTabViewModel following = Shown(Library(2, 2), identity);
             following.RestoreState(JsonSerializer.SerializeToElement(new PlayerOverviewSession(Id(Other), false)));
-            await Assert.That(following.SubjectSteamId64).IsEqualTo(Me).Because("an unpinned subject follows the active account");
+            await Assert.That(following.SubjectSteamId64).IsEqualTo(Me)
+                .Because("an unpinned subject follows the active account");
         });
     }
 
@@ -359,7 +369,8 @@ public class PlayerOverviewTabTests
             using IdentityService identity = Identity(Me, Alt);
             using PlayerOverviewTabViewModel vm = Shown(Library(2, 2), identity);
             vm.OpenPlayer(Other);
-            await Assert.That(vm.MeAccounts.Select(a => a.Title)).IsEquivalentTo(["me", "alt"], CollectionOrdering.Matching);
+            await Assert.That(vm.MeAccounts.Select(a => a.Title))
+                .IsEquivalentTo(["me", "alt"], CollectionOrdering.Matching);
             await Assert.That(vm.MeAccounts.Single(a => a.IsActive).SteamId64).IsEqualTo(Id(Me));
 
             vm.SwitchAccountCommand.Execute(vm.MeAccounts.Single(a => a.SteamId64 == Id(Alt)));
@@ -473,7 +484,10 @@ public class PlayerOverviewTabTests
             await Assert.That(header.IsMine).IsTrue();
             await Assert.That(header.DemoCountText).IsEqualTo("2 demos");
 
-            Window window = new() { Width = 1200, Height = 700, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1200, Height = 700, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -483,7 +497,8 @@ public class PlayerOverviewTabTests
             PlayerOverviewPage history = vm.Pages.Single(p => p.Kind == PlayerOverviewPageKind.History);
             await Assert.That(window.GetVisualDescendants().OfType<HeaderSectionView>().Count()).IsEqualTo(1);
             await Assert.That(overview.IsStacked).IsFalse();
-            await Assert.That(history.IsStacked).IsTrue().Because("history's two tables need the width before they sit side by side");
+            await Assert.That(history.IsStacked).IsTrue()
+                .Because("history's two tables need the width before they sit side by side");
             await Assert.That(history.BottomColumns).IsEqualTo(1);
             window.Width = 1600;
             Dispatcher.UIThread.RunJobs();
@@ -515,18 +530,24 @@ public class PlayerOverviewTabTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.Pages.Select(p => p.Kind)).IsEquivalentTo(
-                [PlayerOverviewPageKind.Overview, PlayerOverviewPageKind.History, PlayerOverviewPageKind.Stats, PlayerOverviewPageKind.Achievements],
+                [
+                    PlayerOverviewPageKind.Overview, PlayerOverviewPageKind.History, PlayerOverviewPageKind.Stats,
+                    PlayerOverviewPageKind.Achievements
+                ],
                 CollectionOrdering.Matching);
             await Assert.That(vm.Persistent.Select(s => s.Id)).IsEquivalentTo(["header"], CollectionOrdering.Matching);
-            await Assert.That(vm.Persistent.Concat(placed).Select(s => s.Id)).IsEquivalentTo(vm.Sections.Select(s => s.Id), CollectionOrdering.Matching)
+            await Assert.That(vm.Persistent.Concat(placed).Select(s => s.Id))
+                .IsEquivalentTo(vm.Sections.Select(s => s.Id), CollectionOrdering.Matching)
                 .Because("the registry lists the sections in page order");
             await Assert.That(vm.Pages.Single(p => p.Kind == PlayerOverviewPageKind.History).Sections.Select(s => s.Id))
                 .IsEquivalentTo(["history", "maps", "teammates", "headtohead"], CollectionOrdering.Matching);
             await Assert.That(vm.Pages.Single(p => p.Kind == PlayerOverviewPageKind.History).Bottom.Select(s => s.Id))
                 .IsEquivalentTo(["teammates", "headtohead"], CollectionOrdering.Matching);
-            await Assert.That(vm.Pages.Single(p => p.Kind == PlayerOverviewPageKind.Achievements).Sections.Select(s => s.Id))
+            await Assert.That(vm.Pages.Single(p => p.Kind == PlayerOverviewPageKind.Achievements).Sections
+                    .Select(s => s.Id))
                 .IsEquivalentTo(["personal-bests", "highlights"], CollectionOrdering.Matching);
-            await Assert.That(vm.Pages.Single(p => p.Kind == PlayerOverviewPageKind.History).Header).IsEqualTo("History · 2");
+            await Assert.That(vm.Pages.Single(p => p.Kind == PlayerOverviewPageKind.History).Header)
+                .IsEqualTo("History · 2");
         }
     }
 
@@ -554,7 +575,8 @@ public class PlayerOverviewTabTests
         vm.Filter.Window = vm.Filter.Windows.First(w => w != vm.Filter.Window);
         PlayerAggregate? before = summary.InWindow;
         vm.ShowPage(PlayerOverviewPageKind.Overview);
-        await Assert.That(summary.InWindow).IsNotSameReferenceAs(before).Because("the Overview catches up on the filter when shown");
+        await Assert.That(summary.InWindow).IsNotSameReferenceAs(before)
+            .Because("the Overview catches up on the filter when shown");
     }
 
     [Test]
@@ -593,7 +615,10 @@ public class PlayerOverviewTabTests
         {
             DemoCacheRecord record = new()
             {
-                Path = path, Size = 100, ModifiedTicks = 1, Map = "de_nuke",
+                Path = path,
+                Size = 100,
+                ModifiedTicks = 1,
+                Map = "de_nuke",
                 Players = [new CachedPlayerInfo { Slot = 1, Name = name, SteamId64 = Id(id), Team = 2 }]
             };
             DemoCacheStore.StampHeader(record);
@@ -609,7 +634,11 @@ public class PlayerOverviewTabTests
     {
         using IdentityService identity = Identity(Me);
         using PlayerOverviewTabViewModel vm = Shown(TwinLibrary(), identity);
-        foreach (string form in new[] { Id(Other), "https://steamcommunity.com/profiles/" + Id(Other), "[U:1:" + (Other - SteamIdParser.IndividualBase) + "]" })
+        foreach (string form in new[]
+                 {
+                     Id(Other), "https://steamcommunity.com/profiles/" + Id(Other),
+                     "[U:1:" + (Other - SteamIdParser.IndividualBase) + "]"
+                 })
         {
             vm.OpenPlayer(Me);
             vm.SearchText = form;
@@ -628,7 +657,8 @@ public class PlayerOverviewTabTests
         string steamId2 = "STEAM_0:" + (account % 2) + ":" + (account / 2);
         foreach (string form in new[]
                  {
-                     Id(Other), "[U:1:" + account + "]", "https://steamcommunity.com/profiles/[U:1:" + account + "]",
+                     Id(Other), "[U:1:" + account + "]",
+                     "https://steamcommunity.com/profiles/[U:1:" + account + "]",
                      "https://steamcommunity.com/profiles/" + Id(Other), steamId2
                  })
         {
@@ -636,7 +666,8 @@ public class PlayerOverviewTabTests
             for (int typed = 1; typed < form.Length; typed++)
             {
                 vm.SearchText = form[..typed];
-                await Assert.That(vm.SubjectSteamId64).IsEqualTo(Me).Because($"'{form[..typed]}' is a prefix of {form}");
+                await Assert.That(vm.SubjectSteamId64).IsEqualTo(Me)
+                    .Because($"'{form[..typed]}' is a prefix of {form}");
                 await Assert.That(vm.SearchText).IsEqualTo(form[..typed]);
             }
 
@@ -658,7 +689,8 @@ public class PlayerOverviewTabTests
         using IdentityService identity = Identity(Me);
         using PlayerOverviewTabViewModel vm = Shown(TwinLibrary(), identity);
         vm.SearchText = "twin";
-        await Assert.That(vm.Candidates.Select(c => c.SteamId64).ToArray()).IsEquivalentTo(new[] { Other, Alt }, CollectionOrdering.Matching);
+        await Assert.That(vm.Candidates.Select(c => c.SteamId64).ToArray())
+            .IsEquivalentTo(new[] { Other, Alt }, CollectionOrdering.Matching);
         await Assert.That(vm.Candidates[0].Demos).IsEqualTo("3 demos");
         vm.SubmitSearchCommand.Execute(null);
         await Assert.That(vm.SubjectSteamId64).IsEqualTo(Me).Because("two candidates are not opened by Enter");
@@ -700,7 +732,8 @@ public class PlayerOverviewTabTests
     public async Task Sections_EachHaveAViewOfTheSameName()
     {
         using IdentityService identity = Identity(Me);
-        IReadOnlyList<PlayerOverviewSection> sections = PlayerOverviewSections.Create(Services(new PlayerDirectory(new DemoCacheStore(null)), identity),
+        IReadOnlyList<PlayerOverviewSection> sections = PlayerOverviewSections.Create(
+            Services(new PlayerDirectory(new DemoCacheStore(null)), identity),
             new PlayerOverviewFilterViewModel());
         await Assert.That(sections.Select(s => s.Id).Distinct().Count()).IsEqualTo(sections.Count);
         foreach (PlayerOverviewSection section in sections)
@@ -738,7 +771,8 @@ public class PlayerOverviewTabTests
 
         public int ActiveCount(QueueJobKind kind) => 0;
 
-        public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default) =>
+        public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request) => throw new NotSupportedException();

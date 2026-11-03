@@ -34,7 +34,8 @@ public class FindRoundsLikeThisRealDemoTests
         facts.Evaluate(path, parsed);
         RoundFactsRows rows = cache.TryLoadRecord(path)?.RoundFacts ?? throw new InvalidOperationException("no rows");
 
-        RoundIndexDocument document = RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
+        RoundIndexDocument document =
+            RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
 
         // A run in the middle of a live round with both sides placed: its first step is the tick the
         // scene is built for. The first step of a round is avoided on purpose: the scene decides alive
@@ -50,10 +51,7 @@ public class FindRoundsLikeThisRealDemoTests
         // The scene at that tick, through the export pipeline's frame source: the same SceneFrameBuilder
         // the tab's pushes go through, so the markers carry the place the pawn reported.
         using TrackerFrameSource source = new(parsed.Frames, new SceneFrameBuilder(), frameIndex, frameIndex, 60, 1.0,
-            tickRate)
-        {
-            MapName = parsed.MapName
-        };
+            tickRate) { MapName = parsed.MapName };
         source.Prepare(CancellationToken.None);
         Scene2DFrame frame = source.FrameAt(0);
 

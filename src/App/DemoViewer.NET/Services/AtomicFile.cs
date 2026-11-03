@@ -73,7 +73,8 @@ public static class AtomicFile
                 File.Move(temp, target, overwrite: true);
                 return;
             }
-            catch (Exception ex) when (attempt < ReplaceRetryDelaysMs.Length && OperatingSystem.IsWindows() && IsTransientOnWindows(ex))
+            catch (Exception ex) when (attempt < ReplaceRetryDelaysMs.Length && OperatingSystem.IsWindows()
+                                                                             && IsTransientOnWindows(ex))
             {
                 Thread.Sleep(ReplaceRetryDelaysMs[attempt]);
             }

@@ -45,7 +45,8 @@ public class TagMatrixRealDemoTests
         DemoCacheStore.StampParse(record);
         cache.Upsert(record);
 
-        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
+        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(),
+            new RulesRoundFactsRulesetIdentity());
         RoundFactsSource facts = new(cache, evaluator);
         TagStore tags = new(null);
         tags.Save(Document(Sha,
@@ -55,7 +56,8 @@ public class TagMatrixRealDemoTests
         RoundFactsRows rows = facts.TryGet(path) ?? throw new InvalidOperationException("the evaluator wrote no rows");
 
         ReviewQueue queue = new(null);
-        using TagMatrixTabViewModel matrix = new(tags, new ExtensionReviewQueue(queue), cache.Library().FindBySha256, debounce: TimeSpan.Zero, isBrowser: false);
+        using TagMatrixTabViewModel matrix = new(tags, new ExtensionReviewQueue(queue), cache.Library().FindBySha256,
+            debounce: TimeSpan.Zero, isBrowser: false);
         matrix.ColumnAxis = TagMatrixAxis.Label(LabelNamespace.Fact, "buy.t");
         await matrix.Pending;
 

@@ -332,7 +332,8 @@ public class App : Application
                             try
                             {
                                 // Resolving it runs the extension's constructor, which can throw too.
-                                services.GetKeyedService<IExtensionLifecycle>(pack.Id)?.OnShutdown(TimeSpan.FromSeconds(5));
+                                services.GetKeyedService<IExtensionLifecycle>(pack.Id)
+                                    ?.OnShutdown(TimeSpan.FromSeconds(5));
                             }
                             catch (Exception ex)
                             {
@@ -353,6 +354,7 @@ public class App : Application
                     }
                 }
             }
+
             desktop.ShutdownRequested += (_, e) =>
             {
                 // Geometry snapshot first (idempotent: this handler can re-fire after a cancelled
@@ -486,7 +488,8 @@ public class App : Application
             _backstops ??= ExtensionBackstops.Install(services.GetRequiredService<ExtensionFaults>());
             WireTheme(services); // apply persisted theme + keep it live
             MainViewModel viewModel = services.GetRequiredService<MainViewModel>();
-            WireDiagnosticsLogging(services, viewModel); // internal ILogger pillar -> Diagnostics tab (file no-ops on WASM)
+            WireDiagnosticsLogging(services,
+                viewModel); // internal ILogger pillar -> Diagnostics tab (file no-ops on WASM)
             LogExtensionStatuses();
 
             // Same ordering contract as the desktop root above: after the singleton is cached, never in
@@ -523,7 +526,9 @@ public class App : Application
             string version = status.Manifest?.Version.ToString() ?? "?";
             if (status.IsCompatible)
             {
-                string location = status.Source is PackSource.Staged staged ? staged.Directory : status.Pack.GetType().Assembly.Location;
+                string location = status.Source is PackSource.Staged staged
+                    ? staged.Directory
+                    : status.Pack.GetType().Assembly.Location;
                 AppLog.ExtensionLoaded(log, name, version, status.Source.Label, location);
             }
             else
@@ -724,7 +729,8 @@ public class App : Application
     }
 
     private static Func<Action, Task> StartupLoad(IServiceProvider sp, string title, string owner) =>
-        load => QueueWork.Run(sp.GetRequiredService<IDemoProcessingQueue>(), QueueJobKind.StoreLoad, title, owner, _ => load(),
+        load => QueueWork.Run(sp.GetRequiredService<IDemoProcessingQueue>(), QueueJobKind.StoreLoad, title, owner,
+            _ => load(),
             DemoJobPriority.UserRequested);
 
     /// <summary>
@@ -761,10 +767,7 @@ public class App : Application
         // thread at framework-init) instead of silently at the first GetRequiredService<MainViewModel>().
         // It eagerly constructs the singletons, all of which the shell resolves immediately anyway, so
         // there is no extra side-effect beyond building them a few lines earlier, on the same UI thread.
-        ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions
-        {
-            ValidateOnBuild = true
-        });
+        ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
         QueueWork.Ambient = provider.GetRequiredService<IDemoProcessingQueue>();
         // Force-construct the scheduler so its wiring side-effect (library.Scheduler = it) runs before any
         // rescan, independent of ValidateOnBuild's eager-construction behavior. ValidatePasses populates and
@@ -848,7 +851,8 @@ public class App : Application
         // Before anything can write settings.json: its writes drop the keys a first-party extension moved out.
         LegacyExtensionSettings.Import(settings, AppPaths.ConfigRoot);
         // Before any extension attaches: the Strat Book's teams.json Me becomes the core identity once.
-        IdentityService.ImportTeamsJson(settings, AppPaths.ConfigRoot is { } identityRoot ? Path.Combine(identityRoot, "teams.json") : null);
+        IdentityService.ImportTeamsJson(settings,
+            AppPaths.ConfigRoot is { } identityRoot ? Path.Combine(identityRoot, "teams.json") : null);
         services.Configure<AppSettings>(settings.Configuration);
 
         // The feature gate resolves per-category show/hide from FeatureCatalog + the live
@@ -876,7 +880,8 @@ public class App : Application
         {
             ThemeRegistry registry = sp.GetRequiredService<ThemeRegistry>();
             IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
-            return new ThemeEditorLauncher(sp.GetRequiredService<IWindowService>(), sp.GetRequiredService<UserThemeStore>(),
+            return new ThemeEditorLauncher(sp.GetRequiredService<IWindowService>(),
+                sp.GetRequiredService<UserThemeStore>(),
                 new ThemeEditorHost
                 {
                     ActiveThemeId = () => monitor.CurrentValue.Theme,
@@ -917,7 +922,8 @@ public class App : Application
                 FeaturePacks.Statuses,
                 // The extension updater; absent where there is no config root to stage into.
                 sp.GetService<ExtensionUpdateService>());
-            settingsVm.AttachIdentity(sp.GetRequiredService<IdentityService>(), sp.GetRequiredService<PlayerDirectory>());
+            settingsVm.AttachIdentity(sp.GetRequiredService<IdentityService>(),
+                sp.GetRequiredService<PlayerDirectory>());
             if (ThemeEditorLauncher.IsSupported)
             {
                 settingsVm.AttachThemeEditor(id => sp.GetRequiredService<ThemeEditorLauncher>().Open(id));
@@ -925,7 +931,9 @@ public class App : Application
 
             // Says which extensions were switched off this session after errors.
             settingsVm.AttachExtensionFaults(sp.GetRequiredService<ExtensionFaults>(),
-                AppPaths.LogsDir is { } logs ? () => Services?.GetService<MainViewModel>()?.OpenOutputFolder(logs) : null);
+                AppPaths.LogsDir is { } logs
+                    ? () => Services?.GetService<MainViewModel>()?.OpenOutputFolder(logs)
+                    : null);
             return settingsVm;
         });
 
@@ -941,7 +949,8 @@ public class App : Application
                 ExtensionHost.Current,
                 TrustPolicy.Default,
                 HttpExtensionFeedClient.Shared,
-                id => ExtensionFeedSource.Resolve(sp.GetRequiredService<IOptionsMonitor<AppSettings>>().CurrentValue.Extensions.FeedUrl, id),
+                id => ExtensionFeedSource.Resolve(
+                    sp.GetRequiredService<IOptionsMonitor<AppSettings>>().CurrentValue.Extensions.FeedUrl, id),
                 sp.GetRequiredService<IDemoProcessingQueue>()));
         }
 
@@ -975,7 +984,8 @@ public class App : Application
         {
             IFeatureGate? gate = sp.GetService<IFeatureGate>();
             Lazy<IReadOnlyList<ContributedRuleset>> contributed =
-                new(() => sp.GetRequiredService<PackContributionSet>().Rulesets, LazyThreadSafetyMode.ExecutionAndPublication);
+                new(() => sp.GetRequiredService<PackContributionSet>().Rulesets,
+                    LazyThreadSafetyMode.ExecutionAndPublication);
             MergedRulesBuild rules = new(() => MergedRulesBuild.LoadShippedExtensionsUser(contributed.Value), () =>
             [
                 StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
@@ -983,18 +993,26 @@ public class App : Application
                 StampedRuleset.Core(PlayerEventFacet.RulesetId),
                 StampedRuleset.Core(PlayerRoundFacet.RulesetId),
                 .. LibraryTeamTables.RulesetIds.Select(StampedRuleset.Core),
-                .. contributed.Value.Select(c => new StampedRuleset(c.RulesetId, c.Owner, () => gate?.IsEnabled(c.FeatureId) ?? true) { ReadBy = c.ReadBy }),
-                .. FeaturePacks.ClaimedRulesets.Select(id => new StampedRuleset(id, StampedRuleset.ClaimedOwner, static () => false))
+                .. contributed.Value.Select(c =>
+                    new StampedRuleset(c.RulesetId, c.Owner, () => gate?.IsEnabled(c.FeatureId) ?? true)
+                    {
+                        ReadBy = c.ReadBy
+                    }),
+                .. FeaturePacks.ClaimedRulesets.Select(id =>
+                    new StampedRuleset(id, StampedRuleset.ClaimedOwner, static () => false))
             ]);
             // A read records the tables of the stamped rulesets whose stored outputs are stale for the demo. The
             // evaluators take this build, so they are resolved per call, never here.
             // The library tables are recorded on every run whatever this says. A pass's own tables are recorded
             // while that pass wants the demo.
-            rules.OutputsFor = path => rules.StampedOutputs(id => string.Equals(id, RoundFactsFingerprint.RulesetId, StringComparison.Ordinal)
-                ? sp.GetRequiredService<RoundFactsEvaluator>().Records(path)
-                : rules.StampedRulesets.FirstOrDefault(r => string.Equals(r.RulesetId, id, StringComparison.Ordinal)) is { ReadBy: { } reader } read
-                    ? PassWants(sp.GetRequiredService<PackContributionSet>(), read.Owner, reader, path)
-                    : !LibraryTeamTables.IsLibraryRuleset(id) && sp.GetRequiredService<FactsEvaluator>().Records(path, id));
+            rules.OutputsFor = path => rules.StampedOutputs(id =>
+                string.Equals(id, RoundFactsFingerprint.RulesetId, StringComparison.Ordinal)
+                    ? sp.GetRequiredService<RoundFactsEvaluator>().Records(path)
+                    : rules.StampedRulesets.FirstOrDefault(r =>
+                        string.Equals(r.RulesetId, id, StringComparison.Ordinal)) is { ReadBy: { } reader } read
+                        ? PassWants(sp.GetRequiredService<PackContributionSet>(), read.Owner, reader, path)
+                        : !LibraryTeamTables.IsLibraryRuleset(id)
+                          && sp.GetRequiredService<FactsEvaluator>().Records(path, id));
             rules.GuardOf = owner => sp.GetRequiredService<PackContributionSet>().Packs
                 .FirstOrDefault(c => string.Equals(c.Pack.Id, owner, StringComparison.Ordinal))?.Guard;
             // The visit in flight answers which collectors its rules run carries; resolved per call, like the cut.
@@ -1016,15 +1034,12 @@ public class App : Application
             // never read the file again for it. Resolved at the first read, never while the queue is built.
             DemoFileRead fileRead = new(TimeProvider.System,
                 path => sp.GetRequiredService<DemoCacheStore>().TryGetIndex(path)?.Sha256 is null,
-                read => sp.GetRequiredService<DemoCacheStore>().NoteContentRead(read.Path, read.Sha256, read.Fingerprint,
+                read => sp.GetRequiredService<DemoCacheStore>().NoteContentRead(read.Path, read.Sha256,
+                    read.Fingerprint,
                     read.Stat.Length, read.Stat.LastWriteUtc.UtcDateTime));
             ForwardPassRunner? forward = OperatingSystem.IsBrowser()
                 ? null
-                : new ForwardPassRunner(rules)
-                {
-                    FileRead = fileRead,
-                    OutputsFor = rules.OutputsFor
-                };
+                : new ForwardPassRunner(rules) { FileRead = fileRead, OutputsFor = rules.OutputsFor };
             DemoProcessingQueue queue = new(
                 sp.GetRequiredService<HeavyJobGate>(),
                 action => Dispatcher.UIThread.Post(action),
@@ -1101,7 +1116,8 @@ public class App : Application
         // Highlights pipeline: the library-wide cache store and the
         // scanner over it. The scanner's library universe is the indexer's current entries; the
         // background-scan opt-in is read live from settings; UI marshalling via the dispatcher.
-        services.AddSingleton<IHighlightHarvester>(sp => new RulesHighlightHarvester(sp.GetRequiredService<MergedRulesBuild>()));
+        services.AddSingleton<IHighlightHarvester>(sp =>
+            new RulesHighlightHarvester(sp.GetRequiredService<MergedRulesBuild>()));
         // The scan chip's mapper. A container singleton so the shell (which registers the chip into
         // the status strip) and the Reels tab (which shows the same state inline) share ONE instance.
         // The Reels tab VM is a container SINGLETON: the module framework already caches one instance per
@@ -1168,7 +1184,8 @@ public class App : Application
         // The row source and the identity share the one merged build, so rows are always stored under the
         // fingerprint of the doc that produced them. Always on: 2D Playback reads the rows for every user.
         services.AddSingleton(sp => new RulesRoundFactsRulesetIdentity(sp.GetRequiredService<MergedRulesBuild>()));
-        services.AddSingleton<IRoundFactsRulesetIdentity>(sp => sp.GetRequiredService<RulesRoundFactsRulesetIdentity>());
+        services.AddSingleton<IRoundFactsRulesetIdentity>(sp =>
+            sp.GetRequiredService<RulesRoundFactsRulesetIdentity>());
         services.AddSingleton<IRoundFactsRowSource>(sp =>
             new EngineRoundFactsRowSource(sp.GetRequiredService<RulesRoundFactsRulesetIdentity>()));
         services.AddSingleton(sp => new RoundFactsEvaluator(
@@ -1197,20 +1214,24 @@ public class App : Application
 
         // Every account in the library, projected from the index on read; the Player Overview's source.
         services.AddSingleton(sp => new PlayerDirectory(sp.GetRequiredService<DemoCacheStore>()));
-        services.AddSingleton(sp => new PlayerRowCache(sp.GetRequiredService<DemoCacheStore>(), sp.GetRequiredService<PlayerDirectory>(),
+        services.AddSingleton(sp => new PlayerRowCache(sp.GetRequiredService<DemoCacheStore>(),
+            sp.GetRequiredService<PlayerDirectory>(),
             path => sp.GetRequiredService<AnalysisFacts>().TryGet(path, PlayerMatchFacet.Key),
             path => sp.GetRequiredService<AnalysisFacts>().TryGet(path, PlayerRoundFacet.Key)));
-        services.AddSingleton(sp => new PlayerRankCache(sp.GetRequiredService<DemoCacheStore>(), sp.GetRequiredService<PlayerDirectory>()));
+        services.AddSingleton(sp =>
+            new PlayerRankCache(sp.GetRequiredService<DemoCacheStore>(), sp.GetRequiredService<PlayerDirectory>()));
 
         // Who the user is, from settings; the directory feeds its "this is you" suggestion.
-        services.AddSingleton(sp => new IdentityService(sp.GetRequiredService<SettingsService>(), sp.GetRequiredService<PlayerDirectory>(),
+        services.AddSingleton(sp => new IdentityService(sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<PlayerDirectory>(),
             action => Dispatcher.UIThread.Post(action)));
 
         // The Review Queue: every surface's clips in one ordered list, review-queue.json beside
         // teams.json. One per process, because the Reels tray, the Result Cards and the Review tab must
         // all mutate the same list. Null config root (the browser) keeps it for the session.
         services.AddSingleton(sp => new ReviewQueue(AppPaths.ConfigRoot,
-            scheduleSave: QueueWork.Saves(sp.GetRequiredService<IDemoProcessingQueue>(), "Save: review queue", "review", "save:review-queue"),
+            scheduleSave: QueueWork.Saves(sp.GetRequiredService<IDemoProcessingQueue>(), "Save: review queue", "review",
+                "save:review-queue"),
             scheduleLoad: StartupLoad(sp, "Load: review queue", "review")));
         // The "one parse, many evaluators" scheduler: the single submitter that asks the registered passes
         // about a demo and submits them together as ONE visit, so the demo is read once. Library,
@@ -1271,7 +1292,8 @@ public class App : Application
             registry.AddPacksLazily(() =>
             {
                 IFeatureGate? features = sp.GetService<IFeatureGate>();
-                List<PackContributions> pending = [.. sp.GetRequiredService<PackContributionSet>().Packs.Where(c => c.Passes.Count > 0)];
+                List<PackContributions> pending =
+                    [.. sp.GetRequiredService<PackContributionSet>().Packs.Where(c => c.Passes.Count > 0)];
                 Dictionary<PackContributions, string> refused = [];
                 bool progress = true;
                 while (pending.Count > 0 && progress)
@@ -1324,12 +1346,16 @@ public class App : Application
             Lazy<IReadOnlyList<(IExtension Pack, Func<IRecordPass> Factory)>> contributed = new(() =>
             {
                 IReadOnlyList<PackContributions> packs = sp.GetRequiredService<PackContributionSet>().Packs;
-                DemoDataOwner? OwnerOf(string id) => packs.FirstOrDefault(c => string.Equals(c.Pack.Id, id, StringComparison.Ordinal)) is { } c
-                    ? new DemoDataOwner(c.Context.Data, () => features?.IsEnabled(c.Pack.FeatureId) ?? true)
-                    : null;
+
+                DemoDataOwner? OwnerOf(string id) =>
+                    packs.FirstOrDefault(c => string.Equals(c.Pack.Id, id, StringComparison.Ordinal)) is { } c
+                        ? new DemoDataOwner(c.Context.Data, () => features?.IsEnabled(c.Pack.FeatureId) ?? true)
+                        : null;
+
                 // A named facet's write lands in its extension's own store, which the cache never hears of.
                 foreach (string owner in packs.SelectMany(c => c.RecordPasses)
-                             .SelectMany(r => ExtensionRecordPassHost.DataOwnersOf(r.DependsOn)).Distinct(StringComparer.Ordinal))
+                             .SelectMany(r => ExtensionRecordPassHost.DataOwnersOf(r.DependsOn))
+                             .Distinct(StringComparer.Ordinal))
                 {
                     if (OwnerOf(owner) is { } data)
                     {
@@ -1340,7 +1366,9 @@ public class App : Application
                 return
                 [
                     .. packs.SelectMany(c => c.RecordPasses.Select(r =>
-                        (c.Pack, ExtensionRecordPassHost.Cached(r, () => HostLibrary.For(cache, queue, sp.GetRequiredService<AnalysisFacts>), OwnerOf))))
+                        (c.Pack,
+                            ExtensionRecordPassHost.Cached(r,
+                                () => HostLibrary.For(cache, queue, sp.GetRequiredService<AnalysisFacts>), OwnerOf))))
                 ];
             });
             // An extension switched off takes its rulesets' facts off every library row; readers hear it as one change.
@@ -1400,7 +1428,8 @@ public class App : Application
         services.AddSingleton<ExtensionShellHub>();
         services.AddSingleton<IFirstPartyShellState>(sp => sp.GetRequiredService<ExtensionShellHub>());
         services.AddSingleton<IFirstPartyExportChips>(sp => sp.GetRequiredService<ExtensionShellHub>());
-        services.AddSingleton(sp => new NotificationCenter(static a => Dispatcher.UIThread.Post(a), sp.GetService<IFeatureGate>()));
+        services.AddSingleton(sp =>
+            new NotificationCenter(static a => Dispatcher.UIThread.Post(a), sp.GetService<IFeatureGate>()));
         foreach (IExtension pack in packs)
         {
             ExtensionContextAccess.Register(services, pack);
@@ -1596,7 +1625,8 @@ public class App : Application
         // use this path. The packs' playback contributions (band menus, panes) attach to each tab
         // view-model through the host, gated live by the pack's umbrella id.
         registry.Register(new Playback2DModule(() => PlaybackContributionHost.From(
-            sp.GetRequiredService<PackContributionSet>(), sp.GetService<IFeatureGate>()), sp.GetRequiredService<IRoundFactsSource>,
+                sp.GetRequiredService<PackContributionSet>(), sp.GetService<IFeatureGate>()),
+            sp.GetRequiredService<IRoundFactsSource>,
             // Resolved when the tab is built, long after the shell exists; the browser has no such tab.
             () => OperatingSystem.IsBrowser()
                 ? null

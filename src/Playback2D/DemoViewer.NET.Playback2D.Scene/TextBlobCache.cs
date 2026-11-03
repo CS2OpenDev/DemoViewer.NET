@@ -261,9 +261,7 @@ public sealed class TextBlobCache : IDisposable
         {
             // Subpixel + hinting are pinned rather than left at whatever the host default is: they
             // change rasterisation, and a golden that depends on an unstated default is not a golden.
-            Subpixel = true,
-            Hinting = SKFontHinting.None,
-            Edging = SKFontEdging.Antialias
+            Subpixel = true, Hinting = SKFontHinting.None, Edging = SKFontEdging.Antialias
         };
         _fonts[sizePx] = font;
         return font;

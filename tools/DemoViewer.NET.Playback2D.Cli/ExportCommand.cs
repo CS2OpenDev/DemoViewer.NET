@@ -145,14 +145,10 @@ internal static class ExportCommand
         using TrackerFrameSource source = new(frames, new SceneFrameBuilder(), startFrame, endFrame,
             fps, speed, tickRate)
         {
-            MapName = demo.MapName,
-            Radars = mapAssets is null ? null : MapAssetPipeline.DescribeRadars(mapAssets)
+            MapName = demo.MapName, Radars = mapAssets is null ? null : MapAssetPipeline.DescribeRadars(mapAssets)
         };
 
-        request = request with
-        {
-            EndFrame = Math.Max(0, source.FrameCount - 1)
-        };
+        request = request with { EndFrame = Math.Max(0, source.FrameCount - 1) };
 
         // AFTER the source exists, because the clock reads the source. See BuildHud.
         IHudDataSource? hudData = hud ? BuildHud(source, tickRate) : null;
@@ -338,9 +334,7 @@ internal static class ExportCommand
         {
             array.Add(new JsonObject
             {
-                ["encoder"] = attempt.Encoder,
-                ["works"] = attempt.Works,
-                ["detail"] = attempt.Detail
+                ["encoder"] = attempt.Encoder, ["works"] = attempt.Works, ["detail"] = attempt.Detail
             });
         }
 

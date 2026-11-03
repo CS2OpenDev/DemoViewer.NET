@@ -68,10 +68,7 @@ public sealed class DiagnosticsTelemetryHub
     public void AppendOnUiThread(TelemetryLogRow row)
     {
         AppendCore(row);
-        RowsAppended?.Invoke(new[]
-        {
-            row
-        });
+        RowsAppended?.Invoke(new[] { row });
     }
 
     /// <summary>Drains the pending queue into <see cref="Logs" /> on the UI thread (one batch event).</summary>

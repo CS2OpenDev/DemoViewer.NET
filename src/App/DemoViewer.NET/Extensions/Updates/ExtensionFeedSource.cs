@@ -30,7 +30,8 @@ public static class ExtensionFeedSource
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packId);
         if (!string.IsNullOrWhiteSpace(template)
-            && Uri.TryCreate(template.Trim().Replace(IdPlaceholder, packId, StringComparison.Ordinal), UriKind.Absolute, out Uri? custom)
+            && Uri.TryCreate(template.Trim().Replace(IdPlaceholder, packId, StringComparison.Ordinal), UriKind.Absolute,
+                out Uri? custom)
             && custom.Scheme == Uri.UriSchemeHttps)
         {
             return custom;

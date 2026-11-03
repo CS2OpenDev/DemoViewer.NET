@@ -28,22 +28,23 @@ public class RuleLayersTests
     private static string Id(string local) => RulesetContribution.QualifiedId(Owner, local);
 
     private static string Yaml(string id, string table, string label = "LayerKills") => $$"""
-        ruleset: {{id}}
-        for: each_player
-        stats:
-          kills:
-            count: kill
-            per: match
-            label: {{label}}
-        show:
-          tables:
-            {{table}}:
-              per: player_match
-              columns:
-                - { stat: kills, label: {{table}}_count }
-        """;
+          ruleset: {{id}}
+          for: each_player
+          stats:
+            kills:
+              count: kill
+              per: match
+              label: {{label}}
+          show:
+            tables:
+              {{table}}:
+                per: player_match
+                columns:
+                  - { stat: kills, label: {{table}}_count }
+          """;
 
-    private static ContributedRuleset Contributed(string id, string? yaml) => new(id, Owner, "pack." + Owner, () => yaml);
+    private static ContributedRuleset Contributed(string id, string? yaml) =>
+        new(id, Owner, "pack." + Owner, () => yaml);
 
     private static RuleConfigLoadResult Load(string? userDir, params ContributedRuleset[] extensions) =>
         RuleLayers.Load(Shipped, userDir, extensions, NullLogger.Instance);
@@ -55,7 +56,8 @@ public class RuleLayersTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(RulesetContribution.QualifiedId("dev.example.Hello-World", "kills")).IsEqualTo("dev_example_hello_world__kills");
+            await Assert.That(RulesetContribution.QualifiedId("dev.example.Hello-World", "kills"))
+                .IsEqualTo("dev_example_hello_world__kills");
             await Assert.That(RulesetContribution.IsValidId("Kills")).IsFalse();
             await Assert.That(RulesetContribution.IsValidId("2kills")).IsFalse();
             await Assert.That(RulesetContribution.IsValidId("my.kills")).IsFalse();
@@ -90,7 +92,8 @@ public class RuleLayersTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(doc.Stats.Single().Label).IsEqualTo("UserKills").Because("the user's copy, not the extension's");
+                await Assert.That(doc.Stats.Single().Label).IsEqualTo("UserKills")
+                    .Because("the user's copy, not the extension's");
                 await Assert.That(RuleLayers.SourceOf(doc)).IsNull().Because("it was read from the user's file");
                 await Assert.That(Ids(disabled)).DoesNotContain(Id("kills"));
             }
@@ -120,16 +123,31 @@ public class RuleLayersTests
     {
         ContributedRuleset kills = Contributed(Id("kills"), Yaml(Id("kills"), "layer_kills"));
         MergedRulesBuild first = new(() => Load(null, kills),
-            () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(kills.RulesetId, Owner, static () => true)]);
+            () =>
+            [
+                StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                new StampedRuleset(kills.RulesetId, Owner, static () => true)
+            ]);
         MergedRulesBuild second = new(() => Load(null, kills),
-            () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(kills.RulesetId, Owner, static () => true)]);
-        MergedRulesBuild edited = new(() => Load(null, Contributed(Id("kills"), Yaml(Id("kills"), "layer_kills", "Edited"))),
-            () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(kills.RulesetId, Owner, static () => true)]);
+            () =>
+            [
+                StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                new StampedRuleset(kills.RulesetId, Owner, static () => true)
+            ]);
+        MergedRulesBuild edited = new(
+            () => Load(null, Contributed(Id("kills"), Yaml(Id("kills"), "layer_kills", "Edited"))),
+            () =>
+            [
+                StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                new StampedRuleset(kills.RulesetId, Owner, static () => true)
+            ]);
 
         using (Assert.Multiple())
         {
-            await Assert.That(first.RulesetIdentity(kills.RulesetId, 64)).IsEqualTo(second.RulesetIdentity(kills.RulesetId, 64));
-            await Assert.That(edited.RulesetIdentity(kills.RulesetId, 64)).IsNotEqualTo(first.RulesetIdentity(kills.RulesetId, 64));
+            await Assert.That(first.RulesetIdentity(kills.RulesetId, 64))
+                .IsEqualTo(second.RulesetIdentity(kills.RulesetId, 64));
+            await Assert.That(edited.RulesetIdentity(kills.RulesetId, 64))
+                .IsNotEqualTo(first.RulesetIdentity(kills.RulesetId, 64));
             await Assert.That(first.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
             await Assert.That(first.StampedOutputs()).Contains("layer_kills");
         }

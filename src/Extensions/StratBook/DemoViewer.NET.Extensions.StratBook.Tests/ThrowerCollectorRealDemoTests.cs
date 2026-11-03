@@ -41,11 +41,13 @@ public class ThrowerCollectorRealDemoTests
         ];
 
         CollectorSet set = CollectorSet.Of([new RegisteredCollector(ThrowerCollector.Contribution, null)]);
-        MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null))
-        {
-            CollectorsFor = _ => set
-        };
-        List<RemovedProjectile> collected = rules.Collected(parsed, path).Get<List<RemovedProjectile>>(ThrowerCollector.CollectorId)!;
+        MergedRulesBuild rules =
+            new(() => YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null))
+            {
+                CollectorsFor = _ => set
+            };
+        List<RemovedProjectile> collected =
+            rules.Collected(parsed, path).Get<List<RemovedProjectile>>(ThrowerCollector.CollectorId)!;
         rules.Forget(parsed);
 
         List<PlacedEvent> fromWalk = DetonationEvents.From(parsed, walked);

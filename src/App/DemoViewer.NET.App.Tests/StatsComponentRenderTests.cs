@@ -94,30 +94,36 @@ public class StatsComponentRenderTests
         await HeadlessSession.RunOnUi(async () =>
         {
             // Sentiment 0.36: past the dead zone, short of the 0.5 strong threshold.
-            StatValue soft = new()
-            {
-                Value = 74, Minimum = 40, Maximum = 90
-            };
+            StatValue soft = new() { Value = 74, Minimum = 40, Maximum = 90 };
             // Sentiment 0.92.
             StatValue strong = new()
             {
-                Value = 1.75, Minimum = 0.4, Maximum = 1.8, NeutralLow = 0.95, NeutralHigh = 1.15
+                Value = 1.75,
+                Minimum = 0.4,
+                Maximum = 1.8,
+                NeutralLow = 0.95,
+                NeutralHigh = 1.15
             };
             // Inside the band.
             StatValue neutral = new()
             {
-                Value = 1.0, Minimum = 0.4, Maximum = 1.8, NeutralLow = 0.95, NeutralHigh = 1.15
+                Value = 1.0,
+                Minimum = 0.4,
+                Maximum = 1.8,
+                NeutralLow = 0.95,
+                NeutralHigh = 1.15
             };
             StatValue bad = new()
             {
-                Value = 0.5, Minimum = 0.4, Maximum = 1.8, NeutralLow = 0.95, NeutralHigh = 1.15
+                Value = 0.5,
+                Minimum = 0.4,
+                Maximum = 1.8,
+                NeutralLow = 0.95,
+                NeutralHigh = 1.15
             };
 
             // Realised so the style setters that carry the token brushes have applied.
-            _ = CaptureControl(new StackPanel
-            {
-                Children = { soft, strong, neutral, bad }
-            }, "stats-accent-tiers");
+            _ = CaptureControl(new StackPanel { Children = { soft, strong, neutral, bad } }, "stats-accent-tiers");
 
             await Assert.That(soft.Sentiment).IsGreaterThan(0);
             await Assert.That(soft.Sentiment).IsLessThan(soft.StrongSentimentAt);
@@ -188,13 +194,14 @@ public class StatsComponentRenderTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StatValue bare = new()
-            {
-                Value = 42, Width = 90, Height = 20
-            };
+            StatValue bare = new() { Value = 42, Width = 90, Height = 20 };
             StatValue scaled = new()
             {
-                Value = 42, Minimum = 0, Maximum = 50, Width = 90, Height = 20
+                Value = 42,
+                Minimum = 0,
+                Maximum = 50,
+                Width = 90,
+                Height = 20
             };
 
             byte[] bareBytes = CaptureControl(bare, "stats-cell-nodomain");
@@ -224,13 +231,21 @@ public class StatsComponentRenderTests
         {
             StatValue unscaled = new()
             {
-                Value = 85, Width = 90, Height = 24,
-                BarTrackBrush = Brushes.Magenta, BarFillBrush = Brushes.Magenta
+                Value = 85,
+                Width = 90,
+                Height = 24,
+                BarTrackBrush = Brushes.Magenta,
+                BarFillBrush = Brushes.Magenta
             };
             StatValue scaled = new()
             {
-                Value = 85, Minimum = 0, Maximum = 100, Width = 90, Height = 24,
-                BarTrackBrush = Brushes.Magenta, BarFillBrush = Brushes.Magenta
+                Value = 85,
+                Minimum = 0,
+                Maximum = 100,
+                Width = 90,
+                Height = 24,
+                BarTrackBrush = Brushes.Magenta,
+                BarFillBrush = Brushes.Magenta
             };
 
             byte[] bare = CaptureControl(unscaled, "stats-cell-untracked");
@@ -253,10 +268,7 @@ public class StatsComponentRenderTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StatValue cell = new()
-            {
-                Value = 5, Minimum = 0, Maximum = 10, TextAlignment = TextAlignment.Right
-            };
+            StatValue cell = new() { Value = 5, Minimum = 0, Maximum = 10, TextAlignment = TextAlignment.Right };
 
             await Assert.That(cell.BarAlignment).IsEqualTo(StatBarAlignment.Left);
             await Assert.That(cell.EffectiveBarAlignment).IsEqualTo(StatBarAlignment.Left);
@@ -272,10 +284,7 @@ public class StatsComponentRenderTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StatValue cell = new()
-            {
-                Value = 1.43
-            };
+            StatValue cell = new() { Value = 1.43 };
 
             await Assert.That(Avalonia.Automation.AutomationProperties.GetName(cell)).IsEqualTo("1.43");
         });
@@ -306,10 +315,7 @@ public class StatsComponentRenderTests
                     app.RequestedThemeVariant = ThemeVariant.Dark;
                 }
 
-                Window window = BuildWindow(new ScrollViewer
-                {
-                    Content = gallery
-                });
+                Window window = BuildWindow(new ScrollViewer { Content = gallery });
                 window.RequestedThemeVariant = ThemeVariant.Dark;
                 WriteableBitmap? frame = Render(window);
                 await Assert.That(frame).IsNotNull();
@@ -359,17 +365,10 @@ public class StatsComponentRenderTests
         await HeadlessSession.RunOnUi(async () =>
         {
             const double hostWidth = 34;
-            StatValue cell = new()
-            {
-                Text = "1234.5678", FontSize = 13, Height = 20
-            };
+            StatValue cell = new() { Text = "1234.5678", FontSize = 13, Height = 20 };
 
             // A fixed-width column, which is what every scoreboard cell lives in.
-            _ = CaptureControl(new Border
-            {
-                Width = hostWidth,
-                Child = cell
-            }, "stats-cell-measure-stability");
+            _ = CaptureControl(new Border { Width = hostWidth, Child = cell }, "stats-cell-measure-stability");
 
             cell.InvalidateMeasure();
             cell.Measure(Size.Infinity);
@@ -405,8 +404,13 @@ public class StatsComponentRenderTests
             StatValue cell = new()
             {
                 Mode = StatValueMode.Plain,
-                Value = 1.8, Minimum = 0, Maximum = 2, Format = "0.00",
-                FontSize = 22, Width = 90, Height = 32,
+                Value = 1.8,
+                Minimum = 0,
+                Maximum = 2,
+                Format = "0.00",
+                FontSize = 22,
+                Width = 90,
+                Height = 32,
                 PositiveBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0xFF)),
                 Foreground = Brushes.White
             };
@@ -424,7 +428,8 @@ public class StatsComponentRenderTests
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
             WriteableBitmap plain = window.CaptureRenderedFrame()!;
-            plain.Save(Path.Combine(HeadlessSession.ArtifactDir, "stats-cell-accent-withdrawn.png"), new PngBitmapEncoderOptions());
+            plain.Save(Path.Combine(HeadlessSession.ArtifactDir, "stats-cell-accent-withdrawn.png"),
+                new PngBitmapEncoderOptions());
 
             await Assert.That(FrameProbe.CountPixels(FrameProbe.ToBytes(plain), accentRgb)).IsEqualTo(0);
         });
@@ -522,8 +527,11 @@ public class StatsComponentRenderTests
     private static DivergingBar Duels(double positive, double negative) =>
         new()
         {
-            Positive = positive, Negative = negative, Extent = 12,
-            Width = 220, Height = 22,
+            Positive = positive,
+            Negative = negative,
+            Extent = 12,
+            Width = 220,
+            Height = 22,
             PositiveBrush = new SolidColorBrush(Color.FromRgb(0x00, 0xFF, 0x00)),
             NegativeBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0xFF))
         };
@@ -571,7 +579,8 @@ public class StatsComponentRenderTests
         IReadOnlyList<SprayPatternPoint> pattern, IReadOnlyList<SpraySample> shots) =>
         new()
         {
-            Width = 300, Height = 300,
+            Width = 300,
+            Height = 300,
             Pattern = pattern,
             Shots = shots,
             PatternBrush = new SolidColorBrush(Color.FromRgb(0x00, 0x80, 0x80)),
@@ -654,10 +663,7 @@ public class StatsComponentRenderTests
         StatScale hltv = StatScale.Banded(0.76, 1.43, 0.95, 1.10);
         StatScale aim = StatScale.Absolute(0, 100, 45, 65);
 
-        StackPanel rows = new()
-        {
-            Spacing = 4
-        };
+        StackPanel rows = new() { Spacing = 4 };
 
         foreach (double r in ratings)
         {
@@ -669,21 +675,35 @@ public class StatsComponentRenderTests
                 {
                     new StatValue
                     {
-                        Value = r, Scale = hltv, Width = 86, Height = 18,
+                        Value = r,
+                        Scale = hltv,
+                        Width = 86,
+                        Height = 18,
                         IsLeader = Math.Abs(r - 1.43) < 0.001
                     },
                     new StatValue
                     {
-                        Value = r * 60, Scale = aim, Width = 86, Height = 18, Format = "0"
+                        Value = r * 60,
+                        Scale = aim,
+                        Width = 86,
+                        Height = 18,
+                        Format = "0"
                     },
                     new StatValue
                     {
-                        Value = r * 50, Scale = aim, Width = 60, Height = 18, Format = "0",
+                        Value = r * 50,
+                        Scale = aim,
+                        Width = 60,
+                        Height = 18,
+                        Format = "0",
                         Classes = { "chip" }
                     },
                     new SegmentedBar
                     {
-                        Width = 130, Height = 14, Compact = true, FontSize = 9,
+                        Width = 130,
+                        Height = 14,
+                        Compact = true,
+                        FontSize = 9,
                         Segments =
                         [
                             new StatSegment(8, null, "8"), new StatSegment(11, null, "11"),
@@ -701,8 +721,11 @@ public class StatsComponentRenderTests
             {
                 new TeamBadge
                 {
-                    Team = TeamBadge.TeamCt, Label = "My Team", Outcome = TeamOutcome.Win,
-                    Detail = "13 : 9", HorizontalAlignment = HorizontalAlignment.Left
+                    Team = TeamBadge.TeamCt,
+                    Label = "My Team",
+                    Outcome = TeamOutcome.Win,
+                    Detail = "13 : 9",
+                    HorizontalAlignment = HorizontalAlignment.Left
                 },
                 rows,
                 new SegmentedBar
@@ -716,52 +739,77 @@ public class StatsComponentRenderTests
                 },
                 new StackPanel
                 {
-                    Orientation = Orientation.Horizontal, Spacing = 8,
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
                     Children =
                     {
                         new StatTile
                         {
-                            Label = "ADR", Value = 87, Minimum = 40, Maximum = 100,
-                            NeutralLow = 65, NeutralHigh = 85, IsHero = true
+                            Label = "ADR",
+                            Value = 87,
+                            Minimum = 40,
+                            Maximum = 100,
+                            NeutralLow = 65,
+                            NeutralHigh = 85,
+                            IsHero = true
                         },
                         new StatTile
                         {
-                            Label = "K/D", Value = 1.75, Minimum = 0.4, Maximum = 1.8,
-                            NeutralLow = 0.95, NeutralHigh = 1.15, Caption = "+0.31"
+                            Label = "K/D",
+                            Value = 1.75,
+                            Minimum = 0.4,
+                            Maximum = 1.8,
+                            NeutralLow = 0.95,
+                            NeutralHigh = 1.15,
+                            Caption = "+0.31"
                         },
                         new StatTile
                         {
-                            Label = "KAST", Value = 74, Minimum = 40, Maximum = 90, Format = "0"
+                            Label = "KAST",
+                            Value = 74,
+                            Minimum = 40,
+                            Maximum = 90,
+                            Format = "0"
                         },
                         new RingGauge
                         {
-                            Value = 11.96, Minimum = -12, Maximum = 12, NeutralLow = -0.5,
-                            NeutralHigh = 0.5, Format = "+0.0;-0.0;0", Caption = "RTG"
+                            Value = 11.96,
+                            Minimum = -12,
+                            Maximum = 12,
+                            NeutralLow = -0.5,
+                            NeutralHigh = 0.5,
+                            Format = "+0.0;-0.0;0",
+                            Caption = "RTG"
                         },
                         new RingGauge
                         {
-                            Value = -8.57, Minimum = -12, Maximum = 12, NeutralLow = -0.5,
-                            NeutralHigh = 0.5, Format = "+0.0;-0.0;0", Caption = "RTG"
+                            Value = -8.57,
+                            Minimum = -12,
+                            Maximum = 12,
+                            NeutralLow = -0.5,
+                            NeutralHigh = 0.5,
+                            Format = "+0.0;-0.0;0",
+                            Caption = "RTG"
                         }
                     }
                 },
                 new StackPanel
                 {
-                    Orientation = Orientation.Horizontal, Spacing = 12,
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 12,
                     Children =
                     {
+                        new Sparkline { Width = 180, Values = [0, 2, 1, 3, 0, 1, 4, 2, 0, 1, 2, 3] },
                         new Sparkline
                         {
-                            Width = 180, Values = [0, 2, 1, 3, 0, 1, 4, 2, 0, 1, 2, 3]
-                        },
-                        new Sparkline
-                        {
-                            Width = 180, Mode = SparklineMode.Bars,
+                            Width = 180,
+                            Mode = SparklineMode.Bars,
                             Values = [12, 80, 45, 130, 0, 66, 150, 90, 20, 40, 75, 110]
                         },
                         new Sparkline
                         {
-                            Width = 180, Mode = SparklineMode.Dots,
+                            Width = 180,
+                            Mode = SparklineMode.Dots,
                             Values = [1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1]
                         }
                     }
@@ -770,17 +818,12 @@ public class StatsComponentRenderTests
                 // the arms are comparable down a column.
                 new StackPanel
                 {
-                    Orientation = Orientation.Horizontal, Spacing = 12,
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 12,
                     Children =
                     {
-                        new DivergingBar
-                        {
-                            Width = 150, Positive = 9, Negative = 5, Extent = 12
-                        },
-                        new DivergingBar
-                        {
-                            Width = 150, Positive = 3, Negative = 11, Extent = 12
-                        }
+                        new DivergingBar { Width = 150, Positive = 9, Negative = 5, Extent = 12 },
+                        new DivergingBar { Width = 150, Positive = 3, Negative = 11, Extent = 12 }
                     }
                 }
             }
@@ -797,43 +840,55 @@ public class StatsComponentRenderTests
                 // Every peer identical: Min == Max, so the bar domain has no width.
                 new StatValue
                 {
-                    Value = 5, Minimum = 5, Maximum = 5, Width = 90, Height = 18
+                    Value = 5,
+                    Minimum = 5,
+                    Maximum = 5,
+                    Width = 90,
+                    Height = 18
                 },
                 // No value at all, and a value with no text to draw.
+                new StatValue { Value = null, Width = 90, Height = 18 },
                 new StatValue
                 {
-                    Value = null, Width = 90, Height = 18
-                },
-                new StatValue
-                {
-                    Value = double.NaN, Minimum = 0, Maximum = 10, Width = 90, Height = 18
+                    Value = double.NaN,
+                    Minimum = 0,
+                    Maximum = 10,
+                    Width = 90,
+                    Height = 18
                 },
                 // Six digits in a 48px column: the trimming path.
                 new StatValue
                 {
-                    Value = 123456.789, Minimum = 0, Maximum = 200000, Width = 48, Height = 18
+                    Value = 123456.789,
+                    Minimum = 0,
+                    Maximum = 200000,
+                    Width = 48,
+                    Height = 18
                 },
                 // Negative zero, and a value far outside its domain.
                 new StatValue
                 {
-                    Value = -0.0, Minimum = -1, Maximum = 1, Width = 90, Height = 18
+                    Value = -0.0,
+                    Minimum = -1,
+                    Maximum = 1,
+                    Width = 90,
+                    Height = 18
                 },
                 new StatValue
                 {
-                    Value = 9999, Minimum = 0, Maximum = 10, Width = 90, Height = 18
+                    Value = 9999,
+                    Minimum = 0,
+                    Maximum = 10,
+                    Width = 90,
+                    Height = 18
                 },
                 // Nothing to apportion, and slices far too narrow for their labels.
+                new SegmentedBar { Height = 20, Segments = [] },
+                new SegmentedBar { Height = 20, Segments = [new StatSegment(0), new StatSegment(-4, null, "bad")] },
                 new SegmentedBar
                 {
-                    Height = 20, Segments = []
-                },
-                new SegmentedBar
-                {
-                    Height = 20, Segments = [new StatSegment(0), new StatSegment(-4, null, "bad")]
-                },
-                new SegmentedBar
-                {
-                    Width = 40, Height = 12,
+                    Width = 40,
+                    Height = 12,
                     Segments =
                     [
                         new StatSegment(1, null, "wide label"), new StatSegment(1, null, "another"),
@@ -841,62 +896,37 @@ public class StatsComponentRenderTests
                     ]
                 },
                 // Empty, single-point and all-equal series: the divide-by-zero shapes.
-                new Sparkline
-                {
-                    Width = 120, Values = []
-                },
-                new Sparkline
-                {
-                    Width = 120, Values = [7]
-                },
-                new Sparkline
-                {
-                    Width = 120, Values = [3, 3, 3, 3]
-                },
-                new Sparkline
-                {
-                    Width = 120, Mode = SparklineMode.Bars, Values = [0, 0, 0]
-                },
+                new Sparkline { Width = 120, Values = [] },
+                new Sparkline { Width = 120, Values = [7] },
+                new Sparkline { Width = 120, Values = [3, 3, 3, 3] },
+                new Sparkline { Width = 120, Mode = SparklineMode.Bars, Values = [0, 0, 0] },
                 // A player who fought no opening duels (nothing to scale against), and a bar left to
                 // scale against itself, which is the self-scaling fallback nobody should ship.
-                new DivergingBar
-                {
-                    Width = 150, Positive = 0, Negative = 0, Extent = 12
-                },
-                new DivergingBar
-                {
-                    Width = 150, Positive = 1, Negative = 0
-                },
+                new DivergingBar { Width = 150, Positive = 0, Negative = 0, Extent = 12 },
+                new DivergingBar { Width = 150, Positive = 1, Negative = 0 },
                 // A full ring (the sweep that collapses start onto end) and one with no value.
                 new StackPanel
                 {
-                    Orientation = Orientation.Horizontal, Spacing = 8,
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
                     Children =
                     {
+                        new RingGauge { Value = 100, Minimum = 0, Maximum = 100, Caption = "full" },
+                        new RingGauge { Value = null, Caption = "none" },
                         new RingGauge
                         {
-                            Value = 100, Minimum = 0, Maximum = 100, Caption = "full"
-                        },
-                        new RingGauge
-                        {
-                            Value = null, Caption = "none"
-                        },
-                        new RingGauge
-                        {
-                            Value = 50, Minimum = 0, Maximum = 100, Width = 14, Height = 14,
+                            Value = 50,
+                            Minimum = 0,
+                            Maximum = 100,
+                            Width = 14,
+                            Height = 14,
                             Thickness = 20
                         }
                     }
                 },
                 // A team that is neither side, with no outcome to show.
-                new TeamBadge
-                {
-                    Team = 0, Label = "Spectators", HorizontalAlignment = HorizontalAlignment.Left
-                },
-                new StatTile
-                {
-                    Label = "no value", Value = null
-                }
+                new TeamBadge { Team = 0, Label = "Spectators", HorizontalAlignment = HorizontalAlignment.Left },
+                new StatTile { Label = "no value", Value = null }
             }
         };
 
@@ -927,16 +957,7 @@ public class StatsComponentRenderTests
     }
 
     private static Window BuildWindow(Control content) =>
-        new()
-        {
-            Width = 900,
-            Height = 460,
-            Content = new Border
-            {
-                Padding = new Thickness(12),
-                Child = content
-            }
-        };
+        new() { Width = 900, Height = 460, Content = new Border { Padding = new Thickness(12), Child = content } };
 
     private static WriteableBitmap? Render(Window window)
     {
@@ -960,6 +981,4 @@ public class StatsComponentRenderTests
         ("StatNegativeSoft", 0xD98A3F),
         ("StatNegative", 0xDC5A52)
     ];
-
-
 }

@@ -107,12 +107,7 @@ public sealed class SetupHeatmapRenderer : IDisposable
             };
         }
 
-        return new Scene2DFrame
-        {
-            Time = new SceneTime(0, 0, 0, 1.0 / 64, true),
-            Markers = [],
-            Map = map
-        };
+        return new Scene2DFrame { Time = new SceneTime(0, 0, 0, 1.0 / 64, true), Markers = [], Map = map };
     }
 
     private IMapAssetLease? AssetFor(string map)

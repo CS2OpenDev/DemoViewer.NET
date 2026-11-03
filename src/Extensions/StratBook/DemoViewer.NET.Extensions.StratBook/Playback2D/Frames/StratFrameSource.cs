@@ -244,7 +244,8 @@ public sealed class StratFrameSource : ISceneFrames
     /// <summary>The first tick a cue draws nothing: past its effect and its faded flight line.</summary>
     /// <param name="cue">A throw.</param>
     public static int EndTickOf(UtilityCue cue) =>
-        Math.Max(cue.Tick + EffectTicks(cue.Kind), cue.Flight is { Count: > 0 } flight ? flight[^1].Tick + TrailFadeTicks : 0);
+        Math.Max(cue.Tick + EffectTicks(cue.Kind),
+            cue.Flight is { Count: > 0 } flight ? flight[^1].Tick + TrailFadeTicks : 0);
 
     private void AddAreaEffects(int tick, List<AreaEffect> into)
     {
@@ -261,7 +262,8 @@ public sealed class StratFrameSource : ISceneFrames
             switch (cue.Kind)
             {
                 case GrenadeKind.Smoke:
-                    into.Add(new AreaEffect(AreaEffectKind.Smoke, cue.X, cue.Y, cue.Z, SmokeRadiusWorld * Bloom(seconds)));
+                    into.Add(new AreaEffect(AreaEffectKind.Smoke, cue.X, cue.Y, cue.Z,
+                        SmokeRadiusWorld * Bloom(seconds)));
                     continue;
                 case GrenadeKind.Flash:
                     into.Add(new AreaEffect(AreaEffectKind.Flash, cue.X, cue.Y, cue.Z,

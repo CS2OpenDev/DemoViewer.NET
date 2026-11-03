@@ -51,7 +51,8 @@ internal sealed class PackPayloads(DemoCacheStore store, string packId, JsonSeri
     public T? Read<T>(DemoCacheRecord record) where T : class
     {
         ArgumentNullException.ThrowIfNull(record);
-        if (!record.Packs.TryGetValue(PackId, out JsonElement element) || element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        if (!record.Packs.TryGetValue(PackId, out JsonElement element)
+            || element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return null;
         }

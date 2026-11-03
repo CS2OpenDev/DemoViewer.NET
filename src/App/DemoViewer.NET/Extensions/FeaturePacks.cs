@@ -48,7 +48,8 @@ public static class FeaturePacks
     /// </summary>
     /// <param name="packs">The packs, in composition order.</param>
     /// <exception cref="InvalidOperationException">Already configured, or the list was already read.</exception>
-    public static void Configure(IReadOnlyList<IExtension> packs) => List.Set(PackStatus.Evaluate(packs, ExtensionHost.Current));
+    public static void Configure(IReadOnlyList<IExtension> packs) =>
+        List.Set(PackStatus.Evaluate(packs, ExtensionHost.Current));
 
     /// <summary>
     ///     <see cref="Configure(IReadOnlyList{IExtension})" /> with the verdicts already made: what the
@@ -67,7 +68,8 @@ public static class FeaturePacks
     /// <param name="statuses">One per pack, in composition order.</param>
     /// <param name="externalRejected">The third-party copies that did not load.</param>
     /// <param name="claimedRulesets">The qualified ruleset ids every extension's manifest claims, loaded or not.</param>
-    public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses, IReadOnlyList<LoadOutcome> externalRejected,
+    public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses,
+        IReadOnlyList<LoadOutcome> externalRejected,
         IReadOnlyList<string>? claimedRulesets = null)
     {
         ArgumentNullException.ThrowIfNull(externalRejected);

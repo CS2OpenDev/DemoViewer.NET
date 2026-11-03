@@ -298,12 +298,7 @@ public static class OverviewHighlightProjector
                     h.TypeKey,
                     verifyPresent,
                     onStage,
-                    onVerify)
-                {
-                    CanVerify = canVerify,
-                    DemoPath = record.Path,
-                    PlayerSlot = h.PlayerSlot
-                });
+                    onVerify) { CanVerify = canVerify, DemoPath = record.Path, PlayerSlot = h.PlayerSlot });
             }
 
             vm.NotifyRowsChanged();

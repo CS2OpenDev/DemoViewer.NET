@@ -210,5 +210,4 @@ public sealed record StatScale(
         return new StatScale(bar?.Min ?? 0, bar?.Max ?? 0, polarity, neutralLow, neutralHigh,
             colourMin, colourMax);
     }
-
 }

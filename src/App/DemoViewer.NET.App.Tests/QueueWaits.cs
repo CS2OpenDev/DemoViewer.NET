@@ -13,7 +13,8 @@ internal static class QueueWaits
     ///     after <paramref name="timeoutMs" /> so a hang is a failure. <paramref name="and" /> must become
     ///     true through the queue's own work: it is only re-checked when the queue next goes idle.
     /// </summary>
-    public static async Task IdleAsync(this DemoProcessingQueue queue, string what, Func<bool>? and = null, int timeoutMs = 5000)
+    public static async Task IdleAsync(this DemoProcessingQueue queue, string what, Func<bool>? and = null,
+        int timeoutMs = 5000)
     {
         try
         {

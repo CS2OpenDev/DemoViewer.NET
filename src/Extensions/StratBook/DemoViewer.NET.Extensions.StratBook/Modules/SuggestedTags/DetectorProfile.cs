@@ -111,9 +111,10 @@ public sealed class DetectorProfile
     {
         Dictionary<string, IReadOnlyDictionary<string, SiteRegionOverride>> overrides =
             new(SiteRegionOverrides, StringComparer.Ordinal);
-        Dictionary<string, SiteRegionOverride> perMap = overrides.TryGetValue(map, out IReadOnlyDictionary<string, SiteRegionOverride>? existing)
-            ? new Dictionary<string, SiteRegionOverride>(existing, StringComparer.Ordinal)
-            : new Dictionary<string, SiteRegionOverride>(StringComparer.Ordinal);
+        Dictionary<string, SiteRegionOverride> perMap =
+            overrides.TryGetValue(map, out IReadOnlyDictionary<string, SiteRegionOverride>? existing)
+                ? new Dictionary<string, SiteRegionOverride>(existing, StringComparer.Ordinal)
+                : new Dictionary<string, SiteRegionOverride>(StringComparer.Ordinal);
         if (edit is null)
         {
             perMap.Remove(site);
@@ -138,7 +139,8 @@ public sealed class DetectorProfile
         ArgumentNullException.ThrowIfNull(json);
         try
         {
-            return ParseObject(JsonNode.Parse(json) as JsonObject ?? throw new FormatException("a profile is a JSON object"));
+            return ParseObject(JsonNode.Parse(json) as JsonObject
+                               ?? throw new FormatException("a profile is a JSON object"));
         }
         catch (JsonException ex)
         {
@@ -156,7 +158,8 @@ public sealed class DetectorProfile
         int schema = root["schemaVersion"]?.GetValue<int>() ?? CurrentSchemaVersion;
         if (schema > CurrentSchemaVersion)
         {
-            throw new FormatException($"profile schema {schema.ToString(CultureInfo.InvariantCulture)} is newer than this build reads");
+            throw new FormatException(
+                $"profile schema {schema.ToString(CultureInfo.InvariantCulture)} is newer than this build reads");
         }
 
         string id = root["id"]?.GetValue<string>() ?? Default.Id;
@@ -281,7 +284,8 @@ public sealed class DetectorProfile
         foreach (DetectorParameter parameter in ProposalDetection.ParametersOf(detector))
         {
             seen.Add(parameter.Name);
-            yield return (parameter.Name, given is not null && given.TryGetValue(parameter.Name, out double v) ? v : parameter.Default);
+            yield return (parameter.Name,
+                given is not null && given.TryGetValue(parameter.Name, out double v) ? v : parameter.Default);
         }
 
         if (given is null)
@@ -312,7 +316,8 @@ public sealed class DetectorProfile
     private static List<string> Names(JsonNode? node) =>
         node is JsonArray array ? [.. array.Select(n => n?.GetValue<string>()).OfType<string>()] : [];
 
-    private static Dictionary<string, Dictionary<string, double>> Copy(Dictionary<string, Dictionary<string, double>> values) =>
+    private static Dictionary<string, Dictionary<string, double>> Copy(
+        Dictionary<string, Dictionary<string, double>> values) =>
         values.ToDictionary(p => p.Key, p => new Dictionary<string, double>(p.Value, StringComparer.Ordinal),
             StringComparer.Ordinal);
 

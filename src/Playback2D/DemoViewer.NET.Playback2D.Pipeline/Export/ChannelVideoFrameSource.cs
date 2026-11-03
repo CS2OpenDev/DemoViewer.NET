@@ -45,9 +45,7 @@ internal sealed class ChannelVideoFrameSource : IEnumerable<IVideoFrame>, IEnume
     public ChannelVideoFrameSource(int capacity = DefaultCapacity) =>
         _channel = Channel.CreateBounded<PooledRgbaFrame>(new BoundedChannelOptions(Math.Max(1, capacity))
         {
-            FullMode = BoundedChannelFullMode.Wait,
-            SingleReader = true,
-            SingleWriter = true
+            FullMode = BoundedChannelFullMode.Wait, SingleReader = true, SingleWriter = true
         });
 
     /// <summary>Frames the reader has pulled. Diagnostics and tests.</summary>

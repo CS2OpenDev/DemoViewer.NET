@@ -44,8 +44,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JsonStringEnumConverter() }
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, Converters = { new JsonStringEnumConverter() }
     };
 
     private readonly string _extensionId;
@@ -70,7 +69,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
     /// <param name="extensionVersion">The extension's version, recorded in every header.</param>
     /// <param name="onUiThread">True on the UI thread, where a stamp read never loads the index. Null: never.</param>
     /// <param name="loadInBackground">Runs the index load off the UI thread. Null loads on the caller's thread.</param>
-    public ExtensionDemoDataStore(string extensionId, string extensionCacheFolder, DemoCacheStore library, Action<Action> post,
+    public ExtensionDemoDataStore(string extensionId, string extensionCacheFolder, DemoCacheStore library,
+        Action<Action> post,
         string? extensionVersion, Func<bool>? onUiThread = null, Action<Action>? loadInBackground = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(extensionId);
@@ -204,13 +204,17 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
 
             (Header header, byte[] content) = ReadFile(file);
             string? sha = Sha256Of(demoPath);
-            bool sameDemo = header.Sha256 is null || sha is null || string.Equals(header.Sha256, sha, StringComparison.OrdinalIgnoreCase);
+            bool sameDemo = header.Sha256 is null || sha is null
+                                                  || string.Equals(header.Sha256, sha,
+                                                      StringComparison.OrdinalIgnoreCase);
             return header.Format == Format && sameDemo && string.Equals(header.Facet, facet, StringComparison.Ordinal)
                    && string.Equals(header.Part, part, StringComparison.Ordinal)
-                ? new DemoDataRecord(header.Schema, header.Fingerprint, header.ExtensionVersion, header.WrittenAtTicks, content)
+                ? new DemoDataRecord(header.Schema, header.Fingerprint, header.ExtensionVersion, header.WrittenAtTicks,
+                    content)
                 : null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
+                                       or JsonException)
         {
             AppLog.ExtensionStoreUnreadable(Log, _extensionId, file, ex.Message);
             return null;
@@ -232,14 +236,17 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         long now = DateTime.UtcNow.Ticks;
         foreach ((string part, ReadOnlyMemory<byte> content) in write.Parts)
         {
-            WriteFile(FileFor(write.Facet, key, part), new Header(Format, write.Facet, part, write.Schema, write.Fingerprint, sha,
+            WriteFile(FileFor(write.Facet, key, part), new Header(Format, write.Facet, part, write.Schema,
+                write.Fingerprint, sha,
                 demoPath, _extensionVersion, now), content.Span);
         }
 
-        WriteFile(FileFor(write.Facet, key, null), new Header(Format, write.Facet, null, write.Schema, write.Fingerprint, sha,
+        WriteFile(FileFor(write.Facet, key, null), new Header(Format, write.Facet, null, write.Schema,
+            write.Fingerprint, sha,
             demoPath, _extensionVersion, now), write.Payload.Span);
 
-        Entry entry = new(key, write.Facet, demoPath, sha, write.Schema, write.Fingerprint, DemoDataState.Written, now, write.Count);
+        Entry entry = new(key, write.Facet, demoPath, sha, write.Schema, write.Fingerprint, DemoDataState.Written, now,
+            write.Count);
         EnsureLoaded();
         List<(string Key, string Facet)> dropped = [];
         IndexFile save;
@@ -265,7 +272,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         Mutate(demoPath, facet, e => e with { State = DemoDataState.Failed }, create: true);
 
     public void ClearFailed(string demoPath, string facet) =>
-        Mutate(demoPath, facet, e => e.State == DemoDataState.Failed ? e with { State = DemoDataState.Pending } : e, create: false);
+        Mutate(demoPath, facet, e => e.State == DemoDataState.Failed ? e with { State = DemoDataState.Pending } : e,
+            create: false);
 
     public void SetCount(string demoPath, string facet, int count) =>
         Mutate(demoPath, facet, e => e with { Count = count }, create: true);
@@ -300,8 +308,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
 
         static Entry Stale(Entry e) => e with
         {
-            Fingerprint = null,
-            State = e.State == DemoDataState.Failed ? DemoDataState.Pending : e.State
+            Fingerprint = null, State = e.State == DemoDataState.Failed ? DemoDataState.Pending : e.State
         };
     }
 
@@ -420,7 +427,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
             foreach (string file in FilesOf(facet, pathKey))
             {
                 string name = Path.GetFileName(file);
-                File.Move(file, Path.Combine(Path.GetDirectoryName(file)!, sha + name[pathKey.Length..]), overwrite: true);
+                File.Move(file, Path.Combine(Path.GetDirectoryName(file)!, sha + name[pathKey.Length..]),
+                    overwrite: true);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -456,7 +464,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         {
             FileInfo file = new(demoPath);
             if (file.Exists && (file.Length != row.Size
-                                || (row.ModifiedTicks != file.LastWriteTime.Ticks && row.ModifiedTicks != file.LastWriteTimeUtc.Ticks)))
+                                || (row.ModifiedTicks != file.LastWriteTime.Ticks
+                                    && row.ModifiedTicks != file.LastWriteTimeUtc.Ticks)))
             {
                 return null;
             }
@@ -485,7 +494,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         }
 
         return Directory.EnumerateFiles(folder, key + "*" + Suffix)
-            .Where(f => Path.GetFileName(f) is var name && (name == key + Suffix || name.StartsWith(key + ".", StringComparison.Ordinal)))
+            .Where(f => Path.GetFileName(f) is var name
+                        && (name == key + Suffix || name.StartsWith(key + ".", StringComparison.Ordinal)))
             .ToList();
     }
 
@@ -539,7 +549,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
     }
 
     // Called under the lock. Null sweeps every entry. What it drops is added to dropped, to delete outside the lock.
-    private bool Sweep(Dictionary<(string Key, string Facet), Entry> entries, string? path, List<(string Key, string Facet)> dropped)
+    private bool Sweep(Dictionary<(string Key, string Facet), Entry> entries, string? path,
+        List<(string Key, string Facet)> dropped)
     {
         bool changed = false;
         foreach (((string Key, string Facet) id, Entry entry) in entries.ToList())
@@ -554,7 +565,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
             // the next hash of the file finds the entry again.
             if (_library.TryGetIndex(entry.DemoPath) is { } row
                 && (entry.Sha256 is null || string.IsNullOrEmpty(row.Sha256)
-                    || string.Equals(row.Sha256, entry.Sha256, StringComparison.OrdinalIgnoreCase)))
+                                         || string.Equals(row.Sha256, entry.Sha256,
+                                             StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -568,7 +580,9 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
                 // Kept for a full read of that path to confirm; a read through it stays absent until then.
                 entries[id] = entry with { DemoPath = unconfirmed };
             }
-            else if (entry.Sha256 is not null ? _library.HoldsContent(entry.Sha256) : _library.OrphanAt(entry.DemoPath) is not null)
+            else if (entry.Sha256 is not null
+                         ? _library.HoldsContent(entry.Sha256)
+                         : _library.OrphanAt(entry.DemoPath) is not null)
             {
                 // Orphaned: no path lists the demo, and the cache keeps it for a path to come back.
                 continue;
@@ -668,7 +682,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
 
             return entries;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
+                                       or JsonException)
         {
             AppLog.ExtensionStoreUnreadable(Log, _extensionId, file, ex.Message);
             return null;
@@ -703,13 +718,16 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
                 try
                 {
                     Header header = ReadHeader(file);
-                    if (header.Format == Format && string.Equals(header.Facet, facet, StringComparison.Ordinal) && header.DemoPath is { } path)
+                    if (header.Format == Format && string.Equals(header.Facet, facet, StringComparison.Ordinal)
+                                                && header.DemoPath is { } path)
                     {
-                        entries[(key, facet)] = new Entry(key, facet, path, header.Sha256, header.Schema, header.Fingerprint,
+                        entries[(key, facet)] = new Entry(key, facet, path, header.Sha256, header.Schema,
+                            header.Fingerprint,
                             DemoDataState.Written, header.WrittenAtTicks, 0);
                     }
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
+                                               or JsonException)
                 {
                     AppLog.ExtensionStoreUnreadable(Log, _extensionId, file, ex.Message);
                 }
@@ -821,7 +839,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         long WrittenAtTicks,
         int Count)
     {
-        public DemoDataStamp ToStamp() => new(DemoPath, Sha256, Facet, Schema, Fingerprint, State, WrittenAtTicks, Count);
+        public DemoDataStamp ToStamp() =>
+            new(DemoPath, Sha256, Facet, Schema, Fingerprint, State, WrittenAtTicks, Count);
     }
 
     private sealed record IndexFile(int Version, List<Entry> Entries)

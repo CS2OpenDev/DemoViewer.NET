@@ -564,10 +564,7 @@ public sealed class AnnotationDocument
             return element!;
         }
 
-        return element with
-        {
-            Space = new SpaceRef.World(target)
-        };
+        return element with { Space = new SpaceRef.World(target) };
     }
 
     private readonly record struct GestureStep(DocDelta Applied, DocDelta Inverse);

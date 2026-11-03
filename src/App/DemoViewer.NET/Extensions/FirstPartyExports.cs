@@ -27,7 +27,10 @@ namespace DemoViewer.NET.Extensions;
 ///     A demo's content hash when the cache knows it, so an annotation lookup reads no demo file; null hashes
 ///     the file.
 /// </param>
-public sealed class FirstPartyExports(HeavyJobGate gate, IDemoProcessingQueue queue, SettingsService? settings = null,
+public sealed class FirstPartyExports(
+    HeavyJobGate gate,
+    IDemoProcessingQueue queue,
+    SettingsService? settings = null,
     Func<string, string?>? contentHash = null)
 {
     /// <summary>The app's settings as they stand: the export choices the 2D export shares.</summary>
@@ -72,7 +75,9 @@ public sealed class FirstPartyExports(HeavyJobGate gate, IDemoProcessingQueue qu
                         PassLevel.UserRequested, leaseCt),
                     // The lease's read gave the cache the hash; the full read below is for a file it could not hash.
                     new AnnotationStore(AppPaths.ConfigRoot,
-                        path => contentHash?.Invoke(path) is { Length: > 0 } known ? known : AnnotationStore.ComputeDemoKey(path)),
+                        path => contentHash?.Invoke(path) is { Length: > 0 } known
+                            ? known
+                            : AnnotationStore.ComputeDemoKey(path)),
                     log: line => PackExportLog.Line(log, line));
                 PackExporter exporter = new(clips, new PackEncoder(log: line => PackExportLog.Encoder(log, line)),
                     log: line => PackExportLog.Line(log, line));

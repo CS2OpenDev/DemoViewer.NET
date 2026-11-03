@@ -116,7 +116,8 @@ public class ExtensionSettingsStoreTests
             string[] aside = Directory.GetFiles(Path.GetDirectoryName(file)!, Path.GetFileName(file) + ".unreadable-*");
             using (Assert.Multiple())
             {
-                await Assert.That(JsonNode.Parse(await File.ReadAllTextAsync(file))!["flag"]!.GetValue<bool>()).IsTrue();
+                await Assert.That(JsonNode.Parse(await File.ReadAllTextAsync(file))!["flag"]!.GetValue<bool>())
+                    .IsTrue();
                 await Assert.That(aside.Length).IsEqualTo(1);
                 await Assert.That(await File.ReadAllTextAsync(aside[0])).Contains("\"kept\": 1")
                     .Because("the unreadable file is kept for the user, not overwritten");
@@ -162,7 +163,8 @@ public class ExtensionSettingsStoreTests
             {
                 await Assert.That(two.Get("shared", "unset")).IsEqualTo("unset");
                 await Assert.That(Directory.GetFiles(Path.Combine(root, ExtensionSettingsStore.DirectoryName)))
-                    .IsEquivalentTo([ExtensionSettingsStore.PathFor(root, "dev.example.one")], CollectionOrdering.Matching);
+                    .IsEquivalentTo([ExtensionSettingsStore.PathFor(root, "dev.example.one")],
+                        CollectionOrdering.Matching);
             }
         }
         finally
@@ -192,12 +194,12 @@ public class ExtensionSettingsStoreTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(root, "settings.json"), """
-                {
-                  "Situations": { "BackgroundIndex": false, "TokenSource": "Zones" },
-                  "Grenades": { "BackgroundIndex": "true", "TrajectoryStride": 2 },
-                  "Playback2D": { "TagPaletteId": "team-palette", "ReviewMode": true }
-                }
-                """);
+                                                                              {
+                                                                                "Situations": { "BackgroundIndex": false, "TokenSource": "Zones" },
+                                                                                "Grenades": { "BackgroundIndex": "true", "TrajectoryStride": 2 },
+                                                                                "Playback2D": { "TagPaletteId": "team-palette", "ReviewMode": true }
+                                                                              }
+                                                                              """);
             SettingsService settings = new(root);
 
             await Assert.That(LegacyExtensionSettings.Import(settings, root)).IsEqualTo(1);
@@ -231,8 +233,8 @@ public class ExtensionSettingsStoreTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(root, "settings.json"), """
-                { "Situations": { "BackgroundIndex": false } }
-                """);
+                                                                              { "Situations": { "BackgroundIndex": false } }
+                                                                              """);
             // A file where the folder belongs makes the import's write fail.
             string blocker = Path.Combine(root, ExtensionSettingsStore.DirectoryName);
             await File.WriteAllTextAsync(blocker, "");
@@ -246,7 +248,9 @@ public class ExtensionSettingsStoreTests
             using (Assert.Multiple())
             {
                 await Assert.That(store.Get("situations.backgroundIndex", true)).IsFalse();
-                await Assert.That(File.Exists(ExtensionSettingsStore.PathFor(root, LegacyExtensionSettings.StratBookId))).IsTrue()
+                await Assert
+                    .That(File.Exists(ExtensionSettingsStore.PathFor(root, LegacyExtensionSettings.StratBookId)))
+                    .IsTrue()
                     .Because("the store saves what the import could not");
             }
         }

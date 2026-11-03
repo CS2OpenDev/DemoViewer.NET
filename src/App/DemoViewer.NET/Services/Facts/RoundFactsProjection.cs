@@ -35,10 +35,7 @@ public static class RoundFactsProjection
         ArgumentNullException.ThrowIfNull(table);
 
         thresholds ??= ThresholdsFrom(table.Parameters);
-        RoundFactsRows result = new()
-        {
-            Schema = RoundFactsRecords.Schema
-        };
+        RoundFactsRows result = new() { Schema = RoundFactsRecords.Schema };
 
         Dictionary<int, List<IReadOnlyDictionary<string, object?>>> byRound = new();
         foreach (IReadOnlyDictionary<string, object?> row in table.Rows)
@@ -110,11 +107,7 @@ public static class RoundFactsProjection
         BuyThresholds thresholds,
         RoundFacts? previous)
     {
-        RoundFacts round = new()
-        {
-            Number = clip.Number,
-            FreezeEndTick = clip.StartTickFrameClock
-        };
+        RoundFacts round = new() { Number = clip.Number, FreezeEndTick = clip.StartTickFrameClock };
 
         foreach (string column in RoundFactsColumns.Known)
         {
@@ -140,7 +133,8 @@ public static class RoundFactsProjection
                     round.ProjectionWarnings.Add($"a second row for side {side} was ignored");
                     break;
                 default:
-                    round.ProjectionWarnings.Add($"a row with side '{RoundFactsValues.ToText(row.GetValueOrDefault(RoundFactsColumns.Side)) ?? "null"}' was ignored");
+                    round.ProjectionWarnings.Add(
+                        $"a row with side '{RoundFactsValues.ToText(row.GetValueOrDefault(RoundFactsColumns.Side)) ?? "null"}' was ignored");
                     break;
             }
         }
@@ -278,8 +272,7 @@ public static class RoundFactsProjection
         int count = ticks.Length;
         foreach ((string name, int[]? list) in new[]
                  {
-                     (RoundFactsColumns.KillVictimSide, victimSides),
-                     (RoundFactsColumns.KillTeamAlive, ctAlive),
+                     (RoundFactsColumns.KillVictimSide, victimSides), (RoundFactsColumns.KillTeamAlive, ctAlive),
                      (RoundFactsColumns.KillEnemyAlive, tAlive)
                  })
         {
@@ -314,11 +307,7 @@ public static class RoundFactsProjection
         BuyThresholds thresholds,
         RoundFacts? previous)
     {
-        SideFacts facts = new()
-        {
-            Side = side,
-            Thresholds = thresholds
-        };
+        SideFacts facts = new() { Side = side, Thresholds = thresholds };
 
         if (row is null)
         {
@@ -336,7 +325,8 @@ public static class RoundFactsProjection
         // only be checked against the ceiling scaled by the head count.
         int? money = RoundFactsValues.ToInt(row.GetValueOrDefault(RoundFactsColumns.Money));
         bool reliable = RoundFactsValues.ToBool(row.GetValueOrDefault(RoundFactsColumns.MoneyReliable))
-                        ?? (money is int m && m >= 0 && m <= thresholds.MoneySaneMax * Math.Max(facts.PlayersAtFreezeEnd, 1));
+                        ?? (money is int m && m >= 0
+                                           && m <= thresholds.MoneySaneMax * Math.Max(facts.PlayersAtFreezeEnd, 1));
         facts.MoneyReliable = money is not null && reliable;
         facts.MoneyAtFreezeEnd = facts.MoneyReliable ? money : null;
 

@@ -58,7 +58,8 @@ public static class StratMiner
 
     /// <summary>The anchor offsets for a kind.</summary>
     /// <param name="kind">The kind.</param>
-    public static IReadOnlyList<int> AnchorsFor(PatternKind kind) => kind == PatternKind.Execute ? ExecuteAnchors : SetupAnchors;
+    public static IReadOnlyList<int> AnchorsFor(PatternKind kind) =>
+        kind == PatternKind.Execute ? ExecuteAnchors : SetupAnchors;
 
     /// <summary>
     ///     How far apart two rounds are: positions, utility and (for an execute) timing. Infinity when they
@@ -94,7 +95,8 @@ public static class StratMiner
     ///     units. Players pair by position, not slot: the same setup is run by different people in different
     ///     demos. An unpaired player costs 1. NaN when no anchor has players on both.
     /// </summary>
-    public static double PositionDistance(IReadOnlyList<IReadOnlyList<MinedPawn>> a, IReadOnlyList<IReadOnlyList<MinedPawn>> b)
+    public static double PositionDistance(IReadOnlyList<IReadOnlyList<MinedPawn>> a,
+        IReadOnlyList<IReadOnlyList<MinedPawn>> b)
     {
         double sum = 0;
         int anchors = 0;
@@ -136,7 +138,8 @@ public static class StratMiner
         return (best + (cols - rows)) / cols;
     }
 
-    private static void Assign(ReadOnlySpan<double> cost, int rows, int cols, Span<bool> used, int i, double acc, ref double best)
+    private static void Assign(ReadOnlySpan<double> cost, int rows, int cols, Span<bool> used, int i, double acc,
+        ref double best)
     {
         if (acc >= best)
         {
@@ -185,7 +188,8 @@ public static class StratMiner
     private static int Match(IReadOnlyList<MinedThrow> a, IReadOnlyList<MinedThrow> b, List<(int, int)>? pairs)
     {
         int size = a.Count * b.Count;
-        Span<(double Cost, int A, int B)> candidates = size <= 128 ? stackalloc (double, int, int)[128] : new (double, int, int)[size];
+        Span<(double Cost, int A, int B)> candidates =
+            size <= 128 ? stackalloc (double, int, int)[128] : new (double, int, int)[size];
         int n = 0;
         for (int i = 0; i < a.Count; i++)
         {
@@ -196,7 +200,9 @@ public static class StratMiner
                     continue;
                 }
 
-                double dx = a[i].Landing.X - b[j].Landing.X, dy = a[i].Landing.Y - b[j].Landing.Y, dz = a[i].Landing.Z - b[j].Landing.Z;
+                double dx = a[i].Landing.X - b[j].Landing.X,
+                    dy = a[i].Landing.Y - b[j].Landing.Y,
+                    dz = a[i].Landing.Z - b[j].Landing.Z;
                 double landing = Math.Sqrt(dx * dx + dy * dy + dz * dz);
                 double dt = Math.Abs(a[i].Seconds - b[j].Seconds);
                 if (landing > LandingRadius || dt > ThrowTimeWindow)

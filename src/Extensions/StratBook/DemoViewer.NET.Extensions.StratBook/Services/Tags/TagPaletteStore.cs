@@ -95,7 +95,8 @@ public sealed class TagPaletteStore
     {
         try
         {
-            TagPaletteDefinition? palette = JsonSerializer.Deserialize(json, TagPaletteJsonContext.Default.TagPaletteDefinition);
+            TagPaletteDefinition? palette =
+                JsonSerializer.Deserialize(json, TagPaletteJsonContext.Default.TagPaletteDefinition);
             error = palette is null ? "the file is empty" : "";
             return palette;
         }
@@ -282,7 +283,8 @@ public static class TagPaletteValidator
     ///     The keymap hotkeys are checked against. Null checks them against the pack's own commands, with no
     ///     reserved gestures.
     /// </param>
-    public static TagPaletteValidation Validate(TagPaletteDefinition palette, IReadOnlyCollection<string> reservedGroups,
+    public static TagPaletteValidation Validate(TagPaletteDefinition palette,
+        IReadOnlyCollection<string> reservedGroups,
         IExtensionKeymap? keymap = null)
     {
         ArgumentNullException.ThrowIfNull(palette);
@@ -337,7 +339,8 @@ public static class TagPaletteValidator
     }
 
     private static void CheckPanel(TagPaletteDefinition palette, TagPalettePanel panel,
-        IReadOnlyCollection<string> reservedGroups, IExtensionKeymap? keymap, List<string> errors, List<string> warnings)
+        IReadOnlyCollection<string> reservedGroups, IExtensionKeymap? keymap, List<string> errors,
+        List<string> warnings)
     {
         if (panel.IsLabels)
         {
@@ -446,7 +449,8 @@ public static class TagPaletteValidator
         {
             if (claimedKey == key && claimedModifiers == modifiers)
             {
-                warnings.Add($"{name}: {gesture} shadows \"{what}\" (claimed by Suggested Tags) while the palette has focus");
+                warnings.Add(
+                    $"{name}: {gesture} shadows \"{what}\" (claimed by Suggested Tags) while the palette has focus");
             }
         }
     }

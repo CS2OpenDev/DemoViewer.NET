@@ -34,14 +34,23 @@ public class DossierEditingTests
         Findings = findings
     };
 
-    private static DossierFinding Line(string key, string section, string text, bool starred = false, byte[]? png = null) =>
-        new() { Key = key, Section = section, Text = text, IsStarred = starred, ImagePng = png };
+    private static DossierFinding Line(string key, string section, string text, bool starred = false,
+        byte[]? png = null) =>
+        new()
+        {
+            Key = key,
+            Section = section,
+            Text = text,
+            IsStarred = starred,
+            ImagePng = png
+        };
 
     private static DossierFindingSource[] Sources() =>
     [
         new("map|de_nuke", DossierEditorViewModel.MapPoolSection, "de_nuke: 2 played, 1-1"),
         new("map|de_mirage", DossierEditorViewModel.MapPoolSection, "de_mirage: 1 played, 0-1"),
-        new("heatmap|de_nuke|full buy", DossierEditorViewModel.HeatmapSection, "de_nuke CT full buy: 10 rounds", () => _png)
+        new("heatmap|de_nuke|full buy", DossierEditorViewModel.HeatmapSection, "de_nuke CT full buy: 10 rounds",
+            () => _png)
     ];
 
     [Test]
@@ -62,7 +71,8 @@ public class DossierEditingTests
             await Assert.That(md).Contains("They default A on pistols.");
             await Assert.That(md).Contains("## Map Pool Record\n\n- de_nuke: 2 played\n");
             await Assert.That(md).DoesNotContain("de_mirage");
-            await Assert.That(md).DoesNotContain("Opening Tendencies").Because("a section with nothing starred is left off the one-pager");
+            await Assert.That(md).DoesNotContain("Opening Tendencies")
+                .Because("a section with nothing starred is left off the one-pager");
 
             await Assert.That(longMd).StartsWith("# Falcons <B> dossier\n");
             await Assert.That(longMd).Contains("- ★ de_nuke: 2 played\n- de_mirage: 1 played\n");
@@ -99,7 +109,8 @@ public class DossierEditingTests
             await Assert.That(html).Contains("de_nuke CT full buy: &lt;10&gt; rounds");
             await Assert.That(html).Contains("src=\"data:image/png;base64," + Convert.ToBase64String(_png) + "\"");
             await Assert.That(html).DoesNotContain("de_mirage");
-            await Assert.That(html).DoesNotContain("http").Because("no external reference: the emailed file renders alone");
+            await Assert.That(html).DoesNotContain("http")
+                .Because("no external reference: the emailed file renders alone");
             await Assert.That(html).DoesNotContain("<script");
             await Assert.That(html).DoesNotContain("<link");
             await Assert.That(longHtml).Contains("<li class=\"starred\">");
@@ -115,7 +126,8 @@ public class DossierEditingTests
         foreach (string text in new[]
                  {
                      DossierExporter.Markdown(doc), DossierExporter.Html(doc),
-                     DossierExporter.Markdown(doc, DossierForm.LongForm), DossierExporter.Html(doc, DossierForm.LongForm)
+                     DossierExporter.Markdown(doc, DossierForm.LongForm),
+                     DossierExporter.Html(doc, DossierForm.LongForm)
                  })
         {
             string lower = text.ToLowerInvariant();
@@ -148,10 +160,12 @@ public class DossierEditingTests
             string? note = store.AddNote(team, "  watch the B apps smoke  ");
             store.SetSummary(team, "  Aggressive CT.  ");
 
-            await Assert.That(changes).IsEqualTo(5).Because("a repeat star and an edit equal to the generated text change nothing");
+            await Assert.That(changes).IsEqualTo(5)
+                .Because("a repeat star and an edit equal to the generated text change nothing");
             await Assert.That(File.Exists(Path.Combine(root, DossierNotesStore.FileName))).IsTrue();
 
-            DossierTeamNotes reloaded = new DossierNotesStore(StoredFile.At(Path.Combine(root, DossierNotesStore.FileName))).For(team);
+            DossierTeamNotes reloaded =
+                new DossierNotesStore(StoredFile.At(Path.Combine(root, DossierNotesStore.FileName))).For(team);
             using (Assert.Multiple())
             {
                 await Assert.That(reloaded.Starred).IsEquivalentTo(["map|de_nuke"], CollectionOrdering.Matching);
@@ -194,7 +208,8 @@ public class DossierEditingTests
             await Assert.That(editor.Findings[0].ShowsSectionHeader).IsTrue();
             await Assert.That(editor.Findings[1].ShowsSectionHeader).IsFalse();
             await Assert.That(editor.Findings[2].ShowsSectionHeader).IsTrue();
-            await Assert.That(editor.ExportForm).IsEqualTo(DossierForm.OnePager).Because("the short form is the default export");
+            await Assert.That(editor.ExportForm).IsEqualTo(DossierForm.OnePager)
+                .Because("the short form is the default export");
             await Assert.That(editor.ExportFormat).IsEqualTo(DossierFormat.Html);
             await Assert.That(editor.ExportLabel).IsEqualTo("Export one-pager");
             await Assert.That(editor.CountsLine).IsEqualTo("3 findings · 0 starred");
@@ -243,8 +258,10 @@ public class DossierEditingTests
             await Assert.That(md).Contains("- de_nuke: their best map");
             await Assert.That(md).Contains("Slow defaults.");
             await Assert.That(md).DoesNotContain("full buy");
-            await Assert.That(doc.Findings.Single(f => f.Key.StartsWith("heatmap", StringComparison.Ordinal)).ImagePng).IsEquivalentTo(_png, CollectionOrdering.Matching);
-            await Assert.That(editor.Findings.Select(f => f.Key)).IsEquivalentTo(["map|de_nuke"], CollectionOrdering.Matching);
+            await Assert.That(doc.Findings.Single(f => f.Key.StartsWith("heatmap", StringComparison.Ordinal)).ImagePng)
+                .IsEquivalentTo(_png, CollectionOrdering.Matching);
+            await Assert.That(editor.Findings.Select(f => f.Key))
+                .IsEquivalentTo(["map|de_nuke"], CollectionOrdering.Matching);
         }
 
         // Reset puts the generated line back; "Show settled" lists the dismissed line with Restore.
@@ -296,7 +313,8 @@ public class DossierEditingTests
         }
 
         editor.SelectedFormOption = DossierEditorViewModel.FormOptions.Single(o => o.Value == DossierForm.LongForm);
-        editor.SelectedFormatOption = DossierEditorViewModel.FormatOptions.Single(o => o.Value == DossierFormat.Markdown);
+        editor.SelectedFormatOption =
+            DossierEditorViewModel.FormatOptions.Single(o => o.Value == DossierFormat.Markdown);
         editor.ExportCommand.Execute(null);
         using (Assert.Multiple())
         {
@@ -341,10 +359,12 @@ public class DossierEditingTests
         }
 
         await teams.Idle;
-        Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup != null && r.CoreLineup.Contains(Ids(1)[0]))).Id;
+        Guid teamA = teams.Teams
+            .First(t => t.Rosters.Any(r => r.CoreLineup != null && r.CoreLineup.Contains(Ids(1)[0]))).Id;
         List<string> written = [];
         VetoHistoryStore vetoes = new(null);
-        using DossierTabViewModel vm = new(teams, cache.Library(), vetoes, isBrowser: false, notes: new DossierNotesStore(null),
+        using DossierTabViewModel vm = new(teams, cache.Library(), vetoes, isBrowser: false,
+            notes: new DossierNotesStore(null),
             export: (text, _, _) =>
             {
                 written.Add(text);
@@ -354,19 +374,22 @@ public class DossierEditingTests
         await Assert.That(vm.Editor.HasTeam).IsFalse();
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
 
-        DossierFindingViewModel[] maps = [.. vm.Editor.Findings.Where(f => f.Section == DossierEditorViewModel.MapPoolSection)];
+        DossierFindingViewModel[] maps =
+            [.. vm.Editor.Findings.Where(f => f.Section == DossierEditorViewModel.MapPoolSection)];
         using (Assert.Multiple())
         {
             await Assert.That(vm.Editor.HasTeam).IsTrue();
             await Assert.That(maps.Length).IsEqualTo(2);
             await Assert.That(maps.Select(f => f.Key)).Contains("map|de_nuke");
-            await Assert.That(vm.Editor.Findings.Any(f => f.Section == DossierEditorViewModel.PeriodDiffSection)).IsTrue();
+            await Assert.That(vm.Editor.Findings.Any(f => f.Section == DossierEditorViewModel.PeriodDiffSection))
+                .IsTrue();
         }
 
         // A veto step the user adds lands as a line of its own.
         vm.NewVetoMap = "de_ancient";
         vm.AddVetoCommand.Execute(null);
-        await Assert.That(vm.Editor.Findings.Any(f => f.Section == DossierEditorViewModel.VetoSection && f.Text.Contains("de_ancient"))).IsTrue();
+        await Assert.That(vm.Editor.Findings.Any(f =>
+            f.Section == DossierEditorViewModel.VetoSection && f.Text.Contains("de_ancient"))).IsTrue();
 
         vm.Editor.ToggleStarCommand.Execute(vm.Editor.Findings.Single(f => f.Key == "map|de_nuke"));
         vm.Editor.ExportCommand.Execute(null);
@@ -384,7 +407,8 @@ public class DossierEditingTests
 
     private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
 
-    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map, int ctScore, int tScore)
+    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map, int ctScore,
+        int tScore)
     {
         DemoCacheRecord record = new()
         {

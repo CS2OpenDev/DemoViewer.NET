@@ -78,7 +78,7 @@ public class LibraryTeamFilterRenderTests
 
             DemoLibraryService library = new(a => a(),
                 Path.Combine(Path.GetTempPath(), "dvlibteamrender_" + Guid.NewGuid().ToString("N") + ".json"));
-            foreach (string path in (string[]) ["/d/a.dem", "/d/b.dem", "/d/c.dem"])
+            foreach (string path in (string[])["/d/a.dem", "/d/b.dem", "/d/c.dem"])
             {
                 library.Entries.Add(new DemoEntry
                 {

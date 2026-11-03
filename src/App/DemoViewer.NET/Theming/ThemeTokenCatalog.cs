@@ -104,5 +104,6 @@ public static partial class ThemeTokenCatalog
         return entries;
     }
 
-    private static string Clean(string text) => Markup().Replace(text, m => m.Groups[1].Success ? m.Groups[1].Value : "").Trim();
+    private static string Clean(string text) =>
+        Markup().Replace(text, m => m.Groups[1].Success ? m.Groups[1].Value : "").Trim();
 }

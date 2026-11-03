@@ -82,16 +82,8 @@ public class ZLibraryRenderTests
             // Indicator-state flags are asserted OUTSIDE RunOnUi (it swallows async exceptions).
             indicatorStates = (indexing.IsIndexing, failed.IsFailed, svc.Entries.Count(e => e.IsIndexing));
 
-            LibraryTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 900,
-                Height = 640,
-                Content = view
-            };
+            LibraryTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 900, Height = 640, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
 
@@ -100,7 +92,8 @@ public class ZLibraryRenderTests
             Dispatcher.UIThread.RunJobs();
             if (window.CaptureRenderedFrame() is { } cards)
             {
-                cards.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-cards.png"), new PngBitmapEncoderOptions());
+                cards.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-cards.png"),
+                    new PngBitmapEncoderOptions());
                 cardInk = NonBackground(cards);
             }
 
@@ -165,16 +158,8 @@ public class ZLibraryRenderTests
                 // Asserted OUTSIDE RunOnUi (it swallows async exceptions).
                 state = (vm.HasNoFolders, vm.RecentFiles.Count, !vm.RecentFiles[0].Exists);
 
-                LibraryTabView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 900,
-                    Height = 640,
-                    Content = view
-                };
+                LibraryTabView view = new() { DataContext = vm };
+                Window window = new() { Width = 900, Height = 640, Content = view };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -182,7 +167,8 @@ public class ZLibraryRenderTests
 
                 if (window.CaptureRenderedFrame() is { } hero)
                 {
-                    hero.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-hero.png"), new PngBitmapEncoderOptions());
+                    hero.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-hero.png"),
+                        new PngBitmapEncoderOptions());
                     heroInk = NonBackground(hero);
                 }
 
@@ -306,16 +292,8 @@ public class ZLibraryRenderTests
 
             svc.Entries.AddRange(bulk);
 
-            LibraryTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 900,
-                Height = 640,
-                Content = view
-            };
+            LibraryTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 900, Height = 640, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();

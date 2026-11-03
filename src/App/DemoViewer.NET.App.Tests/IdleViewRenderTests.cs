@@ -35,16 +35,8 @@ public class IdleViewRenderTests
                 SessionStateText = "Closed match.dem — resumes at frame 12345."
             };
 
-            IdleView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 640,
-                Height = 640,
-                Content = view
-            };
+            IdleView view = new() { DataContext = vm };
+            Window window = new() { Width = 640, Height = 640, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();

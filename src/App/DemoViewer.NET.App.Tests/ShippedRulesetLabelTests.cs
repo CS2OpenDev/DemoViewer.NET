@@ -79,7 +79,8 @@ public class ShippedRulesetLabelTests
             .Select(pair => $"{pair.Key} is claimed by {string.Join(" and ", pair.Value)}")
             .ToArray();
         await Assert.That(collisions).IsEmpty()
-            .Because("the later ruleset's column silently overwrites the earlier one:\n" + string.Join("\n", collisions));
+            .Because(
+                "the later ruleset's column silently overwrites the earlier one:\n" + string.Join("\n", collisions));
     }
 
     /// <summary>

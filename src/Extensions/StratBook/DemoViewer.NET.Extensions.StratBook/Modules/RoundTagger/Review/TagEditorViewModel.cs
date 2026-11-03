@@ -36,7 +36,18 @@ public sealed class TagEditorDraft
         ToTick = ToTick,
         Labels = [.. Labels.Select(l => new TagLabel(l.Group, l.Value))],
         Note = Note,
-        Positions = [.. Positions.Select(p => new TagPosition { X = p.X, Y = p.Y, LevelMinZ = p.LevelMinZ, Tick = p.Tick, Place = p.Place, PlaceSource = p.PlaceSource })]
+        Positions =
+        [
+            .. Positions.Select(p => new TagPosition
+            {
+                X = p.X,
+                Y = p.Y,
+                LevelMinZ = p.LevelMinZ,
+                Tick = p.Tick,
+                Place = p.Place,
+                PlaceSource = p.PlaceSource
+            })
+        ]
     };
 
     /// <summary>The draft of a written tag.</summary>
@@ -59,7 +70,9 @@ public sealed class TagEditorDraft
 /// <summary>A palette's words: the codes a tag can carry, and the label groups with their values.</summary>
 /// <param name="Codes">Every code the palette's code panels offer, in palette order.</param>
 /// <param name="Groups">Each label panel's group with the values its buttons offer.</param>
-public sealed record TagVocabulary(IReadOnlyList<string> Codes, IReadOnlyList<(string Group, IReadOnlyList<string> Values)> Groups)
+public sealed record TagVocabulary(
+    IReadOnlyList<string> Codes,
+    IReadOnlyList<(string Group, IReadOnlyList<string> Values)> Groups)
 {
     public static TagVocabulary Empty { get; } = new([], []);
 
@@ -74,10 +87,15 @@ public sealed record TagVocabulary(IReadOnlyList<string> Codes, IReadOnlyList<(s
                 .OfType<string>().Where(c => c.Length > 0).Distinct(StringComparer.Ordinal)
         ];
         List<(string, IReadOnlyList<string>)> groups = [];
-        foreach (IGrouping<string, TagPalettePanel> panel in palette.Panels.Where(p => p.IsLabels && p.Group is { Length: > 0 })
+        foreach (IGrouping<string, TagPalettePanel> panel in palette.Panels
+                     .Where(p => p.IsLabels && p.Group is { Length: > 0 })
                      .GroupBy(p => p.Group!, StringComparer.Ordinal))
         {
-            groups.Add((panel.Key, [.. panel.SelectMany(p => p.Buttons).Select(b => b.Value).OfType<string>().Distinct(StringComparer.Ordinal)]));
+            groups.Add((panel.Key,
+            [
+                .. panel.SelectMany(p => p.Buttons).Select(b => b.Value).OfType<string>()
+                    .Distinct(StringComparer.Ordinal)
+            ]));
         }
 
         return new TagVocabulary(codes, groups);
@@ -159,7 +177,8 @@ public sealed partial class TagEditorViewModel : ObservableObject
     /// <param name="save">Writes the draft; false keeps the editor open with a problem line.</param>
     /// <param name="delete">Deletes the tag; null when there is nothing written to delete.</param>
     /// <param name="cancel">Closes the editor without writing.</param>
-    public TagEditorViewModel(string title, TagEditorDraft draft, TagVocabulary vocabulary, int tickRate, int originTick,
+    public TagEditorViewModel(string title, TagEditorDraft draft, TagVocabulary vocabulary, int tickRate,
+        int originTick,
         Func<int> playhead, Func<TagEditorDraft, int, int, (int From, int To)>? bounds, Func<TagEditorDraft, bool> save,
         Action? delete, Action? cancel)
     {
@@ -197,7 +216,11 @@ public sealed partial class TagEditorViewModel : ObservableObject
             Positions.Add(new TagPositionRow(position));
         }
 
-        Groups = [.. vocabulary.Groups.Select(g => g.Group).Concat(draft.Labels.Select(l => l.Group)).Distinct(StringComparer.Ordinal)];
+        Groups =
+        [
+            .. vocabulary.Groups.Select(g => g.Group).Concat(draft.Labels.Select(l => l.Group))
+                .Distinct(StringComparer.Ordinal)
+        ];
     }
 
     public string Title { get; }

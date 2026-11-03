@@ -66,7 +66,11 @@ public sealed partial class TrendsSectionViewModel : PlayerOverviewSection
         PlayerAggregate? recent = form ? PlayerAggregate.Of(played.GetRange(0, size)) : null;
         PlayerAggregate? previous = form ? PlayerAggregate.Of(played.GetRange(size, size)) : null;
 
-        Trends = [.. Metrics.Select(m => new TrendItem(m.Key, m.Label, m.Format, played, recent, previous)).Where(t => t.HasLine)];
+        Trends =
+        [
+            .. Metrics.Select(m => new TrendItem(m.Key, m.Label, m.Format, played, recent, previous))
+                .Where(t => t.HasLine)
+        ];
         FormText = form ? string.Create(CultureInfo.InvariantCulture, $"Last {size} against the {size} before") : "";
         IsVisible = Trends.Count > 0;
     }
@@ -81,7 +85,8 @@ public sealed class TrendItem
     /// <param name="played">The window's demos with stats, newest first.</param>
     /// <param name="recent">The pool of the last matches; null when the history is too short for a form.</param>
     /// <param name="previous">The pool of the matches before them.</param>
-    internal TrendItem(string key, string label, string format, IReadOnlyList<PlayerDemo> played, PlayerAggregate? recent, PlayerAggregate? previous)
+    internal TrendItem(string key, string label, string format, IReadOnlyList<PlayerDemo> played,
+        PlayerAggregate? recent, PlayerAggregate? previous)
     {
         Key = key;
         Label = label;
@@ -96,7 +101,8 @@ public sealed class TrendItem
             }
 
             values.Add(value);
-            tips.Add($"{RankDisplay.DateOf(played[i].Match)} · {DemoEntry.PrettifyMap(played[i].Match.Row.Map)} · {value.ToString(format, CultureInfo.InvariantCulture)}");
+            tips.Add(
+                $"{RankDisplay.DateOf(played[i].Match)} · {DemoEntry.PrettifyMap(played[i].Match.Row.Map)} · {value.ToString(format, CultureInfo.InvariantCulture)}");
         }
 
         Values = values;
@@ -117,7 +123,8 @@ public sealed class TrendItem
             if (before > 0)
             {
                 ChangePercent = (now - before) / before * 100;
-                ChangeText = string.Create(CultureInfo.InvariantCulture, $"{(ChangePercent > 0 ? "+" : "")}{ChangePercent:0.0}%");
+                ChangeText = string.Create(CultureInfo.InvariantCulture,
+                    $"{(ChangePercent > 0 ? "+" : "")}{ChangePercent:0.0}%");
             }
         }
     }

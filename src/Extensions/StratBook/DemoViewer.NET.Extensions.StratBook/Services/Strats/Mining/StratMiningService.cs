@@ -128,7 +128,8 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     ///     The owning pack's gate for the cache-quiet re-mine only; a user-requested <see cref="MineAsync()" />
     ///     always runs. Defaults to always-on.
     /// </param>
-    public StratMiningService(IExtensionLibrary library, IRoundFacts roundFacts, RoundIndexStore positions, Func<string?, string> fingerprintFor,
+    public StratMiningService(IExtensionLibrary library, IRoundFacts roundFacts, RoundIndexStore positions,
+        Func<string?, string> fingerprintFor,
         GrenadeIndex? grenadeIndex, TeamIdentityService? teams, StratStore strats, TagStore? tags,
         StratMiningFiles? files, Action<Action>? post = null, Func<Action, Task>? run = null,
         IExtensionJobs? jobs = null, Func<bool>? enabled = null, IExtensionPasses? passes = null)
@@ -366,7 +367,8 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
         Interlocked.Increment(ref _minesInFlight);
         IJobHandle handle = _jobs.Enqueue(new JobRequest("Strat mining: library", job => MineQueuedAsync(job, user),
-            new JobOptions(StratBookJobKinds.Mining, user ? JobPriority.UserRequested : JobPriority.Background, "strat-mining")));
+            new JobOptions(StratBookJobKinds.Mining, user ? JobPriority.UserRequested : JobPriority.Background,
+                "strat-mining")));
         Task mine = handle.Completion.ContinueWith(_ =>
         {
             lock (_gate)
@@ -612,7 +614,8 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     private static bool SameRounds(MinedPattern a, MinedPattern b) =>
         a.Medoid.DemoPath == b.Medoid.DemoPath && a.Medoid.Round == b.Medoid.Round
                                                && a.Members.Select(RoundOf).Order(StringComparer.Ordinal)
-                                                   .SequenceEqual(b.Members.Select(RoundOf).Order(StringComparer.Ordinal));
+                                                   .SequenceEqual(b.Members.Select(RoundOf)
+                                                       .Order(StringComparer.Ordinal));
 
     private static string RoundOf(MinedMember m) => $"{m.DemoPath}#{m.Round}";
 
@@ -685,17 +688,21 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     /// <param name="owner">The book.</param>
     /// <param name="nowUtc">The creation time.</param>
     /// <param name="cancellationToken">Checked between the file reads; a cancelled build throws.</param>
-    public StratDocument? Build(MinedPattern pattern, StratOwner owner, DateTime nowUtc, CancellationToken cancellationToken = default)
+    public StratDocument? Build(MinedPattern pattern, StratOwner owner, DateTime nowUtc,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(pattern);
         RoundSignature medoid = pattern.Medoid;
         cancellationToken.ThrowIfCancellationRequested();
         if (_library.Find(medoid.DemoPath) is not { } record || _roundFacts.TryGet(medoid.DemoPath) is not { } rows
-            || rows.Rounds.FirstOrDefault(r => r.Number == medoid.Round) is not { } facts
-            || cancellationToken.IsCancellationRequested
-            || _positions.TryReadPositions(medoid.DemoPath, _fingerprintFor(pattern.Map), record.Sha256) is not { } positions
-            || positions.Round(medoid.Round) is not { } stored
-            || _library.Detail(medoid.DemoPath) is not { } detail)
+                                                             || rows.Rounds.FirstOrDefault(r =>
+                                                                 r.Number == medoid.Round) is not { } facts
+                                                             || cancellationToken.IsCancellationRequested
+                                                             || _positions.TryReadPositions(medoid.DemoPath,
+                                                                     _fingerprintFor(pattern.Map), record.Sha256) is not
+                                                                 { } positions
+                                                             || positions.Round(medoid.Round) is not { } stored
+                                                             || _library.Detail(medoid.DemoPath) is not { } detail)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return null;
@@ -784,10 +791,12 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         LastRunRemoval = _jobs is null
             ? _run(() => RemoveRuns(id))
             : _jobs.Enqueue(new JobRequest("Strat mining: remove a deleted strat's runs", _ =>
-            {
-                RemoveRuns(id);
-                return Task.CompletedTask;
-            }, new JobOptions(StratBookJobKinds.Mining, JobPriority.UserRequested, "strat-runs:" + id.ToString("N")))).Completion;
+                {
+                    RemoveRuns(id);
+                    return Task.CompletedTask;
+                },
+                new JobOptions(StratBookJobKinds.Mining, JobPriority.UserRequested, "strat-runs:" + id.ToString("N"))))
+                .Completion;
     }
 
     /// <summary>
@@ -815,7 +824,8 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
     private static bool IsRunOf(TagInstance instance, string stratId) =>
         instance.Source == TagSources.Suggested
-        && instance.Provenance?["detector"] is JsonValue detector && detector.TryGetValue(out string? name) && name == Detector
+        && instance.Provenance?["detector"] is JsonValue detector && detector.TryGetValue(out string? name)
+        && name == Detector
         && instance.Labels.Any(l => l.Group == TagStore.StratGroup && l.Value == stratId);
 
     // The window the strat covers in that round: the setup's opening, or the take from 10 s before to the plant.
@@ -842,7 +852,8 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
     /// <param name="previous">The patterns before the re-mine.</param>
     /// <param name="next">The patterns after it.</param>
     /// <param name="hasState">Whether a key is dismissed or promoted.</param>
-    public static Dictionary<string, string> KeyMoves(IReadOnlyList<MinedPattern> previous, IReadOnlyList<MinedPattern> next,
+    public static Dictionary<string, string> KeyMoves(IReadOnlyList<MinedPattern> previous,
+        IReadOnlyList<MinedPattern> next,
         Func<string, bool> hasState)
     {
         ArgumentNullException.ThrowIfNull(previous);
@@ -926,7 +937,8 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
     // The passes whose writes a mine reads: while one has a demo in flight, the library is still changing under it.
     private bool QueueBusy => _passes is { } passes
-                              && (passes.IsBusy(HostIds.RoundFactsPass) || passes.IsBusy(RoundIndexEvaluator.EvaluatorId)
+                              && (passes.IsBusy(HostIds.RoundFactsPass)
+                                  || passes.IsBusy(RoundIndexEvaluator.EvaluatorId)
                                   || passes.IsBusy(GrenadeIndexEvaluator.EvaluatorId));
 
     /// <summary>
@@ -1024,7 +1036,8 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         try
         {
             if (_detected?.Read() is { } bytes
-                && JsonSerializer.Deserialize<DetectedFile>(bytes, JsonOptions) is { SchemaVersion: SchemaVersion } file)
+                && JsonSerializer.Deserialize<DetectedFile>(bytes, JsonOptions) is
+                    { SchemaVersion: SchemaVersion } file)
             {
                 MinedUtc = file.MinedUtc;
                 Publish(file.Patterns);
@@ -1071,13 +1084,15 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
             }
             catch (JsonException ex)
             {
-                RefuseState($"{_stateFile.Name} is not readable ({ex.Message}). Move it aside and restart to start a new one.");
+                RefuseState(
+                    $"{_stateFile.Name} is not readable ({ex.Message}). Move it aside and restart to start a new one.");
                 return;
             }
 
             if (state is null || state.SchemaVersion > StateSchemaVersion)
             {
-                RefuseState($"{_stateFile.Name} is at schema {state?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads. Use the newer build, or move the file aside and restart.");
+                RefuseState(
+                    $"{_stateFile.Name} is at schema {state?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads. Use the newer build, or move the file aside and restart.");
                 return;
             }
 
@@ -1097,7 +1112,8 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _stateUnread = true;
-            StateProblem = $"{_stateFile.Name} could not be opened ({ex.Message}). Changes are kept for this session and saved once it opens.";
+            StateProblem =
+                $"{_stateFile.Name} could not be opened ({ex.Message}). Changes are kept for this session and saved once it opens.";
         }
     }
 

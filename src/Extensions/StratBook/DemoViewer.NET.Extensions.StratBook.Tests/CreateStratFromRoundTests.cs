@@ -75,8 +75,10 @@ public class CreateStratFromRoundTests
                 6 => (6250, 0),
                 _ => (s * 1000, 0)
             });
-            List<CapturedPawn> late = [.. moved.Select(p => p.PlayerSlot == 4 ? Pawn(4, 4400, 0, place: "BombsiteB") : p)];
-            List<CapturedPawn> planting = [.. moved.Select(p => p.PlayerSlot == 3 ? p with { Place = "BombsiteB" } : p)];
+            List<CapturedPawn> late =
+                [.. moved.Select(p => p.PlayerSlot == 4 ? Pawn(4, 4400, 0, place: "BombsiteB") : p)];
+            List<CapturedPawn> planting =
+                [.. moved.Select(p => p.PlayerSlot == 3 ? p with { Place = "BombsiteB" } : p)];
             RoundCapture capture = Round(
                 new CaptureMoment(At(12), CaptureTrigger.Utility, moved, "smoke", 1, 2, new Vector3(1500, 900, 64)),
                 new CaptureMoment(At(15), CaptureTrigger.Utility, moved, "flash", 7, 3, new Vector3(0, 0, 0)),
@@ -90,10 +92,13 @@ public class CreateStratFromRoundTests
             using (Assert.Multiple())
             {
                 await Assert.That(string.Join(",", steps.Select(s => s.Verb))).IsEqualTo("hold,throw,throw,plant,move");
-                await Assert.That(string.Join(",", steps.Select(s => s.AtSeconds.ToString(CultureInfo.InvariantCulture)))).IsEqualTo("115,103,97,75,65");
+                await Assert
+                    .That(string.Join(",", steps.Select(s => s.AtSeconds.ToString(CultureInfo.InvariantCulture))))
+                    .IsEqualTo("115,103,97,75,65");
 
                 // Freeze-end: all ten, ours A..E and theirs O1..O5, in token order.
-                await Assert.That(string.Join(",", steps[0].Positions.Select(p => p.Slot))).IsEqualTo("A,B,C,D,E,O1,O2,O3,O4,O5");
+                await Assert.That(string.Join(",", steps[0].Positions.Select(p => p.Slot)))
+                    .IsEqualTo("A,B,C,D,E,O1,O2,O3,O4,O5");
 
                 // Our smoke: the thrower and the 250-unit opponent; 150 units is not a move.
                 await Assert.That(steps[1].Actor).IsEqualTo("B");
@@ -129,7 +134,8 @@ public class CreateStratFromRoundTests
         {
             // The row's slot says 3; the player (SteamID 101) is in slot 1 at this tick: the player wins.
             List<CapturedPawn> pawns = Everyone(s => s == 1 ? (100, 200) : (s * 1000, 0));
-            RoundCapture capture = Round(new CaptureMoment(At(12), CaptureTrigger.Utility, pawns, "flash", 3, 2, new Vector3(900, 800, 300),
+            RoundCapture capture = Round(new CaptureMoment(At(12), CaptureTrigger.Utility, pawns, "flash", 3, 2,
+                new Vector3(900, 800, 300),
                 ActorSteamId: 101));
 
             StratCaptureOptions options = Options(capture);
@@ -148,7 +154,8 @@ public class CreateStratFromRoundTests
         await HeadlessSession.RunOnUi(async () =>
         {
             List<CapturedPawn> pawns = Everyone(s => s == 1 ? (100, 200) : (s * 1000, 0));
-            RoundCapture capture = Round(new CaptureMoment(At(12), CaptureTrigger.Utility, pawns, "flash", 1, 2, new Vector3(900, 800, 300)));
+            RoundCapture capture = Round(new CaptureMoment(At(12), CaptureTrigger.Utility, pawns, "flash", 1, 2,
+                new Vector3(900, 800, 300)));
 
             StratStep withArrows = StratFromRound.Steps(capture, Options(capture))[1];
             StratStep without = StratFromRound.Steps(capture, Options(capture, arrows: false))[1];
@@ -161,7 +168,8 @@ public class CreateStratFromRoundTests
                 await Assert.That(arrow["kind"]!.GetValue<string>()).IsEqualTo("Arrow");
                 await Assert.That(arrow["space"]!.GetValue<string>()).IsEqualTo("world");
                 await Assert.That(arrow["levelMinZ"]!.GetValue<double>()).IsEqualTo(0);
-                await Assert.That(string.Join(",", points.Select(p => p!.GetValue<float>().ToString(CultureInfo.InvariantCulture))))
+                await Assert.That(string.Join(",",
+                        points.Select(p => p!.GetValue<float>().ToString(CultureInfo.InvariantCulture))))
                     .IsEqualTo("100,200,0.5,900,800,0.5");
                 await Assert.That(arrow.ContainsKey("fromTick")).IsFalse().Because("a stroke's time is its step's");
             }
@@ -182,8 +190,10 @@ public class CreateStratFromRoundTests
             StratStep withOrigin = StratFromRound.Steps(capture, Options(capture))[1];
             JsonArray points = withOrigin.Strokes.Single()["points"]!.AsArray();
 
-            await Assert.That(string.Join(",", points.Select(p => p!.GetValue<float>().ToString(CultureInfo.InvariantCulture))))
-                .IsEqualTo("50,60,0.5,900,800,0.5").Because("the release point, not the thrower's position at detonation");
+            await Assert.That(string.Join(",",
+                    points.Select(p => p!.GetValue<float>().ToString(CultureInfo.InvariantCulture))))
+                .IsEqualTo("50,60,0.5,900,800,0.5")
+                .Because("the release point, not the thrower's position at detonation");
         });
     }
 
@@ -215,26 +225,31 @@ public class CreateStratFromRoundTests
         await HeadlessSession.RunOnUi(async () =>
         {
             // Slot 3 plants where it stood at freeze end, so the plant step's position copies the one before it.
-            List<CapturedPawn> planting = [.. Everyone().Select(p => p.PlayerSlot == 3 ? p with { Place = "BombsiteA" } : p)];
+            List<CapturedPawn> planting =
+                [.. Everyone().Select(p => p.PlayerSlot == 3 ? p with { Place = "BombsiteA" } : p)];
             RoundCapture capture = Round(new CaptureMoment(At(40), CaptureTrigger.Plant, planting, null, 3, 2));
             StratOrigin origin = new() { DemoSha256 = "ab", Round = 7, FileName = "x.dem" };
-            StratDocument document = StratFromRound.Document(capture, Options(capture), StratOwner.Me(), "de_mirage", "r7", origin, null,
+            StratDocument document = StratFromRound.Document(capture, Options(capture), StratOwner.Me(), "de_mirage",
+                "r7", origin, null,
                 new DateTime(2026, 9, 25, 0, 0, 0, DateTimeKind.Utc));
             int plant = document.Steps.FindIndex(s => s.Verb == "plant");
             StratStep step = document.Steps[plant];
             StepPosition captured = step.Positions.Single(p => p.Slot == step.Actor);
 
             StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document), null,
-                (place, _) => place == "BombsiteA" ? (5000, 5000) : null, (place, level) => place == "BombsiteA" ? (5000, 5000, level) : null);
+                (place, _) => place == "BombsiteA" ? (5000, 5000) : null,
+                (place, level) => place == "BombsiteA" ? (5000, 5000, level) : null);
             TokenTrack track = projection.Tracks.Single(t => t.Slot == step.Actor);
             using (Assert.Multiple())
             {
-                await Assert.That(StratSceneProjection.IsLegacyCarry(document)).IsFalse().Because("a captured strat never had Add step's copies");
+                await Assert.That(StratSceneProjection.IsLegacyCarry(document)).IsFalse()
+                    .Because("a captured strat never had Add step's copies");
                 await Assert.That(document.Steps.SelectMany(s => s.Positions).All(p => p.Observed == true)).IsTrue()
                     .Because("every captured position is marked where it was seen");
                 await Assert.That(StratSceneProjection.IsLegacyObserved(document)).IsFalse();
                 await Assert.That(track.TrySample(projection.Ticks[plant], out TokenKeyframe at)).IsTrue();
-                await Assert.That((at.X, at.Y)).IsEqualTo(((float)captured.X, (float)captured.Y)).Because("the captured spot is where it planted");
+                await Assert.That((at.X, at.Y)).IsEqualTo(((float)captured.X, (float)captured.Y))
+                    .Because("the captured spot is where it planted");
             }
         });
     }
@@ -244,16 +259,20 @@ public class CreateStratFromRoundTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            List<CapturedPawn> planting = [.. Everyone().Select(p => p.PlayerSlot == 3 ? p with { Place = "BombsiteA" } : p)];
+            List<CapturedPawn> planting =
+                [.. Everyone().Select(p => p.PlayerSlot == 3 ? p with { Place = "BombsiteA" } : p)];
             RoundCapture capture = Round(new CaptureMoment(At(40), CaptureTrigger.Plant, planting, null, 3, 2));
             StratOrigin origin = new() { DemoSha256 = "ab", Round = 7, FileName = "x.dem" };
             DateTime now = new(2026, 9, 25, 0, 0, 0, DateTimeKind.Utc);
 
-            StratDocument walked = StratFromRound.Document(capture, Options(capture), StratOwner.Me(), "de_mirage", "r7", origin, null, now);
+            StratDocument walked = StratFromRound.Document(capture, Options(capture), StratOwner.Me(), "de_mirage",
+                "r7", origin, null, now);
             RoundFacts row = new() { Number = 7, PlantTick = At(40), PlantSite = BombSite.B, RoundTimeSeconds = 115 };
             row.T.BuyType = BuyType.Force;
-            StratDocument withRow = StratFromRound.Document(capture, Options(capture), StratOwner.Me(), "de_mirage", "r7", origin, row, now);
-            StratDocument ct = StratFromRound.Document(capture, Options(capture, side: 3), StratOwner.Me(), "de_mirage", "r7", origin, null, now);
+            StratDocument withRow = StratFromRound.Document(capture, Options(capture), StratOwner.Me(), "de_mirage",
+                "r7", origin, row, now);
+            StratDocument ct = StratFromRound.Document(capture, Options(capture, side: 3), StratOwner.Me(), "de_mirage",
+                "r7", origin, null, now);
 
             using (Assert.Multiple())
             {
@@ -261,13 +280,16 @@ public class CreateStratFromRoundTests
                 await Assert.That(walked.TargetSite).IsEqualTo("A").Because("the planter stood in BombsiteA");
                 await Assert.That(walked.Economy).IsNull().Because("no row, no buy type");
                 await Assert.That(walked.Origin).IsSameReferenceAs(origin);
-                await Assert.That(walked.Slots.Select(s => s.Slot)).IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
+                await Assert.That(walked.Slots.Select(s => s.Slot))
+                    .IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
                 await Assert.That(withRow.TargetSite).IsEqualTo("B").Because("the row's plant site wins");
                 await Assert.That(withRow.Economy).IsEqualTo("force");
                 await Assert.That(ct.Side).IsEqualTo(StratVocabulary.SideCt);
                 await Assert.That(ct.Type).IsEqualTo("setup");
-                await Assert.That(StratValidator.Validate(walked).Where(i => i.Severity == StratIssueSeverity.Refusal)).IsEmpty();
-                await Assert.That(StratSceneProjection.Build(walked, StratPath.MainLine(walked)).Tracks.Count).IsEqualTo(10);
+                await Assert.That(StratValidator.Validate(walked).Where(i => i.Severity == StratIssueSeverity.Refusal))
+                    .IsEmpty();
+                await Assert.That(StratSceneProjection.Build(walked, StratPath.MainLine(walked)).Tracks.Count)
+                    .IsEqualTo(10);
             }
         });
     }
@@ -285,7 +307,8 @@ public class CreateStratFromRoundTests
             {
                 await Assert.That(keys(-400)).IsEqualTo(MapSpace.QuantizeZ(-500));
                 await Assert.That(keys(50)).IsEqualTo(MapSpace.QuantizeZ(-100));
-                await Assert.That(keys(-280)).IsEqualTo(MapSpace.QuantizeZ(-500)).Because("nearer the lower band's middle");
+                await Assert.That(keys(-280)).IsEqualTo(MapSpace.QuantizeZ(-500))
+                    .Because("nearer the lower band's middle");
                 await Assert.That(StratFromRound.LevelKeys(null)(100)).IsEqualTo(MapSpace.QuantizeZ(100));
             }
         });
@@ -300,7 +323,8 @@ public class CreateStratFromRoundTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(CreateStratDialogViewModel.OurSideAt(pawns, ["100", "101", "102", "999"])).IsEqualTo(2);
+                await Assert.That(CreateStratDialogViewModel.OurSideAt(pawns, ["100", "101", "102", "999"]))
+                    .IsEqualTo(2);
                 await Assert.That(CreateStratDialogViewModel.OurSideAt(pawns, ["105", "106", "107"])).IsEqualTo(3);
                 await Assert.That(CreateStratDialogViewModel.OurSideAt(pawns, ["100", "105"])).IsNull();
                 await Assert.That(CreateStratDialogViewModel.OurSideAt(pawns, [])).IsNull();
@@ -314,7 +338,8 @@ public class CreateStratFromRoundTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStore store = new(null);
-            RoundCapture capture = Round(new CaptureMoment(At(12), CaptureTrigger.Utility, Everyone(), "smoke", 1, 2, new Vector3(1, 2, 3)));
+            RoundCapture capture = Round(new CaptureMoment(At(12), CaptureTrigger.Utility, Everyone(), "smoke", 1, 2,
+                new Vector3(1, 2, 3)));
             Guid? created = null;
             using CreateStratDialogViewModel review = new(Request(["100", "101", "102"]), (_, _) => capture, store);
             review.StratCreated += id => created = id;
@@ -323,7 +348,8 @@ public class CreateStratFromRoundTests
             using (Assert.Multiple())
             {
                 await Assert.That(review.SelectedSide).IsEqualTo(StratVocabulary.SideT);
-                await Assert.That(string.Join(",", review.Slots.Select(s => s.Selected!.PlayerSlot))).IsEqualTo("0,1,2,3,4");
+                await Assert.That(string.Join(",", review.Slots.Select(s => s.Selected!.PlayerSlot)))
+                    .IsEqualTo("0,1,2,3,4");
                 await Assert.That(review.StepLines.Count).IsEqualTo(2);
                 await Assert.That(review.StepLines[1]).StartsWith("1:43  B throw smoke");
                 await Assert.That(review.CanCreate).IsTrue();
@@ -331,7 +357,8 @@ public class CreateStratFromRoundTests
 
             // Moving player 3 into slot A swaps the two: A and D trade players, and the steps follow.
             review.Slots[0].Selected = review.Slots[3].Selected;
-            await Assert.That(string.Join(",", review.Slots.Select(s => s.Selected!.PlayerSlot))).IsEqualTo("3,1,2,0,4");
+            await Assert.That(string.Join(",", review.Slots.Select(s => s.Selected!.PlayerSlot)))
+                .IsEqualTo("3,1,2,0,4");
 
             review.CreateCommand.Execute(null);
             StratDocument saved = store.TryLoad(created!.Value)!;
@@ -343,7 +370,8 @@ public class CreateStratFromRoundTests
                 await Assert.That(saved.Origin!.Round).IsEqualTo(7);
                 await Assert.That(saved.Steps.Count).IsEqualTo(2);
                 await Assert.That(saved.Steps[0].Positions.Single(p => p.Slot == "A").X).IsEqualTo(3000);
-                await Assert.That(book.SlotDefaults["me"]["A"]).IsEqualTo("103").Because("the first mapping of an epoch seeds it");
+                await Assert.That(book.SlotDefaults["me"]["A"]).IsEqualTo("103")
+                    .Because("the first mapping of an epoch seeds it");
             }
         });
     }
@@ -370,7 +398,8 @@ public class CreateStratFromRoundTests
             using (Assert.Multiple())
             {
                 await Assert.That(review.CanCreate).IsTrue();
-                await Assert.That(string.Join(",", review.Slots.Select(s => s.Selected!.PlayerSlot))).IsEqualTo("5,6,7,8,9");
+                await Assert.That(string.Join(",", review.Slots.Select(s => s.Selected!.PlayerSlot)))
+                    .IsEqualTo("5,6,7,8,9");
             }
         });
     }
@@ -380,7 +409,8 @@ public class CreateStratFromRoundTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            using CreateStratDialogViewModel review = new(Request([]), (_, _) => throw new InvalidOperationException("no"),
+            using CreateStratDialogViewModel review = new(Request([]),
+                (_, _) => throw new InvalidOperationException("no"),
                 new StratStore(null));
             await review.Walking;
 

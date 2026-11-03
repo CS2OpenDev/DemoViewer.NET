@@ -62,13 +62,7 @@ public class CompositorLifetimeTests
     private static SceneSubmission Submission()
     {
         MapLevelId id = new(0);
-        MapLevel level = new()
-        {
-            Id = id,
-            Name = "floor 0",
-            ZMin = -1000,
-            ZMax = 1000
-        };
+        MapLevel level = new() { Id = id, Name = "floor 0", ZMin = -1000, ZMax = 1000 };
 
         LevelPaneSnapshot pane = new(id, 0, level, default, new SKRect(0, 0, 64, 64), 1);
         return new SceneSubmission(1, Scene2DFrame.Empty, default, [pane], ScenePalette.Dark,

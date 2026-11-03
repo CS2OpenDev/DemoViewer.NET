@@ -17,10 +17,7 @@ public class ViewportTransformTests
     {
         ViewportTransform t = ViewportTransform.Fit(800, 600, -2000, -2000, 2000, 2000);
 
-        foreach ((double wx, double wy) in new[]
-                 {
-                     (0.0, 0.0), (1234.0, -567.0), (-1999.0, 1999.0)
-                 })
+        foreach ((double wx, double wy) in new[] { (0.0, 0.0), (1234.0, -567.0), (-1999.0, 1999.0) })
         {
             (double sx, double sy) = t.WorldToScreen(wx, wy);
             (double rx, double ry) = t.ScreenToWorld(sx, sy);
@@ -62,10 +59,7 @@ public class ViewportTransformTests
         ViewportTransform t = ViewportTransform.Fit(800, 600, -2000, -2000, 2000, 2000);
 
         // Every extent corner must land inside the viewport (margin keeps it strictly within).
-        foreach ((double wx, double wy) in new[]
-                 {
-                     (-2000.0, -2000.0), (2000.0, 2000.0), (-2000.0, 2000.0)
-                 })
+        foreach ((double wx, double wy) in new[] { (-2000.0, -2000.0), (2000.0, 2000.0), (-2000.0, 2000.0) })
         {
             (double sx, double sy) = t.WorldToScreen(wx, wy);
             await Assert.That(sx).IsGreaterThanOrEqualTo(0);

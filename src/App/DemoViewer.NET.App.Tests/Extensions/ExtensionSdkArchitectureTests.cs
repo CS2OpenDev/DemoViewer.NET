@@ -20,7 +20,9 @@ public class ExtensionSdkArchitectureTests
                 .Where(n => n.StartsWith("DemoViewer.NET", StringComparison.Ordinal))
         ];
 
-        await Assert.That(ours).IsEquivalentTo(["DemoViewer.NET.Modules.Abstractions", "DemoViewer.NET.Playback2D.Scene"], CollectionOrdering.Matching);
+        await Assert.That(ours)
+            .IsEquivalentTo(["DemoViewer.NET.Modules.Abstractions", "DemoViewer.NET.Playback2D.Scene"],
+                CollectionOrdering.Matching);
     }
 
     [Test]
@@ -71,7 +73,8 @@ public class ExtensionSdkArchitectureTests
         [
             .. typeof(Playback2D.Scene2DFrame).Assembly.GetReferencedAssemblies()
                 .Select(a => a.Name!)
-                .Where(n => n.StartsWith("DemoViewer.NET", StringComparison.Ordinal) || n.StartsWith("Avalonia", StringComparison.Ordinal))
+                .Where(n => n.StartsWith("DemoViewer.NET", StringComparison.Ordinal)
+                            || n.StartsWith("Avalonia", StringComparison.Ordinal))
         ];
 
         await Assert.That(ours).IsEmpty();
@@ -90,10 +93,11 @@ public class ExtensionSdkArchitectureTests
         List<string> offenders = [];
         List<string> walked = [];
 
-        foreach (Type root in (Type[]) [typeof(MapAssets), typeof(MapIcons)])
+        foreach (Type root in (Type[])[typeof(MapAssets), typeof(MapIcons)])
         {
             foreach (MemberInfo member in root.GetMembers(BindingFlags.Public | BindingFlags.Static
-                                                          | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                                                                              | BindingFlags.Instance
+                                                                              | BindingFlags.DeclaredOnly))
             {
                 walked.Add($"{root.Name}.{member.Name}");
                 foreach (Type named in Named(member))
@@ -123,7 +127,8 @@ public class ExtensionSdkArchitectureTests
         [
             .. typeof(Modules.Abstractions.IModuleContext).Assembly.GetReferencedAssemblies()
                 .Select(a => a.Name!)
-                .Where(n => n.StartsWith("DemoViewer.NET", StringComparison.Ordinal) || n.StartsWith("Avalonia", StringComparison.Ordinal))
+                .Where(n => n.StartsWith("DemoViewer.NET", StringComparison.Ordinal)
+                            || n.StartsWith("Avalonia", StringComparison.Ordinal))
         ];
 
         await Assert.That(ours).IsEmpty();
@@ -209,7 +214,7 @@ public class ExtensionSdkArchitectureTests
 
     private static IEnumerable<Type> Surface(Type type) =>
     [
-        .. type.BaseType is { } @base ? (Type[]) [@base] : [],
+        .. type.BaseType is { } @base ? (Type[])[@base] : [],
         .. type.GetInterfaces(),
         .. type.GetMembers(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance
                            | BindingFlags.DeclaredOnly).SelectMany(Named)

@@ -63,10 +63,7 @@ public class TrackerFrameSourceTests
 
         // Three sampled output frames, each cross-checked against an independent tracker replayed from
         // zero: the definition of "the source did not lose state while stepping".
-        foreach (int index in new[]
-                 {
-                     0, 25, 60
-                 })
+        foreach (int index in new[] { 0, 25, 60 })
         {
             Scene2DFrame produced = source.FrameAt(index);
             int demoIndex = source.DemoFrameIndexOf(index);

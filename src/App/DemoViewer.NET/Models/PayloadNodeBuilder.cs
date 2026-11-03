@@ -34,15 +34,9 @@ public static class PayloadNodeBuilder
     private static readonly Dictionary<(string Parent, string Field), Func<ByteString, IMessage?>> _knownEmbeds =
         new()
         {
-            {
-                ("CMsgServerUserCmd", "data"), Direct(CSGOUserCmdPB.Parser)
-            },
-            {
-                ("CDemoSendTables", "data"), VarIntPrefixed(CSVCMsg_FlattenedSerializer.Parser)
-            },
-            {
-                ("CDemoUserCmd", "data"), Direct(CMsgServerUserCmd.Parser)
-            }
+            { ("CMsgServerUserCmd", "data"), Direct(CSGOUserCmdPB.Parser) },
+            { ("CDemoSendTables", "data"), VarIntPrefixed(CSVCMsg_FlattenedSerializer.Parser) },
+            { ("CDemoUserCmd", "data"), Direct(CMsgServerUserCmd.Parser) }
         };
 
     /// <summary>Build.</summary>
@@ -147,13 +141,7 @@ public static class PayloadNodeBuilder
         List<PayloadNode> nodes = new(fields.Count + 3);
         foreach ((string name, string value, string wireType) in fields)
         {
-            nodes.Add(new PayloadNode
-            {
-                Name = name,
-                Value = value,
-                WireTypeName = wireType,
-                Depth = 0
-            });
+            nodes.Add(new PayloadNode { Name = name, Value = value, WireTypeName = wireType, Depth = 0 });
         }
 
         // Append temporal context, always present on every GameEvent.
@@ -217,7 +205,8 @@ public static class PayloadNodeBuilder
                 continue;
             }
 
-            if (!byField.TryGetValue(node.FieldNumber, out List<DownstreamUtilities.FieldSpan>? fieldSpans) || fieldSpans.Count == 0)
+            if (!byField.TryGetValue(node.FieldNumber, out List<DownstreamUtilities.FieldSpan>? fieldSpans)
+                || fieldSpans.Count == 0)
             {
                 continue;
             }
@@ -343,21 +332,11 @@ public static class PayloadNodeBuilder
                     string viStr = vi > uint.MaxValue
                         ? $"{(long)vi}"
                         : vi.ToString(CultureInfo.InvariantCulture);
-                    child = new PayloadNode
-                    {
-                        Name = name,
-                        Value = viStr,
-                        Depth = depth
-                    };
+                    child = new PayloadNode { Name = name, Value = viStr, Depth = depth };
                 }
                 else
                 {
-                    child = new PayloadNode
-                    {
-                        Name = name,
-                        Value = "<varint?>",
-                        Depth = depth
-                    };
+                    child = new PayloadNode { Name = name, Value = "<varint?>", Depth = depth };
                 }
 
                 break;
@@ -366,21 +345,11 @@ public static class PayloadNodeBuilder
                 if (DownstreamUtilities.TryReadFixed64Value(bytes, span, out ulong f64))
                 {
                     double d = BitConverter.Int64BitsToDouble((long)f64);
-                    child = new PayloadNode
-                    {
-                        Name = name,
-                        Value = $"0x{f64:X16} / {d:G}",
-                        Depth = depth
-                    };
+                    child = new PayloadNode { Name = name, Value = $"0x{f64:X16} / {d:G}", Depth = depth };
                 }
                 else
                 {
-                    child = new PayloadNode
-                    {
-                        Name = name,
-                        Value = "<fixed64?>",
-                        Depth = depth
-                    };
+                    child = new PayloadNode { Name = name, Value = "<fixed64?>", Depth = depth };
                 }
 
                 break;
@@ -389,21 +358,11 @@ public static class PayloadNodeBuilder
                 if (DownstreamUtilities.TryReadFixed32Value(bytes, span, out uint f32))
                 {
                     float f = BitConverter.Int32BitsToSingle((int)f32);
-                    child = new PayloadNode
-                    {
-                        Name = name,
-                        Value = $"0x{f32:X8} / {f:G}",
-                        Depth = depth
-                    };
+                    child = new PayloadNode { Name = name, Value = $"0x{f32:X8} / {f:G}", Depth = depth };
                 }
                 else
                 {
-                    child = new PayloadNode
-                    {
-                        Name = name,
-                        Value = "<fixed32?>",
-                        Depth = depth
-                    };
+                    child = new PayloadNode { Name = name, Value = "<fixed32?>", Depth = depth };
                 }
 
                 break;
@@ -418,9 +377,7 @@ public static class PayloadNodeBuilder
                     {
                         child = new PayloadNode
                         {
-                            Name = name,
-                            Value = $"\"{Encoding.UTF8.GetString(payload)}\"",
-                            Depth = depth
+                            Name = name, Value = $"\"{Encoding.UTF8.GetString(payload)}\"", Depth = depth
                         };
                         break;
                     }
@@ -436,32 +393,17 @@ public static class PayloadNodeBuilder
                         }
                     }
 
-                    child = new PayloadNode
-                    {
-                        Name = name,
-                        Value = $"<{pLen} bytes>",
-                        Depth = depth
-                    };
+                    child = new PayloadNode { Name = name, Value = $"<{pLen} bytes>", Depth = depth };
                 }
                 else
                 {
-                    child = new PayloadNode
-                    {
-                        Name = name,
-                        Value = "<?>",
-                        Depth = depth
-                    };
+                    child = new PayloadNode { Name = name, Value = "<?>", Depth = depth };
                 }
 
                 break;
 
             default:
-                child = new PayloadNode
-                {
-                    Name = name,
-                    Value = $"<wire{span.WireType}>",
-                    Depth = depth
-                };
+                child = new PayloadNode { Name = name, Value = $"<wire{span.WireType}>", Depth = depth };
                 break;
         }
 
@@ -475,48 +417,23 @@ public static class PayloadNodeBuilder
         {
             List<PayloadNode> children = BuildFields(nested, depth + 1);
             return children.Count > 0
-                ? new PayloadNode
-                {
-                    Name = name,
-                    Children = children,
-                    Depth = depth
-                }
-                : new PayloadNode
-                {
-                    Name = name,
-                    Value = "{ }",
-                    Depth = depth
-                };
+                ? new PayloadNode { Name = name, Children = children, Depth = depth }
+                : new PayloadNode { Name = name, Value = "{ }", Depth = depth };
         }
 
         if (value is ByteString bs)
         {
-            return new PayloadNode
-            {
-                Name = name,
-                Value = $"<{bs.Length} bytes>",
-                Depth = depth
-            };
+            return new PayloadNode { Name = name, Value = $"<{bs.Length} bytes>", Depth = depth };
         }
 
-        return new PayloadNode
-        {
-            Name = name,
-            Value = value.ToString() ?? "",
-            Depth = depth
-        };
+        return new PayloadNode { Name = name, Value = value.ToString() ?? "", Depth = depth };
     }
 
     private static PayloadNode BuildNode(string name, FieldDescriptor field, object? rawValue, int depth)
     {
         if (rawValue is null)
         {
-            return new PayloadNode
-            {
-                Name = name,
-                Value = "(null)",
-                Depth = depth
-            };
+            return new PayloadNode { Name = name, Value = "(null)", Depth = depth };
         }
 
         if (field.IsRepeated)
@@ -528,12 +445,7 @@ public static class PayloadNodeBuilder
                 children.Add(BuildItem($"[{i}]", field, list[i]!, depth + 1));
             }
 
-            return new PayloadNode
-            {
-                Name = name,
-                Children = children,
-                Depth = depth
-            };
+            return new PayloadNode { Name = name, Children = children, Depth = depth };
         }
 
         return BuildItem(name, field, rawValue, depth);
@@ -588,12 +500,7 @@ public static class PayloadNodeBuilder
                 ? children
                 :
                 [
-                    new PayloadNode
-                    {
-                        Name = "(empty)",
-                        Value = "",
-                        Depth = depth + 1
-                    }
+                    new PayloadNode { Name = "(empty)", Value = "", Depth = depth + 1 }
                 ]
         };
     }
@@ -633,7 +540,8 @@ public static class PayloadNodeBuilder
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[PayloadNodeBuilder] Embedded proto decode failed for ({parentType}, {fieldName}): {ex.Message}");
+                Debug.WriteLine(
+                    $"[PayloadNodeBuilder] Embedded proto decode failed for ({parentType}, {fieldName}): {ex.Message}");
             }
 
             if (inner is not null)
@@ -735,12 +643,7 @@ public static class PayloadNodeBuilder
             children.Add(child);
         }
 
-        return new PayloadNode
-        {
-            Name = fieldName,
-            Depth = depth,
-            Children = children
-        };
+        return new PayloadNode { Name = fieldName, Depth = depth, Children = children };
     }
 
     private static PayloadNode? TryDecodePlayerInfoNode(byte[] data, int depth)
@@ -768,30 +671,16 @@ public static class PayloadNodeBuilder
                 Depth = depth,
                 Children =
                 [
+                    new PayloadNode { Name = "name", Value = $"\"{name}\"", Depth = depth + 1 },
                     new PayloadNode
                     {
-                        Name = "name",
-                        Value = $"\"{name}\"",
-                        Depth = depth + 1
+                        Name = "xuid", Value = xuid.ToString(CultureInfo.InvariantCulture), Depth = depth + 1
                     },
                     new PayloadNode
                     {
-                        Name = "xuid",
-                        Value = xuid.ToString(CultureInfo.InvariantCulture),
-                        Depth = depth + 1
+                        Name = "userId", Value = userId.ToString(CultureInfo.InvariantCulture), Depth = depth + 1
                     },
-                    new PayloadNode
-                    {
-                        Name = "userId",
-                        Value = userId.ToString(CultureInfo.InvariantCulture),
-                        Depth = depth + 1
-                    },
-                    new PayloadNode
-                    {
-                        Name = "isBot",
-                        Value = isBot ? "true" : "false",
-                        Depth = depth + 1
-                    }
+                    new PayloadNode { Name = "isBot", Value = isBot ? "true" : "false", Depth = depth + 1 }
                 ]
             };
         }

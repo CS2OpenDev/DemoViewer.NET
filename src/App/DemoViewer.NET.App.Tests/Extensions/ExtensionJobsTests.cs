@@ -43,7 +43,8 @@ public class ExtensionJobsTests
         }
 
         public ExtensionJobs JobsFor(string id, bool withQueue = true) =>
-            new(id, () => withQueue ? Queue : null, () => JobKindRegistry.Default, Faults.GuardFor(new Pack(id)), Posts.Post);
+            new(id, () => withQueue ? Queue : null, () => JobKindRegistry.Default, Faults.GuardFor(new Pack(id)),
+                Posts.Post);
 
         public void Dispose()
         {
@@ -99,7 +100,8 @@ public class ExtensionJobsTests
         {
             await Assert.That(result.Status).IsEqualTo(JobStatus.Completed);
             await Assert.That(handle.Status).IsEqualTo(JobStatus.Completed);
-            await Assert.That(told).IsEquivalentTo([JobStatus.Completed, JobStatus.Completed], CollectionOrdering.Matching)
+            await Assert.That(told)
+                .IsEquivalentTo([JobStatus.Completed, JobStatus.Completed], CollectionOrdering.Matching)
                 .Because("a handler added after the end still hears it, on the post");
         }
     }
@@ -108,7 +110,8 @@ public class ExtensionJobsTests
     public async Task AJobThatThrows_EndsFailed_WithTheError_AndIsCounted()
     {
         using Rig rig = new();
-        IJobHandle handle = rig.JobsFor("dev.example.one").Enqueue(new JobRequest("work", _ => throw new InvalidOperationException("boom")));
+        IJobHandle handle = rig.JobsFor("dev.example.one")
+            .Enqueue(new JobRequest("work", _ => throw new InvalidOperationException("boom")));
         JobResult result = await handle.Completion;
 
         using (Assert.Multiple())
@@ -151,6 +154,7 @@ public class ExtensionJobsTests
     {
         using Rig rig = new();
         List<string> ran = [];
+
         Func<IJobContext, Task> Record(string name) => _ =>
         {
             lock (ran)
@@ -160,8 +164,10 @@ public class ExtensionJobsTests
 
             return Task.CompletedTask;
         };
+
         rig.Queue.Pause();
-        IDemoQueueHandle core = rig.Queue.SubmitJob(new QueueJobRequest(QueueJobKind.StoreSave, "Save: review queue", "review",
+        IDemoQueueHandle core = rig.Queue.SubmitJob(new QueueJobRequest(QueueJobKind.StoreSave, "Save: review queue",
+            "review",
             DemoJobPriority.Background, ctx => Record("core")(null!), Key: "save:review-queue", ReplacePending: true));
         JobOptions save = new(BuiltInJobKinds.Save, Key: "save:review-queue");
         IJobHandle one = rig.JobsFor("dev.example.one").Enqueue(new JobRequest("one", Record("one"), save));
@@ -173,7 +179,8 @@ public class ExtensionJobsTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(ran).IsEquivalentTo(["core", "two"], CollectionOrdering.Matching).Because("each owner's keyed job is its own");
+            await Assert.That(ran).IsEquivalentTo(["core", "two"], CollectionOrdering.Matching)
+                .Because("each owner's keyed job is its own");
             await Assert.That(one.Status).IsEqualTo(JobStatus.Cancelled);
             await Assert.That(two.Status).IsEqualTo(JobStatus.Completed);
         }
@@ -241,7 +248,8 @@ public class ExtensionJobsTests
         rig.Queue.Resume();
         await Task.WhenAll(background.Completion, backlog.Completion);
 
-        await Assert.That(ran).IsEquivalentTo(["backlog", "background"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ran)
+            .IsEquivalentTo(["backlog", "background"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]
@@ -272,7 +280,8 @@ public class ExtensionJobsTests
         }
 
         await handle.Completion.WaitAsync(TimeSpan.FromSeconds(5));
-        await Assert.That(handle.Status).IsEqualTo(JobStatus.Completed).Because("a user's job runs while background work is paused");
+        await Assert.That(handle.Status).IsEqualTo(JobStatus.Completed)
+            .Because("a user's job runs while background work is paused");
     }
 
     [Test]
@@ -307,7 +316,8 @@ public class ExtensionJobsTests
 
         Assert.Throws<ArgumentException>(() => two.Enqueue(new JobRequest("borrowed", _ => Task.CompletedTask,
             new JobOptions("dev.example.one.light"))));
-        await one.RunAsync("own", _ => Task.CompletedTask, new JobOptions("dev.example.one.light")).WaitAsync(TimeSpan.FromSeconds(5));
+        await one.RunAsync("own", _ => Task.CompletedTask, new JobOptions("dev.example.one.light"))
+            .WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(kinds.IsDeclaredBy("dev.example.one.light", "dev.example.two")).IsFalse();
     }
 
@@ -316,9 +326,11 @@ public class ExtensionJobsTests
     {
         using Rig rig = new();
         rig.Queue.Pause();
-        ExtensionJobs jobs = new("dev.example.one", () => rig.Queue, () => JobKindRegistry.Default, onUiThread: static () => false);
+        ExtensionJobs jobs = new("dev.example.one", () => rig.Queue, () => JobKindRegistry.Default,
+            onUiThread: static () => false);
 
-        jobs.Enqueue(new JobRequest("background ask", _ => Task.CompletedTask, new JobOptions(Priority: JobPriority.UserRequested)));
+        jobs.Enqueue(new JobRequest("background ask", _ => Task.CompletedTask,
+            new JobOptions(Priority: JobPriority.UserRequested)));
 
         await Assert.That(rig.Queue.Snapshot().Single(s => s.DisplayName == "background ask").Priority)
             .IsEqualTo(DemoJobPriority.Background);
@@ -330,7 +342,9 @@ public class ExtensionJobsTests
         public string Id => id;
         public string FeatureId => "pack." + id;
         public IEnumerable<ExtensionFeature> Features => [];
-        public IEnumerable<ExtensionJobKind> JobKinds => jobKind is null ? [] : [new ExtensionJobKind(jobKind, "light", true)];
+
+        public IEnumerable<ExtensionJobKind> JobKinds =>
+            jobKind is null ? [] : [new ExtensionJobKind(jobKind, "light", true)];
 
         public void Register(IServiceCollection services)
         {

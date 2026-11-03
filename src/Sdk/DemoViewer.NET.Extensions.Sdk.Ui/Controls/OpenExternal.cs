@@ -30,10 +30,7 @@ public static class OpenExternal
 
         try
         {
-            Process.Start(new ProcessStartInfo(localPath)
-            {
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo(localPath) { UseShellExecute = true });
             return true;
         }
         catch
@@ -52,10 +49,7 @@ public static class OpenExternal
     {
         try
         {
-            Process.Start(new ProcessStartInfo(uri)
-            {
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
             return true;
         }
         catch

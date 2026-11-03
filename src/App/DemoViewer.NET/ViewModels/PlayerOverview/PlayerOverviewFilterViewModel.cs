@@ -212,7 +212,8 @@ public sealed partial class PlayerOverviewFilterViewModel : ObservableObject
         return filter;
     }
 
-    private static long DayStart(DateTime day) => DateTime.SpecifyKind(day.Date, DateTimeKind.Local).ToUniversalTime().Ticks;
+    private static long DayStart(DateTime day) =>
+        DateTime.SpecifyKind(day.Date, DateTimeKind.Local).ToUniversalTime().Ticks;
 
     private static PlayerFilterChoice? ModeChoice(DemoCacheIndexEntry row)
     {

@@ -77,10 +77,7 @@ public class VerificationRunnerMockTests
         CsvgWebHost host;
         try
         {
-            host = await CsvgWebHost.StartAsync(new LiveSyncSettings
-                {
-                    MockMode = true
-                }, null,
+            host = await CsvgWebHost.StartAsync(new LiveSyncSettings { MockMode = true }, null,
                 cancellationToken);
         }
         catch (LiveSyncPortInUseException ex)
@@ -166,10 +163,7 @@ public class VerificationRunnerMockTests
         CsvgWebHost host;
         try
         {
-            host = await CsvgWebHost.StartAsync(new LiveSyncSettings
-                {
-                    MockMode = true
-                }, null,
+            host = await CsvgWebHost.StartAsync(new LiveSyncSettings { MockMode = true }, null,
                 cancellationToken);
         }
         catch (LiveSyncPortInUseException ex)

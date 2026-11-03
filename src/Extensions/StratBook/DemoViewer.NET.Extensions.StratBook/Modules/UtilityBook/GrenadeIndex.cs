@@ -95,7 +95,8 @@ public sealed record GrenadeLineup(WorldPoint Origin, bool JumpThrow, IReadOnlyL
     public bool Answers(Guid id) => Id == id || AliasIds.Contains(id);
 
     /// <summary>Distinct demos among the members, by content where the hash is known.</summary>
-    public int DemoCount => Throws.Select(t => t.Demo.Sha256 ?? t.Demo.StableKey).Distinct(StringComparer.Ordinal).Count();
+    public int DemoCount =>
+        Throws.Select(t => t.Demo.Sha256 ?? t.Demo.StableKey).Distinct(StringComparer.Ordinal).Count();
 }
 
 /// <summary>
@@ -109,7 +110,13 @@ public sealed record GrenadeLineup(WorldPoint Origin, bool JumpThrow, IReadOnlyL
 /// <param name="LandingPlace">The cluster's landing place, or null when none resolved.</param>
 /// <param name="ThrowCount">How many recorded throws stood at this position.</param>
 /// <param name="ConsoleText">The representative throw's <c>setpos</c>/<c>setang</c> line, or null when its release state was not read.</param>
-public sealed record LineupSummary(Guid Id, string Title, GrenadeKind Kind, string? LandingPlace, int ThrowCount, string? ConsoleText);
+public sealed record LineupSummary(
+    Guid Id,
+    string Title,
+    GrenadeKind Kind,
+    string? LandingPlace,
+    int ThrowCount,
+    string? ConsoleText);
 
 /// <summary>
 ///     The grenades of one kind that landed in one coarse grid cell, their origins deduplicated into
@@ -170,7 +177,10 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     private readonly GrenadeLineupStore _lineups;
     private TaskCompletionSource _loadedOnce = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly Dictionary<string, Dictionary<string, Guid>> _assignments = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Dictionary<Guid, List<Guid>>> _reverseAliases = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly Dictionary<string, Dictionary<Guid, List<Guid>>> _reverseAliases =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private bool _attached;
     private bool _disposed;
     private bool _ready;
@@ -464,7 +474,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
         lock (_gate)
         {
-            return _lineups.For(lineup.Throws[0].Map).Paths.TryGetValue(PathKey(lineup.Id, chosen.Key), out LineupPath? path)
+            return _lineups.For(lineup.Throws[0].Map).Paths
+                .TryGetValue(PathKey(lineup.Id, chosen.Key), out LineupPath? path)
                 ? path.Points
                 : null;
         }
@@ -530,7 +541,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         HashSet<Guid> anchored = [.. lineups.Anchors.Select(a => a.Id)];
         foreach (IGrouping<string, IndexedGrenade> group in all
                      .Where(g => assignment.TryGetValue(g.Key, out Guid id) && anchored.Contains(id))
-                     .GroupBy(g => PathKey(assignment[g.Key], GrenadeLineups.TechniqueKey(g.Row)), StringComparer.Ordinal))
+                     .GroupBy(g => PathKey(assignment[g.Key], GrenadeLineups.TechniqueKey(g.Row)),
+                         StringComparer.Ordinal))
         {
             if (!lineups.Paths.ContainsKey(group.Key))
             {
@@ -541,10 +553,12 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     }
 
     // Stores one in-memory flight per anchored technique that has none: the one released nearest the mean.
-    private static bool FillPaths(IReadOnlyList<IndexedGrenade> all, Dictionary<string, Guid> assignment, MapLineups lineups)
+    private static bool FillPaths(IReadOnlyList<IndexedGrenade> all, Dictionary<string, Guid> assignment,
+        MapLineups lineups)
     {
         bool changed = false;
-        foreach ((string key, WorldPoint origin, List<IndexedGrenade> throws) in Unpathed(all, assignment, lineups).ToList())
+        foreach ((string key, WorldPoint origin, List<IndexedGrenade> throws) in Unpathed(all, assignment, lineups)
+                     .ToList())
         {
             List<IndexedGrenade> flown = [.. throws.Where(t => t.Row.Trajectory.Count >= 2)];
             if (flown.Count > 0)
@@ -663,9 +677,11 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         // 1. Grid positions: the stable ids, one per landing cell, rounded origin and throw style.
         List<GridPosition> grid =
         [
-            .. grenades.GroupBy(g => (g.Kind, Cell: CellOf(g.Landing), RoundedOrigin: RoundedOrigin(g.Origin), g.Row.JumpThrow))
+            .. grenades.GroupBy(g =>
+                    (g.Kind, Cell: CellOf(g.Landing), RoundedOrigin: RoundedOrigin(g.Origin), g.Row.JumpThrow))
                 .Select(group => new GridPosition(group.Key.Kind, group.Key.Cell, group.Key.JumpThrow,
-                    LineupId(group.First().Map, group.Key.Kind, group.Key.Cell, group.Key.RoundedOrigin, group.Key.JumpThrow),
+                    LineupId(group.First().Map, group.Key.Kind, group.Key.Cell, group.Key.RoundedOrigin,
+                        group.Key.JumpThrow),
                     [.. group]))
                 .OrderByDescending(p => p.Throws.Count).ThenBy(p => p.Id)
         ];
@@ -686,9 +702,11 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
             {
                 for (int dy = -1; dy <= 1; dy++)
                 {
-                    if (seedCells.TryGetValue((position.Kind, position.JumpThrow, cx + dx, cy + dy), out List<LineupSeed>? near)
+                    if (seedCells.TryGetValue((position.Kind, position.JumpThrow, cx + dx, cy + dy),
+                            out List<LineupSeed>? near)
                         && near.FirstOrDefault(s => Near(s.Origin, origin, OriginMergeRadius, OriginMergeHeight)
-                                                    && Near(s.Landing, landing, LineupLandingRadius, LineupLandingHeight)
+                                                    && Near(s.Landing, landing, LineupLandingRadius,
+                                                        LineupLandingHeight)
                                                     && AimNear(s.Yaw, yaw, s.Pitch, pitch)) is { } found
                         && (home is null || found.Order < home.Order))
                     {
@@ -699,11 +717,13 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
             if (home is null)
             {
-                LineupSeed seed = new(position.Kind, position.JumpThrow, position.Cell, position.Id, origin, landing, yaw, pitch,
+                LineupSeed seed = new(position.Kind, position.JumpThrow, position.Cell, position.Id, origin, landing,
+                    yaw, pitch,
                     [.. position.Throws], [position.Id], seeds.Count);
                 seeds.Add(seed);
                 (int, int) key = BucketOf(origin, OriginMergeRadius);
-                if (!seedCells.TryGetValue((position.Kind, position.JumpThrow, key.Item1, key.Item2), out List<LineupSeed>? bucket))
+                if (!seedCells.TryGetValue((position.Kind, position.JumpThrow, key.Item1, key.Item2),
+                        out List<LineupSeed>? bucket))
                 {
                     bucket = [];
                     seedCells[(position.Kind, position.JumpThrow, key.Item1, key.Item2)] = bucket;
@@ -732,7 +752,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
                 for (int dy = -1; dy <= 1; dy++)
                 {
                     if (landingCells.TryGetValue((seed.Kind, cx + dx, cy + dy), out List<LandingSeed>? near)
-                        && near.FirstOrDefault(l => Near(l.Landing, landing, LandingMergeRadius, LandingMergeHeight)) is { } found
+                        && near.FirstOrDefault(l => Near(l.Landing, landing, LandingMergeRadius, LandingMergeHeight)) is
+                            { } found
                         && (home is null || found.Order < home.Order))
                     {
                         home = found;
@@ -784,7 +805,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
                 .GroupBy(p => p, StringComparer.Ordinal)
                 .OrderByDescending(p => p.Count()).ThenBy(p => p.Key, StringComparer.Ordinal)
                 .Select(p => p.Key).FirstOrDefault();
-            clusters.Add(new GrenadeCluster(group.Kind, group.Cell, Mean(members.Select(g => g.Landing)), place, lineups));
+            clusters.Add(new GrenadeCluster(group.Kind, group.Cell, Mean(members.Select(g => g.Landing)), place,
+                lineups));
         }
 
         return
@@ -838,23 +860,45 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     }
 
     // The mean origin and landing, and the mean aim (yaw on the circle), of one grid position's throws.
-    private static (WorldPoint Origin, WorldPoint Landing, float? Yaw, float? Pitch) Centre(IReadOnlyList<IndexedGrenade> throws)
+    private static (WorldPoint Origin, WorldPoint Landing, float? Yaw, float? Pitch) Centre(
+        IReadOnlyList<IndexedGrenade> throws)
     {
         List<float> yaws = [.. throws.Select(t => t.Row.ReleaseEyeYaw).OfType<float>()];
         List<float> pitches = [.. throws.Select(t => t.Row.ReleaseEyePitch).OfType<float>()];
         float? yaw = yaws.Count == 0
             ? null
-            : MathF.Atan2(yaws.Sum(y => MathF.Sin(y * MathF.PI / 180)), yaws.Sum(y => MathF.Cos(y * MathF.PI / 180))) * 180 / MathF.PI;
+            : MathF.Atan2(yaws.Sum(y => MathF.Sin(y * MathF.PI / 180)), yaws.Sum(y => MathF.Cos(y * MathF.PI / 180)))
+            * 180 / MathF.PI;
         float? pitch = pitches.Count == 0 ? null : pitches.Average();
         return (Mean(throws.Select(t => t.Origin)), Mean(throws.Select(t => t.Landing)), yaw, pitch);
     }
 
-    private sealed record GridPosition(GrenadeKind Kind, (int X, int Y, int Z) Cell, bool JumpThrow, Guid Id, IReadOnlyList<IndexedGrenade> Throws);
+    private sealed record GridPosition(
+        GrenadeKind Kind,
+        (int X, int Y, int Z) Cell,
+        bool JumpThrow,
+        Guid Id,
+        IReadOnlyList<IndexedGrenade> Throws);
 
-    private sealed record LineupSeed(GrenadeKind Kind, bool JumpThrow, (int X, int Y, int Z) Cell, Guid Id,
-        WorldPoint Origin, WorldPoint Landing, float? Yaw, float? Pitch, List<IndexedGrenade> Throws, List<Guid> Aliases, int Order);
+    private sealed record LineupSeed(
+        GrenadeKind Kind,
+        bool JumpThrow,
+        (int X, int Y, int Z) Cell,
+        Guid Id,
+        WorldPoint Origin,
+        WorldPoint Landing,
+        float? Yaw,
+        float? Pitch,
+        List<IndexedGrenade> Throws,
+        List<Guid> Aliases,
+        int Order);
 
-    private sealed record LandingSeed(GrenadeKind Kind, (int X, int Y, int Z) Cell, WorldPoint Landing, List<LineupSeed> Lineups, int Order);
+    private sealed record LandingSeed(
+        GrenadeKind Kind,
+        (int X, int Y, int Z) Cell,
+        WorldPoint Landing,
+        List<LineupSeed> Lineups,
+        int Order);
 
     /// <summary>
     ///     A walk row as an index row, or null when it has no origin or no landing point to cluster on (a
@@ -865,12 +909,14 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
     /// <param name="row">The walk's row.</param>
     /// <param name="zones">The map's zone resolver, or null when it has none.</param>
     /// <param name="tickRate">The demo's tick rate; 64 when the caller has none.</param>
-    public static IndexedGrenade? From(DemoRef demo, string map, GrenadeRow row, IZonePlaceResolver? zones, int tickRate = 64)
+    public static IndexedGrenade? From(DemoRef demo, string map, GrenadeRow row, IZonePlaceResolver? zones,
+        int tickRate = 64)
     {
         ArgumentNullException.ThrowIfNull(demo);
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(row);
-        if ((row.ReleasePosition ?? row.ThrowerPositionAtSpawn) is not { } origin || row.DetonationPosition is not { } landing)
+        if ((row.ReleasePosition ?? row.ThrowerPositionAtSpawn) is not { } origin
+            || row.DetonationPosition is not { } landing)
         {
             return null;
         }
@@ -1132,10 +1178,14 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
                 // Its path went, its bytes did not: the same rows, read through the path that still has them.
                 if (demo.Demo.Sha256 is { Length: > 0 } sha && _library.FindBySha256(sha) is { } other
-                                                             && IsLoadable(other) && !_loaded.ContainsKey(other.FilePath))
+                                                            && IsLoadable(other)
+                                                            && !_loaded.ContainsKey(other.FilePath))
                 {
                     DemoRef moved = DemoRef.From(other);
-                    _loaded[other.FilePath] = demo with { Demo = moved, Grenades = [.. demo.Grenades.Select(g => g with { Demo = moved })] };
+                    _loaded[other.FilePath] = demo with
+                    {
+                        Demo = moved, Grenades = [.. demo.Grenades.Select(g => g with { Demo = moved })]
+                    };
                 }
 
                 changed = true;

@@ -89,8 +89,9 @@ public class HostileYamlTests
                             """;
 
         YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
-        NotSupportedException thrown = Assert.Throws<NotSupportedException>(
-            () => YamlEdits.SetScalar(doc, YamlPath.Root.Key("summary"), "replaced"));
+        NotSupportedException thrown =
+            Assert.Throws<NotSupportedException>(() =>
+                YamlEdits.SetScalar(doc, YamlPath.Root.Key("summary"), "replaced"));
 
         await Assert.That(thrown.Message).Contains("block scalar");
     }
@@ -103,8 +104,9 @@ public class HostileYamlTests
         const string Yaml = "ruleset: probe\nfor: &scope match\n";
 
         YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
-        NotSupportedException thrown = Assert.Throws<NotSupportedException>(
-            () => YamlEdits.SetScalar(doc, YamlPath.Root.Key("for"), "each_player"));
+        NotSupportedException thrown =
+            Assert.Throws<NotSupportedException>(() =>
+                YamlEdits.SetScalar(doc, YamlPath.Root.Key("for"), "each_player"));
 
         await Assert.That(thrown.Message).Contains("anchor");
     }
@@ -119,8 +121,8 @@ public class HostileYamlTests
         const string Yaml = "ruleset: probe\na: &anc hello\nb: *anc\n";
 
         YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
-        NotSupportedException thrown = Assert.Throws<NotSupportedException>(
-            () => YamlEdits.SetScalar(doc, YamlPath.Root.Key("b"), "goodbye"));
+        NotSupportedException thrown =
+            Assert.Throws<NotSupportedException>(() => YamlEdits.SetScalar(doc, YamlPath.Root.Key("b"), "goodbye"));
 
         await Assert.That(thrown.Message).Contains("anchor");
     }
@@ -131,8 +133,8 @@ public class HostileYamlTests
         const string Yaml = "ruleset: probe\ncount: !!str 5\n";
 
         YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
-        NotSupportedException thrown = Assert.Throws<NotSupportedException>(
-            () => YamlEdits.SetScalar(doc, YamlPath.Root.Key("count"), "6"));
+        NotSupportedException thrown =
+            Assert.Throws<NotSupportedException>(() => YamlEdits.SetScalar(doc, YamlPath.Root.Key("count"), "6"));
 
         await Assert.That(thrown.Message).Contains("tag");
     }
@@ -144,8 +146,7 @@ public class HostileYamlTests
 
         YamlDocumentText doc = YamlDocumentText.Parse(Yaml);
 
-        Assert.Throws<NotSupportedException>(
-            () => YamlEdits.AddSequenceItem(doc, YamlPath.Root.Key("list"), "two"));
+        Assert.Throws<NotSupportedException>(() => YamlEdits.AddSequenceItem(doc, YamlPath.Root.Key("list"), "two"));
         await Task.CompletedTask;
     }
 
@@ -313,8 +314,8 @@ public class HostileYamlTests
         const string Yaml = "ruleset: probe\nexports: [ a ]\nfor: match\n";
 
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(Yaml);
-        InvalidOperationException thrown = Assert.Throws<InvalidOperationException>(
-            () => editor.SetDocumentField("exports", "b"));
+        InvalidOperationException thrown =
+            Assert.Throws<InvalidOperationException>(() => editor.SetDocumentField("exports", "b"));
 
         await Assert.That(thrown.Message).Contains("already holds");
     }

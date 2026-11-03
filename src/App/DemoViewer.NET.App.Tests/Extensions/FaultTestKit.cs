@@ -119,7 +119,8 @@ internal sealed class CapturedLogs : ILoggerProvider, ILogger, IDisposable
 
     public static CapturedLogs Install() => new();
 
-    public IEnumerable<string> WithEvent(int eventId) => Entries.Where(e => e.EventId == eventId).Select(e => e.Message);
+    public IEnumerable<string> WithEvent(int eventId) =>
+        Entries.Where(e => e.EventId == eventId).Select(e => e.Message);
 
     public ILogger CreateLogger(string categoryName) => this;
 

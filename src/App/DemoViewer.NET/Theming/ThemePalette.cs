@@ -83,7 +83,8 @@ public sealed class ThemePalette
             }
         }
 
-        return new ThemePalette(def.Id, def.DisplayName, def.BaseVariant, colors, gradients, inherited, def.UnknownTokens);
+        return new ThemePalette(def.Id, def.DisplayName, def.BaseVariant, colors, gradients, inherited,
+            def.UnknownTokens);
     }
 
     /// <summary>
@@ -93,13 +94,13 @@ public sealed class ThemePalette
     public ThemeDefinition ToCompleteDefinition(string? id = null, string? displayName = null) =>
         new(id ?? Id, displayName ?? DisplayName, BaseVariant, Colors)
         {
-            Gradients = Gradients,
-            UnknownTokens = UnknownTokens
+            Gradients = Gradients, UnknownTokens = UnknownTokens
         };
 
     /// <summary>True when <paramref name="token" /> has the same value here as in <paramref name="other" />.</summary>
     public bool SameValue(string token, ThemePalette other) =>
         Colors.TryGetValue(token, out Color a)
             ? other.Colors.TryGetValue(token, out Color b) && a == b
-            : Gradients.TryGetValue(token, out ThemeGradient? ga) && other.Gradients.TryGetValue(token, out ThemeGradient? gb) && ga.Equals(gb);
+            : Gradients.TryGetValue(token, out ThemeGradient? ga)
+              && other.Gradients.TryGetValue(token, out ThemeGradient? gb) && ga.Equals(gb);
 }

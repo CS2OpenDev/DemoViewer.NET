@@ -297,7 +297,8 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
         rows.Add(Row("rules dir", AnalysisViewModel.RulesDirectory));
 
         IReadOnlyList<DemoFrame>? frames = _frames();
-        rows.Add(Row("frames", frames is null ? "(no demo loaded)" : frames.Count.ToString("N0", CultureInfo.InvariantCulture)));
+        rows.Add(Row("frames",
+            frames is null ? "(no demo loaded)" : frames.Count.ToString("N0", CultureInfo.InvariantCulture)));
 
         ParsedDemo? demo = _analysisTab.Analysis.LastEvaluatedDemo;
         if (demo is not null)
@@ -327,7 +328,8 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
         {
             ParseProfilingRows =
             [
-                Row("parse profiling", "no data captured — Re-run with capture turns profiling on; then RELOAD the demo to profile the parse pass")
+                Row("parse profiling",
+                    "no data captured — Re-run with capture turns profiling on; then RELOAD the demo to profile the parse pass")
             ];
             return;
         }
@@ -388,12 +390,14 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
             // Tracker decode nests under the scanner's seek; report the unattributed remainder explicitly.
             long children = t.FieldPathTicks + t.FieldValueTicks + t.DescriptorBuildTicks;
             long remainder = t.PacketEntitiesTicks - children;
-            rows.Add(Indent("tracker.PacketEntities", $"{Ms(t.PacketEntitiesTicks)} · {Mib(t.PacketEntitiesAlloc)}", 1));
+            rows.Add(Indent("tracker.PacketEntities", $"{Ms(t.PacketEntitiesTicks)} · {Mib(t.PacketEntitiesAlloc)}",
+                1));
             rows.Add(Indent("fieldPath", $"{Ms(t.FieldPathTicks)} · {Mib(t.FieldPathAlloc)}", 2));
             rows.Add(Indent("fieldValue", $"{Ms(t.FieldValueTicks)} · {Mib(t.FieldValueAlloc)}", 2));
             rows.Add(Indent("descriptorBuild", $"{Ms(t.DescriptorBuildTicks)} · {Mib(t.DescriptorBuildAlloc)}", 2));
             rows.Add(Indent("(unattributed)", Ms(remainder), 2));
-            rows.Add(Indent("packetEntities count", t.PacketEntitiesCount.ToString("N0", CultureInfo.InvariantCulture), 2));
+            rows.Add(Indent("packetEntities count", t.PacketEntitiesCount.ToString("N0", CultureInfo.InvariantCulture),
+                2));
             rows.Add(Indent("entity field reads", t.EntityFieldReads.ToString("N0", CultureInfo.InvariantCulture), 2));
             rows.Add(Indent("descriptor builds", t.DescriptorBuilds.ToString("N0", CultureInfo.InvariantCulture), 2));
         }

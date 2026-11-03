@@ -130,10 +130,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         Navigation = navigation;
 
         HexViewRaw = new HarvestHexViewModel();
-        HexViewDecompressed = new HarvestHexViewModel
-        {
-            PlaceholderText = "Select a frame to view decoded payload"
-        };
+        HexViewDecompressed = new HarvestHexViewModel { PlaceholderText = "Select a frame to view decoded payload" };
 
         // Reverse byte → node selection. Clicking a byte in the Frame Details
         // (decompressed) view resolves the encompassing payload-tree node and selects it,
@@ -313,7 +310,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
     internal void BuildCardsForFrameExternal(DemoFrame frame) => BuildCardsForFrame(frame);
 
     /// <summary>Exposes the card factory for the still-on-shell tick-group + analysis card builds.</summary>
-    internal HarvestCardViewModel BuildHarvestCardExternal(NetMessage msg, byte[]? msgBytes, int normalizedOffset = 0) =>
+    internal HarvestCardViewModel
+        BuildHarvestCardExternal(NetMessage msg, byte[]? msgBytes, int normalizedOffset = 0) =>
         BuildHarvestCard(msg, msgBytes, normalizedOffset);
 
     /// <summary>
@@ -439,7 +437,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
     /// </summary>
     internal static string RawFrameHighlightInfo(DemoFrame frame)
     {
-        string info = $"Frame: {frame.Command}  tick {frame.GameTick ?? frame.ServerTick}  ({frame.RawLength} bytes at 0x{frame.RawStart:X})";
+        string info =
+            $"Frame: {frame.Command}  tick {frame.GameTick ?? frame.ServerTick}  ({frame.RawLength} bytes at 0x{frame.RawStart:X})";
         if (frame.IsCompressed)
         {
             info += "  •  Snappy-compressed — switch to Frame Details for decompressed bytes";
@@ -810,10 +809,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
     {
         HarvestCardViewModel card = new(typeName, bytes.Length, true)
         {
-            Message = null,
-            RawUnknownBytes = bytes,
-            NormalizedOffset = 0,
-            NormalizedPayloadOffset = 0
+            Message = null, RawUnknownBytes = bytes, NormalizedOffset = 0, NormalizedPayloadOffset = 0
         };
         card.SelectCommand = new RelayCommand(() => HandleCardSelected(card));
 
@@ -946,20 +942,13 @@ public sealed partial class ParserTabViewModel : ObservableObject
 
         if (update.Kind == EntityUpdateInfo.UpdateType.Leave)
         {
-            return new PayloadNode
-            {
-                Name = label,
-                Value = "(leaving PVS)",
-                Depth = depth
-            };
+            return new PayloadNode { Name = label, Value = "(leaving PVS)", Depth = depth };
         }
 
         List<PayloadNode> fieldNodes = update.Fields
             .Select(kv => new PayloadNode
             {
-                Name = kv.Key,
-                Value = MainViewModel.FormatValue(kv.Value),
-                Depth = depth + 1
+                Name = kv.Key, Value = MainViewModel.FormatValue(kv.Value), Depth = depth + 1
             })
             .ToList();
 
@@ -971,12 +960,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
                 ? fieldNodes
                 :
                 [
-                    new PayloadNode
-                    {
-                        Name = "(no fields)",
-                        Value = "",
-                        Depth = depth + 1
-                    }
+                    new PayloadNode { Name = "(no fields)", Value = "", Depth = depth + 1 }
                 ]
         };
     }
@@ -1599,7 +1583,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
         {
             int start = card.NormalizedOffset;
             int len = NormalizedHeaderSize + payloadLen;
-            _msgHlInfo = $"{msg.MessageTypeName}  |  Normalized offset {card.NormalizedPayloadOffset}  ({payloadLen} bytes)";
+            _msgHlInfo =
+                $"{msg.MessageTypeName}  |  Normalized offset {card.NormalizedPayloadOffset}  ({payloadLen} bytes)";
             _msgDecompressedRanges = [new HexSpan(start, len, 0, _msgHlInfo)];
         }
         else if (msg.DecompressedStart is { } start && payloadLen > 0)

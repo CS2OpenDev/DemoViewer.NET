@@ -20,7 +20,8 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class ReviewQueueTabTests
 {
-    private static ReviewEntry Clip(string path, int from, int to, string note = "", string source = ReviewSources.Manual) =>
+    private static ReviewEntry Clip(string path, int from, int to, string note = "",
+        string source = ReviewSources.Manual) =>
         ReviewEntry.Clip(path, from, to, note, source, 64);
 
     [Test]
@@ -49,7 +50,8 @@ public class ReviewQueueTabTests
         {
             await Assert.That(queue.Clips[1].Question).IsEqualTo("who traded?");
             await Assert.That(tab.Rows[2]).IsSameReferenceAs(row);
-            await Assert.That(row.Question).IsEqualTo("who traded? ").Because("the trailing space being typed is not eaten");
+            await Assert.That(row.Question).IsEqualTo("who traded? ")
+                .Because("the trailing space being typed is not eaten");
         }
 
         row.MoveUpCommand.Execute(null);
@@ -84,7 +86,8 @@ public class ReviewQueueTabTests
     public async Task TheModule_ContributesTheReviewSection_UnderThePersistedIds_WithTheClipCountAsBadge()
     {
         ReviewQueue queue = new(null);
-        ReviewQueueModule module = new(() => throw new InvalidOperationException("never built here"), () => true, new ExtensionReviewQueue(queue));
+        ReviewQueueModule module = new(() => throw new InvalidOperationException("never built here"), () => true,
+            new ExtensionReviewQueue(queue));
         WorkspaceTabDescriptor tab = module.CreateTabs(null!).Single();
         await Assert.That(tab.Badge).IsNull();
         queue.Add([Clip("/d/a.dem", 1, 2)], "A section");
@@ -97,7 +100,8 @@ public class ReviewQueueTabTests
             await Assert.That(tab.Header).IsEqualTo("Review");
             await Assert.That(tab.HostId).IsEqualTo(HostIds.StratBookHub);
             await Assert.That(tab.Order).IsEqualTo(4).Because("after Utility on the rail");
-            await Assert.That(tab.ViewModelFactory is not null).IsTrue().Because("lazy and retained, never DataContext");
+            await Assert.That(tab.ViewModelFactory is not null).IsTrue()
+                .Because("lazy and retained, never DataContext");
             await Assert.That(tab.DataContext).IsNull();
             await Assert.That(tab.Badge).IsEqualTo("1").Because("clips only; the title card is not counted");
             await Assert.That(feature).IsNotNull();
@@ -112,7 +116,8 @@ public class ReviewQueueTabTests
     {
         ReviewQueue queue = new(null);
         queue.Add([Clip("/d/a.dem", 1, 2)], "A section");
-        ReviewQueueModule module = new(() => throw new InvalidOperationException("never built here"), () => false, new ExtensionReviewQueue(queue));
+        ReviewQueueModule module = new(() => throw new InvalidOperationException("never built here"), () => false,
+            new ExtensionReviewQueue(queue));
         WorkspaceTabDescriptor tab = module.CreateTabs(null!).Single();
 
         await Assert.That(tab.Badge).IsNull().Because("the initial read is skipped while the section is off");

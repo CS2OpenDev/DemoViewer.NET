@@ -103,7 +103,8 @@ internal sealed class StratBookLifecycle : IExtensionLifecycle
         // The situation index's startup load: every current sidecar, as a queue item at the front (2 ms per
         // demo measured). Queries before it finishes answer empty with IsReady false and the strip says so.
         SituationIndex situations = _sp.GetRequiredService<SituationIndex>();
-        Task situationsLoad = PackItem(jobs, BuiltInJobKinds.Load, "Load: situations index", epoch, situations.Load, ct);
+        Task situationsLoad =
+            PackItem(jobs, BuiltInJobKinds.Load, "Load: situations index", epoch, situations.Load, ct);
 
         // The grenade index's startup load: every current rows sibling; the Utility Book says it is reading.
         GrenadeIndex grenadeIndex = _sp.GetRequiredService<GrenadeIndex>();
@@ -210,7 +211,8 @@ internal sealed class StratBookLifecycle : IExtensionLifecycle
     // One of the pack's own jobs: a light job ahead of background work, so it shows in the queue list, on the
     // serial that orders it against every other pack job. It does nothing when the enable it belongs to was
     // cancelled or a later transition bumped the epoch, whether or not the queue dropped it.
-    private Task PackItem(IExtensionJobs jobs, string kind, string title, int epoch, Action work, CancellationToken ct) =>
+    private Task PackItem(IExtensionJobs jobs, string kind, string title, int epoch, Action work,
+        CancellationToken ct) =>
         jobs.RunAsync(title, _ =>
         {
             if (!ct.IsCancellationRequested && Volatile.Read(ref _epoch) == epoch)

@@ -39,14 +39,17 @@ public class StratSceneProjectionTests
         AnnotationElement label = projection.Elements[1];
         using (Assert.Multiple())
         {
-            await Assert.That(projection.Ticks).IsEquivalentTo(new[] { Smoke, Molly, Peek, All }, CollectionOrdering.Matching);
+            await Assert.That(projection.Ticks)
+                .IsEquivalentTo(new[] { Smoke, Molly, Peek, All }, CollectionOrdering.Matching);
             await Assert.That(projection.Elements.Count).IsEqualTo(2);
             await Assert.That(arrow.Kind).IsEqualTo(AnnotationKind.Arrow);
             await Assert.That(arrow.Time).IsEqualTo(new TimeEnvelope(Smoke, Molly - 1, 8, 16));
             await Assert.That(arrow.Space).IsEqualTo(new SpaceRef.World(-256));
-            await Assert.That(arrow.Style.ColorArgb).IsEqualTo(0xFFFFC107u).Because("the sample's #FFC107 shorthand is read");
+            await Assert.That(arrow.Style.ColorArgb).IsEqualTo(0xFFFFC107u)
+                .Because("the sample's #FFC107 shorthand is read");
             await Assert.That(arrow.Style.WidthWorld).IsEqualTo(3f);
-            await Assert.That(arrow.Points.Select(p => (p.X, p.Y))).IsEquivalentTo(new[] { (420f, -1750f), (-900f, -1600f) }, CollectionOrdering.Matching);
+            await Assert.That(arrow.Points.Select(p => (p.X, p.Y)))
+                .IsEquivalentTo(new[] { (420f, -1750f), (-900f, -1600f) }, CollectionOrdering.Matching);
             await Assert.That(label.Kind).IsEqualTo(AnnotationKind.Text);
             await Assert.That(label.Text).IsEqualTo("swing wide");
             await Assert.That(label.Time).IsEqualTo(new TimeEnvelope(Peek, All - 1, 8, 16));
@@ -56,7 +59,8 @@ public class StratSceneProjectionTests
 
         // A stroke stored without an id is drawn under the same one every time it is projected.
         StratSceneProjection again = StratSceneProjection.Build(sample, StratPath.MainLine(sample));
-        await Assert.That(again.Elements.Select(e => e.Id)).IsEquivalentTo(projection.Elements.Select(e => e.Id), CollectionOrdering.Matching);
+        await Assert.That(again.Elements.Select(e => e.Id))
+            .IsEquivalentTo(projection.Elements.Select(e => e.Id), CollectionOrdering.Matching);
         await Assert.That(projection.TryFindStroke(label.Id, out StrokeRef at)).IsTrue();
         await Assert.That(at).IsEqualTo(new StrokeRef(2, 0));
     }
@@ -81,13 +85,15 @@ public class StratSceneProjectionTests
         TokenTrack c = projection.Tracks.Single(t => t.Slot == "C");
         using (Assert.Multiple())
         {
-            await Assert.That(projection.Tracks.Select(t => t.Slot)).IsEquivalentTo(_placedSlots, CollectionOrdering.Matching);
+            await Assert.That(projection.Tracks.Select(t => t.Slot))
+                .IsEquivalentTo(_placedSlots, CollectionOrdering.Matching);
             await Assert.That(a.Keyframes[0]).IsEqualTo(new TokenKeyframe(Smoke, 400, -1800, -256, 180));
             await Assert.That(a.Keyframes[^1]).IsEqualTo(new TokenKeyframe(Peek, -600, -1400, -256, 180))
                 .Because("an entry with no yaw keeps the previous keyframe's");
             await Assert.That(c.HoldTicks[0]).IsEqualTo(160).Because("holdSeconds 2.5 × 64");
             await Assert.That(c.Segments[0]).IsEqualTo(TokenInterpolation.Hold);
-            await Assert.That(projection.Utility.Single() is { Kind: GrenadeKind.Smoke, X: -1024.5f, Y: -1616f, Z: -224f, ThrowTick: Smoke })
+            await Assert.That(projection.Utility.Single() is
+                    { Kind: GrenadeKind.Smoke, X: -1024.5f, Y: -1616f, Z: -224f, ThrowTick: Smoke })
                 .IsTrue().Because("the molotov names only a place and no place resolves, so only the smoke lands");
             await Assert.That(projection.Labels.Single(l => l.Slot == "O1")).IsEqualTo(new TokenLabel("O1", "1", 3));
             await Assert.That(projection.Clock.Kind).IsEqualTo("dv-strat-clock");
@@ -100,10 +106,10 @@ public class StratSceneProjectionTests
     public async Task AnEditedStroke_KeepsItsUnknownFields_AndWritesNoTime()
     {
         JsonObject stored = JsonNode.Parse("""
-            { "id": "0b4b0a52-7d0a-4a55-9d3f-6f3e4c2b1a00", "kind": "Arrow", "colorArgb": 4294951175, "widthWorld": 4,
-              "opacity": 1, "space": "world", "levelMinZ": 128, "points": [1, 2, 0.5, 3, 4, 0.5],
-              "futureStroke": { "kept": true }, "fromTick": 99 }
-            """)!.AsObject();
+                                           { "id": "0b4b0a52-7d0a-4a55-9d3f-6f3e4c2b1a00", "kind": "Arrow", "colorArgb": 4294951175, "widthWorld": 4,
+                                             "opacity": 1, "space": "world", "levelMinZ": 128, "points": [1, 2, 0.5, 3, 4, 0.5],
+                                             "futureStroke": { "kept": true }, "fromTick": 99 }
+                                           """)!.AsObject();
 
         AnnotationElement element = StratStrokes.ToElement(stored, Guid.Empty, new TimeEnvelope(10, 20, 0, 0))!;
         AnnotationElement moved = element with { Points = [new InkPoint(5, 6, 0.5f), new InkPoint(7, 8, 0.5f)] };
@@ -111,7 +117,8 @@ public class StratSceneProjectionTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(element.Time).IsEqualTo(new TimeEnvelope(10, 20, 0, 0)).Because("a stroke's time is its step's");
+            await Assert.That(element.Time).IsEqualTo(new TimeEnvelope(10, 20, 0, 0))
+                .Because("a stroke's time is its step's");
             await Assert.That(written["futureStroke"]!["kept"]!.GetValue<bool>()).IsTrue();
             await Assert.That(written.ContainsKey("fromTick")).IsFalse();
             await Assert.That(written["space"]!.GetValue<string>()).IsEqualTo("world");
@@ -124,7 +131,8 @@ public class StratSceneProjectionTests
     [Test]
     public async Task AnEntityStroke_IsNotDrawn()
     {
-        JsonObject entity = JsonNode.Parse("""{ "kind": "Freehand", "space": "entity", "steamId": 7, "points": [] }""")!.AsObject();
+        JsonObject entity = JsonNode.Parse("""{ "kind": "Freehand", "space": "entity", "steamId": 7, "points": [] }""")!
+            .AsObject();
         await Assert.That(StratStrokes.ToElement(entity, Guid.NewGuid(), TimeEnvelope.Static)).IsNull();
     }
 

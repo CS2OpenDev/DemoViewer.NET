@@ -167,9 +167,9 @@ public class PremierTierTests
     {
         await Assert.That(IconCatalogue.PremierTiers.Count).IsEqualTo(7);
         await Assert.That(IconCatalogue.PremierTiers.Select(t => t.Hex))
-                    .IsEquivalentTo(TierHexes, CollectionOrdering.Matching);
+            .IsEquivalentTo(TierHexes, CollectionOrdering.Matching);
         await Assert.That(IconCatalogue.PremierTiers.Select(t => t.MinRating))
-                    .IsEquivalentTo(TierFloors, CollectionOrdering.Matching);
+            .IsEquivalentTo(TierFloors, CollectionOrdering.Matching);
     }
 
     /// <summary>
@@ -267,7 +267,7 @@ public class RankBadgeTests
         await Assert.That(IconCatalogue.UnrankedBadge(expired: true)!.Key).IsEqualTo("rank/competitive/expired");
         await Assert.That(IconCatalogue.UnrankedBadge(wingman: true)!.Key).IsEqualTo("rank/wingman/none");
         await Assert.That(IconCatalogue.UnrankedBadge(expired: true, wingman: true)!.Key)
-                    .IsEqualTo("rank/wingman/expired");
+            .IsEqualTo("rank/wingman/expired");
         await Assert.That(IconCatalogue.NeedsWinsBadge()).IsNotNull();
     }
 

@@ -44,10 +44,7 @@ public readonly record struct FreehandOptions(
     /// <summary>The same options at a different stroke width.</summary>
     /// <param name="size">The new stroke diameter.</param>
     public FreehandOptions WithSize(double size) =>
-        this with
-        {
-            Size = size
-        };
+        this with { Size = size };
 
     /// <summary>
     ///     The options an <c>AnnotationStyle</c>'s world-space width maps to. The ONE place the mapping

@@ -40,7 +40,8 @@ public partial class StratLocationFieldTests
         PlaceFieldModel model = new(true) { Options = PlaceFieldOptions.For(Mirage), CurrentLevelMinZ = -256 };
         model.Load([Named("Stairs")]);
         model.Open();
-        await Assert.That(model.Items.Any(o => o.Place == "Stairs")).IsFalse().Because("a chosen callout is not offered again");
+        await Assert.That(model.Items.Any(o => o.Place == "Stairs")).IsFalse()
+            .Because("a chosen callout is not offered again");
 
         model.Type("jun");
         IReadOnlyList<PlaceRef> picked = model.Accept()!;
@@ -50,9 +51,13 @@ public partial class StratLocationFieldTests
         IReadOnlyList<PlaceRef> point = model.Commit()!;
         using (Assert.Multiple())
         {
-            await Assert.That(picked.Select(p => p.Place ?? "")).IsEquivalentTo(["Stairs", "Jungle"], CollectionOrdering.Matching);
-            await Assert.That(typed.Select(p => p.Place ?? "")).IsEquivalentTo(["Stairs", "Jungle", "PalaceInterior"], CollectionOrdering.Matching).Because("an alias resolves");
-            await Assert.That((point[3].X, point[3].Y, point[3].LevelMinZ)).IsEqualTo(((double?)10, (double?)-20.5, (double?)-256));
+            await Assert.That(picked.Select(p => p.Place ?? ""))
+                .IsEquivalentTo(["Stairs", "Jungle"], CollectionOrdering.Matching);
+            await Assert.That(typed.Select(p => p.Place ?? ""))
+                .IsEquivalentTo(["Stairs", "Jungle", "PalaceInterior"], CollectionOrdering.Matching)
+                .Because("an alias resolves");
+            await Assert.That((point[3].X, point[3].Y, point[3].LevelMinZ))
+                .IsEqualTo(((double?)10, (double?)-20.5, (double?)-256));
             await Assert.That(model.Text).IsEmpty();
         }
 
@@ -79,25 +84,30 @@ public partial class StratLocationFieldTests
         model.Load([Named("Stairs"), Named("Jungle"), a, b]);
         using (Assert.Multiple())
         {
-            await Assert.That(model.Shift(1, -1)!.Select(p => p.Place)).IsEquivalentTo(["Jungle", "Stairs", null, null], CollectionOrdering.Matching);
+            await Assert.That(model.Shift(1, -1)!.Select(p => p.Place))
+                .IsEquivalentTo(["Jungle", "Stairs", null, null], CollectionOrdering.Matching);
             await Assert.That(model.Shift(0, -1)).IsNull().Because("the first chip has nowhere to go");
             await Assert.That(model.Shift(1, 1)).IsNull().Because("a list is stored places first, then points");
-            await Assert.That(model.Shift(3, -1)!.Select(p => p.X)).IsEquivalentTo([null, null, (double?)1.4, 1.2], CollectionOrdering.Matching);
+            await Assert.That(model.Shift(3, -1)!.Select(p => p.X))
+                .IsEquivalentTo([null, null, (double?)1.4, 1.2], CollectionOrdering.Matching);
         }
 
         IReadOnlyList<PlaceRef> left = model.Remove(0);
         using (Assert.Multiple())
         {
-            await Assert.That(left.Select(p => p.Place ?? $"{p.X}")).IsEquivalentTo(["Stairs", "1.4", "1.2"], CollectionOrdering.Matching)
+            await Assert.That(left.Select(p => p.Place ?? $"{p.X}"))
+                .IsEquivalentTo(["Stairs", "1.4", "1.2"], CollectionOrdering.Matching)
                 .Because("two points that print alike stay two points");
             await Assert.That(StratLocations.Same(left[1], b)).IsTrue();
             await Assert.That(StratLocations.Same(left[2], a)).IsTrue();
-            await Assert.That(PlaceFieldModel.DisplayOf([left[1]], Mirage)).IsEqualTo(PlaceFieldModel.DisplayOf([left[2]], Mirage));
+            await Assert.That(PlaceFieldModel.DisplayOf([left[1]], Mirage))
+                .IsEqualTo(PlaceFieldModel.DisplayOf([left[2]], Mirage));
         }
     }
 
     [Test]
-    public async Task TheAddField_EnterAppends_BackspaceSelectsThenRemoves_AltArrowMoves_AndAnUntouchedListPassesEnter() =>
+    public async Task
+        TheAddField_EnterAppends_BackspaceSelectsThenRemoves_AltArrowMoves_AndAnUntouchedListPassesEnter() =>
         await HeadlessSession.RunOnUi(async () =>
         {
             (Window window, RowLike row, PlaceField field) = ShowField(VerticalAlignment.Top, true);
@@ -123,7 +133,8 @@ public partial class StratLocationFieldTests
             Dispatcher.UIThread.RunJobs();
             using (Assert.Multiple())
             {
-                await Assert.That(field.Value!.Select(p => p.Place ?? $"{p.X},{p.Y}")).IsEquivalentTo(["Stairs", "Jungle", "10,20"], CollectionOrdering.Matching);
+                await Assert.That(field.Value!.Select(p => p.Place ?? $"{p.X},{p.Y}"))
+                    .IsEquivalentTo(["Stairs", "Jungle", "10,20"], CollectionOrdering.Matching);
                 await Assert.That(field.Chips.Count).IsEqualTo(3);
                 await Assert.That(BoxOf(field).Text ?? "").IsEmpty();
                 await Assert.That(row.Enters).IsEqualTo(1).Because("Enter on typed text stays with the field");
@@ -137,7 +148,8 @@ public partial class StratLocationFieldTests
             Dispatcher.UIThread.RunJobs();
             using (Assert.Multiple())
             {
-                await Assert.That(field.Value!.Select(p => p.Place ?? "")).IsEquivalentTo(["Stairs", "Jungle"], CollectionOrdering.Matching);
+                await Assert.That(field.Value!.Select(p => p.Place ?? ""))
+                    .IsEquivalentTo(["Stairs", "Jungle"], CollectionOrdering.Matching);
                 await Assert.That(BoxOf(field).IsFocused).IsTrue();
             }
 
@@ -148,7 +160,8 @@ public partial class StratLocationFieldTests
             Dispatcher.UIThread.RunJobs();
             using (Assert.Multiple())
             {
-                await Assert.That(field.Value!.Select(p => p.Place ?? "")).IsEquivalentTo(["Jungle", "Stairs"], CollectionOrdering.Matching);
+                await Assert.That(field.Value!.Select(p => p.Place ?? ""))
+                    .IsEquivalentTo(["Jungle", "Stairs"], CollectionOrdering.Matching);
                 await Assert.That(field.Chips[0].IsFocused).IsTrue();
                 await Assert.That(row.Enters).IsEqualTo(1);
             }
@@ -215,7 +228,8 @@ public partial class StratLocationFieldTests
             using (Assert.Multiple())
             {
                 await Assert.That(vm.Session.Document!.Steps[index].Lurk!.AreaPoints).IsNull();
-                await Assert.That(vm.Session.Document!.Steps[index].Lurk!.Areas).IsEquivalentTo(["PalaceInterior", "Connector"], CollectionOrdering.Matching);
+                await Assert.That(vm.Session.Document!.Steps[index].Lurk!.Areas)
+                    .IsEquivalentTo(["PalaceInterior", "Connector"], CollectionOrdering.Matching);
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
                 await Assert.That(areas.Chips.Count).IsEqualTo(2);
             }
@@ -245,7 +259,8 @@ public partial class StratLocationFieldTests
             string added = Bytes(vm);
             using (Assert.Multiple())
             {
-                await Assert.That(vm.Session.Document!.Steps[index].Lurk!.Areas).IsEquivalentTo(["PalaceInterior", "Connector", "Jungle"], CollectionOrdering.Matching);
+                await Assert.That(vm.Session.Document!.Steps[index].Lurk!.Areas)
+                    .IsEquivalentTo(["PalaceInterior", "Connector", "Jungle"], CollectionOrdering.Matching);
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 2);
                 await Assert.That(areas.Chips.Count).IsEqualTo(3);
                 await Assert.That(BoxOf(areas).Text ?? "").IsEmpty();
@@ -264,7 +279,8 @@ public partial class StratLocationFieldTests
         {
             using StratBookTabViewModel vm = OpenOnMirage();
             StratStep hold = StratStepEditingTests.Step(100, "B", "hold", StratStepEditingTests.At("B", 0));
-            hold.Assignments = [new StepAssignment { Slot = "B", Watch = new StepWatch { Places = ["Stairs", "Jungle"] } }];
+            hold.Assignments =
+                [new StepAssignment { Slot = "B", Watch = new StepWatch { Places = ["Stairs", "Jungle"] } }];
             StratStepEditingTests.Seed(vm, hold);
             (Window window, StratBookTabView view, Control row, int index) = ShowStep(vm);
             PlaceField watch = FieldIn(row, "LineWatchField", "GroupWatchField");
@@ -292,15 +308,22 @@ public partial class StratLocationFieldTests
             StratDocument document = vm.Session.Document!;
             using (Assert.Multiple())
             {
-                await Assert.That(document.Steps[index].Assignments!.Single().Watch!.Places).IsEquivalentTo(["Jungle", "Stairs"], CollectionOrdering.Matching);
+                await Assert.That(document.Steps[index].Assignments!.Single().Watch!.Places)
+                    .IsEquivalentTo(["Jungle", "Stairs"], CollectionOrdering.Matching);
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
-                await Assert.That(document.Steps.Count).IsEqualTo(steps).Because("Alt+Left on a chip is not a step move");
+                await Assert.That(document.Steps.Count).IsEqualTo(steps)
+                    .Because("Alt+Left on a chip is not a step move");
             }
 
             // Stairs up and to the right of B, Jungle up and to the left: the token now faces Jungle.
-            PlaceCentreResolver centres = (place, _) => place switch { "Stairs" => (100, 100), "Jungle" => (-100, 100), _ => null };
-            TokenTrack b = StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres).Tracks.Single(t => t.Slot == "B");
-            await Assert.That(b.TrySample(StepSchedule.TickFor(100, 115), out TokenKeyframe sample) ? sample.YawDegrees : float.NaN).IsEqualTo(135f);
+            PlaceCentreResolver centres = (place, _) =>
+                place switch { "Stairs" => (100, 100), "Jungle" => (-100, 100), _ => null };
+            TokenTrack b = StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres).Tracks
+                .Single(t => t.Slot == "B");
+            await Assert
+                .That(b.TrySample(StepSchedule.TickFor(100, 115), out TokenKeyframe sample)
+                    ? sample.YawDegrees
+                    : float.NaN).IsEqualTo(135f);
 
             string moved = Bytes(vm);
             vm.Session.Undo();
@@ -323,15 +346,18 @@ public partial class StratLocationFieldTests
             await Assert.That(via.Chips.Count).IsEqualTo(1);
 
             int depth = vm.Session.UndoDepth;
-            via.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "PickButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            via.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "PickButton")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
             await Assert.That(via.IsPicking).IsTrue();
             vm.Canvas.TryTagPositionAt(Upper, 700, 800);
             Dispatcher.UIThread.RunJobs();
             using (Assert.Multiple())
             {
-                await Assert.That(StratLocations.Via(vm.Session.Document!.Steps[index].Via, vm.Session.Document!.Steps[index].ViaPoints)
-                    .Select(p => p.Place ?? "")).IsEquivalentTo(["Connector", "BombsiteB"], CollectionOrdering.Matching);
+                await Assert.That(StratLocations
+                        .Via(vm.Session.Document!.Steps[index].Via, vm.Session.Document!.Steps[index].ViaPoints)
+                        .Select(p => p.Place ?? ""))
+                    .IsEquivalentTo(["Connector", "BombsiteB"], CollectionOrdering.Matching);
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
                 await Assert.That(via.Chips.Count).IsEqualTo(2);
             }
@@ -347,11 +373,14 @@ public partial class StratLocationFieldTests
         model.Type("palace");
         using (Assert.Multiple())
         {
-            await Assert.That(model.Items.Any(o => o.Place == "PalaceAlley")).IsTrue().Because("a neighbour that starts the same is listed");
-            await Assert.That(model.Highlight).IsEqualTo(-1).Because("\"palace\" is PalaceInterior's alias, already chosen");
+            await Assert.That(model.Items.Any(o => o.Place == "PalaceAlley")).IsTrue()
+                .Because("a neighbour that starts the same is listed");
+            await Assert.That(model.Highlight).IsEqualTo(-1)
+                .Because("\"palace\" is PalaceInterior's alias, already chosen");
             await Assert.That(model.Accept()).IsNull();
             await Assert.That(model.Commit()).IsNull();
-            await Assert.That(model.Value.Select(p => p.Place ?? "")).IsEquivalentTo(["PalaceInterior"], CollectionOrdering.Matching);
+            await Assert.That(model.Value.Select(p => p.Place ?? ""))
+                .IsEquivalentTo(["PalaceInterior"], CollectionOrdering.Matching);
         }
     }
 
@@ -361,7 +390,8 @@ public partial class StratLocationFieldTests
         {
             using StratBookTabViewModel vm = OpenOnMirage();
             StratStep hold = StratStepEditingTests.Step(100, "B", "hold", StratStepEditingTests.At("B", 0));
-            hold.Assignments = [new StepAssignment { Slot = "B", Watch = new StepWatch { Places = ["Stairs"], YawDegrees = 135 } }];
+            hold.Assignments =
+                [new StepAssignment { Slot = "B", Watch = new StepWatch { Places = ["Stairs"], YawDegrees = 135 } }];
             StratStepEditingTests.Seed(vm, hold);
             (Window window, StratBookTabView _, Control row, int index) = ShowStep(vm);
             PlaceField watch = FieldIn(row, "LineWatchField", "GroupWatchField");
@@ -401,7 +431,8 @@ public partial class StratLocationFieldTests
             StratStepEditingTests.Seed(vm, lurk);
             (Window window, StratBookTabView _, Control row, int _) = ShowStep(vm);
             PlaceField areas = FieldIn(row, "LurkAreasField");
-            ScrollViewer editor = window.GetVisualDescendants().OfType<ScrollViewer>().Single(s => s.Name == "EditorScroll");
+            ScrollViewer editor = window.GetVisualDescendants().OfType<ScrollViewer>()
+                .Single(s => s.Name == "EditorScroll");
             editor.Offset = new Vector(0, 0);
             Dispatcher.UIThread.RunJobs();
 

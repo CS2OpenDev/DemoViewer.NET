@@ -21,8 +21,7 @@ public sealed class CalloutResolver
     // "Roof" too, so the exceptions are listed instead.
     private static readonly Dictionary<string, string> DisplayOverrides = new(StringComparer.Ordinal)
     {
-        ["Topof"] = "Top of",
-        ["Backof"] = "Back of"
+        ["Topof"] = "Top of", ["Backof"] = "Back of"
     };
 
     private readonly Dictionary<string, string> _aliases = new(StringComparer.Ordinal);
@@ -158,7 +157,8 @@ public sealed class CalloutResolver
         {
             bool boundary = i == place.Length
                             || (char.IsUpper(place[i]) && char.IsLower(place[i - 1]))
-                            || (char.IsUpper(place[i]) && char.IsUpper(place[i - 1]) && i + 1 < place.Length && char.IsLower(place[i + 1]))
+                            || (char.IsUpper(place[i]) && char.IsUpper(place[i - 1]) && i + 1 < place.Length
+                                && char.IsLower(place[i + 1]))
                             || (char.IsDigit(place[i]) != char.IsDigit(place[i - 1]));
             if (boundary)
             {
@@ -233,9 +233,11 @@ public static class CanonicalPlaces
                 using JsonDocument document = JsonDocument.Parse(stream);
                 JsonElement root = document.RootElement;
                 if (root.TryGetProperty("map", out JsonElement map) && map.GetString() is { Length: > 0 } name
-                                                                    && root.TryGetProperty("names", out JsonElement names))
+                                                                    && root.TryGetProperty("names",
+                                                                        out JsonElement names))
                 {
-                    lists[name.ToLowerInvariant()] = [.. names.EnumerateArray().Select(n => n.GetString()).OfType<string>()];
+                    lists[name.ToLowerInvariant()] =
+                        [.. names.EnumerateArray().Select(n => n.GetString()).OfType<string>()];
                 }
             }
             catch (Exception e) when (e is IOException or JsonException or InvalidOperationException)

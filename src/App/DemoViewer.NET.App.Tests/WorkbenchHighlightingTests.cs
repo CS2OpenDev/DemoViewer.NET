@@ -55,10 +55,14 @@ public class WorkbenchHighlightingTests
             await Assert.That(colours.GetValueOrDefault("while")).IsEqualTo("Modifier");
             await Assert.That(colours.GetValueOrDefault("when")).IsEqualTo("Modifier");
             await Assert.That(colours.GetValueOrDefault("each_player")).IsEqualTo("Literal");
-            await Assert.That(colours.GetValueOrDefault("kill")).IsEqualTo("Event").Because("catalog event names are yellow");
-            await Assert.That(colours.GetValueOrDefault("enemy")).IsEqualTo("Facet").Because("catalog facets are light-blue");
-            await Assert.That(colours.GetValueOrDefault("round.active")).IsEqualTo("Path").Because("dotted read-paths are light-blue");
-            await Assert.That(colours.GetValueOrDefault("kills")).IsEqualTo("Identifier").Because("a user's own stat id is gold, not a keyword colour");
+            await Assert.That(colours.GetValueOrDefault("kill")).IsEqualTo("Event")
+                .Because("catalog event names are yellow");
+            await Assert.That(colours.GetValueOrDefault("enemy")).IsEqualTo("Facet")
+                .Because("catalog facets are light-blue");
+            await Assert.That(colours.GetValueOrDefault("round.active")).IsEqualTo("Path")
+                .Because("dotted read-paths are light-blue");
+            await Assert.That(colours.GetValueOrDefault("kills")).IsEqualTo("Identifier")
+                .Because("a user's own stat id is gold, not a keyword colour");
         });
 
     /// <summary>
@@ -104,7 +108,8 @@ public class WorkbenchHighlightingTests
                 int abs = line.Offset + idx;
                 foreach (HighlightedSection section in hl.Sections)
                 {
-                    if (abs >= section.Offset && abs < section.Offset + section.Length && section.Color.Name is { } name)
+                    if (abs >= section.Offset && abs < section.Offset + section.Length
+                                              && section.Color.Name is { } name)
                     {
                         result[token] = name;
                         break;

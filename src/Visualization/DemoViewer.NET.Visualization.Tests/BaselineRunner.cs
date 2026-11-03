@@ -15,20 +15,34 @@ public static class BaselineRunner
 {
     internal static IReadOnlyList<Fixture> BuildAll()
     {
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups, INodeTable Table) demo = DemoStateGraphSample.Build();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) fanOut = StressTestGraphs.BuildFanOut();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) fanIn = StressTestGraphs.BuildFanIn();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) conv = StressTestGraphs.BuildConvergence();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) longChain = StressTestGraphs.BuildLongChain();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) skipChain = StressTestGraphs.BuildSkipChainNoSubtitle();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) diamond = StressTestGraphs.BuildDiamond();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) dense = StressTestGraphs.BuildDenseCluster();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) selfLoop = StressTestGraphs.BuildSelfLoopHeavy();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) disconnected = StressTestGraphs.BuildDisconnectedComponents();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups, IReadOnlyList<INodeTable> Tables) multiTable = StressTestGraphs.BuildMultiTableStack();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) hub = StressTestGraphs.BuildHighDegreeHub();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups, IReadOnlyList<INodeTable> Tables) big = StressTestGraphs.BuildBigStandard();
-        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) shipped = ShippedScaleGraph.Build();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups, INodeTable
+            Table) demo = DemoStateGraphSample.Build();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) fanOut =
+            StressTestGraphs.BuildFanOut();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) fanIn =
+            StressTestGraphs.BuildFanIn();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) conv =
+            StressTestGraphs.BuildConvergence();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) longChain =
+            StressTestGraphs.BuildLongChain();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) skipChain =
+            StressTestGraphs.BuildSkipChainNoSubtitle();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) diamond =
+            StressTestGraphs.BuildDiamond();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) dense =
+            StressTestGraphs.BuildDenseCluster();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) selfLoop =
+            StressTestGraphs.BuildSelfLoopHeavy();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups)
+            disconnected = StressTestGraphs.BuildDisconnectedComponents();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups,
+            IReadOnlyList<INodeTable> Tables) multiTable = StressTestGraphs.BuildMultiTableStack();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) hub =
+            StressTestGraphs.BuildHighDegreeHub();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups,
+            IReadOnlyList<INodeTable> Tables) big = StressTestGraphs.BuildBigStandard();
+        (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges, IReadOnlyList<INodeGroup> Groups) shipped =
+            ShippedScaleGraph.Build();
 
         return
         [

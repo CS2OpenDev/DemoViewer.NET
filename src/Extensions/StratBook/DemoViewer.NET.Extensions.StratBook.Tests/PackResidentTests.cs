@@ -27,7 +27,8 @@ public class PackResidentTests
         DemoCacheStore cache = new(null);
         RoundIndexStore sidecars = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
-        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), sidecars, sources, () => true, walk: _ => []);
+        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), sidecars, sources, () => true,
+            walk: _ => []);
         using SituationIndex index = new(cache.Library(), sidecars, sources, evaluator: evaluator);
         Indexed(cache, sidecars, "/d/a.dem", Document("de_nuke", sources.FingerprintFor("de_nuke"),
             (1, 1000, 1200, [new RoundIndexRun(0, 1, "BombsiteA:5", "Ramp:5")])));
@@ -47,7 +48,8 @@ public class PackResidentTests
             await Assert.That(index.IndexedDemoCount).IsEqualTo(0);
             await Assert.That(index.IsReady).IsFalse();
             await Assert.That(index.Query(new SituationQuery("de_nuke", [], []))).IsEmpty();
-            await Assert.That(changed).IsEqualTo(2).Because("one Changed for the load, one for the release, none for the second release");
+            await Assert.That(changed).IsEqualTo(2)
+                .Because("one Changed for the load, one for the release, none for the second release");
         }
 
         // Unsubscribed: a removal the attached index would act on is not even looked at.
@@ -75,7 +77,8 @@ public class PackResidentTests
         {
             DemoCacheStore cache = new(null);
             IndexOneGrenade(cache, "/d/a.dem", "de_dust2");
-            using GrenadeIndex grenades = new(cache.Library(), lineups: new GrenadeLineupStore(root), scheduleSave: _ => Task.CompletedTask);
+            using GrenadeIndex grenades = new(cache.Library(), lineups: new GrenadeLineupStore(root),
+                scheduleSave: _ => Task.CompletedTask);
             grenades.Load();
             _ = grenades.Query(new GrenadeQuery("de_dust2")); // mints an anchor: the lineup store is dirty
             Task loaded = grenades.WhenLoaded;
@@ -87,11 +90,13 @@ public class PackResidentTests
             grenades.Release();
             using (Assert.Multiple())
             {
-                await Assert.That(File.Exists(lineups)).IsTrue().Because("the pending lineup save was written before the drop");
+                await Assert.That(File.Exists(lineups)).IsTrue()
+                    .Because("the pending lineup save was written before the drop");
                 await Assert.That(grenades.IsReady).IsFalse();
                 await Assert.That(grenades.DemoCount).IsEqualTo(0);
                 await Assert.That(grenades.Maps()).IsEmpty();
-                await Assert.That(grenades.WhenLoaded.IsCompleted).IsFalse().Because("the next load completes a new WhenLoaded");
+                await Assert.That(grenades.WhenLoaded.IsCompleted).IsFalse()
+                    .Because("the next load completes a new WhenLoaded");
             }
 
             grenades.Load();
@@ -181,7 +186,8 @@ public class PackResidentTests
             };
 
             // An attached service writes the user's file, then goes away.
-            using (TeamIdentityService writer = new(TestFiles.Teams(root), cache.Library(), run: inline, scheduleLoad: inline))
+            using (TeamIdentityService writer = new(TestFiles.Teams(root), cache.Library(), run: inline,
+                       scheduleLoad: inline))
             {
                 writer.SetSquad(["76561198000000001", "76561198000000002"], "us");
             }
@@ -194,20 +200,24 @@ public class PackResidentTests
             // Detached from the start, the way the shell builds it before the wizard has asked. A read that
             // reaches it anyway (a mutator's own Ensure stands in for a stale queued "Load: teams" here)
             // reads nothing, and what the mutator then computes over nothing reaches no file.
-            using TeamIdentityService teams = new(TestFiles.Teams(root), cache.Library(), run: inline, scheduleLoad: inline, loadAtStart: false);
+            using TeamIdentityService teams = new(TestFiles.Teams(root), cache.Library(), run: inline,
+                scheduleLoad: inline, loadAtStart: false);
             teams.SetSquad(["76561198000000009", "76561198000000010"], "not us");
             using (Assert.Multiple())
             {
                 await Assert.That(teams.IsLoaded).IsFalse().Because("the skipped read leaves a fresh load behind");
-                await Assert.That(await File.ReadAllTextAsync(teamsFile)).IsEqualTo(onDisk).Because("detached, nothing is written");
-                await Assert.That(await File.ReadAllTextAsync(indexFile)).IsEqualTo(indexOnDisk).Because("nor is the derived index");
+                await Assert.That(await File.ReadAllTextAsync(teamsFile)).IsEqualTo(onDisk)
+                    .Because("detached, nothing is written");
+                await Assert.That(await File.ReadAllTextAsync(indexFile)).IsEqualTo(indexOnDisk)
+                    .Because("nor is the derived index");
             }
 
             teams.Attach();
             using (Assert.Multiple())
             {
                 await Assert.That(teams.IsLoaded).IsTrue();
-                await Assert.That(teams.AllTeams.Select(t => t.Name)).IsEquivalentTo(["us"], CollectionOrdering.Matching)
+                await Assert.That(teams.AllTeams.Select(t => t.Name))
+                    .IsEquivalentTo(["us"], CollectionOrdering.Matching)
                     .Because("Attach read the file as the attached service left it; the detached mutation is gone");
             }
         }
@@ -228,7 +238,8 @@ public class PackResidentTests
             (1, 1000, 1200, [new RoundIndexRun(0, 1, "BombsiteA:5", "Ramp:5")])), computedAt: 100);
         index.Load();
         using WatchedSituationsService watched = new(null, index, cache.Library(), now: () => 50);
-        watched.Watch("A hold", "de_nuke", [.. Enumerable.Range(0, 5).Select(i => new QueryToken(QuerySide.Ct, i, 600 + i, -400, -416, "BombsiteA"))],
+        watched.Watch("A hold", "de_nuke",
+            [.. Enumerable.Range(0, 5).Select(i => new QueryToken(QuerySide.Ct, i, 600 + i, -400, -416, "BombsiteA"))],
             SituationTolerance.Exact, SearchFilterValues.None);
         index.Load(); // the index's Changed is what makes a watch count
         await Assert.That(watched.NewCount).IsEqualTo(1);
@@ -236,7 +247,8 @@ public class PackResidentTests
         watched.Release();
         watched.Release();
         await Assert.That(watched.NewCount).IsEqualTo(0);
-        await Assert.That(watched.Watches.Count).IsEqualTo(1).Because("the saved query is the user's; only the hits go");
+        await Assert.That(watched.Watches.Count).IsEqualTo(1)
+            .Because("the saved query is the user's; only the hits go");
 
         // Not following the index: a reload that would recount changes nothing until Attach.
         index.Release();
@@ -257,9 +269,11 @@ public class PackResidentTests
             DemoCacheStore cache = new(null);
             IndexOneGrenade(cache, "/d/a.dem", "de_dust2");
             IndexOneGrenade(cache, "/d/b.dem", "de_dust2");
-            using GrenadeIndex grenades = new(cache.Library(), lineups: new GrenadeLineupStore(null), scheduleSave: _ => Task.CompletedTask);
+            using GrenadeIndex grenades = new(cache.Library(), lineups: new GrenadeLineupStore(null),
+                scheduleSave: _ => Task.CompletedTask);
             grenades.Load();
-            using LineupClipService clips = new(() => [.. grenades.Maps().SelectMany(m => grenades.Query(new GrenadeQuery(m)))], PackStores.At(root),
+            using LineupClipService clips = new(
+                () => [.. grenades.Maps().SelectMany(m => grenades.Query(new GrenadeQuery(m)))], PackStores.At(root),
                 () => true, new NoRenderer(), fileExists: _ => false, planDebounce: TimeSpan.Zero);
 
             await Assert.That(clips.Plan()).IsGreaterThan(0);
@@ -307,7 +321,8 @@ public class PackResidentTests
 
     private sealed class NoRenderer : ILineupClipRenderer
     {
-        public Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, CS2DemoKit.Parser.ParsedDemo? demo, IReadOnlyList<LineupClipJob> jobs,
+        public Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, CS2DemoKit.Parser.ParsedDemo? demo,
+            IReadOnlyList<LineupClipJob> jobs,
             CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<LineupClipJob>>([]);
     }

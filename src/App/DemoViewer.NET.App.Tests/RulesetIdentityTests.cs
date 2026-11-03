@@ -61,7 +61,8 @@ public class RulesetIdentityTests
         DirectoryInfo user = Directory.CreateTempSubdirectory("dv-ri-disabled-");
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(user.FullName, "kast.rules.yaml"), "ruleset: kast\nenabled: false\n");
+            await File.WriteAllTextAsync(Path.Combine(user.FullName, "kast.rules.yaml"),
+                "ruleset: kast\nenabled: false\n");
             MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, user.FullName));
             await Assert.That(build.EnabledDoc(Kast)).IsNull();
 
@@ -90,7 +91,8 @@ public class RulesetIdentityTests
     // The identity of a ruleset without use:, the doc composed alone, its file's hash, the engine version.
     private static string Alone(RulesetDoc doc, int tickRate)
     {
-        string composed = HighlightConfigFingerprint.Compute([doc], tickRate, RulesHighlightHarvester.GotvProfileId).Fingerprint;
+        string composed = HighlightConfigFingerprint.Compute([doc], tickRate, RulesHighlightHarvester.GotvProfileId)
+            .Fingerprint;
         string source = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(doc.Position.File!)));
         string engine = typeof(DemoAnalysis).Assembly.GetName().Version?.ToString() ?? "";
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{composed}\n{source}\n{engine}")));

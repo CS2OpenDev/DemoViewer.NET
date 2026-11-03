@@ -71,7 +71,8 @@ public sealed class RoundFactsSource : IRoundFactsSource
         foreach (DemoCacheIndexEntry demo in _demoCache.Contents)
         {
             if (demo.RoundFactsStamp() is not { Schema: > 0 } || Named(demo, filter.Demos) is not { } entry
-                || _demoCache.TryLoadRecord(entry.Path, false) is not { RoundFacts: { } rows })
+                                                              || _demoCache.TryLoadRecord(entry.Path, false) is not
+                                                                  { RoundFacts: { } rows })
             {
                 continue;
             }
@@ -80,7 +81,9 @@ public sealed class RoundFactsSource : IRoundFactsSource
             int tickRate = rows.Clock?.TickRate ?? 0;
             foreach (RoundFacts round in rows.Rounds)
             {
-                if (RoundFactsRules.Matches(entry.Path, round, filter) && (!filter.HasTickAnchored || RoundFactsRules.MatchesAnywhere(round, filter, tickRate)))
+                if (RoundFactsRules.Matches(entry.Path, round, filter) && (!filter.HasTickAnchored
+                                                                           || RoundFactsRules.MatchesAnywhere(round,
+                                                                               filter, tickRate)))
                 {
                     hits.Add((entry, round));
                 }
@@ -98,7 +101,9 @@ public sealed class RoundFactsSource : IRoundFactsSource
             return demo;
         }
 
-        return demo.Locations.FirstOrDefault(l => demos.Contains(l.Path)) is { } named ? _demoCache.TryGetIndex(named.Path) : null;
+        return demo.Locations.FirstOrDefault(l => demos.Contains(l.Path)) is { } named
+            ? _demoCache.TryGetIndex(named.Path)
+            : null;
     }
 
     /// <inheritdoc />

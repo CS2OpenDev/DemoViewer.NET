@@ -14,7 +14,11 @@ public sealed record LibraryPlayerAlias(string Name, DateTime FirstSeen, DateTim
 /// <param name="FirstSeen">The <see cref="LibraryPlayerMatch.Time" /> of its oldest demo.</param>
 /// <param name="LastSeen">The <see cref="LibraryPlayerMatch.Time" /> of its newest demo.</param>
 public sealed record LibraryPlayerAccount(
-    ulong SteamId64, IReadOnlyList<LibraryPlayerAlias> Aliases, int DemoCount, DateTime FirstSeen, DateTime LastSeen)
+    ulong SteamId64,
+    IReadOnlyList<LibraryPlayerAlias> Aliases,
+    int DemoCount,
+    DateTime FirstSeen,
+    DateTime LastSeen)
 {
     /// <summary>The most recently seen name, unsanitized, or empty when no demo named the account.</summary>
     public string Name => Aliases.Count > 0 ? Aliases[0].Name : "";
@@ -31,7 +35,12 @@ public sealed record LibraryPlayerAccount(
 ///     <see cref="DateTime.Kind" /> tells which. History is ordered by it.
 /// </param>
 public sealed record LibraryPlayerMatch(
-    LibraryDemo Demo, int? Side, IReadOnlyList<string> Names, IReadOnlyList<int> Slots, bool LeftEarly, DateTime Time);
+    LibraryDemo Demo,
+    int? Side,
+    IReadOnlyList<string> Names,
+    IReadOnlyList<int> Slots,
+    bool LeftEarly,
+    DateTime Time);
 
 /// <summary>
 ///     Every account in the library and the demos it is in, read only. It reads the index the host keeps in

@@ -102,7 +102,8 @@ public class ModuleContextServiceLookupTests
         using (Assert.Multiple())
         {
             await Assert.That(context.GetService<IWidget>()?.Value).IsEqualTo(9);
-            await Assert.That(context.GetService<HeavyJobGate>()).IsNull().Because("a host type is never reachable through the container");
+            await Assert.That(context.GetService<HeavyJobGate>()).IsNull()
+                .Because("a host type is never reachable through the container");
         }
     }
 

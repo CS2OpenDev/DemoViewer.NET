@@ -127,10 +127,7 @@ public sealed class TextTool : IPointerTool
             }
             else
             {
-                document.Apply(new DocDelta.Replace(id, element with
-                {
-                    Text = text
-                }));
+                document.Apply(new DocDelta.Replace(id, element with { Text = text }));
             }
         }
 

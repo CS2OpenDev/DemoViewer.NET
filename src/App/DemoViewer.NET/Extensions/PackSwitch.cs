@@ -47,8 +47,10 @@ public sealed class PackSwitch : IDisposable
     ///     Where a lifecycle that throws is reported. A lifecycle that cannot be built at startup keeps its
     ///     extension off for the session. Null only logs.
     /// </param>
-    public PackSwitch(IReadOnlyList<IExtension> packs, IFeatureGate gate, Func<IExtension, IExtensionLifecycle?> lifecycleFor,
-        IDemoProcessingQueue? queue, Action reconsider, Func<bool>? waitForFirstRun = null, ExtensionFaults? faults = null)
+    public PackSwitch(IReadOnlyList<IExtension> packs, IFeatureGate gate,
+        Func<IExtension, IExtensionLifecycle?> lifecycleFor,
+        IDemoProcessingQueue? queue, Action reconsider, Func<bool>? waitForFirstRun = null,
+        ExtensionFaults? faults = null)
     {
         ArgumentNullException.ThrowIfNull(packs);
         ArgumentNullException.ThrowIfNull(gate);

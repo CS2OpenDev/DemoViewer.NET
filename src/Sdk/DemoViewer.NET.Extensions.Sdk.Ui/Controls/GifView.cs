@@ -172,7 +172,8 @@ public sealed class GifView : Control, IDisposable
 
         int count = Math.Max(1, _codec.FrameCount);
         int next = (_frame + 1) % count;
-        SKImageInfo info = new(_bitmap.PixelSize.Width, _bitmap.PixelSize.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        SKImageInfo info = new(_bitmap.PixelSize.Width, _bitmap.PixelSize.Height, SKColorType.Bgra8888,
+            SKAlphaType.Premul);
         using (ILockedFramebuffer buffer = _bitmap.Lock())
         {
             int prior = next == 0 ? -1 : next - 1;

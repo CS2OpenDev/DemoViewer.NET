@@ -27,7 +27,8 @@ public static class ExtensionStaging
     public const long MaxBytes = 512L * 1024 * 1024;
 
     /// <summary><c>&lt;extensions&gt;/.staging</c>.</summary>
-    public static string StagingRoot(string extensionsDirectory) => Path.Combine(extensionsDirectory, StagingDirectoryName);
+    public static string StagingRoot(string extensionsDirectory) =>
+        Path.Combine(extensionsDirectory, StagingDirectoryName);
 
     /// <summary><c>&lt;extensions&gt;/.staging/&lt;id&gt;/&lt;version&gt;.zip.part</c>.</summary>
     public static string PartPath(string extensionsDirectory, string id, SemVersion version) =>
@@ -78,7 +79,8 @@ public static class ExtensionStaging
         ArgumentNullException.ThrowIfNull(zipPath);
         ArgumentNullException.ThrowIfNull(targetDirectory);
         string target = Path.GetFullPath(targetDirectory);
-        string targetWithSeparator = target.EndsWith(Path.DirectorySeparatorChar) ? target : target + Path.DirectorySeparatorChar;
+        string targetWithSeparator =
+            target.EndsWith(Path.DirectorySeparatorChar) ? target : target + Path.DirectorySeparatorChar;
         try
         {
             using ZipArchive archive = ZipFile.OpenRead(zipPath);
@@ -143,7 +145,8 @@ public static class ExtensionStaging
 
             return null;
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException
+                                       or NotSupportedException)
         {
             DeleteTree(targetDirectory);
             return "the archive could not be unpacked: " + ex.GetType().Name;
@@ -155,7 +158,8 @@ public static class ExtensionStaging
     ///     <paramref name="id" /> and <paramref name="version" /> and that the assembly it names is beside
     ///     it. The manifest when every check passes; else null with the reason.
     /// </summary>
-    public static ExtensionManifest? ReadStagedManifest(string directory, string id, SemVersion version, out string? problem)
+    public static ExtensionManifest? ReadStagedManifest(string directory, string id, SemVersion version,
+        out string? problem)
     {
         ArgumentNullException.ThrowIfNull(directory);
         string path = Path.Combine(directory, ExtensionManifest.FileName);
@@ -246,21 +250,25 @@ public static class ExtensionStaging
         }
 
         string rootFull = Path.GetFullPath(root);
-        string rootWithSeparator = rootFull.EndsWith(Path.DirectorySeparatorChar) ? rootFull : rootFull + Path.DirectorySeparatorChar;
+        string rootWithSeparator = rootFull.EndsWith(Path.DirectorySeparatorChar)
+            ? rootFull
+            : rootFull + Path.DirectorySeparatorChar;
         string full = Path.GetFullPath(path);
         return full.StartsWith(rootWithSeparator, StringComparison.Ordinal) && full.Length > rootWithSeparator.Length;
     }
 
     // The high 16 bits of a Unix-made entry's attributes carry the st_mode; type bits 0xA000 are a symlink.
     // ZipArchive writes the link's target text as a file, so this is defence in depth, not a path.
-    private static bool IsUnixSymlink(ZipArchiveEntry entry) => (((uint)entry.ExternalAttributes >> 16) & 0xF000) == 0xA000;
+    private static bool IsUnixSymlink(ZipArchiveEntry entry) =>
+        (((uint)entry.ExternalAttributes >> 16) & 0xF000) == 0xA000;
 
     // Both separators are split on: a zip written on Windows may carry backslashes, and on Unix a
     // backslash is a legal file-name character, which is exactly how ".." hides.
     private static string? SafeRelativePath(string entryName)
     {
-        if (string.IsNullOrEmpty(entryName) || Path.IsPathRooted(entryName) || entryName.Contains(':', StringComparison.Ordinal)
-            || entryName.Contains('\0', StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(entryName) || Path.IsPathRooted(entryName)
+                                            || entryName.Contains(':', StringComparison.Ordinal)
+                                            || entryName.Contains('\0', StringComparison.Ordinal))
         {
             return null;
         }

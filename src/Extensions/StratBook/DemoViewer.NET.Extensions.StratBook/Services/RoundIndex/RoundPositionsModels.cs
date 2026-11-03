@@ -51,11 +51,7 @@ public sealed class RoundPositionsDocument
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
-        Converters =
-        {
-            new RoundPositionConverter(),
-            new RoundPositionsPlayerConverter()
-        }
+        Converters = { new RoundPositionConverter(), new RoundPositionsPlayerConverter() }
     };
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
@@ -196,7 +192,8 @@ public sealed record RoundPositionsPlayer(int Slot, ulong SteamId64, string Name
 /// <summary><c>[slot, "steamId64", name]</c>.</summary>
 internal sealed class RoundPositionsPlayerConverter : JsonConverter<RoundPositionsPlayer>
 {
-    public override RoundPositionsPlayer Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override RoundPositionsPlayer Read(ref Utf8JsonReader reader, Type typeToConvert,
+        JsonSerializerOptions options)
     {
         RoundIndexRunConverter.Expect(ref reader, JsonTokenType.StartArray);
         reader.Read();
@@ -308,5 +305,8 @@ public sealed class RoundIndexDisagreementTally
 
     /// <summary>The tallied rounds, in round order; empty when nothing disagreed.</summary>
     public IReadOnlyList<RoundIndexDisagreement> ToDisagreements() =>
-        [.. _byRound.OrderBy(kv => kv.Key).Select(kv => new RoundIndexDisagreement(kv.Key, kv.Value.Side, kv.Value.Alive))];
+    [
+        .. _byRound.OrderBy(kv => kv.Key)
+            .Select(kv => new RoundIndexDisagreement(kv.Key, kv.Value.Side, kv.Value.Alive))
+    ];
 }

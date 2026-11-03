@@ -58,9 +58,11 @@ internal sealed class HostDataRemoval : IExtensionDataRemoval
                 new StoreDescriptor("extension-cache", "Extension saved state", StoreRoot.Cache, [folder],
                     IsUserWork: true),
                 new StoreDescriptor("extension-settings", "Extension settings", StoreRoot.Config,
-                    [ExtensionSettingsStore.DirectoryName + "/" + ExtensionFolders.SafeName(_pack.Pack.Id) + ".json"], IsUserWork: true),
-                .. _pack.Rulesets.Where(r => r.ReadBy is null).Select(r => new StoreDescriptor(StampedFacts.StampId(r.RulesetId), "Analysis facts of " + r.RulesetId,
-                    StoreRoot.Cache, ["demos/*" + StampedFacts.RulesetSuffix(r.RulesetId)], IsUserWork: false)),
+                    [ExtensionSettingsStore.DirectoryName + "/" + ExtensionFolders.SafeName(_pack.Pack.Id) + ".json"],
+                    IsUserWork: true),
+                .. _pack.Rulesets.Where(r => r.ReadBy is null).Select(r =>
+                    new StoreDescriptor(StampedFacts.StampId(r.RulesetId), "Analysis facts of " + r.RulesetId,
+                        StoreRoot.Cache, ["demos/*" + StampedFacts.RulesetSuffix(r.RulesetId)], IsUserWork: false)),
                 .. _pack.Stores
             ];
         }
@@ -95,7 +97,10 @@ internal sealed class HostDataRemoval : IExtensionDataRemoval
         ExtensionDataRemovalResult result = _pack.DataRemovalContribution is { } custom
             ? await custom.DeleteAsync().ConfigureAwait(true)
             : await Remover().DeleteAsync(_pack.Pack.Id, Stores,
-                [.. _pack.Passes.Select(p => p.Id), .. _pack.Rulesets.Where(r => r.ReadBy is null).Select(r => StampedFacts.StampId(r.RulesetId))], featureId,
+                [
+                    .. _pack.Passes.Select(p => p.Id),
+                    .. _pack.Rulesets.Where(r => r.ReadBy is null).Select(r => StampedFacts.StampId(r.RulesetId))
+                ], featureId,
                 Label + ": delete extension data", () => gate?.IsEnabled(featureId) != true).ConfigureAwait(true);
         if (result.Ran)
         {
@@ -109,7 +114,8 @@ internal sealed class HostDataRemoval : IExtensionDataRemoval
 
     // The extension's own name, as its master switch shows it.
     private string Label =>
-        _pack.Guard.Run("feature list", () => _pack.Pack.Features.FirstOrDefault(f => f.Id == _pack.Pack.FeatureId)?.Label, null)
+        _pack.Guard.Run("feature list",
+            () => _pack.Pack.Features.FirstOrDefault(f => f.Id == _pack.Pack.FeatureId)?.Label, null)
         ?? _pack.Pack.Id;
 
     private PackDataRemover Remover() =>

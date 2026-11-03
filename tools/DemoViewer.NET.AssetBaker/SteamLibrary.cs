@@ -87,10 +87,7 @@ public static partial class SteamLibrary
     {
         if (OperatingSystem.IsWindows())
         {
-            foreach (string p in new[]
-                     {
-                         @"C:\Program Files (x86)\Steam", @"C:\Program Files\Steam"
-                     })
+            foreach (string p in new[] { @"C:\Program Files (x86)\Steam", @"C:\Program Files\Steam" })
             {
                 yield return p;
             }
@@ -121,9 +118,18 @@ public static partial class SteamLibrary
         }
 
         string text;
-        try { text = File.ReadAllText(vdf); }
-        catch (IOException) { yield break; }
-        catch (UnauthorizedAccessException) { yield break; }
+        try
+        {
+            text = File.ReadAllText(vdf);
+        }
+        catch (IOException)
+        {
+            yield break;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            yield break;
+        }
 
         foreach (Match block in LibraryBlock().Matches(text))
         {

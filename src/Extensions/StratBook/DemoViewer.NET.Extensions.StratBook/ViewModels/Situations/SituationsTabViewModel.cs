@@ -144,7 +144,8 @@ public sealed partial class SituationsTabViewModel : ExtensionViewModel, IWorksp
         // drawn on.
         _sidecars = sidecars ?? new RoundIndexStore(MemoryDemoData.For(library));
         Results = results ?? new ResultCardsViewModel(library, _sidecars,
-            sources, playback ?? (() => null), overlay: Canvas.Overlay, review: review, run: run, roundFacts: roundFacts);
+            sources, playback ?? (() => null), overlay: Canvas.Overlay, review: review, run: run,
+            roundFacts: roundFacts);
         Canvas.Searched += Results.Load;
         Results.SearchTeam ??= () => Canvas.Filters.Opponent.Value;
         Canvas.PropertyChanged += OnCanvasPropertyChanged;
@@ -238,7 +239,8 @@ public sealed partial class SituationsTabViewModel : ExtensionViewModel, IWorksp
     // old query and go with it, so a stale set never sits under a new one.
     private void OnCanvasPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(QueryCanvasViewModel.ResultCount) && Canvas.ResultCount is null && Results.HasCards)
+        if (e.PropertyName == nameof(QueryCanvasViewModel.ResultCount) && Canvas.ResultCount is null
+                                                                       && Results.HasCards)
         {
             Results.Clear();
         }

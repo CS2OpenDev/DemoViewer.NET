@@ -67,7 +67,10 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
 
     private IServiceProvider? _services;
     private ExtensionFaults? _faults;
-    private readonly MulticastGuard<Action<IPlaybackSnapshot>> _advancedGuard = new("playback frame handler", FaultKind.Recurring);
+
+    private readonly MulticastGuard<Action<IPlaybackSnapshot>> _advancedGuard =
+        new("playback frame handler", FaultKind.Recurring);
+
     private readonly MulticastGuard<Action> _demoResetGuard = new("demo reset handler");
 
     // The demo's pre-decoded flat event list (set once at load, mirroring SetRoster) + a per-name cache of

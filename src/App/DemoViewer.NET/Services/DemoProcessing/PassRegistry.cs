@@ -21,7 +21,10 @@ public sealed class PassRegistry
     private bool _packsPopulated;
     private IReadOnlyList<string>? _sortedIds;
 
-    private sealed record Entry(Func<IDemoPass> Factory, IReadOnlyList<string> After, Func<bool> Enabled,
+    private sealed record Entry(
+        Func<IDemoPass> Factory,
+        IReadOnlyList<string> After,
+        Func<bool> Enabled,
         Action<Exception>? OnFault);
 
     /// <summary>A core pass: always in the graph, never gated.</summary>
@@ -62,7 +65,8 @@ public sealed class PassRegistry
     /// <param name="enabled">Whether the pack is on right now.</param>
     /// <param name="onFault">Told when one of the pack's factories throws or builds a mismatched pass.</param>
     /// <returns>Null when added, or why the group was refused.</returns>
-    public string? TryAddPackPasses(IReadOnlyList<(string Id, Func<IDemoPass> Factory, IReadOnlyList<string> After)> passes,
+    public string? TryAddPackPasses(
+        IReadOnlyList<(string Id, Func<IDemoPass> Factory, IReadOnlyList<string> After)> passes,
         Func<bool> enabled, Func<string, Action<Exception>>? onFault = null)
     {
         ArgumentNullException.ThrowIfNull(passes);
@@ -116,7 +120,8 @@ public sealed class PassRegistry
     }
 
     /// <summary>A pack evaluator, wrapped as a pass with one adapter per instance.</summary>
-    public void AddPackEvaluator(string id, Func<IDemoEvaluator> factory, IReadOnlyList<string> after, Func<bool> enabled,
+    public void AddPackEvaluator(string id, Func<IDemoEvaluator> factory, IReadOnlyList<string> after,
+        Func<bool> enabled,
         Action<Exception>? onFault = null) =>
         Add(id, EvaluatorPassAdapter.Cached(factory, after), after, enabled, onFault);
 

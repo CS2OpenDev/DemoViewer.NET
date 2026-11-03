@@ -188,11 +188,7 @@ public class EnvelopeSecondsTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            Playback2DFakeContext ctx = new()
-            {
-                TickRate = 128,
-                Gate = new FakeModuleFeatureGate()
-            };
+            Playback2DFakeContext ctx = new() { TickRate = 128, Gate = new FakeModuleFeatureGate() };
 
             Playback2DTabViewModel vm = new();
             vm.OnActivated(ctx);

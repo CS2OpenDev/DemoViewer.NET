@@ -38,10 +38,7 @@ internal static class AnnotationFakes
     /// <summary>A frame carrying the given markers and nothing else.</summary>
     /// <param name="markers">The markers.</param>
     public static Scene2DFrame Frame(params PlayerMarker[] markers) =>
-        new()
-        {
-            Markers = markers
-        };
+        new() { Markers = markers };
 
     /// <summary>A marker with a SteamId, alive unless told otherwise.</summary>
     /// <param name="steamId">The player's SteamId.</param>
@@ -73,20 +70,11 @@ internal static class AnnotationFakes
     /// <param name="zMax">Band upper Z.</param>
     public static LevelPane Pane(float width, float height, double zMin = 0, double zMax = 64)
     {
-        MapLevel level = new()
-        {
-            Id = MapSpace.IdForZMin(zMin),
-            Name = "floor 0",
-            ZMin = zMin,
-            ZMax = zMax
-        };
+        MapLevel level = new() { Id = MapSpace.IdForZMin(zMin), Name = "floor 0", ZMin = zMin, ZMax = zMax };
 
         return new LevelPane(level,
             new SliceCamera(ViewportTransform.Fit(width, height, -1000, -1000, 1000, 1000)),
-            ManualRig.Instance)
-        {
-            ViewportRect = SKRect.Create(width, height)
-        };
+            ManualRig.Instance) { ViewportRect = SKRect.Create(width, height) };
     }
 
     /// <summary>A pointer sample over a pane at a world position.</summary>

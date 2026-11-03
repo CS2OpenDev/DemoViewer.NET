@@ -131,7 +131,10 @@ public class TokenTrackTests
     public async Task ForwardAndReverseScrubs_AgreeAtEveryTick()
     {
         TokenTrack track = new("C",
-            [Key(0, 0, 0, yaw: 350, level: Lower), Key(90, 400, -200, yaw: 20, level: Upper), Key(300, -50, 60, yaw: 170)],
+            [
+                Key(0, 0, 0, yaw: 350, level: Lower), Key(90, 400, -200, yaw: 20, level: Upper),
+                Key(300, -50, 60, yaw: 170)
+            ],
             holdTicks: [10, 45, 0],
             segments: [TokenInterpolation.Linear, TokenInterpolation.Linear, TokenInterpolation.Hold]);
 
@@ -198,7 +201,8 @@ public class TokenTrackTests
     [Test]
     public async Task Builder_TheMovingStepsHoldAndInterpolation_ShapeTheMove()
     {
-        TokenStep[] steps = [Step(0), Step(640, hold: 320), Step(1280), Step(1920, interpolation: TokenInterpolation.Hold), Step(2560)];
+        TokenStep[] steps =
+            [Step(0), Step(640, hold: 320), Step(1280), Step(1920, interpolation: TokenInterpolation.Hold), Step(2560)];
         TokenTrack track = TokenTrackBuilder.Build("A", steps,
             [Place(0, 0), null, Place(640, 0), null, Place(0, 0)]);
 
@@ -284,7 +288,8 @@ public class TokenTrackTests
         await Assert.That(set.Remove("O3")).IsFalse();
 
         await Assert.That(set.Version).IsEqualTo(before + 2);
-        Assert.Throws<ArgumentException>(() => _ = new TokenTrackSet([new TokenTrack("A", []), new TokenTrack("A", [])]));
+        Assert.Throws<ArgumentException>(() =>
+            _ = new TokenTrackSet([new TokenTrack("A", []), new TokenTrack("A", [])]));
     }
 
     private static TokenKeyframe Key(int tick, float x, float y, float yaw = 0, double level = 0) =>
@@ -296,7 +301,8 @@ public class TokenTrackTests
     private static float Y(TokenTrack track, int tick) =>
         track.TrySample(tick, out TokenKeyframe s) ? s.Y : float.NaN;
 
-    private static TokenStep Step(int tick, int hold = 0, TokenInterpolation interpolation = TokenInterpolation.Linear) =>
+    private static TokenStep Step(int tick, int hold = 0,
+        TokenInterpolation interpolation = TokenInterpolation.Linear) =>
         new(tick, hold, interpolation);
 
     private static TokenPlacement? Place(float x, float y) => new TokenPlacement(x, y, 0, null);

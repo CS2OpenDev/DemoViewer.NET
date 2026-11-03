@@ -164,16 +164,8 @@ public class RuleFireDiagnosticsTests
                     await Assert.That(analysis.HasDiagnosticsPanelContent).IsTrue();
 
                     analysis.IsDiagnosticsOpen = true;
-                    AnalysisTabView view = new()
-                    {
-                        DataContext = vm
-                    };
-                    Window window = new()
-                    {
-                        Width = 1400,
-                        Height = 800,
-                        Content = view
-                    };
+                    AnalysisTabView view = new() { DataContext = vm };
+                    Window window = new() { Width = 1400, Height = 800, Content = view };
                     window.Show();
                     Dispatcher.UIThread.RunJobs();
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();

@@ -26,10 +26,7 @@ public class MatchTimeOverrideTests
 
     private static DemoCacheRecord Record(string path, string? sha = Sha) => new()
     {
-        Path = path,
-        Size = 100,
-        ModifiedTicks = Downloaded.ToLocalTime().Ticks,
-        Sha256 = sha
+        Path = path, Size = 100, ModifiedTicks = Downloaded.ToLocalTime().Ticks, Sha256 = sha
     };
 
     [Test]
@@ -61,7 +58,8 @@ public class MatchTimeOverrideTests
         store.Upsert(Record(demo));
         MatchTimeOverrides.Set(store, demo, Chosen);
 
-        new MatchMetaPass(store, _ => null, _ => Downloaded).Run(store.TryLoadRecord(demo, false)!, CancellationToken.None);
+        new MatchMetaPass(store, _ => null, _ => Downloaded).Run(store.TryLoadRecord(demo, false)!,
+            CancellationToken.None);
 
         DemoMatchMeta meta = store.TryLoadRecord(demo, false)!.MatchMeta!;
         using (Assert.Multiple())
@@ -171,7 +169,10 @@ public class MatchTimeOverrideTests
     public async Task TheHero_ShowsTheTimeItIsGiven()
     {
         MatchOverviewTabViewModel tab = new(setMatchTime: (_, _) => { });
-        tab.SetMatchTime(new DemoMatchMeta { MatchTimeUtcTicks = Chosen.Ticks, MatchTimeSource = MatchTimeSource.UserOverride });
+        tab.SetMatchTime(new DemoMatchMeta
+        {
+            MatchTimeUtcTicks = Chosen.Ticks, MatchTimeSource = MatchTimeSource.UserOverride
+        });
         string set = tab.MatchDateButtonText;
         bool overridden = tab.HasMatchDateOverride;
         tab.SetMatchTime(MatchMetaPass.Resolve(null, null, null, Downloaded));
@@ -202,7 +203,8 @@ public class MatchTimeOverrideTests
                 MatchTimeUtcTicks = new DateTime(2026, 6, 18, 20, 0, 0, DateTimeKind.Utc).Ticks,
                 MatchTimeSource = MatchTimeSource.UserOverride
             },
-            MatchMetaPass.ParseName(MatchInfoReaderTests.CommittedName), MatchInfoReader.Read(MatchInfoReaderTests.CommittedInfo()), Downloaded);
+            MatchMetaPass.ParseName(MatchInfoReaderTests.CommittedName),
+            MatchInfoReader.Read(MatchInfoReaderTests.CommittedInfo()), Downloaded);
         string json = JsonSerializer.Serialize(meta, Indented).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
         string path = Path.Combine(repo, "tests", "fixtures", "match-meta", "match-meta.override.sample.json");
         if (Environment.GetEnvironmentVariable("MATCH_META_GOLDEN_UPDATE") == "1")

@@ -104,10 +104,7 @@ public static class LiveAimStats
         ArgumentNullException.ThrowIfNull(demo);
 
         VisibilityEngine? vision = TryLoadCollision(demo.MapName);
-        AnalysisOptions options = new()
-        {
-            VisibilityEngine = vision
-        };
+        AnalysisOptions options = new() { VisibilityEngine = vision };
 
         RuleConfigLoadResult loaded = YamlConfigLoader.LoadDocuments(
             [(RulesetRelativePath, File.ReadAllText(RulesetPath()))]);

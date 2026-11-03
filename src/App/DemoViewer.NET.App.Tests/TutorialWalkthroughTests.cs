@@ -170,16 +170,8 @@ public class TutorialWalkthroughTests
             MainViewModel vm = NewShell();
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough();
@@ -256,16 +248,8 @@ public class TutorialWalkthroughTests
             MainViewModel vm = NewShell();
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough();
@@ -324,16 +308,8 @@ public class TutorialWalkthroughTests
             MainViewModel vm = new(null, registry, TestLibraries.WithEntry(tempDemo));
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough();
@@ -394,16 +370,8 @@ public class TutorialWalkthroughTests
                 tourSampleLocator: () => tempSample);
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough();
@@ -515,16 +483,8 @@ public class TutorialWalkthroughTests
             MainViewModel vm = NewShell();
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough(); // welcome (1/13), a centred card, no spotlight

@@ -93,7 +93,8 @@ public class AppCompositionRootTests
     [Test]
     public async Task TheTeamsJsonMe_IsImported_BeforeAnyPackStarts()
     {
-        const string teamsJson = """{ "schemaVersion": 1, "me": { "steamIds": ["76561198000000002", "76561198000000001"] }, "teams": [] }""";
+        const string teamsJson =
+            """{ "schemaVersion": 1, "me": { "steamIds": ["76561198000000002", "76561198000000001"] }, "teams": [] }""";
         string dir = Path.Combine(Path.GetTempPath(), "dvcomproot_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "teams.json"), teamsJson);
@@ -101,12 +102,15 @@ public class AppCompositionRootTests
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, dir);
         try
         {
-            ServiceCollection composed = App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Compatible);
-            SettingsService settings = (SettingsService) composed.Single(d => d.ServiceType == typeof(SettingsService)).ImplementationInstance!;
+            ServiceCollection composed =
+                App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Compatible);
+            SettingsService settings = (SettingsService)composed.Single(d => d.ServiceType == typeof(SettingsService))
+                .ImplementationInstance!;
             using (Assert.Multiple())
             {
                 await Assert.That(settings.Current.Identity.Accounts.Select(a => a.SteamId64))
-                    .IsEquivalentTo(["76561198000000002", "76561198000000001"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    .IsEquivalentTo(["76561198000000002", "76561198000000001"],
+                        TUnit.Assertions.Enums.CollectionOrdering.Matching);
                 await Assert.That(settings.Current.Identity.ActiveSteamId64).IsEqualTo("76561198000000002");
                 await Assert.That(settings.Current.Identity.MigratedFromTeamsJson).IsTrue();
             }
@@ -119,7 +123,8 @@ public class AppCompositionRootTests
                 {
                     await Assert.That(identity.ActiveSteamId64).IsEqualTo("76561198000000002");
                     await Assert.That(identity.IsMine("76561198000000001")).IsTrue();
-                    await Assert.That(File.ReadAllText(Path.Combine(dir, "teams.json"))).IsEqualTo(teamsJson).Because("the import only reads");
+                    await Assert.That(File.ReadAllText(Path.Combine(dir, "teams.json"))).IsEqualTo(teamsJson)
+                        .Because("the import only reads");
                 }
             });
         }
@@ -147,8 +152,10 @@ public class AppCompositionRootTests
             MergedRulesBuild rules = provider.GetRequiredService<MergedRulesBuild>();
             using (Assert.Multiple())
             {
-                await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
-                await Assert.That(rules.Fingerprint(128).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint128);
+                await Assert.That(rules.Fingerprint(64).Fingerprint)
+                    .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
+                await Assert.That(rules.Fingerprint(128).Fingerprint)
+                    .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint128);
             }
         });
     }

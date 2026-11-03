@@ -114,7 +114,8 @@ public sealed class GraphView : Control
         context.DrawRectangle(new SolidColorBrush(style.CanvasBackground), null,
             new Rect(0, 0, Bounds.Width, Bounds.Height));
 
-        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX, out double offY))
+        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX,
+                out double offY))
         {
             return;
         }
@@ -197,7 +198,8 @@ public sealed class GraphView : Control
     public IGraphEdge? HitTestConditionLabel(Point screen)
     {
         GraphViewModel? vm = ViewModel;
-        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX, out double offY))
+        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX,
+                out double offY))
         {
             return null;
         }
@@ -285,7 +287,8 @@ public sealed class GraphView : Control
     public IGraphNode? HitTestNode(Point screen)
     {
         GraphViewModel? vm = ViewModel;
-        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX, out double offY))
+        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX,
+                out double offY))
         {
             return null;
         }
@@ -320,7 +323,8 @@ public sealed class GraphView : Control
     public IGraphEdge? HitTestEdge(Point screen)
     {
         GraphViewModel? vm = ViewModel;
-        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX, out double offY))
+        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX,
+                out double offY))
         {
             return null;
         }

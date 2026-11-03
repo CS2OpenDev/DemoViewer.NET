@@ -78,8 +78,7 @@ internal static class GpuFixtureRender
         using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
         using HeadlessSceneRenderer renderer = new(provider, compositor)
         {
-            Palette = ScenePalette.Dark,
-            Camera = fixture.Camera
+            Palette = ScenePalette.Dark, Camera = fixture.Camera
         };
 
         SceneTime time = fixture.Time;

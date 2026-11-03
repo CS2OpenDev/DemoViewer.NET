@@ -70,8 +70,13 @@ public sealed class RecordPassRunner : IDisposable
     // Keyed by the store's demo key, so every path of one demo shares them. A fault is also held under the
     // path it was visited by: that path's key changes once its file is hashed.
     private readonly HashSet<(string Pass, string Demo)> _faulted = new(PassDemoKeyComparer.Instance);
-    private readonly Dictionary<(string Pass, string Demo), DemoCacheIndexEntry> _ranOn = new(PassDemoKeyComparer.Instance);
-    private readonly Dictionary<(string Pass, string Demo), PackStamp[]> _ranOnInputs = new(PassDemoKeyComparer.Instance);
+
+    private readonly Dictionary<(string Pass, string Demo), DemoCacheIndexEntry> _ranOn =
+        new(PassDemoKeyComparer.Instance);
+
+    private readonly Dictionary<(string Pass, string Demo), PackStamp[]> _ranOnInputs =
+        new(PassDemoKeyComparer.Instance);
+
     private readonly Dictionary<string, string> _refused = new(StringComparer.Ordinal);
     private readonly Func<IReadOnlyList<IRecordPass>> _passes;
     private readonly IDemoProcessingQueue? _queue;
@@ -333,7 +338,8 @@ public sealed class RecordPassRunner : IDisposable
         }
 
         bool refreshed = false;
-        if ((entry.CtPlayers is null || entry.TPlayers is null) && record.Parse.IsPresent && _store.RefreshIndexRow(record))
+        if ((entry.CtPlayers is null || entry.TPlayers is null) && record.Parse.IsPresent
+                                                                && _store.RefreshIndexRow(record))
         {
             refreshed = true;
             entry = _store.TryGetPrimary(path) ?? entry;
@@ -384,7 +390,8 @@ public sealed class RecordPassRunner : IDisposable
         return refreshed;
     }
 
-    private List<(IRecordPass Pass, PackStamp[]? Inputs)> Wanting(IReadOnlyList<IRecordPass> passes, string demo, DemoCacheIndexEntry entry)
+    private List<(IRecordPass Pass, PackStamp[]? Inputs)> Wanting(IReadOnlyList<IRecordPass> passes, string demo,
+        DemoCacheIndexEntry entry)
     {
         List<(IRecordPass, PackStamp[]?)> wanting = [];
         foreach (IRecordPass pass in passes)
@@ -411,8 +418,10 @@ public sealed class RecordPassRunner : IDisposable
                 lock (_lock)
                 {
                     if (inputs is null
-                            ? _ranOn.TryGetValue((pass.Id, demo), out DemoCacheIndexEntry? ran) && ReferenceEquals(ran, entry)
-                            : _ranOnInputs.TryGetValue((pass.Id, demo), out PackStamp[]? ranInputs) && ranInputs.SequenceEqual(inputs))
+                            ? _ranOn.TryGetValue((pass.Id, demo), out DemoCacheIndexEntry? ran)
+                              && ReferenceEquals(ran, entry)
+                            : _ranOnInputs.TryGetValue((pass.Id, demo), out PackStamp[]? ranInputs)
+                              && ranInputs.SequenceEqual(inputs))
                     {
                         continue;
                     }
@@ -492,7 +501,8 @@ public sealed class RecordPassRunner : IDisposable
                 }
                 else
                 {
-                    report = !(_refused.TryGetValue(pass.Id, out string? last) && string.Equals(last, refusal.Message, StringComparison.Ordinal));
+                    report = !(_refused.TryGetValue(pass.Id, out string? last)
+                               && string.Equals(last, refusal.Message, StringComparison.Ordinal));
                     _refused[pass.Id] = refusal.Message;
                 }
             }

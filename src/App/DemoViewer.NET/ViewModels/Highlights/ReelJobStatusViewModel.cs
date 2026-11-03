@@ -85,10 +85,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
         _reelJob = reelJob;
         _openFolder = openFolder;
 
-        Chip = new StatusChipViewModel
-        {
-            FlyoutContent = this
-        };
+        Chip = new StatusChipViewModel { FlyoutContent = this };
         _reelJob.StatusChanged += OnStatusChanged;
         Apply(_reelJob.Status);
     }

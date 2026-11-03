@@ -30,7 +30,8 @@ internal sealed class DemoVisit
         _passes.Select(p => p.Pass.Id).Distinct(StringComparer.Ordinal).ToList();
 
     /// <summary>Adds a pass with the needs it declared for this demo; the same instance is not added twice.</summary>
-    public bool Add(IDemoPass pass, PassNeeds needs, Action<IDemoPass, PassOutcome, Exception?>? ended, bool rider = false)
+    public bool Add(IDemoPass pass, PassNeeds needs, Action<IDemoPass, PassOutcome, Exception?>? ended,
+        bool rider = false)
     {
         if (_passes.Any(p => ReferenceEquals(p.Pass, pass)))
         {
@@ -114,7 +115,8 @@ internal sealed class DemoVisit
     /// </summary>
     public (bool Forward, ForwardNeeds Needs, bool UserCommands) ChooseMode(bool forwardAvailable)
     {
-        bool forward = forwardAvailable && _passes.Count > 0 && _passes.TrueForAll(p => p.Needs.Mode == ParseMode.Forward);
+        bool forward = forwardAvailable && _passes.Count > 0
+                                        && _passes.TrueForAll(p => p.Needs.Mode == ParseMode.Forward);
         ForwardNeeds needs = ForwardNeeds.None;
         bool userCommands = false;
         foreach (VisitPass p in _passes)
@@ -155,7 +157,8 @@ internal sealed class DemoVisit
         while (pending.Count > 0)
         {
             int pick = pending.FindIndex(p => p.Pass.After.All(dep =>
-                !present.Contains(dep) || emitted.Contains(dep) || string.Equals(dep, p.Pass.Id, StringComparison.Ordinal)));
+                !present.Contains(dep) || emitted.Contains(dep)
+                                       || string.Equals(dep, p.Pass.Id, StringComparison.Ordinal)));
             if (pick < 0)
             {
                 // A cycle the registry did not see (a visit mixes registered and one-shot passes): arrival
@@ -178,7 +181,11 @@ internal sealed class DemoVisit
 ///     A pass on a visit, with the needs it declared when it joined, the submitter's completion callback, and
 ///     whether it only rides another pass's rules run.
 /// </summary>
-internal sealed record VisitPass(IDemoPass Pass, PassNeeds Needs, Action<IDemoPass, PassOutcome, Exception?>? Ended, long Arrival,
+internal sealed record VisitPass(
+    IDemoPass Pass,
+    PassNeeds Needs,
+    Action<IDemoPass, PassOutcome, Exception?>? Ended,
+    long Arrival,
     bool Rider = false);
 
 /// <summary>
@@ -237,7 +244,7 @@ internal static class VisitPlanner
         {
             added = false;
             bool rulesRun = passes.Any(p => chosen.Contains(p.Id) && answers[p] != PassInterest.IfRulesRun
-                                            && NeedsRules(p, demo, faulted));
+                                                                  && NeedsRules(p, demo, faulted));
             foreach (IDemoPass pass in passes)
             {
                 if (chosen.Contains(pass.Id))

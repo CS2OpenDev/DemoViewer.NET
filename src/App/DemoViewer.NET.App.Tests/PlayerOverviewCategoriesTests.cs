@@ -39,22 +39,58 @@ public class PlayerOverviewCategoriesTests
     {
         Dictionary<string, FactValue> values = new()
         {
-            ["rounds"] = FactValue.Of(20L + i), ["TotalK"] = FactValue.Of(18L + i), ["TotalD"] = FactValue.Of(14L), ["TotalA"] = FactValue.Of(4L),
-            ["TotalHS"] = FactValue.Of(9L), ["EnemyDmg"] = FactValue.Of(1800L), ["KAST%"] = FactValue.Of(70.0), ["HLTV"] = FactValue.Of(1.1),
-            ["CTW"] = FactValue.Of(13L), ["CTL"] = FactValue.Of(9L),
-            ["TotalFK"] = FactValue.Of(3L + (i % 3)), ["TotalFD"] = FactValue.Of(2L), ["CTFK"] = FactValue.Of(2L), ["CTFD"] = FactValue.Of(1L),
-            ["TFK"] = FactValue.Of(1L + (i % 3)), ["TFD"] = FactValue.Of(1L),
-            ["TrdK"] = FactValue.Of(2L + i), ["TradedD"] = FactValue.Of(3L), ["Clutch"] = FactValue.Of((long)(i % 2)),
-            ["Flash"] = FactValue.Of(10L), ["EFlash"] = FactValue.Of(7L + i), ["blind_duration_sum"] = FactValue.Of(15.5 + i), ["FlashAst"] = FactValue.Of(1L),
-            ["HE"] = FactValue.Of(5L), ["Smokes"] = FactValue.Of(6L), ["Molly"] = FactValue.Of(3L),
-            ["Rifle"] = FactValue.Of(10L + i), ["AWP"] = FactValue.Of(4L), ["Pistol"] = FactValue.Of(3L), ["SMG"] = FactValue.Of(1L), ["Knife"] = FactValue.Of(0L),
+            ["rounds"] = FactValue.Of(20L + i),
+            ["TotalK"] = FactValue.Of(18L + i),
+            ["TotalD"] = FactValue.Of(14L),
+            ["TotalA"] = FactValue.Of(4L),
+            ["TotalHS"] = FactValue.Of(9L),
+            ["EnemyDmg"] = FactValue.Of(1800L),
+            ["KAST%"] = FactValue.Of(70.0),
+            ["HLTV"] = FactValue.Of(1.1),
+            ["CTW"] = FactValue.Of(13L),
+            ["CTL"] = FactValue.Of(9L),
+            ["TotalFK"] = FactValue.Of(3L + (i % 3)),
+            ["TotalFD"] = FactValue.Of(2L),
+            ["CTFK"] = FactValue.Of(2L),
+            ["CTFD"] = FactValue.Of(1L),
+            ["TFK"] = FactValue.Of(1L + (i % 3)),
+            ["TFD"] = FactValue.Of(1L),
+            ["TrdK"] = FactValue.Of(2L + i),
+            ["TradedD"] = FactValue.Of(3L),
+            ["Clutch"] = FactValue.Of((long)(i % 2)),
+            ["Flash"] = FactValue.Of(10L),
+            ["EFlash"] = FactValue.Of(7L + i),
+            ["blind_duration_sum"] = FactValue.Of(15.5 + i),
+            ["FlashAst"] = FactValue.Of(1L),
+            ["HE"] = FactValue.Of(5L),
+            ["Smokes"] = FactValue.Of(6L),
+            ["Molly"] = FactValue.Of(3L),
+            ["Rifle"] = FactValue.Of(10L + i),
+            ["AWP"] = FactValue.Of(4L),
+            ["Pistol"] = FactValue.Of(3L),
+            ["SMG"] = FactValue.Of(1L),
+            ["Knife"] = FactValue.Of(0L),
             ["DeagleHSRnds"] = FactValue.Of((long)(i % 2)),
-            ["2K"] = FactValue.Of(3L), ["3K"] = FactValue.Of(1L), ["4K"] = FactValue.Of((long)(i % 2)), ["5K"] = FactValue.Of(0L),
-            ["equipment_sum"] = FactValue.Of(80000.0 + (1000 * i)), ["equipment_rounds"] = FactValue.Of(20L + i), ["Armor"] = FactValue.Of(17L + i)
+            ["2K"] = FactValue.Of(3L),
+            ["3K"] = FactValue.Of(1L),
+            ["4K"] = FactValue.Of((long)(i % 2)),
+            ["5K"] = FactValue.Of(0L),
+            ["equipment_sum"] = FactValue.Of(80000.0 + (1000 * i)),
+            ["equipment_rounds"] = FactValue.Of(20L + i),
+            ["Armor"] = FactValue.Of(17L + i)
         };
-        return new FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match", ["player_slot", "steam_id", "team"], [],
+        return new FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
+            ["player_slot", "steam_id", "team"], [],
             new Dictionary<string, string>(),
-            [new FactRow(new Dictionary<string, FactValue> { ["player_slot"] = FactValue.Of(2L), ["steam_id"] = FactValue.Of(Id(Grim)), ["team"] = FactValue.Of(3L) }, values)]);
+            [
+                new FactRow(
+                    new Dictionary<string, FactValue>
+                    {
+                        ["player_slot"] = FactValue.Of(2L),
+                        ["steam_id"] = FactValue.Of(Id(Grim)),
+                        ["team"] = FactValue.Of(3L)
+                    }, values)
+            ]);
     }
 
     internal static DemoCacheStore Library(int demos, Func<int, bool>? stamped = null)
@@ -74,9 +110,11 @@ public class PlayerOverviewCategoriesTests
     }
 
     internal static PlayerRowCache Cache(DemoCacheStore store, PlayerDirectory directory) =>
-        new(store, directory, path => store.TryGetIndex(path)?.Stamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId)) is { State: DemoAnalysisState.Indexed }
-            ? Facet(int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture))
-            : null);
+        new(store, directory, path =>
+            store.TryGetIndex(path)?.Stamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId)) is
+                { State: DemoAnalysisState.Indexed }
+                ? Facet(int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture))
+                : null);
 
     private sealed class Shell : IDisposable
     {
@@ -86,7 +124,8 @@ public class PlayerOverviewCategoriesTests
             Identity = new IdentityService(new SettingsService((string?)null));
             Identity.SetAccounts([new IdentityAccount(Id(Grim), null, DateTime.UtcNow)]);
             Rows = Cache(store, directory);
-            Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, Rows, _ => { }, _ => { }, (_, _) => { }, _ => { }));
+            Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, Rows, _ => { },
+                _ => { }, (_, _) => { }, _ => { }));
             Tab.OnActivated(null!);
         }
 
@@ -116,7 +155,8 @@ public class PlayerOverviewCategoriesTests
             await Assert.That(shell.Categories.IsVisible).IsTrue();
             await Assert.That(shell.Categories.Page).IsEqualTo(PlayerOverviewPageKind.Stats);
             await Assert.That(shell.Categories.Categories.Select(c => c.Title))
-                .IsEquivalentTo(["Opening duels", "Trades", "Clutches", "Utility", "Weapons", "Multi-kill", "Economy"], CollectionOrdering.Matching);
+                .IsEquivalentTo(["Opening duels", "Trades", "Clutches", "Utility", "Weapons", "Multi-kill", "Economy"],
+                    CollectionOrdering.Matching);
         }
     }
 
@@ -127,8 +167,11 @@ public class PlayerOverviewCategoriesTests
         using (Assert.Multiple())
         {
             await Assert.That(keys.Where(ColumnCatalogue.RequiresVisibility)).IsEmpty();
-            await Assert.That(keys.Where(k => ColumnCatalogue.Resolve(k).Group is StatGroup.AimQuality or StatGroup.Accuracy)).IsEmpty();
-            await Assert.That(keys).IsEquivalentTo(keys.Distinct(), CollectionOrdering.Matching).Because("a column sits in one category");
+            await Assert
+                .That(keys.Where(k => ColumnCatalogue.Resolve(k).Group is StatGroup.AimQuality or StatGroup.Accuracy))
+                .IsEmpty();
+            await Assert.That(keys).IsEquivalentTo(keys.Distinct(), CollectionOrdering.Matching)
+                .Because("a column sits in one category");
             await Assert.That(keys.Where(k => ColumnRules.For(k) is null or ColumnRule.NotAggregable)).IsEmpty()
                 .Because("every listed column pools across demos");
         }
@@ -158,12 +201,17 @@ public class PlayerOverviewCategoriesTests
         using Shell shell = new(Library(9));
         await shell.Tab.Loading;
 
-        foreach (Action select in (Action[]) [() => { }, () => shell.Tab.Filter.Map = shell.Tab.Filter.Maps.Single(c => c.Label == "Inferno")])
+        foreach (Action select in (Action[])
+                 [() => { }, () => shell.Tab.Filter.Map = shell.Tab.Filter.Maps.Single(c => c.Label == "Inferno")])
         {
             select();
             PlayerAggregate expected = shell.Rows.TryGet(Grim)!.Aggregate(shell.Tab.Filter.Filter);
             CategoriesSectionViewModel section = shell.Categories;
-            int[] demos = [.. Enumerable.Range(0, 9).Where(i => shell.Tab.Filter.Filter.Map is null || Maps[i % 3] == shell.Tab.Filter.Filter.Map)];
+            int[] demos =
+            [
+                .. Enumerable.Range(0, 9).Where(i =>
+                    shell.Tab.Filter.Filter.Map is null || Maps[i % 3] == shell.Tab.Filter.Filter.Map)
+            ];
             double rounds = demos.Sum(i => 20.0 + i);
             double kills = demos.Sum(i => 18.0 + i);
 
@@ -175,19 +223,25 @@ public class PlayerOverviewCategoriesTests
                     await Assert.That(stat.Label).IsEqualTo(ColumnCatalogue.Resolve(stat.Key).Display);
                 }
 
-                await Assert.That(section.Aggregate!.Values).IsEquivalentTo(expected.Values, CollectionOrdering.Matching);
+                await Assert.That(section.Aggregate!.Values)
+                    .IsEquivalentTo(expected.Values, CollectionOrdering.Matching);
                 await Assert.That(Stat(section, "TotalFK").Detail)
-                    .IsEqualTo((expected["TotalFK"]!.Value / rounds).ToString("0.00", CultureInfo.InvariantCulture) + " per round");
+                    .IsEqualTo((expected["TotalFK"]!.Value / rounds).ToString("0.00", CultureInfo.InvariantCulture)
+                               + " per round");
                 await Assert.That(Stat(section, "AWP").Detail)
-                    .IsEqualTo((expected["AWP"]!.Value / kills * 100).ToString("0", CultureInfo.InvariantCulture) + "% of kills");
+                    .IsEqualTo((expected["AWP"]!.Value / kills * 100).ToString("0", CultureInfo.InvariantCulture)
+                               + "% of kills");
                 await Assert.That(Stat(section, "Clutch").Detail)
-                    .IsEqualTo((expected["Clutch"]!.Value / demos.Length).ToString("0.00", CultureInfo.InvariantCulture) + " per match");
+                    .IsEqualTo((expected["Clutch"]!.Value / demos.Length).ToString("0.00", CultureInfo.InvariantCulture)
+                               + " per match");
                 await Assert.That(Stat(section, "Armor").Detail)
-                    .IsEqualTo((expected["Armor"]!.Value / rounds * 100).ToString("0", CultureInfo.InvariantCulture) + "% of rounds");
+                    .IsEqualTo((expected["Armor"]!.Value / rounds * 100).ToString("0", CultureInfo.InvariantCulture)
+                               + "% of rounds");
                 await Assert.That(Stat(section, "Equip").Text)
                     .IsEqualTo(expected["Equip"]!.Value.ToString("'$'#,0", CultureInfo.InvariantCulture));
                 await Assert.That(section.ScopeText)
-                    .IsEqualTo(string.Create(CultureInfo.InvariantCulture, $"{demos.Length} matches · {rounds:0} rounds"));
+                    .IsEqualTo(string.Create(CultureInfo.InvariantCulture,
+                        $"{demos.Length} matches · {rounds:0} rounds"));
             }
         }
     }
@@ -205,7 +259,8 @@ public class PlayerOverviewCategoriesTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(thin.Scale).IsNull().Because("five opening duels are under the catalogue's gate of eight");
+            await Assert.That(thin.Scale).IsNull()
+                .Because("five opening duels are under the catalogue's gate of eight");
             await Assert.That(pooled.Scale).IsNotNull();
             await Assert.That(Stat(wide.Categories, "TotalFK").Scale).IsNull().Because("a count has no fixed band");
             await Assert.That(Stat(wide.Categories, "AvgBlind").Scale).IsNotNull();
@@ -223,10 +278,14 @@ public class PlayerOverviewCategoriesTests
         {
             FactTable table = Facet(int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture));
             FactRow row = table.Rows[0];
-            Dictionary<string, FactValue> values = new(row.Values) { ["EFlash"] = FactValue.Of(0L), ["blind_duration_sum"] = FactValue.Of(0.0) };
+            Dictionary<string, FactValue> values = new(row.Values)
+            {
+                ["EFlash"] = FactValue.Of(0L), ["blind_duration_sum"] = FactValue.Of(0.0)
+            };
             return table with { Rows = [row with { Values = values }] };
         });
-        using PlayerOverviewTabViewModel tab = new(new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { }));
+        using PlayerOverviewTabViewModel tab =
+            new(new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { }));
         tab.OnActivated(null!);
         await tab.Loading;
         CategoryStatItem blind = Stat(tab.Reveal<CategoriesSectionViewModel>(), "AvgBlind");
@@ -280,14 +339,21 @@ public class PlayerOverviewCategoriesRenderTests
 
             vm.ShowPage(PlayerOverviewPageKind.Stats);
 
-            Window window = new() { Width = 1300, Height = 900, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1300, Height = 900, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
 
             CategoriesSectionView view = window.GetVisualDescendants().OfType<CategoriesSectionView>().Single();
-            string[] texts = [.. view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text ?? "")];
+            string[] texts =
+            [
+                .. view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible)
+                    .Select(t => t.Text ?? "")
+            ];
             using (Assert.Multiple())
             {
                 await Assert.That(view.IsVisible).IsTrue();

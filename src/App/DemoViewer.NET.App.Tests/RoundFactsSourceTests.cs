@@ -57,18 +57,9 @@ public class RoundFactsSourceTests
         },
         Kills =
         [
-            new KillStep
-            {
-                Tick = freezeEnd + 500,
-                VictimSide = 2,
-                CtAlive = 5,
-                TAlive = 4
-            }
+            new KillStep { Tick = freezeEnd + 500, VictimSide = 2, CtAlive = 5, TAlive = 4 }
         ],
-        Extra = new Dictionary<string, object?>(StringComparer.Ordinal)
-        {
-            ["pace"] = "slow"
-        }
+        Extra = new Dictionary<string, object?>(StringComparer.Ordinal) { ["pace"] = "slow" }
     };
 
     private sealed class NoRowsSource : IRoundFactsRowSource
@@ -86,14 +77,7 @@ public class RoundFactsSourceTests
         DemoCacheStore store = new(null);
         DemoCacheRecord a = new()
         {
-            Path = DemoA,
-            Size = 1,
-            ModifiedTicks = 2,
-            Parse = new TierStamp
-            {
-                Schema = 1,
-                ComputedAtTicks = 1
-            }
+            Path = DemoA, Size = 1, ModifiedTicks = 2, Parse = new TierStamp { Schema = 1, ComputedAtTicks = 1 }
         };
         a.SetRoundFacts(new RoundFactsRows
         {
@@ -108,27 +92,19 @@ public class RoundFactsSourceTests
         store.Upsert(a);
         DemoCacheRecord b = new()
         {
-            Path = DemoB,
-            Size = 1,
-            ModifiedTicks = 2,
-            Parse = new TierStamp
-            {
-                Schema = 1,
-                ComputedAtTicks = 1
-            }
+            Path = DemoB, Size = 1, ModifiedTicks = 2, Parse = new TierStamp { Schema = 1, ComputedAtTicks = 1 }
         };
-        b.SetRoundFacts(new RoundFactsRows
-        {
-            Schema = RoundFactsRecords.Schema,
-            Rounds = [Round(1, 1000, 2, BuyType.Pistol, BuyType.Pistol), Round(2, 5000, 3, BuyType.Full, BuyType.Full)]
-        }, "rf");
+        b.SetRoundFacts(
+            new RoundFactsRows
+            {
+                Schema = RoundFactsRecords.Schema,
+                Rounds =
+                [
+                    Round(1, 1000, 2, BuyType.Pistol, BuyType.Pistol), Round(2, 5000, 3, BuyType.Full, BuyType.Full)
+                ]
+            }, "rf");
         store.Upsert(b);
-        store.Upsert(new DemoCacheRecord
-        {
-            Path = "/d/no-rows.dem",
-            Size = 1,
-            ModifiedTicks = 2
-        });
+        store.Upsert(new DemoCacheRecord { Path = "/d/no-rows.dem", Size = 1, ModifiedTicks = 2 });
         return store;
     }
 
@@ -176,21 +152,15 @@ public class RoundFactsSourceTests
         });
         IReadOnlyList<(DemoCacheIndexEntry Demo, RoundFacts Round)> tWinsOnB = source.Query(new RoundFactsFilter
         {
-            WinnerSide = 2,
-            Demos = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { DemoB }
+            WinnerSide = 2, Demos = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { DemoB }
         });
         IReadOnlyList<(DemoCacheIndexEntry Demo, RoundFacts Round)> siteB = source.Query(new RoundFactsFilter
         {
-            PlantSite = BombSite.B,
-            EndReason = RoundEndReason.TerroristsWin
+            PlantSite = BombSite.B, EndReason = RoundEndReason.TerroristsWin
         });
         IReadOnlyList<(DemoCacheIndexEntry Demo, RoundFacts Round)> extra = source.Query(new RoundFactsFilter
         {
-            Extra = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["pace"] = "slow"
-            },
-            LiveOnly = false
+            Extra = new Dictionary<string, string>(StringComparer.Ordinal) { ["pace"] = "slow" }, LiveOnly = false
         });
 
         using (Assert.Multiple())
@@ -199,8 +169,10 @@ public class RoundFactsSourceTests
             await Assert.That(ctFull.Select(h => (h.Demo.Path, h.Round.Number)))
                 .IsEquivalentTo([(DemoA, 2), (DemoB, 2)], CollectionOrdering.Matching);
             await Assert.That(tWinsOnB.Select(h => h.Round.Number)).IsEquivalentTo([1], CollectionOrdering.Matching);
-            await Assert.That(siteB.Select(h => (h.Demo.Path, h.Round.Number))).IsEquivalentTo([(DemoA, 2)], CollectionOrdering.Matching);
-            await Assert.That(extra.Count).IsEqualTo(5).Because("every round carries the extra column; LiveOnly off admits the unfinished one");
+            await Assert.That(siteB.Select(h => (h.Demo.Path, h.Round.Number)))
+                .IsEquivalentTo([(DemoA, 2)], CollectionOrdering.Matching);
+            await Assert.That(extra.Count).IsEqualTo(5)
+                .Because("every round carries the extra column; LiveOnly off admits the unfinished one");
         }
     }
 
@@ -228,7 +200,8 @@ public class RoundFactsSourceTests
         {
             await Assert.That(all.Count).IsEqualTo(4).Because("the copy is the same two live rounds, not two more");
             await Assert.That(all.Where(h => h.Round.Number == 1).Select(h => h.Demo.Path))
-                .IsEquivalentTo([DemoA, DemoB], CollectionOrdering.Any).Because("an unfiltered hit names the primary path");
+                .IsEquivalentTo([DemoA, DemoB], CollectionOrdering.Any)
+                .Because("an unfiltered hit names the primary path");
             await Assert.That(byCopy.Select(h => (h.Demo.Path, h.Round.Number)))
                 .IsEquivalentTo([("/e/a.dem", 1), ("/e/a.dem", 2)], CollectionOrdering.Any);
         }
@@ -250,7 +223,8 @@ public class RoundFactsSourceTests
             await Assert.That(byKey["round"]).IsEqualTo("2");
             await Assert.That(byKey["matchRound"]).IsEqualTo("2");
             await Assert.That(byKey["half"]).IsEqualTo("first");
-            await Assert.That(byKey["buy.ct"]).IsEqualTo("full").Because("buy values are the five classes, lower-cased");
+            await Assert.That(byKey["buy.ct"]).IsEqualTo("full")
+                .Because("buy values are the five classes, lower-cased");
             await Assert.That(byKey["buy.t"]).IsEqualTo("eco");
             await Assert.That(byKey["score.ct"]).IsEqualTo("1");
             await Assert.That(byKey["score.t"]).IsEqualTo("0");

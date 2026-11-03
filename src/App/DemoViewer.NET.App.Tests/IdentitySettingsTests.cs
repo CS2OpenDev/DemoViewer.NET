@@ -57,7 +57,8 @@ public class IdentitySettingsTests
 
     // Only the Identity section of a settings file, as the sample holds it.
     private static string SectionOf(string settingsJson) =>
-        Lf(new JsonObject { ["Identity"] = JsonNode.Parse(settingsJson)!["Identity"]!.DeepClone() }.ToJsonString(Indented));
+        Lf(new JsonObject { ["Identity"] = JsonNode.Parse(settingsJson)!["Identity"]!.DeepClone() }
+            .ToJsonString(Indented));
 
     [Test]
     public async Task V1Schema_MatchesTheCheckedInSamples()
@@ -94,21 +95,26 @@ public class IdentitySettingsTests
             IdentityAccount account = identity.Accounts.Single();
             using (Assert.Multiple())
             {
-                await Assert.That(json).IsEqualTo(committed).Because("the Identity section is a published format; this build still writes the committed shape");
+                await Assert.That(json).IsEqualTo(committed)
+                    .Because("the Identity section is a published format; this build still writes the committed shape");
                 await Assert.That(account.SteamId64).IsEqualTo(Main);
                 await Assert.That(account.Label).IsEqualTo("main");
                 await Assert.That(account.AddedUtc).IsEqualTo(Added);
-                await Assert.That(account.AddedUtc.Kind).IsEqualTo(DateTimeKind.Utc).Because("the binder reads Z as local time; the service gives UTC");
+                await Assert.That(account.AddedUtc.Kind).IsEqualTo(DateTimeKind.Utc)
+                    .Because("the binder reads Z as local time; the service gives UTC");
                 await Assert.That(identity.ActiveSteamId64).IsEqualTo(Main);
-                await Assert.That(identity.DismissedSuggestions).IsEquivalentTo([Dismissed], CollectionOrdering.Matching);
+                await Assert.That(identity.DismissedSuggestions)
+                    .IsEquivalentTo([Dismissed], CollectionOrdering.Matching);
                 await Assert.That(settings.Current.Identity.MigratedFromTeamsJson).IsTrue();
-                await Assert.That(committed).Contains("\"SteamId64\": \"76561198000000001\"").Because("SteamIDs are strings");
+                await Assert.That(committed).Contains("\"SteamId64\": \"76561198000000001\"")
+                    .Because("SteamIDs are strings");
             }
 
             // A write through the service over the read-back file leaves the section as committed.
             identity.SetActive(Main);
             identity.SetAccounts([.. identity.Accounts]);
-            await Assert.That(SectionOf(File.ReadAllText(Path.Combine(back, "settings.json")))).IsEqualTo(committed).Because("round trip");
+            await Assert.That(SectionOf(File.ReadAllText(Path.Combine(back, "settings.json")))).IsEqualTo(committed)
+                .Because("round trip");
         }
         finally
         {
@@ -128,7 +134,8 @@ public class IdentitySettingsTests
         using IdentityService reread = new(settings);
         using (Assert.Multiple())
         {
-            await Assert.That(reread.Accounts.Select(a => a.SteamId64)).IsEquivalentTo([Main, "76561198000000002"], CollectionOrdering.Matching);
+            await Assert.That(reread.Accounts.Select(a => a.SteamId64))
+                .IsEquivalentTo([Main, "76561198000000002"], CollectionOrdering.Matching);
             await Assert.That(reread.Accounts[0].Label).IsEqualTo("main");
             await Assert.That(reread.Accounts[1].Label).IsNull();
             await Assert.That(reread.Accounts[0].AddedUtc).IsEqualTo(Added);

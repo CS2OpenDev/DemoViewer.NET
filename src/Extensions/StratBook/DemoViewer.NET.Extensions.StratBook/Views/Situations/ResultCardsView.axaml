@@ -107,19 +107,25 @@
                                                     <Panel>
                                                         <Image Source="{Binding Thumbnail}" Stretch="Uniform"
                                                                IsVisible="{Binding HasThumbnail}" />
-                                                        <TextBlock Text="{Binding ThumbnailNote}" IsVisible="{Binding HasThumbnailNote}"
+                                                        <TextBlock Text="{Binding ThumbnailNote}"
+                                                                   IsVisible="{Binding HasThumbnailNote}"
                                                                    FontSize="10" Foreground="{DynamicResource TextMid}"
                                                                    TextWrapping="Wrap" TextAlignment="Center"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8" />
-                                                </Panel>
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center" Margin="8" />
+                                                    </Panel>
                                                 </Border>
 
                                                 <!-- The match and the round. -->
-                                                <TextBlock Text="{Binding MatchLabel}" FontSize="11" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TextValue}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding MatchLabel}" FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextValue}"
+                                                           TextTrimming="CharacterEllipsis" />
                                                 <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0" Text="{Binding RoundLabel}" Classes="fact" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding ScoreText}" Classes="fact" />
+                                                    <TextBlock Grid.Column="0" Text="{Binding RoundLabel}"
+                                                               Classes="fact" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding ScoreText}"
+                                                               Classes="fact" />
                                                 </Grid>
 
                                                 <!-- Both buys, absolute per side: Team Identity turns them relative later. -->
@@ -130,12 +136,18 @@
 
                                                 <!-- The end reason with its icon, and the clock at the matched tick. -->
                                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
-                                                    <ui:GameIcon Grid.Column="0" Key="{Binding EndReasonIconKey}" IconHeight="10"
-                                                                       Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding EndReasonText}" Classes="fact"
-                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="2" Classes="fact" VerticalAlignment="Center">
-                                                        <Run Text="{Binding ElapsedText}" /><Run Text=" · " /><Run Text="{Binding RoundClockText}" />
+                                                    <ui:GameIcon Grid.Column="0" Key="{Binding EndReasonIconKey}"
+                                                                 IconHeight="10"
+                                                                 Foreground="{DynamicResource TextMid}"
+                                                                 VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding EndReasonText}"
+                                                               Classes="fact"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2" Classes="fact"
+                                                               VerticalAlignment="Center">
+                                                        <Run Text="{Binding ElapsedText}" /><Run Text=" · " />
+                                                        <Run Text="{Binding RoundClockText}" />
                                                     </TextBlock>
                                                 </Grid>
                                             </StackPanel>

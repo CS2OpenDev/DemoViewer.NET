@@ -140,12 +140,7 @@ public class Playback2DBombTimerTests
 
         ModuleContext context = new(controller, () => path);
         context.SetRoster(demo.Players.Values.Select(p =>
-            new PlayerRosterEntry
-            {
-                Slot = p.Slot,
-                SteamId = p.SteamId64,
-                Name = p.Name
-            }));
+            new PlayerRosterEntry { Slot = p.Slot, SteamId = p.SteamId64, Name = p.Name }));
         context.SetGameClock(clockBase);
 
         Playback2DTabViewModel vm = new();
@@ -158,7 +153,8 @@ public class Playback2DBombTimerTests
         for (int i = 0; i < frames.Count; i++)
         {
             if (frames[i].InnerMessages.Any(m => m is GameEventMessage gem &&
-                                                 gem.DecodedEvent.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                                                 gem.DecodedEvent.Name.Equals(name,
+                                                     StringComparison.OrdinalIgnoreCase)))
             {
                 return i;
             }

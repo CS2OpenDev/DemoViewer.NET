@@ -41,17 +41,20 @@ internal sealed class PackContributionSet
 
     // Per thread: the container serializes a construction on another thread, so only a read from inside a
     // pack's Contribute on this thread would build a second set.
-    [ThreadStatic] private static int _collecting;
+    [ThreadStatic]
+    private static int _collecting;
 
     /// <summary>True while a set is collecting the packs' contributions on this thread.</summary>
     internal static bool Collecting => _collecting > 0;
 
-    private static void Collect(IReadOnlyList<IExtension> packs, IServiceProvider sp, ExtensionFaults faults, List<PackContributions> collected)
+    private static void Collect(IReadOnlyList<IExtension> packs, IServiceProvider sp, ExtensionFaults faults,
+        List<PackContributions> collected)
     {
         foreach (IExtension pack in packs)
         {
             ExtensionGuard guard = faults.GuardFor(pack);
-            PackContributions contributions = new(pack, () => ExtensionContextAccess.ForHost(sp, pack.Id), UiThreadMarshal.Run, guard);
+            PackContributions contributions = new(pack, () => ExtensionContextAccess.ForHost(sp, pack.Id),
+                UiThreadMarshal.Run, guard);
 
             // A pack whose registration failed has no services to contribute from.
             if (faults.StartupFailed(pack.Id))
@@ -69,7 +72,8 @@ internal sealed class PackContributionSet
                 // One extension failing its Contribute must not stop the app: it contributes nothing.
                 AppLog.OperationFailed(Log, "contribute extension " + pack.Id, ex);
                 guard.Report("contribute", ex);
-                contributions = new PackContributions(pack, () => ExtensionContextAccess.ForHost(sp, pack.Id), UiThreadMarshal.Run, guard);
+                contributions = new PackContributions(pack, () => ExtensionContextAccess.ForHost(sp, pack.Id),
+                    UiThreadMarshal.Run, guard);
             }
 
             collected.Add(contributions);
@@ -99,7 +103,8 @@ internal sealed class PackContributionSet
     public IReadOnlyList<IReindexEstimate> ReindexEstimates => [.. Packs.SelectMany(p => p.ReindexEstimates)];
 
     /// <summary>Every pack's Library filter/badge contributions, in pack order. The Library hosts these generically.</summary>
-    public IReadOnlyList<ILibraryContribution> LibraryContributions => [.. Packs.SelectMany(p => p.LibraryContributions)];
+    public IReadOnlyList<ILibraryContribution> LibraryContributions =>
+        [.. Packs.SelectMany(p => p.LibraryContributions)];
 
     /// <summary>Every pack's store and cache paths, in pack order then contribution order.</summary>
     public IReadOnlyList<StoreDescriptor> Stores => [.. Packs.SelectMany(p => p.Stores)];

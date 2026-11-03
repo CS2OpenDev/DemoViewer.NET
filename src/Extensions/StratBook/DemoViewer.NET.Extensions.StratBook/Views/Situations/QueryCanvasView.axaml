@@ -61,7 +61,8 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:QueryRailSlotViewModel">
-                        <Border Classes="railSlot" Classes.armed="{Binding IsArmed}" Classes.placed="{Binding IsPlaced}">
+                        <Border Classes="railSlot" Classes.armed="{Binding IsArmed}"
+                                Classes.placed="{Binding IsPlaced}">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                                 <Button Grid.Column="0" Classes="chip" Padding="4 2" Command="{Binding ArmCommand}"
                                         ToolTip.Tip="Arm this slot, then click the map to place it">
@@ -88,7 +89,8 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:QueryRailSlotViewModel">
-                        <Border Classes="railSlot" Classes.armed="{Binding IsArmed}" Classes.placed="{Binding IsPlaced}">
+                        <Border Classes="railSlot" Classes.armed="{Binding IsArmed}"
+                                Classes.placed="{Binding IsPlaced}">
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                                 <Button Grid.Column="0" Classes="chip" Padding="4 2" Command="{Binding ArmCommand}"
                                         ToolTip.Tip="Arm this slot, then click the map to place it">

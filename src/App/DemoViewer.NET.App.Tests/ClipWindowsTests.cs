@@ -129,21 +129,9 @@ public class ClipWindowsTests
     {
         List<CachedRound> rounds =
         [
-            new()
-            {
-                Number = 1,
-                StartTickFrameClock = 1000
-            },
-            new()
-            {
-                Number = 2,
-                StartTickFrameClock = 8000
-            },
-            new()
-            {
-                Number = 3,
-                StartTickFrameClock = 16_000
-            }
+            new() { Number = 1, StartTickFrameClock = 1000 },
+            new() { Number = 2, StartTickFrameClock = 8000 },
+            new() { Number = 3, StartTickFrameClock = 16_000 }
         ];
 
         IReadOnlyList<ClipRound> projected = rounds.ToClipRounds();

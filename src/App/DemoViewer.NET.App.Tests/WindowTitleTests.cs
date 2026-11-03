@@ -26,7 +26,8 @@ public class WindowTitleTests
             TaskCompletionSource ticked = new(TaskCreationOptions.RunContinuationsAsynchronously);
             vm.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName == nameof(MainViewModel.WindowTitle) && vm.WindowTitle.Contains("PID", StringComparison.Ordinal))
+                if (e.PropertyName == nameof(MainViewModel.WindowTitle)
+                    && vm.WindowTitle.Contains("PID", StringComparison.Ordinal))
                 {
                     ticked.TrySetResult();
                 }

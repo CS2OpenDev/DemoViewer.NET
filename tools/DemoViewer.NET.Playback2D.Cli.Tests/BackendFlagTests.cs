@@ -30,10 +30,7 @@ public class BackendFlagTests
     /// <summary>Whether THIS machine can actually stand a GPU backend up, asked in a clean child.</summary>
     private static bool GpuAvailableHere()
     {
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = null
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = null },
             "probe", "--json");
         return run.Json()["gpu_available"]!.GetValue<bool>();
     }
@@ -71,10 +68,7 @@ public class BackendFlagTests
     [Test]
     public async Task Probe_UnderForcedCpu_SaysSo_AndStillExitsZero()
     {
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = "cpu"
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = "cpu" },
             "probe", "--json");
         JsonObject payload = run.Json();
 
@@ -88,10 +82,7 @@ public class BackendFlagTests
     [Test]
     public async Task Probe_RequireGpu_ExitsSix_WhenThereIsNoGpuPath()
     {
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = "cpu"
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = "cpu" },
             "probe", "--require-gpu");
 
         await Assert.That(run.ExitCode).IsEqualTo(6);
@@ -136,10 +127,7 @@ public class BackendFlagTests
         // The library treats an unrecognised value as "unset", which is right for a library and wrong
         // for a tool: DV2D_RENDER_BACKEND=gpuu in a CI lane would quietly measure the CPU path and
         // report a green budget.
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = "gpuu"
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = "gpuu" },
             "render", "--fixture", EmptyScene, "--out", TempPng("dv2d-backend-envtypo.png"));
 
         await Assert.That(run.ExitCode).IsEqualTo(1);
@@ -149,10 +137,7 @@ public class BackendFlagTests
     [Test]
     public async Task Environment_Cpu_IsHonouredWithNoFlag()
     {
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = "cpu"
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = "cpu" },
             "render", "--fixture", EmptyScene, "--out", TempPng("dv2d-backend-envcpu.png"), "--json");
         JsonObject payload = run.Json();
 
@@ -168,10 +153,7 @@ public class BackendFlagTests
         // stale shell variable must not override the flag the operator just typed. On a machine with
         // no GPU the correct answer is exit 6, never "0, quietly on the CPU".
         bool gpu = GpuAvailableHere();
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = "cpu"
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = "cpu" },
             "render", "--fixture", EmptyScene, "--out", TempPng("dv2d-backend-outrank.png"),
             "--backend", "force-gpu", "--json");
 
@@ -189,10 +171,7 @@ public class BackendFlagTests
     public async Task StrictBackend_TurnsAGpuRequestIntoAHardFailure_WhenThereIsNoGpu()
     {
         bool gpu = GpuAvailableHere();
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = null
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = null },
             "render", "--fixture", EmptyScene, "--out", TempPng("dv2d-backend-strict.png"),
             "--gpu", "--strict-backend", "--json");
 
@@ -205,10 +184,7 @@ public class BackendFlagTests
         // The committed corpus is goldens/cpu/ and CPU is authoritative. If
         // `golden verify` auto-probed, every developer with a GPU would see a rasterizer difference
         // reported as a pixel regression, on exit 4, which reads as "the change is bad".
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = null
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = null },
             "golden", "verify", "--corpus", Dv2d.CorpusDirectory, "--json");
         JsonObject payload = run.Json();
 
@@ -234,10 +210,7 @@ public class BackendFlagTests
 
         try
         {
-            CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-                {
-                    [BackendVariable] = null
-                },
+            CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = null },
                 "export", "--demo", demo, "--from", "0", "--to", "2", "--format", "gif", "--fps", "20",
                 "--size", "64x64", "--out", output, "--json");
 
@@ -267,10 +240,7 @@ public class BackendFlagTests
         }
 
         string demo = Dv2d.RequireDemo();
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = null
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = null },
             "export", "--demo", demo, "--from", "0", "--to", "2", "--format", "gif", "--fps", "20",
             "--size", "64x64", "--gpu",
             "--out", Path.Combine(Path.GetTempPath(), $"dv2d-export-gpu-{Guid.NewGuid():N}.gif"));
@@ -285,10 +255,7 @@ public class BackendFlagTests
         // Without --strict-backend, --gpu degrades to CPU rather than failing. It must say so, or a
         // benchmark run reports software numbers under a GPU heading.
         bool gpu = GpuAvailableHere();
-        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?>
-            {
-                [BackendVariable] = null
-            },
+        CliRun run = Dv2d.Subprocess(new Dictionary<string, string?> { [BackendVariable] = null },
             "render", "--fixture", EmptyScene, "--out", TempPng("dv2d-backend-gpu.png"), "--gpu",
             "--json");
         JsonObject payload = run.Json();

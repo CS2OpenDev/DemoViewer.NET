@@ -104,7 +104,8 @@ public class Playback2DEventWiringTests
 
         await Assert.That(byName.Count).IsEqualTo(3)
             .Because("a forwarder is no contract of its own and an opaque accessor is reported, not counted");
-        await Assert.That(unanalysable).IsEquivalentTo([typeof(EventGuardCanaryOpaque).FullName + ".OpaqueCanary"], CollectionOrdering.Matching)
+        await Assert.That(unanalysable).IsEquivalentTo([typeof(EventGuardCanaryOpaque).FullName + ".OpaqueCanary"],
+                CollectionOrdering.Matching)
             .Because("the forwarder is seen through to its inner event; the opaque accessor is not");
         await Assert.That(byName["WiredCanary"].IsWired).IsTrue()
             .Because("raised in Raise() and subscribed from a different type — the shape a real event has");
@@ -200,10 +201,7 @@ public class Playback2DEventWiringTests
                 if (!groups.TryGetValue(key, out (HashSet<string>, HashSet<string>, string) group))
                 {
                     group = (new HashSet<string>(StringComparer.Ordinal),
-                        new HashSet<string>(StringComparer.Ordinal)
-                        {
-                            contract.FullName!
-                        },
+                        new HashSet<string>(StringComparer.Ordinal) { contract.FullName! },
                         evt.Name);
                     groups[key] = group;
                 }

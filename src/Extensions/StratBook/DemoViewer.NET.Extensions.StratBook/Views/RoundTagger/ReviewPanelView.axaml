@@ -76,7 +76,8 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <TextBlock Text="{Binding MachineHeader}" FontSize="10" Margin="0,4,0,0" IsVisible="{Binding HasMachineLabels}"
+            <TextBlock Text="{Binding MachineHeader}" FontSize="10" Margin="0,4,0,0"
+                       IsVisible="{Binding HasMachineLabels}"
                        Foreground="{DynamicResource Pb2dTextMid}" />
             <ItemsControl ItemsSource="{Binding MachineLabels}">
                 <ItemsControl.ItemTemplate>

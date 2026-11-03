@@ -40,19 +40,30 @@ public class SidecarFormatTests
                 kills: [RoundIndexTestData.Kill(n * 10_000 + 500, 6), RoundIndexTestData.Kill(n * 10_000 + 900, 2)]));
         }
 
-        DemoCacheRecord record = RoundIndexTestData.ParsedRecord(path, "de_nuke", "sha-" + Path.GetFileNameWithoutExtension(path),
+        DemoCacheRecord record = RoundIndexTestData.ParsedRecord(path, "de_nuke",
+            "sha-" + Path.GetFileNameWithoutExtension(path),
             RoundIndexTestData.Facts([.. rounds]));
         for (int slot = 1; slot <= 10; slot++)
         {
-            record.Players.Add(new CachedPlayerInfo { Slot = slot, Name = $"player {slot}", SteamId64 = $"7656119800000{slot:D4}", Team = slot <= 5 ? 3 : 2 });
+            record.Players.Add(new CachedPlayerInfo
+            {
+                Slot = slot,
+                Name = $"player {slot}",
+                SteamId64 = $"7656119800000{slot:D4}",
+                Team = slot <= 5 ? 3 : 2
+            });
         }
 
         for (int i = 0; i < 200; i++)
         {
             record.Highlights.Add(new CachedHighlightEvent
             {
-                RulesetId = "builtin", HighlightId = $"h{i % 7}", Tick = i * 300, RoundNumber = 1 + i / 9,
-                PlayerSlot = 1 + i % 10, RenderedTitle = $"a highlight title number {i}"
+                RulesetId = "builtin",
+                HighlightId = $"h{i % 7}",
+                Tick = i * 300,
+                RoundNumber = 1 + i / 9,
+                PlayerSlot = 1 + i % 10,
+                RenderedTitle = $"a highlight title number {i}"
             });
         }
 
@@ -238,7 +249,8 @@ public class SidecarFormatTests
             DemoCacheStore cache = new(root);
             cache.Upsert(RoundIndexTestData.ParsedRecord(Demo, "de_nuke", "shapos"));
             RoundIndexStore store = new(cache.DiskData(root));
-            store.Write(Demo, new RoundIndexDocument { Map = "de_nuke" }, new RoundPositionsDocument { Fingerprint = "fp" }, "fp");
+            store.Write(Demo, new RoundIndexDocument { Map = "de_nuke" },
+                new RoundPositionsDocument { Fingerprint = "fp" }, "fp");
             await Assert.That(store.TryReadPositions(Demo, "fp")).IsNotNull();
 
             string file = Directory.GetFiles(root, "*.positions.json.gz", SearchOption.AllDirectories).Single();
@@ -399,7 +411,8 @@ public class SidecarFormatTests
     [Test]
     public async Task GrenadeRow_SteamIdText_RoundTripsExactly()
     {
-        (GrenadeDocument rows, _) = Documents(Row("a", "76561198000000001"), Row("b", null), Row("c", "007"), Row("d", "bot"), Row("e", "0"));
+        (GrenadeDocument rows, _) = Documents(Row("a", "76561198000000001"), Row("b", null), Row("c", "007"),
+            Row("d", "bot"), Row("e", "0"));
         string json = GrenadeSidecar.Serialize(rows);
         GrenadeDocument back = GrenadeSidecar.TryDeserializeRows(json)!;
         using (Assert.Multiple())
@@ -407,7 +420,8 @@ public class SidecarFormatTests
             await Assert.That(GrenadeSidecar.Serialize(back)).IsEqualTo(json);
             await Assert.That(back.Grenades.Select(g => g.ThrowerSteamId64)).IsEquivalentTo(
                 new string?[] { "76561198000000001", null, "007", "bot", "0" }, CollectionOrdering.Matching);
-            await Assert.That(back.Grenades[2].ThrowerSteamId).IsNull().Because("text that would not print back is kept as text");
+            await Assert.That(back.Grenades[2].ThrowerSteamId).IsNull()
+                .Because("text that would not print back is kept as text");
             await Assert.That(back.Grenades[4].ThrowerSteamId).IsEqualTo(0UL);
         }
     }
@@ -448,7 +462,8 @@ public class SidecarFormatTests
 
             long after = (GC.GetAllocatedBytesForCurrentThread() - start) / reads;
             Console.WriteLine(
-                $"[record read] indented text {new FileInfo(legacy).Length} B, gzip {new FileInfo(store.SidecarPathFor(Demo)!).Length} B; " +
+                $"[record read] indented text {new FileInfo(legacy).Length} B, gzip {new FileInfo(store.SidecarPathFor(Demo)!).Length} B; "
+                +
                 $"alloc per read: before {before} B, after {after} B");
             await Assert.That(after).IsGreaterThan(0);
         }

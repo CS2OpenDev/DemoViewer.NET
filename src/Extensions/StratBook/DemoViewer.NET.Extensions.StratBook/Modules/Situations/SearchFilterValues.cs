@@ -113,7 +113,8 @@ public sealed record SearchFilterValues
     /// <param name="library">The index rows the fields read.</param>
     /// <param name="teams">Team Identity, for the opponent's demos; null keeps every demo on that field.</param>
     /// <param name="provenance">Demo Provenance Labels, for the source field; null keeps every demo on that field.</param>
-    public IReadOnlySet<string>? ToDemos(IExtensionLibrary library, TeamIdentityService? teams, IDemoProvenanceSource? provenance)
+    public IReadOnlySet<string>? ToDemos(IExtensionLibrary library, TeamIdentityService? teams,
+        IDemoProvenanceSource? provenance)
     {
         ArgumentNullException.ThrowIfNull(library);
         if (!HasDemoFilter)
@@ -127,7 +128,8 @@ public sealed record SearchFilterValues
         HashSet<string>? against = null;
         if (Opponent is Guid opponent && teams is not null)
         {
-            against = new HashSet<string>(teams.DemosAgainst(opponent).Select(d => d.StableKey), StringComparer.Ordinal);
+            against = new HashSet<string>(teams.DemosAgainst(opponent).Select(d => d.StableKey),
+                StringComparer.Ordinal);
         }
 
         IReadOnlyDictionary<string, DemoProvenance>? labels = null;
@@ -148,8 +150,12 @@ public sealed record SearchFilterValues
 
             if (Source is { } source)
             {
-                string? label = labels is not null && labels.TryGetValue(row.FilePath, out DemoProvenance? resolved) ? resolved.Label : null;
-                bool matches = source == SearchFilterOptions.Unlabeled ? label is null : string.Equals(label, source, StringComparison.Ordinal);
+                string? label = labels is not null && labels.TryGetValue(row.FilePath, out DemoProvenance? resolved)
+                    ? resolved.Label
+                    : null;
+                bool matches = source == SearchFilterOptions.Unlabeled
+                    ? label is null
+                    : string.Equals(label, source, StringComparison.Ordinal);
                 if (!matches)
                 {
                     continue;

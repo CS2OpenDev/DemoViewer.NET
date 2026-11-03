@@ -36,11 +36,13 @@ public class ZoneOutlineLayerTests
         PlaceResolver resolver = new(ZoneFixtures.Build());
 
         IReadOnlyList<PlaceOutline> upper = resolver.OutlinesFor(ZoneFixtures.Upper);
-        await Assert.That(upper.Select(o => o.Name).ToArray()).IsEquivalentTo(Names("Ramp", "Hut", "Outside"), CollectionOrdering.Matching);
+        await Assert.That(upper.Select(o => o.Name).ToArray())
+            .IsEquivalentTo(Names("Ramp", "Hut", "Outside"), CollectionOrdering.Matching);
         await Assert.That(ReferenceEquals(upper, resolver.OutlinesFor(ZoneFixtures.Upper))).IsTrue();
 
         PlaceOutline ramp = upper.Single(o => o.Name == "Ramp");
-        Console.WriteLine("[outline] Ramp: " + string.Join("  ", ramp.Edges.Select(e => $"({e.A.X},{e.A.Y})-({e.B.X},{e.B.Y})")));
+        Console.WriteLine("[outline] Ramp: "
+                          + string.Join("  ", ramp.Edges.Select(e => $"({e.A.X},{e.A.Y})-({e.B.X},{e.B.Y})")));
 
         // The seam between areas 1 and 2 (x = 100) and the T-junction along y = 0 (area 7 under both 1
         // and 2) are interior to Ramp and must not be drawn; the seam with Hut (x = 200) must be.
@@ -60,7 +62,8 @@ public class ZoneOutlineLayerTests
         {
             foreach (PlaceOutline outline in resolver.OutlinesFor(floor))
             {
-                ZoneArea[] areas = [.. resolver.Zones.Areas.Where(a => a.PlaceId == outline.PlaceId && a.FloorKey.Equals(floor))];
+                ZoneArea[] areas =
+                    [.. resolver.Zones.Areas.Where(a => a.PlaceId == outline.PlaceId && a.FloorKey.Equals(floor))];
                 foreach ((Vector2 a, Vector2 b) in outline.Edges)
                 {
                     Vector2 mid = (a + b) / 2;
@@ -109,10 +112,7 @@ public class ZoneOutlineLayerTests
     public async Task Layer_DrawsOneFloorPerPane_AndEveryFloorOnASinglePane()
     {
         PlaceResolver resolver = new(ZoneFixtures.Build());
-        using ZoneOutlineLayer layer = new(resolver)
-        {
-            DrawLabels = false
-        };
+        using ZoneOutlineLayer layer = new(resolver) { DrawLabels = false };
 
         MapSpace space = new();
         space.Rebuild([new FloorSlice(-100000, -528), new FloorSlice(-528, 100000)]);
@@ -138,10 +138,7 @@ public class ZoneOutlineLayerTests
             [], []);
         ZoneSet effective = ZoneOverlayApplier.Apply(baked, overlay, Encoding.UTF8.GetBytes("{}"), "o").Effective;
 
-        using ZoneOutlineLayer layer = new(new PlaceResolver(baked))
-        {
-            DrawLabels = false
-        };
+        using ZoneOutlineLayer layer = new(new PlaceResolver(baked)) { DrawLabels = false };
         SceneRenderContext ctx = TestContexts.For(Scene2DFrame.Empty, _camera, Width, Height);
 
         byte[] bakedPng = Render(layer, ctx);
@@ -177,7 +174,8 @@ public class ZoneOutlineLayerTests
 
     private static byte[] Render(ZoneOutlineLayer layer, SceneRenderContext ctx)
     {
-        using SKSurface surface = SKSurface.Create(new SKImageInfo(Width, Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using SKSurface surface =
+            SKSurface.Create(new SKImageInfo(Width, Height, SKColorType.Rgba8888, SKAlphaType.Premul));
         surface.Canvas.Clear(SKColors.Black);
         layer.Render(surface.Canvas, ctx);
         using SKImage image = surface.Snapshot();

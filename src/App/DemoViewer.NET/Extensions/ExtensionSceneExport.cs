@@ -56,9 +56,7 @@ internal static class SceneExportScenes
         return new ExportSceneSetup(scene.Frames, scene.TickRate, scene.MapName, scene.Palette ?? palette,
             scene.DisplayMode, null, demoHud, frames.Map, scene.Ink)
         {
-            Source = scene.Source is { } source ? () => source(frames) : null,
-            SourceHud = hud,
-            Owned = owned
+            Source = scene.Source is { } source ? () => source(frames) : null, SourceHud = hud, Owned = owned
         };
     }
 
@@ -87,7 +85,8 @@ internal static class SceneExportScenes
                 return null;
             }
 
-            start = Math.Max(0, TrackerFrameSource.FrameIndexForTick(frames, Math.Max(clip.FromTick, frames[0].ServerTick)));
+            start = Math.Max(0,
+                TrackerFrameSource.FrameIndexForTick(frames, Math.Max(clip.FromTick, frames[0].ServerTick)));
             end = TrackerFrameSource.FrameIndexForTick(frames, Math.Min(clip.ToTick, frames[^1].ServerTick));
             if (end < start)
             {

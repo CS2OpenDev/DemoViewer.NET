@@ -314,7 +314,9 @@ public sealed partial class CompareSectionViewModel : PlayerOverviewSection
             : rows is null
                 ? "Their stats did not read."
                 : otherWindow.Count == 0
-                    ? context.IsFiltered ? "None of their matches passes the filter." : "None of their matches is in this library."
+                    ? context.IsFiltered
+                        ? "None of their matches passes the filter."
+                        : "None of their matches is in this library."
                     : other.WithStats == 0
                         ? "None of their matches in the window has stats yet."
                         : "";
@@ -327,7 +329,9 @@ public sealed partial class CompareSectionViewModel : PlayerOverviewSection
         pool.WithStats == 1 ? "1 match" : string.Create(CultureInfo.InvariantCulture, $"{pool.WithStats} matches");
 
     private static string NameOf(PlayerEntry entry) =>
-        entry.Name.Length > 0 ? DisplayText.Sanitize(entry.Name) : entry.SteamId64.ToString(CultureInfo.InvariantCulture);
+        entry.Name.Length > 0
+            ? DisplayText.Sanitize(entry.Name)
+            : entry.SteamId64.ToString(CultureInfo.InvariantCulture);
 }
 
 /// <summary>One category of the comparison.</summary>
@@ -342,7 +346,13 @@ public sealed record CompareCategoryItem(string Title, IReadOnlyList<CompareStat
 /// <param name="Subject">The subject's value.</param>
 /// <param name="Other">The second player's value; an en dash before one is picked or without stats.</param>
 /// <param name="Lead">1 when the subject's is the better, -1 when the second player's is, 0 when neither is judged.</param>
-public sealed record CompareStatItem(string Key, string Label, string Tooltip, CompareCell Subject, CompareCell Other, int Lead)
+public sealed record CompareStatItem(
+    string Key,
+    string Label,
+    string Tooltip,
+    CompareCell Subject,
+    CompareCell Other,
+    int Lead)
 {
     private static readonly CompareCell Empty = new("–", null, null, "");
 
@@ -357,7 +367,9 @@ public sealed record CompareStatItem(string Key, string Label, string Tooltip, C
     {
         CompareCell subject = new(mine.Text, mine.Value, mine.Scale, "");
         CompareCell other = theirs is null ? Empty : new CompareCell(theirs.Text, theirs.Value, theirs.Scale, "");
-        int lead = mine.Scale is { } scale && theirs?.Scale is not null ? LeadOf(mine.Value, theirs.Value, scale.Polarity) : 0;
+        int lead = mine.Scale is { } scale && theirs?.Scale is not null
+            ? LeadOf(mine.Value, theirs.Value, scale.Polarity)
+            : 0;
         return new CompareStatItem(mine.Key, mine.Label, mine.Tooltip, subject, other, lead);
     }
 
@@ -376,7 +388,8 @@ public sealed record CompareStatItem(string Key, string Label, string Tooltip, C
             StatPolarity? polarity = ColumnCatalogue.Resolve(entry.Key).Scale?.Polarity;
             if (entry.Rate is { } rate && polarity is { } p)
             {
-                lead = LeadOf(a.Value is { } x ? rate.Of(x, mineRows) : null, b.Value is { } y ? rate.Of(y, theirRows) : null, p);
+                lead = LeadOf(a.Value is { } x ? rate.Of(x, mineRows) : null,
+                    b.Value is { } y ? rate.Of(y, theirRows) : null, p);
             }
             else if (entry.Rate is null && a.Scale is { } scale && b.Scale is not null)
             {

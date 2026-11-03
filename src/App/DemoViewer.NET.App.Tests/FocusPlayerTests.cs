@@ -97,16 +97,14 @@ public class FocusPlayerTests
                         ["player_name"] = "Coach",
                         ["steam_id"] = Coach.ToString(CultureInfo.InvariantCulture)
                     },
-                    new Dictionary<string, object?>
-                    {
-                        ["coaching_team"] = 3
-                    })
+                    new Dictionary<string, object?> { ["coaching_team"] = 3 })
             ]);
         return (result, demo, coaches);
     }
 
     /// <summary>A Stats tab over the scenario whose overview entry records what it was asked to open.</summary>
-    internal static StatsTabViewModel Updated(List<(ulong SteamId64, string? Name)>? opened = null, bool withOpener = true)
+    internal static StatsTabViewModel Updated(List<(ulong SteamId64, string? Name)>? opened = null,
+        bool withOpener = true)
     {
         StatsTabViewModel vm = new(null, () => "/demos/match.dem");
         if (withOpener)
@@ -161,7 +159,8 @@ public class FocusPlayerTests
 
         await Assert.That(opened).IsEmpty();
         vm.OpenPlayerOverviewCommand.Execute(vm.GameRows.First(r => r.PlayerName == "Alice"));
-        await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Alice, "Alice") }, CollectionOrdering.Matching);
+        await Assert.That(opened)
+            .IsEquivalentTo(new (ulong, string?)[] { (Alice, "Alice") }, CollectionOrdering.Matching);
     }
 
     [Test]

@@ -268,7 +268,8 @@ public sealed class DossierNotesStore
             DossierNotesFile? file = JsonSerializer.Deserialize<DossierNotesFile>(bytes, DossierNotesFile.JsonOptions);
             if (file is null || file.SchemaVersion > DossierNotesFile.CurrentSchema)
             {
-                Refuse($"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
+                Refuse(
+                    $"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
                 return;
             }
 

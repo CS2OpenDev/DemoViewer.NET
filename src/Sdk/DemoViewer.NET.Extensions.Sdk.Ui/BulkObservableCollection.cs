@@ -43,7 +43,8 @@ public sealed class BulkObservableCollection<T> : ObservableCollection<T>
         HashSet<T> wanted = new(target, ReferenceEqualityComparer.Instance as IEqualityComparer<T>);
         HashSet<T> present = new(Items, ReferenceEqualityComparer.Instance as IEqualityComparer<T>);
         List<T> staying = [.. Items.Where(wanted.Contains)];
-        if (!staying.SequenceEqual(target.Where(present.Contains), ReferenceEqualityComparer.Instance as IEqualityComparer<T>))
+        if (!staying.SequenceEqual(target.Where(present.Contains),
+                ReferenceEqualityComparer.Instance as IEqualityComparer<T>))
         {
             ReplaceAll(target);
             return;
@@ -76,7 +77,8 @@ public sealed class BulkObservableCollection<T> : ObservableCollection<T>
             }
 
             changed = true;
-            OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, gone, start));
+            OnCollectionChanged(
+                new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, gone, start));
             end = start;
         }
 

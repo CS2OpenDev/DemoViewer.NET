@@ -248,10 +248,7 @@ public class ExportDeterminismTests
         List<PlayerMarker> markers = new(source.Markers.Count);
         foreach (PlayerMarker marker in source.Markers)
         {
-            markers.Add(marker with
-            {
-                WorldX = marker.WorldX + dx
-            });
+            markers.Add(marker with { WorldX = marker.WorldX + dx });
         }
 
         return new Scene2DFrame
@@ -298,10 +295,7 @@ public class ExportAllocationTests
 
         // Warm-up run: JIT, the surface, the pooled buffer, the picture caches and the text blobs are all
         // one-time costs, and charging them to the budget would make the gate meaningless.
-        await Measure(session, source, request with
-        {
-            EndFrame = 63
-        }, surfaces);
+        await Measure(session, source, request with { EndFrame = 63 }, surfaces);
 
         // TWO runs of different lengths, differenced. A single run cannot separate the loop's per-frame
         // cost from a run's own fixed setup, one compositor scope, one camera resolver, one renderer,
@@ -312,14 +306,8 @@ public class ExportAllocationTests
         long shortRun = long.MaxValue, longRun = long.MaxValue;
         for (int i = 0; i < Samples; i++)
         {
-            shortRun = Math.Min(shortRun, await Measure(session, source, request with
-            {
-                EndFrame = 511
-            }, surfaces));
-            longRun = Math.Min(longRun, await Measure(session, source, request with
-            {
-                EndFrame = 1023
-            }, surfaces));
+            shortRun = Math.Min(shortRun, await Measure(session, source, request with { EndFrame = 511 }, surfaces));
+            longRun = Math.Min(longRun, await Measure(session, source, request with { EndFrame = 1023 }, surfaces));
         }
 
         long extra = longRun - shortRun;
@@ -366,10 +354,7 @@ public class ExportAllocationTests
         FixtureFrameSource source = ExportFixtures.Source(frames);
         ExportRequest request = ExportFixtures.Request(frames, size: new SKSizeI(64, 48));
 
-        await session.RunAsync(request with
-            {
-                EndFrame = 63
-            }, source, new NullSink(), surfaces, null,
+        await session.RunAsync(request with { EndFrame = 63 }, source, new NullSink(), surfaces, null,
             CancellationToken.None);
 
         long before = GC.GetAllocatedBytesForCurrentThread();

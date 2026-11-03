@@ -23,7 +23,14 @@ public class StratWhoFlyoutTests
         await HeadlessSession.RunOnUi(async () =>
         {
             using StratBookTabViewModel vm = StratStepEditingTests.OpenNew();
-            StratStep step = new() { Id = Guid.NewGuid(), AtSeconds = 100, Actor = "B", Verb = "hold", To = new PlaceRef { Place = "BombsiteA" } };
+            StratStep step = new()
+            {
+                Id = Guid.NewGuid(),
+                AtSeconds = 100,
+                Actor = "B",
+                Verb = "hold",
+                To = new PlaceRef { Place = "BombsiteA" }
+            };
             StratStepEditingTests.Seed(vm, step);
             StratBookTabView view = new() { DataContext = vm };
             Window window = new() { Width = 1280, Height = 800, Content = view };
@@ -32,16 +39,19 @@ public class StratWhoFlyoutTests
             int index = vm.Session.Document!.Steps.FindIndex(s => s.Id == step.Id);
             int depth = vm.Session.UndoDepth;
 
-            Button who = view.FindControl<ItemsControl>("StepRows")!.ContainerFromIndex(index)!.GetVisualDescendants().OfType<Button>()
+            Button who = view.FindControl<ItemsControl>("StepRows")!.ContainerFromIndex(index)!.GetVisualDescendants()
+                .OfType<Button>()
                 .Single(b => b.Name == "WhoButton");
             Flyout flyout = (Flyout)who.Flyout!;
             flyout.ShowAt(who);
             Dispatcher.UIThread.RunJobs();
             List<ToggleButton> toggles = [.. ((Control)flyout.Content!).GetVisualDescendants().OfType<ToggleButton>()];
-            await Assert.That(toggles.Select(t => (string)t.Content!)).IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
+            await Assert.That(toggles.Select(t => (string)t.Content!))
+                .IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
             toggles.Single(t => (string?)t.Content == "C").IsChecked = true;
             toggles.Single(t => (string?)t.Content == "D").IsChecked = true;
-            await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth).Because("nothing is written while the flyout is open");
+            await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth)
+                .Because("nothing is written while the flyout is open");
 
             // A reprojection while it is open (the zones landing does one) leaves the staged picks alone.
             vm.Editor.Project();
@@ -53,7 +63,8 @@ public class StratWhoFlyoutTests
             using (Assert.Multiple())
             {
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
-                await Assert.That(vm.Session.Document!.Steps[index].Assignments!.Select(l => l.Slot)).IsEquivalentTo(["B", "C", "D"], CollectionOrdering.Matching);
+                await Assert.That(vm.Session.Document!.Steps[index].Assignments!.Select(l => l.Slot))
+                    .IsEquivalentTo(["B", "C", "D"], CollectionOrdering.Matching);
                 await Assert.That(who.GetVisualDescendants().OfType<TextBlock>().First().Text).IsEqualTo("B, C, D");
             }
 

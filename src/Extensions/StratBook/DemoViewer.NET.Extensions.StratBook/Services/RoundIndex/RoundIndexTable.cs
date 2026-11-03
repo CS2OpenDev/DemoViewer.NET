@@ -57,7 +57,8 @@ public static class RoundIndexTable
         RuleConfigLoadResult read = YamlConfigLoader.LoadDocuments([(RulesetName + ".rules.yaml", ReadYaml())]);
         return read.Success && read.Rulesets.Count == 1
             ? read.Rulesets[0]
-            : throw new InvalidOperationException("the round index ruleset does not load: " + string.Join("; ", read.Errors));
+            : throw new InvalidOperationException("the round index ruleset does not load: "
+                                                  + string.Join("; ", read.Errors));
     }
 
     /// <summary>
@@ -71,7 +72,9 @@ public static class RoundIndexTable
         AnalysisRun run = DemoAnalysis.Run(parsed, [LoadRuleset()], new AnalysisOptions { CaptureSnapshots = false });
         MetricTable table = run.ProjectConfiguredOutputs().SingleOrDefault(t => t.Name == TableName)
                             ?? throw new InvalidOperationException("the round index ruleset recorded no table: "
-                                                                   + string.Join("; ", run.Build.ExcludedRulesets.SelectMany(e => e.Diagnostics)));
+                                                                   + string.Join("; ",
+                                                                       run.Build.ExcludedRulesets.SelectMany(e =>
+                                                                           e.Diagnostics)));
         return Samples(table.Rows.Select(r => (r.Dimensions, r.Values)));
     }
 
@@ -80,7 +83,8 @@ public static class RoundIndexTable
     public static List<PositionSample> Samples(IEnumerable<FactRow> rows)
     {
         ArgumentNullException.ThrowIfNull(rows);
-        return Samples(rows.Select(r => ((IReadOnlyDictionary<string, object?>)Cells(r.Dimensions), (IReadOnlyDictionary<string, object?>)Cells(r.Values))));
+        return Samples(rows.Select(r => ((IReadOnlyDictionary<string, object?>)Cells(r.Dimensions),
+            (IReadOnlyDictionary<string, object?>)Cells(r.Values))));
     }
 
     /// <summary>
@@ -96,13 +100,17 @@ public static class RoundIndexTable
         foreach ((IReadOnlyDictionary<string, object?> dimensions, IReadOnlyDictionary<string, object?> values) in rows)
         {
             if (Int(dimensions, "tick") is not { } tick || Int(dimensions, "player_slot") is not { } slot
-                || Float(values, "pos_x") is not { } x || Float(values, "pos_y") is not { } y || Float(values, "pos_z") is not { } z)
+                                                        || Float(values, "pos_x") is not { } x
+                                                        || Float(values, "pos_y") is not { } y
+                                                        || Float(values, "pos_z") is not { } z)
             {
                 continue;
             }
 
-            PositionSample sample = new(0, tick, slot, new Vector3(x, y, z), values.GetValueOrDefault("place") as string,
-                Int(values, "side") ?? 0, Int(values, "is_alive") is > 0 || values.GetValueOrDefault("is_alive") is true);
+            PositionSample sample = new(0, tick, slot, new Vector3(x, y, z),
+                values.GetValueOrDefault("place") as string,
+                Int(values, "side") ?? 0,
+                Int(values, "is_alive") is > 0 || values.GetValueOrDefault("is_alive") is true);
             keyed.Add((tick, Int(values, "entity_index") ?? int.MaxValue, keyed.Count, sample));
         }
 

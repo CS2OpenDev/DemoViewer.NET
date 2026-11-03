@@ -79,7 +79,10 @@ public sealed class WatchedSituation
     /// </summary>
     /// <param name="side">The rail row.</param>
     public IReadOnlyList<PlaceQuery> PairsFor(QuerySide side) =>
-        [.. PlaceCountToken.Decode(PlaceCountToken.EncodePlaces(ResolvedPlaces(side))).Select(p => new PlaceQuery(p.Place, p.Count))];
+    [
+        .. PlaceCountToken.Decode(PlaceCountToken.EncodePlaces(ResolvedPlaces(side)))
+            .Select(p => new PlaceQuery(p.Place, p.Count))
+    ];
 
     /// <summary>One side's token as the index stores it; empty for an unconstrained side.</summary>
     /// <param name="side">The rail row.</param>

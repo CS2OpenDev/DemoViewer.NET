@@ -43,7 +43,8 @@ public class StratHistoryPanelTests
         fixture.Store.Save(created, [], null);
         StratDocument edited = StratHistory.Apply(created,
             [PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(82), JsonValue.Create(76))]);
-        fixture.Store.Save(edited, [PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(82), JsonValue.Create(76))], null);
+        fixture.Store.Save(edited,
+            [PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(82), JsonValue.Create(76))], null);
 
         fixture.Panel.Configure(edited);
         await fixture.Panel.Pending;
@@ -51,10 +52,12 @@ public class StratHistoryPanelTests
         using (Assert.Multiple())
         {
             await Assert.That(fixture.Panel.HasStrat).IsTrue();
-            await Assert.That(fixture.Panel.Entries.Select(e => e.Revision)).IsEquivalentTo([2, 1], CollectionOrdering.Matching);
+            await Assert.That(fixture.Panel.Entries.Select(e => e.Revision))
+                .IsEquivalentTo([2, 1], CollectionOrdering.Matching);
             await Assert.That(fixture.Panel.Entries[0].Revision).IsEqualTo(2).Because("newest first");
             await Assert.That(fixture.Panel.Entries[0].Summary).IsEqualTo("C's throw moved from 1:22 to 1:16");
-            await Assert.That(fixture.Panel.Entries[0].ShowChangeList).IsFalse().Because("one op needs no itemized list beside its summary");
+            await Assert.That(fixture.Panel.Entries[0].ShowChangeList).IsFalse()
+                .Because("one op needs no itemized list beside its summary");
             await Assert.That(fixture.Panel.Entries[1].Summary).IsEqualTo("created");
         }
     }
@@ -77,8 +80,11 @@ public class StratHistoryPanelTests
         using (Assert.Multiple())
         {
             await Assert.That(latest.ShowChangeList).IsTrue();
-            await Assert.That(latest.Changes).IsEquivalentTo(["renamed to A exec, con peek", "tag added: default-break"], CollectionOrdering.Matching);
-            await Assert.That(latest.Summary).IsEqualTo(string.Join("; ", latest.Changes)).Because("no explicit summary was given");
+            await Assert.That(latest.Changes)
+                .IsEquivalentTo(["renamed to A exec, con peek", "tag added: default-break"],
+                    CollectionOrdering.Matching);
+            await Assert.That(latest.Summary).IsEqualTo(string.Join("; ", latest.Changes))
+                .Because("no explicit summary was given");
         }
     }
 
@@ -90,7 +96,8 @@ public class StratHistoryPanelTests
         fixture.Store.Save(created, [], null);
         StratDocument edited = StratHistory.Apply(created,
             [PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(82), JsonValue.Create(76))]);
-        fixture.Store.Save(edited, [PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(82), JsonValue.Create(76))], null);
+        fixture.Store.Save(edited,
+            [PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(82), JsonValue.Create(76))], null);
         fixture.Tags.Save(Document(ShaA, Run(1, 1, "T"), Run(2, 2, "CT")));
 
         fixture.Panel.Configure(edited);
@@ -153,7 +160,8 @@ public class StratHistoryPanelTests
             Store = new StratStore(null);
             Tags = new TagStore(null);
             CalloutResolverSource callouts = new(Store);
-            Panel = new StratHistoryPanelViewModel(Store, new StratEvidenceService(Tags), Tags, callouts, debounce: TimeSpan.Zero);
+            Panel = new StratHistoryPanelViewModel(Store, new StratEvidenceService(Tags), Tags, callouts,
+                debounce: TimeSpan.Zero);
         }
 
         public StratStore Store { get; }

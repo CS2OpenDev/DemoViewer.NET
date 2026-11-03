@@ -39,7 +39,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     /// <param name="headerTimeout">Overrides <see cref="HeaderTimeout" />.</param>
     /// <param name="stallTimeout">Overrides <see cref="StallTimeout" />.</param>
     /// <param name="time">The clock both budgets run on; the system clock by default.</param>
-    public HttpExtensionFeedClient(HttpMessageHandler? handler, TimeSpan? headerTimeout = null, TimeSpan? stallTimeout = null,
+    public HttpExtensionFeedClient(HttpMessageHandler? handler, TimeSpan? headerTimeout = null,
+        TimeSpan? stallTimeout = null,
         TimeProvider? time = null)
     {
         _http = handler is null ? new HttpClient() : new HttpClient(handler, disposeHandler: false);
@@ -64,7 +65,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
             StringBuilder text = new();
             while (true)
             {
-                int read = await ReadWithStallTimeout(() => reader.ReadAsync(buffer, ct).AsTask(), ct).ConfigureAwait(false);
+                int read = await ReadWithStallTimeout(() => reader.ReadAsync(buffer, ct).AsTask(), ct)
+                    .ConfigureAwait(false);
                 if (read == 0)
                 {
                     return text.ToString();
@@ -85,7 +87,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress, CancellationToken ct)
+    public async Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress,
+        CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(url);
         ArgumentNullException.ThrowIfNull(destination);
@@ -102,7 +105,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
             long total = 0;
             while (true)
             {
-                int read = await ReadWithStallTimeout(() => stream.ReadAsync(buffer, ct).AsTask(), ct).ConfigureAwait(false);
+                int read = await ReadWithStallTimeout(() => stream.ReadAsync(buffer, ct).AsTask(), ct)
+                    .ConfigureAwait(false);
                 if (read == 0)
                 {
                     return;
@@ -111,7 +115,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
                 total += read;
                 if (total > maxBytes)
                 {
-                    throw new ExtensionDownloadException($"the download is larger than the {maxBytes} bytes the feed said");
+                    throw new ExtensionDownloadException(
+                        $"the download is larger than the {maxBytes} bytes the feed said");
                 }
 
                 await destination.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
@@ -135,7 +140,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
         HttpResponseMessage response;
         try
         {
-            response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, headers.Token).ConfigureAwait(false);
+            response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, headers.Token)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -159,7 +165,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     {
         using CancellationTokenSource delay = CancellationTokenSource.CreateLinkedTokenSource(ct);
         Task<int> pending = read();
-        Task finished = await Task.WhenAny(pending, Task.Delay(_stallTimeout, _time, delay.Token)).ConfigureAwait(false);
+        Task finished = await Task.WhenAny(pending, Task.Delay(_stallTimeout, _time, delay.Token))
+            .ConfigureAwait(false);
         if (finished != pending)
         {
             ct.ThrowIfCancellationRequested();

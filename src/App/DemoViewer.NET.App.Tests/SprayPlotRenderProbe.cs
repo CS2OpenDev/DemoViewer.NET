@@ -96,11 +96,7 @@ public class SprayPlotRenderProbe
             WindowDecorations = WindowDecorations.None,
             Width = 360,
             Height = 360,
-            Content = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xF9)),
-                Child = plot
-            }
+            Content = new Border { Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xF9)), Child = plot }
         };
 
         window.Show();

@@ -146,7 +146,8 @@ public class SprayControlOracleRealDemoTests
             throw new SkipTestException(drift.Message);
         }
 
-        Console.WriteLine("── spray control: oracle (landed fold) against the shipped columns (landed arm, fired segmentation) ──");
+        Console.WriteLine(
+            "── spray control: oracle (landed fold) against the shipped columns (landed arm, fired segmentation) ──");
         Console.WriteLine(
             $"   {"player",-24}{"oracleN",8}{"SprayN",8}{"oracleAngle",13}{"Spray",8}{"oraclePitch",13}{"oracleYaw",11}");
         int compared = 0;
@@ -212,7 +213,7 @@ public class SprayControlOracleRealDemoTests
                     continue;
                 case BulletDamageEvent landed:
                     if (!matchStarted || landed.Attacker < 0
-                        || gameEvent.FrameNumber < 0 || gameEvent.FrameNumber >= demo.Frames.Count)
+                                      || gameEvent.FrameNumber < 0 || gameEvent.FrameNumber >= demo.Frames.Count)
                     {
                         continue;
                     }

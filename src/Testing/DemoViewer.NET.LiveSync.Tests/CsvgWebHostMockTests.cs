@@ -20,10 +20,7 @@ namespace DemoViewer.NET.LiveSync.Tests;
 [NotInParallel("csvg-port-50051")]
 public class CsvgWebHostMockTests
 {
-    private static LiveSyncSettings MockSettings() => new()
-    {
-        MockMode = true
-    };
+    private static LiveSyncSettings MockSettings() => new() { MockMode = true };
 
     private static async Task<CsvgWebHost> StartHostOrSkipAsync(CancellationToken cancellationToken)
     {

@@ -55,7 +55,8 @@ public sealed class ProvenanceLibraryContribution(
     {
         ArgumentNullException.ThrowIfNull(demos);
         List<LibraryDemo> list = [.. demos];
-        IReadOnlyDictionary<string, DemoProvenance> resolved = ResolveProvenance().ResolveAll(list.Select(e => e.FilePath));
+        IReadOnlyDictionary<string, DemoProvenance> resolved =
+            ResolveProvenance().ResolveAll(list.Select(e => e.FilePath));
         Dictionary<string, LibraryBadge?> badges = new(list.Count, StringComparer.Ordinal);
         foreach (LibraryDemo entry in list)
         {

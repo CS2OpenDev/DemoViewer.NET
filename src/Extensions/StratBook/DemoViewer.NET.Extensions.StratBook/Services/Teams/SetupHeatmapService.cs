@@ -53,7 +53,8 @@ public sealed class SetupHeatmapService
     /// <param name="roundFacts">The Round Facts rows per demo.</param>
     /// <param name="positions">The round positions files.</param>
     /// <param name="fingerprintFor">The fingerprint current positions carry per map; a file under another is stale.</param>
-    public SetupHeatmapService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts, RoundIndexStore positions,
+    public SetupHeatmapService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts,
+        RoundIndexStore positions,
         Func<string?, string> fingerprintFor)
     {
         ArgumentNullException.ThrowIfNull(teams);
@@ -87,7 +88,8 @@ public sealed class SetupHeatmapService
                 continue;
             }
 
-            RoundPositionsDocument? positions = _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
+            RoundPositionsDocument? positions =
+                _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
             if (positions is null)
             {
                 without++;
@@ -134,10 +136,7 @@ public sealed class SetupHeatmapService
 
         return new SetupHeatmapSet
         {
-            TeamId = teamId,
-            Heatmaps = heatmaps,
-            DemosRead = read,
-            DemosWithoutPositions = without
+            TeamId = teamId, Heatmaps = heatmaps, DemosRead = read, DemosWithoutPositions = without
         };
     }
 
@@ -149,7 +148,7 @@ public sealed class SetupHeatmapService
         ArgumentNullException.ThrowIfNull(round);
         int from = round.FreezeEndTick + SetupFromSeconds * tickRate;
         int to = round.FreezeEndTick + SetupToSeconds * tickRate;
-        foreach (int? cut in (int?[]) [round.FirstContactTick, round.PlantTick, round.EndTick])
+        foreach (int? cut in (int?[])[round.FirstContactTick, round.PlantTick, round.EndTick])
         {
             if (cut is { } tick)
             {

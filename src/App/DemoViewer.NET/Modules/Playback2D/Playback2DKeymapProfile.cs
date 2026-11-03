@@ -370,11 +370,7 @@ public sealed class Playback2DKeymapProfile
     }
 
     private static Playback2DBinding Rebind(Playback2DBinding binding, Key key, KeyModifiers modifiers) =>
-        binding with
-        {
-            Key = key,
-            Modifiers = modifiers
-        };
+        binding with { Key = key, Modifiers = modifiers };
 
     // A conflict naming a pack-owned action (TagNote, AddStep, …) is otherwise opaque the moment that
     // pack is off: the Settings list hides its row, so the user reads an action name that appears

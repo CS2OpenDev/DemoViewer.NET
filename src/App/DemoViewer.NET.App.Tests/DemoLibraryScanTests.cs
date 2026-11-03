@@ -33,16 +33,22 @@ public class DemoLibraryScanTests
             string dataPath = SeedLibrary(root, [root], Row(kept), Row(hidden), Row(gone, 9));
 
             using DemoLibraryService svc = new(_inline, dataPath);
-            svc.FolderReader = new ScriptedReader { FailRead = d => d == bad ? new IOException("stale NFS file handle") : null };
+            svc.FolderReader = new ScriptedReader
+            {
+                FailRead = d => d == bad ? new IOException("stale NFS file handle") : null
+            };
             await svc.RescanAsync();
 
             string[] rows = CachedPaths(svc, dataPath);
             using (Assert.Multiple())
             {
                 await Assert.That(rows).Contains(kept);
-                await Assert.That(rows).Contains(hidden).Because("a subdirectory that could not be listed is no evidence");
-                await Assert.That(rows).DoesNotContain(gone).Because("the rest of the folder was read and the demo is not in it");
-                await Assert.That(svc.Entries.Select(e => e.FilePath)).IsEquivalentTo([kept], CollectionOrdering.Matching);
+                await Assert.That(rows).Contains(hidden)
+                    .Because("a subdirectory that could not be listed is no evidence");
+                await Assert.That(rows).DoesNotContain(gone)
+                    .Because("the rest of the folder was read and the demo is not in it");
+                await Assert.That(svc.Entries.Select(e => e.FilePath))
+                    .IsEquivalentTo([kept], CollectionOrdering.Matching);
             }
         }
         finally
@@ -62,7 +68,8 @@ public class DemoLibraryScanTests
             string dataPath = SeedLibrary(root, [root], Row(a), Row(gone, 9));
 
             using DemoLibraryService svc = new(_inline, dataPath);
-            svc.FolderReader = new ScriptedReader { FailRead = d => d == root ? new IOException("Operation timed out") : null };
+            svc.FolderReader =
+                new ScriptedReader { FailRead = d => d == root ? new IOException("Operation timed out") : null };
             await svc.RescanAsync();
 
             await Assert.That(CachedPaths(svc, dataPath)).IsEquivalentTo(Sorted(a, gone), CollectionOrdering.Matching);
@@ -116,7 +123,8 @@ public class DemoLibraryScanTests
             string detached = Path.Combine(root, "volume");
             string onDetached = Path.Combine(detached, "b.dem");
             string removed = Path.Combine(root, "removed", "c.dem");
-            string dataPath = SeedLibrary(root, [Path.GetDirectoryName(present)!, detached], Row(present), Row(onDetached, 4),
+            string dataPath = SeedLibrary(root, [Path.GetDirectoryName(present)!, detached], Row(present),
+                Row(onDetached, 4),
                 Row(removed, 5));
 
             using DemoLibraryService svc = new(_inline, dataPath);
@@ -125,7 +133,8 @@ public class DemoLibraryScanTests
             string[] rows = CachedPaths(svc, dataPath);
             using (Assert.Multiple())
             {
-                await Assert.That(rows).Contains(onDetached).Because("a registered folder that is not there is detached, not emptied");
+                await Assert.That(rows).Contains(onDetached)
+                    .Because("a registered folder that is not there is detached, not emptied");
                 await Assert.That(rows).DoesNotContain(removed).Because("no registered folder covers it");
             }
         }
@@ -150,7 +159,10 @@ public class DemoLibraryScanTests
             string dataPath = SeedLibrary(root, [reachable, hung], Row(a), Row(gone, 4), Row(elsewhere, 5));
 
             using DemoLibraryService svc = new(_inline, dataPath);
-            svc.FolderReader = new ScriptedReader { FailResolve = f => f == hung ? new IOException("Operation timed out") : null };
+            svc.FolderReader = new ScriptedReader
+            {
+                FailResolve = f => f == hung ? new IOException("Operation timed out") : null
+            };
             await svc.RescanAsync();
 
             string[] rows = CachedPaths(svc, dataPath);
@@ -185,7 +197,8 @@ public class DemoLibraryScanTests
             using (Assert.Multiple())
             {
                 await Assert.That(svc.Entries.Count).IsEqualTo(1);
-                await Assert.That(CachedPaths(svc, dataPath)).IsEquivalentTo(Sorted(first, copy), CollectionOrdering.Matching);
+                await Assert.That(CachedPaths(svc, dataPath))
+                    .IsEquivalentTo(Sorted(first, copy), CollectionOrdering.Matching);
             }
         }
         finally
@@ -244,7 +257,8 @@ public class DemoLibraryScanTests
             using (Assert.Multiple())
             {
                 await Assert.That(EntryPaths(svc)).IsEquivalentTo([a], CollectionOrdering.Matching);
-                await Assert.That(CachedPaths(svc, dataPath)).IsEquivalentTo(Sorted(b, gone), CollectionOrdering.Matching).Because("nothing under it is pruned");
+                await Assert.That(CachedPaths(svc, dataPath))
+                    .IsEquivalentTo(Sorted(b, gone), CollectionOrdering.Matching).Because("nothing under it is pruned");
             }
 
             await svc.RescanAsync().WaitAsync(TimeSpan.FromSeconds(10));
@@ -252,7 +266,8 @@ public class DemoLibraryScanTests
 
             reader.Release();
             await WaitForAsync(() => EntryPaths(svc).Contains(b), "the folder listed again once its read answered");
-            await WaitForAsync(() => !CachedPaths(svc, dataPath).Contains(gone), "the reached folder's deleted demo pruned");
+            await WaitForAsync(() => !CachedPaths(svc, dataPath).Contains(gone),
+                "the reached folder's deleted demo pruned");
         }
         finally
         {
@@ -315,7 +330,7 @@ public class DemoLibraryScanTests
             Task scan = svc.RescanAsync();
             await WaitForAsync(() => reader.BlockedReads == 1, "the hung read");
             await WaitForAsync(() => !queue.Snapshot().Any(s => s.Kind == QueueJobKind.LibraryListing
-                                                               && s.State == DemoQueueItemState.Running),
+                                                                && s.State == DemoQueueItemState.Running),
                 "the listing slice to end while its read is outstanding");
 
             Task heavy = QueueWork.Run(queue, QueueJobKind.LibraryScan, "other heavy job", "test", _ => { });
@@ -362,7 +377,8 @@ public class DemoLibraryScanTests
             using (Assert.Multiple())
             {
                 await Assert.That(EntryPaths(svc)).IsEquivalentTo([c], CollectionOrdering.Matching);
-                await Assert.That(CachedPaths(svc, dataPath)).IsEquivalentTo(Sorted(a, gone), CollectionOrdering.Matching)
+                await Assert.That(CachedPaths(svc, dataPath))
+                    .IsEquivalentTo(Sorted(a, gone), CollectionOrdering.Matching)
                     .Because("a folder whose listing was stopped is no evidence that anything under it is gone");
             }
         }
@@ -389,7 +405,8 @@ public class DemoLibraryScanTests
             using DemoLibraryService svc = new(_inline, dataPath);
             svc.FolderReader = reader;
             svc.QueueOverride = queue;
-            svc.Timing = new LibraryScanTiming(TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(60));
+            svc.Timing = new LibraryScanTiming(TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(30),
+                TimeSpan.FromSeconds(60));
 
             Task scan = svc.RescanAsync();
             await WaitForAsync(() => reader.BlockedReads == 1, "the hung read");
@@ -470,7 +487,7 @@ public class DemoLibraryScanTests
             await WaitForAsync(() => headers.BlockedReads == 1, "the hung header read");
             await WaitForAsync(() => Map(svc, a) is not null, "the other folder's header");
             await WaitForAsync(() => !queue.Snapshot().Any(s => s.Kind == QueueJobKind.LibraryListing
-                                                               && s.State == DemoQueueItemState.Running),
+                                                                && s.State == DemoQueueItemState.Running),
                 "the header slice to end while its read is outstanding");
 
             Task heavy = QueueWork.Run(queue, QueueJobKind.LibraryScan, "other heavy job", "test", _ => { });
@@ -515,7 +532,8 @@ public class DemoLibraryScanTests
             using (Assert.Multiple())
             {
                 await Assert.That(Map(svc, a)).IsEqualTo("de_a");
-                await Assert.That(headers.BlockedReads).IsEqualTo(1).Because("the hung read is waited on, not repeated");
+                await Assert.That(headers.BlockedReads).IsEqualTo(1)
+                    .Because("the hung read is waited on, not repeated");
                 foreach (string pending in new[] { b, b2 })
                 {
                     await Assert.That(Map(svc, pending)).IsNull();
@@ -589,7 +607,8 @@ public class DemoLibraryScanTests
             string a = WriteDemo(root, "a.dem", 3);
             string b = WriteDemo(root, "b.dem", 4);
             using DemoLibraryService svc = new(_inline, SeedLibrary(root, [root]));
-            svc.HeaderReader = new GatedHeaderReader(root, p => p == b ? new InvalidOperationException("odd file") : null);
+            svc.HeaderReader =
+                new GatedHeaderReader(root, p => p == b ? new InvalidOperationException("odd file") : null);
             svc.QueueOverride = queue;
 
             await svc.RescanAsync().WaitAsync(TimeSpan.FromSeconds(10));
@@ -609,7 +628,8 @@ public class DemoLibraryScanTests
     // ── Helpers ──
 
     // Answers "de_<name>" for every demo; blocks reads under one folder until released, unless told to throw.
-    internal sealed class GatedHeaderReader(string blocked, Func<string, Exception?>? fail = null) : ILibraryHeaderReader
+    internal sealed class GatedHeaderReader(string blocked, Func<string, Exception?>? fail = null)
+        : ILibraryHeaderReader
     {
         private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _blockedReads;
@@ -635,9 +655,10 @@ public class DemoLibraryScanTests
         }
     }
 
-    private static DemoQueueItemSnapshot? ListingSlice(DemoProcessingQueue queue, string folder, DemoQueueItemState state) =>
+    private static DemoQueueItemSnapshot? ListingSlice(DemoProcessingQueue queue, string folder,
+        DemoQueueItemState state) =>
         queue.Snapshot().FirstOrDefault(s => s.Kind == QueueJobKind.LibraryListing && s.State == state
-                                             && s.DisplayName == "Library: list " + folder);
+            && s.DisplayName == "Library: list " + folder);
 
     private static DemoEntry Entry(DemoLibraryService svc, string path)
     {
@@ -737,7 +758,9 @@ public class DemoLibraryScanTests
         public Func<string, Exception?>? FailRead { get; init; }
 
         public string ResolveRoot(string folder) =>
-            FailResolve?.Invoke(folder) is { } ex ? throw ex : FileSystemLibraryFolderReader.Instance.ResolveRoot(folder);
+            FailResolve?.Invoke(folder) is { } ex
+                ? throw ex
+                : FileSystemLibraryFolderReader.Instance.ResolveRoot(folder);
 
         public LibraryDirectoryListing Read(string directory) =>
             FailRead?.Invoke(directory) is { } ex ? throw ex : FileSystemLibraryFolderReader.Instance.Read(directory);
@@ -746,7 +769,8 @@ public class DemoLibraryScanTests
     // Canonical, so paths compare equal to what the walk reports (macOS temp sits behind /var -> /private/var).
     internal static string NewTempDir() =>
         DemoLibraryService.CanonicalizeDirectory(
-            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "dvscan_" + Guid.NewGuid().ToString("N"))).FullName);
+            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "dvscan_" + Guid.NewGuid().ToString("N")))
+                .FullName);
 
     // Full, so "ok/a.dem" comes back with Windows separators: the walk reports them, and a row keyed with a
     // '/' matches no listed file and is pruned as deleted.
@@ -777,7 +801,8 @@ public class DemoLibraryScanTests
     internal static string SeedLibrary(string dir, string[] folders, params DemoLibraryCacheEntry[] rows)
     {
         string dataPath = Path.Combine(dir, "library-" + Guid.NewGuid().ToString("N") + ".json");
-        File.WriteAllText(dataPath, JsonSerializer.Serialize(new DemoLibraryData { Folders = [.. folders], Cache = [.. rows] }));
+        File.WriteAllText(dataPath,
+            JsonSerializer.Serialize(new DemoLibraryData { Folders = [.. folders], Cache = [.. rows] }));
         return dataPath;
     }
 

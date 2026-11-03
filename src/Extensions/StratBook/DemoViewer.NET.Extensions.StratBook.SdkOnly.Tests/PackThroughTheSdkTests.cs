@@ -133,8 +133,7 @@ public class PackThroughTheSdkTests
 
         HashSet<string> scopes = new(pack.CommandScopes.Select(s => s.Id), StringComparer.Ordinal)
         {
-            "playback2d",
-            "playback2d.tool"
+            "playback2d", "playback2d.tool"
         };
         await Assert.That(pack.Commands.Where(c => !scopes.Contains(c.Scope))
             .Select(c => $"{c.Id} in scope {c.Scope}").ToList()).IsEmpty();
