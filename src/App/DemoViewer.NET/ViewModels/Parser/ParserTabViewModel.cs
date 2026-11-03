@@ -26,8 +26,7 @@ namespace DemoViewer.NET.ViewModels.Parser;
 ///     <para>
 ///         Extracted from the legacy MainViewModel: the shell callbacks (<see cref="OnFrameSelected" />,
 ///         <see cref="RepoRootSource" />, <see cref="ProtoIndexSource" />, <see cref="FrameListSource" />,
-///         <see cref="DemoBytesSource" />, <see cref="EntityTrackerSource" />,
-///         <see cref="PopulateFrameGameEvents" />) replace the prior direct shell reads.
+///         <see cref="DemoBytesSource" />, <see cref="EntityTrackerSource" />) replace the prior direct shell reads.
 ///     </para>
 /// </summary>
 public sealed partial class ParserTabViewModel : ObservableObject
@@ -207,14 +206,6 @@ public sealed partial class ParserTabViewModel : ObservableObject
 
     /// <summary>Payload nodes.</summary>
     public ObservableCollection<PayloadNode> PayloadNodes { get; } = [];
-
-    /// <summary>
-    ///     Fills the shell-owned <c>FrameGameEvents</c> collection from the selected
-    ///     frame, or clears it when invoked with <c>null</c>. Kept on shell because
-    ///     <c>OnSelectedTickGroupChanged</c> populates the same collection from a
-    ///     different code path (3.5b territory).
-    /// </summary>
-    public Action<DemoFrame?>? PopulateFrameGameEvents { get; set; }
 
     /// <summary>
     ///     Source of the <see cref="ProtoIndex" /> singleton built at startup. The parse-chain
@@ -1260,11 +1251,6 @@ public sealed partial class ParserTabViewModel : ObservableObject
 
         SelectedMessage = null;
 
-        // Clear shell-owned FrameGameEvents unconditionally: matches the legacy
-        // OnSelectedFrameChanged behaviour, which cleared them at the top before
-        // the null check (PopulateFrameGameEvents accepts null and clears).
-        PopulateFrameGameEvents?.Invoke(null);
-
         if (value is null)
         {
             HexViewRaw.ClearSpans();
@@ -1296,10 +1282,6 @@ public sealed partial class ParserTabViewModel : ObservableObject
             HarvestFrameRowViewModel? row = idx >= 0 && idx < FrameRows.Count ? FrameRows[idx] : null;
             SetProperty(ref _selectedFrameRow, row, nameof(SelectedFrameRow));
         }
-
-        // Populate game events for this frame (shell-owned collection). Already
-        // cleared above; this re-invocation fills it for the non-null branch.
-        PopulateFrameGameEvents?.Invoke(value);
 
         RebuildParseChain(value, null, null, null);
 

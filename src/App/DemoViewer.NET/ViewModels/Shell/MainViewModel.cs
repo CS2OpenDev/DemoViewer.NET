@@ -324,7 +324,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     [ObservableProperty]
     private bool _isIdle;
-    // _hasSubTickEvents / _hasFrameGameEvents moved to ReplayTabViewModel (3.5b).
 
     [ObservableProperty]
     private bool _isLoading;
@@ -720,7 +719,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 or nameof(EntityStatusText)
                 or nameof(EntityDeltaFieldCount)
                 or nameof(IsSeekingEntities)
-                or nameof(HasWatched)
                 or nameof(ShowDeltaFieldsOnly)
                 or nameof(ShowDormantEntities)
                 or nameof(SelectedEntityItem)
@@ -735,8 +733,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         ReplayTab.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(HasTickGroups)
-                or nameof(HasSubTickEvents)
-                or nameof(HasFrameGameEvents)
                 or nameof(IsTickView)
                 or nameof(SelectedTickGroup)
                 or nameof(SelectedTickFrame)
@@ -766,9 +762,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         // Reflect breakpoint adds/removes onto the frame-row gutter markers.
         Debugger.Breakpoints.CollectionChanged += (_, _) => RefreshFrameBreakpointMarkers();
-
-        // 3.4b: WatchedValues -> HasWatched subscription moved into EntityTab's
-        // constructor (both ends are now EntityTab-owned). No subscription here.
 
         if (_process is not null)
         {
@@ -894,7 +887,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         ParserTab.EntityTrackerSource = () => EntityTab.CurrentTrackerInternal;
         ParserTab.EntityFieldNodesSource = () => EntityTab.EntityFieldNodes;
         ParserTab.EnrichmentResolver = ResolveEnrichmentHint;
-        ParserTab.PopulateFrameGameEvents = PopulateFrameGameEventsFromFrame;
         // The master frame-selection setter now routes through the controller, the single
         // position fan-out point. The controller runs HandleFrameSelectedFromParserTab (via ApplySeek)
         // under its re-entrancy guard, then updates its observable position state.
@@ -911,7 +903,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         ReplayTab.ParserHasMessageCardsSink = has => ParserTab.HasMessageCards = has;
         ReplayTab.ParserCardFactory = (msg, msgBytes, normOffset) =>
             ParserTab.BuildHarvestCardExternal(msg, msgBytes, normOffset);
-        ReplayTab.SlotNameResolver = SlotToName;
         // ReplayTab.GameEventFilterProvider removed with the orphaned
         // NextGameEventTick; the single demo-derived filter (GameEventFilters) now drives the NavStrip.
         ReplayTab.OnTickGroupSelected = group => _ = EntityTab.SeekEntitiesWithDeltaAsync(group);
@@ -1355,9 +1346,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     // PayloadNodes / SelectedFrameMessages moved to ParserTab (3.5a). Compat shims
     // exposed above route the legacy paths to the ParserTab collections.
-    // FrameGameEvents moved to ReplayTab (3.5b). See shim below.
-    /// <summary>Frame game events.</summary>
-    public ObservableCollection<FrameGameEventViewModel> FrameGameEvents => ReplayTab.FrameGameEvents;
 
     // ── Parser-tab state (now owned by ParserTab; exposed here as compat shims
     //    so existing in-class call sites and current XAML bindings keep working
@@ -1431,14 +1419,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         set => EntityTab.HasEntitySelection = value;
     }
 
-    /// <summary>Has frame game events.</summary>
-
-    public bool HasFrameGameEvents
-    {
-        get => ReplayTab.HasFrameGameEvents;
-        set => ReplayTab.HasFrameGameEvents = value;
-    }
-
     /// <summary>Has inner messages.</summary>
 
     public bool HasInnerMessages
@@ -1463,14 +1443,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         set => ParserTab.HasParseChain = value;
     }
 
-    /// <summary>Has sub tick events.</summary>
-
-    public bool HasSubTickEvents
-    {
-        get => ReplayTab.HasSubTickEvents;
-        set => ReplayTab.HasSubTickEvents = value;
-    }
-
     // ── Replay-tab scalar / command pass-through shims (3.5b) ─────────────────
     // The ReplayTab forwarder above re-raises PropertyChanged for these names
     // when ReplayTab raises its own, keeping legacy {Binding HasTickGroups} etc.
@@ -1483,13 +1455,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     // HasTickGroups moved to ReplayTab in 3.5b. See shim block below.
-    /// <summary>Has watched.</summary>
-    public bool HasWatched
-    {
-        get => EntityTab.HasWatched;
-        set => EntityTab.HasWatched = value;
-    }
-
     /// <summary>Hex view decompressed.</summary>
     public HarvestHexViewModel HexViewDecompressed => ParserTab.HexViewDecompressed;
 
@@ -1668,14 +1633,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         set => ParserTab.ShowRawHex = value;
     }
 
-    // SubTickEvents / TickGroups / TickViewFrames / TickViewFrameRows moved to
-    // ReplayTab (3.5b). TickGroups had a brief stop on EntityTab (3.4a), the
-    // collection never had logic-coupling there; the placement is reassessed in
-    // 3.5b and the cluster is unified under ReplayTab. WatchedValues is still
-    // owned by EntityTab.
-    /// <summary>Sub tick events.</summary>
-    public ObservableCollection<SubTickEventViewModel> SubTickEvents => ReplayTab.SubTickEvents;
-
+    // TickGroups / TickViewFrames / TickViewFrameRows moved to ReplayTab (3.5b).
+    // TickGroups had a brief stop on EntityTab (3.4a), the collection never had
+    // logic-coupling there; the placement is reassessed in 3.5b and the cluster
+    // is unified under ReplayTab.
     /// <summary>Tick groups.</summary>
     public ObservableCollection<TickGroup> TickGroups => ReplayTab.TickGroups;
 
@@ -1687,9 +1648,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Toggle tick view command.</summary>
     public ICommand ToggleTickViewCommand => ReplayTab.ToggleTickViewCommand;
-
-    /// <summary>Watched values.</summary>
-    public ObservableCollection<WatchedValue> WatchedValues => EntityTab.WatchedValues;
 
     /// <summary>
     ///     Called once by the App bootstrap after <see cref="AttachLiveSync" /> (desktop lifetime only). Builds
@@ -1730,7 +1688,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public WindowBoundsState? RestoredWindowBounds { get; private set; }
 
-    // UpdateWatchedValues / WatchField moved to EntityTab in 3.4c.
     // WriteUInt32LE moved to ParserTab in 3.5a.
 
     /// <summary>Dispose.</summary>
@@ -3182,8 +3139,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // ── Value formatting ──────────────────────────────────────────────────────
 
     // 3.4c: promoted to `internal` so EntityTrackingTabViewModel can call it from
-    // moved methods (WatchField, UpdateWatchedValues, RebuildEntityGroupsWithDelta,
-    // RebuildEntityListItems, OnSelectedEntityItemChanged). Still stateless.
+    // moved methods (RebuildEntityGroupsWithDelta, RebuildEntityListItems,
+    // OnSelectedEntityItemChanged). Still stateless.
     internal static string FormatValue(object? v) => v switch
     {
         null => "<null>",
@@ -3591,9 +3548,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // OnSelectedFrameChanged, OnSelectedFrameRowChanged, OnSelectedMessageChanged,
     // OnSelectedPayloadNodeChanged all moved to ParserTab in 3.5a. Shell-side
     // fallouts (selected-frame index, command CanExecute refresh, Analysis seek,
-    // entity-seek kickoff, FrameGameEvents population) flow back via the
-    // ParserTab.OnFrameSelected + PopulateFrameGameEvents callbacks wired in the
-    // constructor. See HandleFrameSelectedFromParserTab + PopulateFrameGameEventsFromFrame.
+    // entity-seek kickoff) flow back via the ParserTab.OnFrameSelected callback
+    // wired in the constructor. See HandleFrameSelectedFromParserTab.
 
     // OnShowDeltaFieldsOnlyChanged moved to EntityTab in 3.4b (paired with
     // FilterAndSetEntityFieldNodes which it called).
@@ -4695,34 +4651,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         FirstRunOverlay = null;
-    }
-
-    /// <summary>
-    ///     Populates the shell-owned <see cref="FrameGameEvents" /> collection from the
-    ///     inner messages of <paramref name="frame" />, or clears it when invoked with
-    ///     <c>null</c>. Kept on shell because the tick-view code path
-    ///     (<c>OnSelectedTickFrameChanged</c>, 3.5b) populates the same collection
-    ///     from a different angle.
-    /// </summary>
-    private void PopulateFrameGameEventsFromFrame(DemoFrame? frame)
-    {
-        FrameGameEvents.Clear();
-        if (frame is null)
-        {
-            HasFrameGameEvents = false;
-            return;
-        }
-
-        Func<int, string> playerName = SlotToName;
-        foreach (NetMessage msg in frame.InnerMessages)
-        {
-            if (msg is GameEventMessage gem)
-            {
-                FrameGameEvents.Add(new FrameGameEventViewModel(gem.DecodedEvent, playerName));
-            }
-        }
-
-        HasFrameGameEvents = FrameGameEvents.Count > 0;
     }
 
     // PopulateFrameHeaderFields moved to ParserTab in 3.5a.

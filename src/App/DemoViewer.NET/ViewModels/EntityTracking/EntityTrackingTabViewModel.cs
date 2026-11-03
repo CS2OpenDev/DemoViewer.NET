@@ -66,9 +66,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
     // _hasTickGroups moved to ReplayTabViewModel (3.5b).
     [ObservableProperty]
-    private bool _hasWatched;
-
-    [ObservableProperty]
     private bool _isSeekingEntities;
 
     [ObservableProperty]
@@ -93,11 +90,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     /// <summary>Initializes a new <see cref="EntityTrackingTabViewModel" /> instance.</summary>
     public EntityTrackingTabViewModel()
     {
-        // 3.4b: WatchedValues -> HasWatched subscription used to live in
-        // MainViewModel's constructor. Both ends are now EntityTab-owned, so
-        // the wire moved here.
-        WatchedValues.CollectionChanged += (_, _) => HasWatched = WatchedValues.Count > 0;
-
         // The entity list is a TreeDataGrid, fronted by a
         // class-browser filter, a per-entity delta log and a serializer-schema strip.
         // Row selection in the grid funnels the backing EntityState into SelectedEntityItem
@@ -233,9 +225,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     /// <summary>Bottom serializer/ServerClass schema strip for the active class.</summary>
     public SerializerSchemaViewModel SerializerSchema { get; } = new();
 
-    /// <summary>Watched values.</summary>
-    public ObservableCollection<WatchedValue> WatchedValues { get; } = [];
-
     /// <summary>
     ///     Demo-unload reset: cancels any in-flight seek and drops every entity-scale reference this tab
     ///     holds. The node/delta/inspector trees all reference <see cref="EntityState" />s owned by an
@@ -253,7 +242,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         EntityFieldNodes.Clear();
         EntityGroups.Clear();
         EntityListItems.Clear();
-        WatchedValues.Clear();
         EntityList.Clear();
         DeltaLog.Clear();
         EntityInspector.Clear();
@@ -281,7 +269,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         }
 
         AutoSelectFirstChangedEntity();
-        UpdateWatchedValues(tracker);
 
         OnSeekCompleted?.Invoke();
 
@@ -370,7 +357,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             }
 
             AutoSelectFirstChangedEntity();
-            UpdateWatchedValues(tracker);
 
             OnSeekCompleted?.Invoke();
 
@@ -465,7 +451,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             }
 
             AutoSelectFirstChangedEntity();
-            UpdateWatchedValues(tracker);
 
             OnSeekCompleted?.Invoke();
 
@@ -566,7 +551,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             }
 
             AutoSelectFirstChangedEntity();
-            UpdateWatchedValues(tracker);
 
             EntityStatusText = tracker.LastEntityError is { } err
                 ? $"⚠ {err}"
@@ -850,18 +834,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         else
         {
             RebuildEntityGroups(tracker);
-        }
-    }
-
-    private void UpdateWatchedValues(EntityTracker tracker)
-    {
-        foreach (WatchedValue w in WatchedValues)
-        {
-            EntityState? entity = tracker.CurrentEntities.All()
-                .FirstOrDefault(e => e.ClassName == w.EntityClassName && e.Serial == w.EntitySerial);
-            w.CurrentValue = entity is not null && entity.Fields.TryGetValue(w.FieldKey, out object? v)
-                ? MainViewModel.FormatValue(v)
-                : "<not found>";
         }
     }
 

@@ -4,8 +4,6 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Parser;
-using CS2DemoKit.Parser.EntityTracking;
-using CS2DemoKit.Parser.GameEvents;
 using CS2DemoKit.Parser.Models;
 using DemoViewer.NET.ViewModels.Common;
 using DemoViewer.NET.ViewModels.Parser;
@@ -15,9 +13,8 @@ using DemoViewer.NET.ViewModels.Parser;
 namespace DemoViewer.NET.ViewModels.Replay;
 
 /// <summary>
-///     Owns Replay-tab PRESENTATION state: tick-group collection, the per-tick presentation surfaces
-///     (<see cref="TickViewFrames" />, <see cref="SubTickEvents" />, <see cref="FrameGameEvents" />),
-///     and the tick-group selection fan-out. The parallel tick/round/special navigation and the
+///     Owns Replay-tab PRESENTATION state: tick-group collection, the per-tick frame list
+///     (<see cref="TickViewFrames" />), and the tick-group selection fan-out. The parallel tick/round/special navigation and the
 ///     orphaned ReplaySeekControls were removed in the navigation review: the shell NavStrip +
 ///     SemanticNavigator are the single nav surface.
 ///     <para>
@@ -50,10 +47,6 @@ namespace DemoViewer.NET.ViewModels.Replay;
 ///             shell kicks off the matching <c>EntityTab</c> seek for the new selection.
 ///         </item>
 ///         <item>
-///             <see cref="SlotNameResolver" />: resolves a game-event userid to a player
-///             name (shell-owned name lookup tables).
-///         </item>
-///         <item>
 ///             <see cref="NotifyCanGoNextTickChanged" />: re-evaluate the parser-tab
 ///             debugger commands' CanExecute (they observe <c>HasTickGroups</c> indirectly via
 ///             their own gates; tick-group rebuilds trigger a manual notify).
@@ -64,18 +57,6 @@ public sealed partial class ReplayTabViewModel : ObservableObject
 {
     // Cancellation source for in-flight card-build for the currently selected tick group.
     private CancellationTokenSource? _cardBuildCts;
-
-    // One reconstructor per loaded demo, reused (and Reset()) across tick-group selections rather
-    // than allocated per selection. On a current (delta_data) demo a tick group's own frames carry no
-    // baseline on their own, so this is primed from the nearest preceding DEM_FullPacket before each
-    // read (player-input-refresh, #53). Null before a demo is loaded, and after ResetForFileLoad.
-    private UserCmdReconstructor? _cmdReconstructor;
-
-    [ObservableProperty]
-    private bool _hasFrameGameEvents;
-
-    [ObservableProperty]
-    private bool _hasSubTickEvents;
 
     [ObservableProperty]
     private bool _hasTickGroups;
@@ -95,13 +76,10 @@ public sealed partial class ReplayTabViewModel : ObservableObject
 
     // navigation-review Phase D: the orphaned ReplaySeekControls + its parallel tick/round/special
     // navigation are gone: the shell NavStrip + SemanticNavigator are the single nav surface. Only
-    // this VM's tick-group PRESENTATION state (TickGroups / SelectedTickGroup / FrameGameEvents /
-    // SubTickEvents / tick-view frame lists) and the entity-seek fan-out it drives remain.
+    // this VM's tick-group PRESENTATION state (TickGroups / SelectedTickGroup / tick-view frame
+    // lists) and the entity-seek fan-out it drives remain.
     /// <summary>Source of the raw .dem byte buffer (used during card-build to decompress payloads).</summary>
     public Func<byte[]?>? DemoBytesSource { get; set; }
-
-    /// <summary>Frame game events.</summary>
-    public ObservableCollection<FrameGameEventViewModel> FrameGameEvents { get; } = [];
 
     // ── Callback hooks (wired by MainViewModel ctor) ──────────────────────────
     /// <summary>Source of the parsed frame list (full unfiltered list).</summary>
@@ -156,15 +134,6 @@ public sealed partial class ReplayTabViewModel : ObservableObject
     /// </summary>
     public Action<string>? ParserHeaderSink { get; set; }
 
-    /// <summary>
-    ///     Resolves a game-event userid (or slot index) to a display name.
-    ///     Wired to the shell's <c>SlotToName</c>.
-    /// </summary>
-    public Func<int, string>? SlotNameResolver { get; set; }
-
-    /// <summary>Sub tick events.</summary>
-    public ObservableCollection<SubTickEventViewModel> SubTickEvents { get; } = [];
-
     // ── Stable-reference collections ──────────────────────────────────────────
     /// <summary>Tick groups.</summary>
     public TrimmableObservableCollection<TickGroup> TickGroups { get; } = [];
@@ -185,10 +154,6 @@ public sealed partial class ReplayTabViewModel : ObservableObject
     {
         TickGroups.Clear();
         TickViewFrames.Clear();
-        SubTickEvents.Clear();
-        FrameGameEvents.Clear();
-        HasSubTickEvents = false;
-        HasFrameGameEvents = false;
 
         List<DemoFrame>? allFrames = FrameSource?.Invoke();
         if (allFrames is null)
@@ -268,13 +233,8 @@ public sealed partial class ReplayTabViewModel : ObservableObject
     {
         _cardBuildCts?.Cancel();
         _cardBuildCts = null;
-        _cmdReconstructor = null;
-        SubTickEvents.Clear();
-        FrameGameEvents.Clear();
         TickViewFrames.Clear();
         TickViewFrameRows.Clear();
-        HasSubTickEvents = false;
-        HasFrameGameEvents = false;
     }
 
     private async Task BuildCardsAsync(TickGroup group, CancellationToken ct)
@@ -407,13 +367,9 @@ public sealed partial class ReplayTabViewModel : ObservableObject
     {
         TickViewFrames.Clear();
         TickViewFrameRows.Clear();
-        SubTickEvents.Clear();
-        FrameGameEvents.Clear();
         // Clear parser-tab cards via the shell-wired hook (ResetForTickGroupBuild
         // empties MessageCards, PayloadNodes, etc.).
         ParserCardReset?.Invoke();
-        HasSubTickEvents = false;
-        HasFrameGameEvents = false;
         ParserHasMessageCardsSink?.Invoke(false);
 
         if (value is null)
@@ -436,31 +392,6 @@ public sealed partial class ReplayTabViewModel : ObservableObject
             tickFrameNum++;
         }
 
-        // Game events for this tick (across all frames in the tick group).
-        Func<int, string>? playerName = SlotNameResolver;
-        if (playerName is not null)
-        {
-            foreach (DemoFrame f in value.Frames)
-            foreach (NetMessage msg in f.InnerMessages)
-            {
-                if (msg is GameEventMessage gem)
-                {
-                    FrameGameEvents.Add(new FrameGameEventViewModel(gem.DecodedEvent, playerName));
-                }
-            }
-        }
-
-        HasFrameGameEvents = FrameGameEvents.Count > 0;
-
-        // Sub-tick events
-        List<SubTickEvent> events = ExtractSubTickEvents(value);
-        foreach (SubTickEvent e in events)
-        {
-            SubTickEvents.Add(new SubTickEventViewModel(e));
-        }
-
-        HasSubTickEvents = SubTickEvents.Count > 0;
-
         // Build cards for every message across all frames in this game tick.
         BuildCardsForTickGroup(value);
 
@@ -470,56 +401,4 @@ public sealed partial class ReplayTabViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleTickView() => IsTickView = !IsTickView;
-
-    /// <summary>
-    ///     Sub-tick events for one tick group, primed for the current (delta_data) demos a cold
-    ///     <c>SubTickExtractor.Extract(group.Frames)</c> reads as near-empty (MissingBaseline): the
-    ///     group's own frames carry no baseline on their own.
-    ///     <para>
-    ///         Seeks back to the nearest preceding <c>DEM_FullPacket</c> and feeds every frame from
-    ///         there up to (but not including) the group's own frames through the shared
-    ///         <see cref="_cmdReconstructor" /> purely to prime its checkpoint, discarding whatever
-    ///         that priming read decodes to. The group's own frames are then read through the same,
-    ///         now-primed reconstructor, so only the group's events come back (player-input-refresh,
-    ///         #53). A demo with no full packet before the group (the pre-game group, or a demo that
-    ///         carries none at all) falls back to the old cold read.
-    ///     </para>
-    /// </summary>
-    private List<SubTickEvent> ExtractSubTickEvents(TickGroup group)
-    {
-        List<DemoFrame>? allFrames = FrameSource?.Invoke();
-        if (allFrames is null || allFrames.Count == 0)
-        {
-            return SubTickExtractor.Extract(group.Frames);
-        }
-
-        int fullPacketIndex = -1;
-        for (int i = Math.Min(group.StartFrameIndex, allFrames.Count - 1); i >= 0; i--)
-        {
-            if (allFrames[i].Command == "DEM_FullPacket")
-            {
-                fullPacketIndex = i;
-                break;
-            }
-        }
-
-        if (fullPacketIndex < 0)
-        {
-            return SubTickExtractor.Extract(group.Frames);
-        }
-
-        _cmdReconstructor ??= new UserCmdReconstructor();
-        _cmdReconstructor.Reset();
-
-        if (fullPacketIndex < group.StartFrameIndex)
-        {
-            // Priming-only pass: its return value is intentionally unused. The full packet itself
-            // primes rather than yields events by construction, so it costs nothing to include here.
-            SubTickExtractor.Extract(
-                allFrames.GetRange(fullPacketIndex, group.StartFrameIndex - fullPacketIndex),
-                _cmdReconstructor);
-        }
-
-        return SubTickExtractor.Extract(group.Frames, _cmdReconstructor);
-    }
 }
