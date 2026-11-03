@@ -348,9 +348,12 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private CategoryOption _selectedCategoryOption;
 
-    /// <summary>The selected theme (bound to the ComboBox SelectedItem). Its <see cref="Theme.Id" /> is persisted on change.</summary>
+    /// <summary>
+    ///     The selected theme (bound to the ComboBox SelectedItem). Its <see cref="Theme.Id" /> is persisted on
+    ///     change. Null while the ComboBox's list is being refilled.
+    /// </summary>
     [ObservableProperty]
-    private Theme _selectedTheme;
+    private Theme? _selectedTheme;
 
     /// <summary>The settings search box. Empty = everything shows (gates permitting).</summary>
     [ObservableProperty]
@@ -698,7 +701,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>Opens Theme Customization on the selected theme (System opens on the variant it shows).</summary>
     [RelayCommand]
-    private void CustomizeTheme() => _openThemeEditor?.Invoke(SelectedTheme.CanCustomize ? SelectedTheme.Id : null);
+    private void CustomizeTheme() =>
+        _openThemeEditor?.Invoke(SelectedTheme is { CanCustomize: true } theme ? theme.Id : null);
 
     /// <summary>Whether the Live Sync (CS2) section is shown: desktop only (suppressed on WASM).</summary>
     public bool CanManageLiveSync { get; } = !OperatingSystem.IsBrowser();
@@ -1306,10 +1310,10 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         Persist(s => s.UserCategory = value.Value);
     }
 
-    partial void OnSelectedThemeChanged(Theme value)
+    partial void OnSelectedThemeChanged(Theme? value)
     {
         UpdateSelectedThemeMissing();
-        if (_applyingExternal)
+        if (_applyingExternal || value is null)
         {
             return;
         }

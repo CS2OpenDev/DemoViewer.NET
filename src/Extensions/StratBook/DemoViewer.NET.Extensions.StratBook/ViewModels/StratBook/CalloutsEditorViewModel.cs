@@ -177,8 +177,8 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
         Reload();
     }
 
-    private static bool SameAlias(string a, string b) =>
-        string.Equals(CalloutResolver.Fold(a), CalloutResolver.Fold(b), StringComparison.Ordinal);
+    private static bool SameAlias(string? a, string b) =>
+        a is not null && string.Equals(CalloutResolver.Fold(a), CalloutResolver.Fold(b), StringComparison.Ordinal);
 
     // False and IssueLine set to the refusal(s) on a rejected write; the caller reloads either way so the
     // screen always matches disk.
@@ -204,7 +204,7 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
         Aliases.Clear();
         foreach (CalloutAlias alias in table.Aliases.OrderBy(a => a.Alias, StringComparer.OrdinalIgnoreCase))
         {
-            Aliases.Add(new CalloutAliasRow(this, alias.Alias, alias.Place, alias.Primary));
+            Aliases.Add(new CalloutAliasRow(this, alias.Alias ?? "", alias.Place, alias.Primary));
         }
     }
 }

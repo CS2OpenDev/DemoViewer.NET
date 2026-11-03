@@ -294,8 +294,8 @@ public sealed class AnnotationDocument
     ///     load is not an action the user can undo into the previous demo's ink, and raises exactly one
     ///     <see cref="Changed" />.
     /// </summary>
-    /// <param name="elements">The elements to hold, oldest first.</param>
-    public void Reset(IEnumerable<AnnotationElement> elements)
+    /// <param name="elements">The elements to hold, oldest first. A null entry, or a repeated id, is skipped.</param>
+    public void Reset(IEnumerable<AnnotationElement?> elements)
     {
         ArgumentNullException.ThrowIfNull(elements);
 
@@ -306,7 +306,7 @@ public sealed class AnnotationDocument
         _elements.Clear();
         _index.Clear();
 
-        foreach (AnnotationElement element in elements)
+        foreach (AnnotationElement? element in elements)
         {
             if (element is null || _index.ContainsKey(element.Id))
             {

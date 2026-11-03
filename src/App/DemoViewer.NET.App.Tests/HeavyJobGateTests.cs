@@ -244,18 +244,18 @@ public class HeavyJobGateTests
     }
 
     [Test]
-    public async Task CancelledInteractiveWaiter_ClearsPending_SoBackgroundResumes()
+    public async Task CancelledInteractiveWaiter_ClearsPending_SoBackgroundResumes(CancellationToken cancellationToken)
     {
         using HeavyJobGate gate = new();
 
-        IDisposable bg = await gate.AcquireBackgroundAsync();
+        IDisposable bg = await gate.AcquireBackgroundAsync(cancellationToken);
 
         using CancellationTokenSource cts = new();
         Task<IDisposable> interactive = gate.AcquireInteractiveAsync(cts.Token);
         await WaitForAsync(() => gate.IsInteractivePending, "interactive pending");
 
         // A background that arrived is yielding behind the pending interactive.
-        Task<IDisposable> bg2 = gate.AcquireBackgroundAsync();
+        Task<IDisposable> bg2 = gate.AcquireBackgroundAsync(cancellationToken);
         await AssertStaysBlockedAsync(bg2, "background yielding to the pending interactive");
 
         // Cancel the interactive: its pending flag must clear so the yielded background can proceed.

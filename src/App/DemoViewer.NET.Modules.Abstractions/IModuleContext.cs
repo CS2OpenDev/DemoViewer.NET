@@ -212,9 +212,9 @@ public interface IModuleContext
     /// <summary>
     ///     Sorted, de-duplicated FRAME indices carrying <paramref name="eventName" />, the module-facing
     ///     projection of the shell's SemanticNavigator index (the same array its Next/Prev use). Empty
-    ///     when the demo lacks the event or the host exposes no navigator.
+    ///     when the demo lacks the event, the name is null, or the host exposes no navigator.
     /// </summary>
-    IReadOnlyList<int> EventFrames(string eventName) => Array.Empty<int>();
+    IReadOnlyList<int> EventFrames(string? eventName) => Array.Empty<int>();
 
     /// <summary>
     ///     Requests a playback-speed change (clamped host-side to [0.25, 8]).

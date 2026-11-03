@@ -60,7 +60,7 @@ public interface IExtensionNotifications
     ///     Shows <paramref name="notification" />, or replaces the one shown under its id. A null notification,
     ///     or one without an id or a title, is logged against the extension and dropped.
     /// </summary>
-    void Post(Notification notification);
+    void Post(Notification? notification);
 
     /// <summary>Closes the extension's notification shown under <paramref name="id" />, if any.</summary>
     void Dismiss(string id);

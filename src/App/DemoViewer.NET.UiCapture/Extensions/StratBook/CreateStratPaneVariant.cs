@@ -95,7 +95,7 @@ public static partial class Variants
         public IReadOnlyCollection<string> AvailableEventNames => ["round_freeze_end"];
         public double CurtimeSeconds(int tick) => tick / 64.0;
         public int FrameIndexAtTick(int tick) => tick / 2 >= TotalFrames ? -1 : tick / 2;
-        public IReadOnlyList<int> EventFrames(string eventName) => eventName == "round_freeze_end" ? _freezeEnds : [];
+        public IReadOnlyList<int> EventFrames(string? eventName) => eventName == "round_freeze_end" ? _freezeEnds : [];
 
         public void RequestSeekToFrame(int frameIndex)
         {

@@ -53,7 +53,12 @@ public sealed class CalloutResolver
         // what a hand-edited file shows until it is fixed.
         foreach (CalloutAlias alias in table?.Aliases ?? [])
         {
-            string key = Fold(alias.Alias);
+            if (alias.Alias is not { } text)
+            {
+                continue;
+            }
+
+            string key = Fold(text);
             if (key.Length == 0 || string.IsNullOrWhiteSpace(alias.Place))
             {
                 continue;
@@ -61,12 +66,12 @@ public sealed class CalloutResolver
 
             if (_aliases.TryAdd(key, alias.Place))
             {
-                _aliasList.Add((alias.Alias.Trim(), alias.Place));
+                _aliasList.Add((text.Trim(), alias.Place));
             }
 
             if (alias.Primary)
             {
-                _primary.TryAdd(alias.Place, alias.Alias.Trim());
+                _primary.TryAdd(alias.Place, text.Trim());
             }
         }
     }

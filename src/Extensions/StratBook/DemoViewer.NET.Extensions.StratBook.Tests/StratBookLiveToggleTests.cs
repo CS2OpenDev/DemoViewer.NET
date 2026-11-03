@@ -748,8 +748,6 @@ public class StratBookLiveToggleTests
         public bool HoldSaves { get; set; }
 
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
         public bool BackgroundEnabled { get; set; } = true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
@@ -763,20 +761,8 @@ public class StratBookLiveToggleTests
             remove { }
         }
 
-        public int ActiveCount(QueueJobKind kind) => 0;
-
         public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request)
-        {
-            lock (Titles)
-            {
-                Parses.Add((request.OwnerTag, request.Path));
-            }
-
-            return new DoneHandle(Task.CompletedTask);
-        }
 
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request)
         {
@@ -845,10 +831,6 @@ public class StratBookLiveToggleTests
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
 
         public void RemoveByUser(Guid itemId)
-        {
-        }
-
-        public void CancelOwned(string ownerTag, string path)
         {
         }
 

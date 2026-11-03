@@ -394,7 +394,8 @@ public sealed class LiveSyncService : ILiveSyncService
             return Task.CompletedTask;
         }
 
-        return Dispatcher.UIThread.InvokeAsync(() => _observer?.Republish()).GetTask();
+        return Dispatcher.UIThread.InvokeAsync(() => _observer?.Republish(), DispatcherPriority.Default,
+            cancellationToken).GetTask();
     }
 
     /// <inheritdoc />

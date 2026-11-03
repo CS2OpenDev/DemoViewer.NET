@@ -1,1 +1,15 @@
 #nullable enable
+*REMOVED*DemoViewer.NET.Extensions.Sdk.DemoAction.DemoAction(string! id, string! label, string! tooltip, System.Func<string!, bool>! isAvailable, System.Action<string!>! run, string? featureId = null) -> void
+*REMOVED*DemoViewer.NET.Extensions.Sdk.Playback.ModeToggle.ModeToggle(string! id, string! label, string! tooltip, string? actionId = null, string? icon = null) -> void
+*REMOVED*DemoViewer.NET.Extensions.Sdk.Playback.ToolbarItem.ToolbarItem(string! id, string! label, string! tooltip, System.Func<DemoViewer.NET.Extensions.Sdk.Playback.PlaybackMoment!, bool>! run, string? actionId = null, int order = 0, string? icon = null, string? menuHeader = null) -> void
+*REMOVED*static DemoViewer.NET.Extensions.Sdk.Review.ReviewClip.Clip(string! demoPath, int fromTick, int toTick, string! note, string! source, int tickRate = 0, string? sha256 = null, System.Guid? teamId = null) -> DemoViewer.NET.Extensions.Sdk.Review.ReviewClip!
+DemoViewer.NET.Extensions.Sdk.DemoAction.DemoAction(string! id, string! label, string? tooltip, System.Func<string!, bool>! isAvailable, System.Action<string!>! run, string? featureId = null) -> void
+DemoViewer.NET.Extensions.Sdk.Playback.ModeToggle.ModeToggle(string! id, string! label, string? tooltip, string? actionId = null, string? icon = null) -> void
+DemoViewer.NET.Extensions.Sdk.Playback.ToolbarItem.ToolbarItem(string! id, string! label, string? tooltip, System.Func<DemoViewer.NET.Extensions.Sdk.Playback.PlaybackMoment!, bool>! run, string? actionId = null, int order = 0, string? icon = null, string? menuHeader = null) -> void
+static DemoViewer.NET.Extensions.Sdk.Review.ReviewClip.Clip(string! demoPath, int fromTick, int toTick, string? note, string? source, int tickRate = 0, string? sha256 = null, System.Guid? teamId = null) -> DemoViewer.NET.Extensions.Sdk.Review.ReviewClip!
+*REMOVED*DemoViewer.NET.Extensions.Sdk.IExtensionNotifications.Post(DemoViewer.NET.Extensions.Sdk.Notification! notification) -> void
+DemoViewer.NET.Extensions.Sdk.IExtensionNotifications.Post(DemoViewer.NET.Extensions.Sdk.Notification? notification) -> void
+*REMOVED*DemoViewer.NET.Extensions.Sdk.IExtensionKeymap.GestureText(string! actionId) -> string!
+DemoViewer.NET.Extensions.Sdk.IExtensionKeymap.GestureText(string? actionId) -> string!
+*REMOVED*DemoViewer.NET.Extensions.Sdk.Playback.IPlaybackSurface.GestureHint(string! actionId) -> string!
+DemoViewer.NET.Extensions.Sdk.Playback.IPlaybackSurface.GestureHint(string? actionId) -> string!

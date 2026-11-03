@@ -4046,8 +4046,6 @@ public static partial class Variants
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; }
         public event Action? Changed;
         public event Action? CapacityAvailable;
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
         public bool BackgroundEnabled { get; set; } = true;
         public bool IsPaused { get; private set; }
         public int QueuedCount { get; set; }
@@ -4083,20 +4081,11 @@ public static partial class Variants
             string? path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request) =>
-            throw new NotSupportedException();
-
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request) => throw new NotSupportedException();
 
         public IDemoQueueHandle SubmitJob(QueueJobRequest request) => throw new NotSupportedException();
 
-        public int ActiveCount(QueueJobKind kind) => 0;
-
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
-
-        public void CancelOwned(string ownerTag, string path)
-        {
-        }
 
         public void CancelOwned(string ownerTag)
         {

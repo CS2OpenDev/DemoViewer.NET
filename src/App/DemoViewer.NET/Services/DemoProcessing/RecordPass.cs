@@ -17,9 +17,6 @@ public interface IRecordPass
     /// <summary>Unique among the record passes.</summary>
     string Id { get; }
 
-    /// <summary>Who the pass belongs to, for fault reports. The pass's own id unless an extension owns it.</summary>
-    string Owner => Id;
-
     /// <summary>
     ///     Stamp ids on the row the pass reads. A pass naming any is held on a demo until each is on its row, and
     ///     runs again only when one of them moves; a pass naming none runs again on every new row.

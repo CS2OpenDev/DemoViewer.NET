@@ -702,7 +702,8 @@ public sealed class CalloutCanonicalSnapshot
 /// <summary>One word for one place. Several aliases may share a place; one alias names one place.</summary>
 public sealed class CalloutAlias
 {
-    public string Alias { get; set; } = "";
+    /// <summary>The word. Null when a hand-edited file says <c>"alias": null</c>; the validator refuses that.</summary>
+    public string? Alias { get; set; } = "";
 
     public string Place { get; set; } = "";
 

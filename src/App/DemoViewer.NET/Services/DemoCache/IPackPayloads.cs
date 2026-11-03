@@ -19,9 +19,6 @@ namespace DemoViewer.NET.Services.DemoCache;
 /// </summary>
 public interface IPackPayloads
 {
-    /// <summary>The pack whose payload this reads and writes.</summary>
-    string PackId { get; }
-
     /// <summary>The pack's payload on <paramref name="record" />, or null when it has none or it does not read as <typeparamref name="T" />.</summary>
     /// <param name="record">A record the caller holds.</param>
     T? Read<T>(DemoCacheRecord record) where T : class;
@@ -44,8 +41,8 @@ public interface IPackPayloads
 /// <summary>The store's <see cref="IPackPayloads" />: one instance per pack id, stateless beyond the two.</summary>
 internal sealed class PackPayloads(DemoCacheStore store, string packId, JsonSerializerOptions options) : IPackPayloads
 {
-    /// <inheritdoc />
-    public string PackId { get; } = packId;
+    // The pack whose payload this reads and writes.
+    private string PackId { get; } = packId;
 
     /// <inheritdoc />
     public T? Read<T>(DemoCacheRecord record) where T : class

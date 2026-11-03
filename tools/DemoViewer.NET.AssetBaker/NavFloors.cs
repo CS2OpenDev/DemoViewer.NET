@@ -69,8 +69,8 @@ public static class NavFloors
         List<AreaSample> samples = new(nav.Areas.Count);
         foreach (NavMeshArea area in nav.Areas.Values)
         {
-            Vector3[]? corners = area.Corners;
-            if (corners is null || corners.Length < 3)
+            Vector3[] corners = area.Corners;
+            if (corners.Length < 3)
             {
                 continue;
             }

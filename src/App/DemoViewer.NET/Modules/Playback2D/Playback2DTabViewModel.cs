@@ -1394,7 +1394,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             }
 
             ZoneLoadResult load = asset.ZoneLoad;
-            PublishZoneDiagnostics(asset, load);
+            PublishZoneDiagnostics(load);
             return load.Resolver;
         }
     }
@@ -1413,7 +1413,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         }
 
         ZoneLoadResult load = asset.ReloadZones();
-        PublishZoneDiagnostics(asset, load);
+        PublishZoneDiagnostics(load);
         Status = load.Resolver is null
             ? "Zones: this map has no zones.json"
             : load.Diagnostics.Count == 0
@@ -1424,7 +1424,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         FrameUpdated?.Invoke();
     }
 
-    private void PublishZoneDiagnostics(LoadedMapAsset asset, ZoneLoadResult load)
+    private void PublishZoneDiagnostics(ZoneLoadResult load)
     {
         if (ReferenceEquals(_publishedZoneLoad, load))
         {

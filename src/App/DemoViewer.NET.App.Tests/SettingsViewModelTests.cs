@@ -323,7 +323,7 @@ public class SettingsViewModelTests
 
                 await Assert.That(vm.Themes.Any(t => t.Id == "midnight")).IsTrue();
                 // Selection unchanged (still the default Dark) and NOT persisted by the reload.
-                await Assert.That(vm.SelectedTheme.Id).IsEqualTo("dark");
+                await Assert.That(vm.SelectedTheme?.Id).IsEqualTo("dark");
                 await Assert.That(svc.Current.Theme).IsEqualTo("Dark");
 
                 vm.Dispose();
@@ -360,7 +360,7 @@ public class SettingsViewModelTests
                     });
 
                     await Assert.That(vm.SelectedCategory).IsEqualTo(UserCategory.Consumer);
-                    await Assert.That(vm.SelectedTheme.Id).IsEqualTo("system");
+                    await Assert.That(vm.SelectedTheme?.Id).IsEqualTo("system");
                     await Assert.That(vm.LibraryFolders.Contains("/ext/demos")).IsTrue();
 
                     vm.Dispose();

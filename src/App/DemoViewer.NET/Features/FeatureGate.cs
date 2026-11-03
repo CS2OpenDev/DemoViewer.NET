@@ -139,7 +139,7 @@ public sealed class FeatureGate : IFeatureGate, IFeatureSuspension, IDisposable
             return !FeatureCatalog.IsPackId(featureId);
         }
 
-        Dictionary<string, bool> overrides = _monitor.CurrentValue.Features.Overrides ?? _emptyOverrides;
+        Dictionary<string, bool> overrides = _monitor.CurrentValue.Features.Overrides;
         return Resolve(descriptor, Category, overrides, _suspended, null);
     }
 
@@ -149,7 +149,7 @@ public sealed class FeatureGate : IFeatureGate, IFeatureSuspension, IDisposable
         get
         {
             UserCategory category = Category;
-            Dictionary<string, bool> overrides = _monitor.CurrentValue.Features.Overrides ?? _emptyOverrides;
+            Dictionary<string, bool> overrides = _monitor.CurrentValue.Features.Overrides;
             HashSet<string> suspended = _suspended;
 
             int hidden = 0;

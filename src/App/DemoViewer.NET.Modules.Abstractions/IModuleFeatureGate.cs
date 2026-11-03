@@ -11,9 +11,9 @@ public interface IModuleFeatureGate
 {
     /// <summary>
     ///     Live answer; re-query on <see cref="Changed" />, never cache for a tab's lifetime.
-    ///     An id the host does not know fails OPEN.
+    ///     An id the host does not know, or a null id, fails OPEN.
     /// </summary>
-    bool IsEnabled(string featureId);
+    bool IsEnabled(string? featureId);
 
     /// <summary>Raised on the UI thread when any gate answer may have changed.</summary>
     event Action? Changed;

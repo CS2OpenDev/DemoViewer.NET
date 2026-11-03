@@ -205,7 +205,7 @@ public class ExtensionFaultsTests
 
         using CancellationTokenSource other = new();
         await other.CancelAsync();
-        await rig.Guard.RunAsync("enable", () => Task.FromCanceled(other.Token));
+        await rig.Guard.RunAsync("enable", () => Task.FromCanceled(other.Token), CancellationToken.None);
         await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(1);
     }
 

@@ -278,7 +278,7 @@ public sealed partial class FeatureToggleRow : ObservableObject
             // resolves catalog + override and does not know the host, and this row has to agree with
             // what the module will actually see through ShellModuleFeatureGate.
             IsEnabled = !IsPlatformUnavailable && !IsIncompatible && gate.IsEnabled(FeatureId);
-            IsOverridden = overrides is not null && overrides.ContainsKey(FeatureId);
+            IsOverridden = overrides.ContainsKey(FeatureId);
             IsPackEnabled = OwnerPackId is null || gate.IsEnabled(OwnerPackId);
         }
         finally

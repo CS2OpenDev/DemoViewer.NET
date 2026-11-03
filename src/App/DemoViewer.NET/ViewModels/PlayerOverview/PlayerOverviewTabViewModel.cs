@@ -65,7 +65,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     /// <summary>The inner tab on show.</summary>
     [ObservableProperty]
-    private PlayerOverviewPage _selectedPage;
+    private PlayerOverviewPage? _selectedPage;
 
     /// <summary>The processing chip's caption while the queue is computing the subject's stats, else empty.</summary>
     [ObservableProperty]
@@ -223,7 +223,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     /// <inheritdoc />
     public object SnapshotState() =>
         new PlayerOverviewSession(SubjectSteamId64?.ToString(CultureInfo.InvariantCulture), IsPinned,
-            SelectedPage.Kind.ToString());
+            (SelectedPage ?? Pages[0]).Kind.ToString());
 
     /// <summary>
     ///     Reopens the player the user had open. A subject that only followed the active account is not restored:
@@ -284,7 +284,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     public void ShowPage(PlayerOverviewPageKind kind) => SelectedPage = Pages.First(p => p.Kind == kind);
 
     // A null from the strip (its items rebuilt) keeps the page that was showing; the subject never moves the page.
-    partial void OnSelectedPageChanging(PlayerOverviewPage? oldValue, PlayerOverviewPage newValue)
+    partial void OnSelectedPageChanging(PlayerOverviewPage? oldValue, PlayerOverviewPage? newValue)
     {
         if (oldValue is not null)
         {
@@ -292,7 +292,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         }
     }
 
-    partial void OnSelectedPageChanged(PlayerOverviewPage value)
+    partial void OnSelectedPageChanged(PlayerOverviewPage? value)
     {
         if (value is null)
         {
@@ -647,7 +647,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
             section.Update(context);
         }
 
-        Render(SelectedPage);
+        Render(SelectedPage ?? Pages[0]);
     }
 
     private void Render(PlayerOverviewPage page)

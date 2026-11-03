@@ -81,7 +81,7 @@ public sealed class ShellModuleFeatureGate : IModuleFeatureGate, IDisposable
     }
 
     /// <inheritdoc />
-    public bool IsEnabled(string featureId)
+    public bool IsEnabled(string? featureId)
     {
         if (featureId is null)
         {

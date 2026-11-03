@@ -290,7 +290,7 @@ internal sealed class NoRoundFacts : IRoundFacts
 
 internal sealed class NoNotifications : IExtensionNotifications
 {
-    public void Post(Notification notification) => ArgumentNullException.ThrowIfNull(notification);
+    public void Post(Notification? notification) => ArgumentNullException.ThrowIfNull(notification);
 
     public void Dismiss(string id)
     {
@@ -307,7 +307,7 @@ internal sealed class NoKeymap : IExtensionKeymap
 
     public string? ActionFor(string scope, Key key, KeyModifiers modifiers) => null;
 
-    public string GestureText(string actionId) => "";
+    public string GestureText(string? actionId) => "";
 
     public event Action? Changed
     {

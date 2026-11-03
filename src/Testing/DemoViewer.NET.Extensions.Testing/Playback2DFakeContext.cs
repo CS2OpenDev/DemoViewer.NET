@@ -80,8 +80,8 @@ internal sealed class Playback2DFakeContext : IModuleContext
         return !MapTicksToFrames || frame >= TotalFrames ? -1 : frame;
     }
 
-    public IReadOnlyList<int> EventFrames(string eventName) =>
-        Frames.TryGetValue(eventName, out int[]? frames) ? frames : Array.Empty<int>();
+    public IReadOnlyList<int> EventFrames(string? eventName) =>
+        eventName is not null && Frames.TryGetValue(eventName, out int[]? frames) ? frames : Array.Empty<int>();
 
     public IReadOnlyCollection<string> AvailableEventNames =>
         Timelines.Keys.Concat(Frames.Keys).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -335,7 +335,7 @@ internal sealed class FakeModuleFeatureGate : IModuleFeatureGate
 {
     private readonly HashSet<string> _off = new(StringComparer.Ordinal);
 
-    public bool IsEnabled(string featureId) => !_off.Contains(featureId);
+    public bool IsEnabled(string? featureId) => featureId is null || !_off.Contains(featureId);
 
     public event Action? Changed;
 

@@ -311,7 +311,7 @@ public class PlayerRowCacheTests
     }
 
     [Test]
-    public async Task ACancelledFill_KeepsWhatItRead()
+    public async Task ACancelledFill_KeepsWhatItRead(CancellationToken cancellationToken)
     {
         (_, PlayerRowCache cache, ConcurrentQueue<string> reads) = Library(50);
         using CancellationTokenSource cancel = new();
@@ -319,7 +319,7 @@ public class PlayerRowCacheTests
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             cache.LoadAsync(Grim, new Stopper(cancel, 10), cancel.Token));
         int first = reads.Count;
-        await cache.LoadAsync(Grim, progress);
+        await cache.LoadAsync(Grim, progress, cancellationToken);
 
         using (Assert.Multiple())
         {

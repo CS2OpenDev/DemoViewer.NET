@@ -531,7 +531,7 @@ public static class Zones
         foreach (uint id in nav.Areas.Keys.OrderBy(k => k))
         {
             NavMeshArea area = nav.Areas[id];
-            if (area.Corners is null || area.Corners.Length == 0)
+            if (area.Corners.Length == 0)
             {
                 continue;
             }
@@ -585,9 +585,9 @@ public static class Zones
         {
             uint id = queue.Dequeue();
             int pid = place[id];
-            foreach (NavMeshConnection[] side in nav.Areas[id].Connections ?? Array.Empty<NavMeshConnection[]>())
+            foreach (NavMeshConnection[] side in nav.Areas[id].Connections)
             {
-                foreach (NavMeshConnection conn in side ?? Array.Empty<NavMeshConnection>())
+                foreach (NavMeshConnection conn in side)
                 {
                     if (place.ContainsKey(conn.AreaId) || !nav.Areas.ContainsKey(conn.AreaId))
                     {
@@ -614,9 +614,9 @@ public static class Zones
                 continue;
             }
 
-            foreach (NavMeshConnection[] side in area.Connections ?? Array.Empty<NavMeshConnection[]>())
+            foreach (NavMeshConnection[] side in area.Connections)
             {
-                foreach (NavMeshConnection conn in side ?? Array.Empty<NavMeshConnection>())
+                foreach (NavMeshConnection conn in side)
                 {
                     if (assignment.Place.TryGetValue(conn.AreaId, out int b) && a != b)
                     {
@@ -636,9 +636,9 @@ public static class Zones
         HashSet<(uint, uint)> links = new();
         foreach ((uint id, NavMeshArea area) in nav.Areas)
         {
-            foreach (NavMeshConnection[] side in area.Connections ?? Array.Empty<NavMeshConnection[]>())
+            foreach (NavMeshConnection[] side in area.Connections)
             {
-                foreach (NavMeshConnection conn in side ?? Array.Empty<NavMeshConnection>())
+                foreach (NavMeshConnection conn in side)
                 {
                     if (conn.AreaId != id && nav.Areas.ContainsKey(conn.AreaId))
                     {
@@ -701,7 +701,7 @@ public static class Zones
         foreach (uint id in nav.Areas.Keys.OrderBy(k => k))
         {
             NavMeshArea area = nav.Areas[id];
-            Vector3[] corners = area.Corners ?? Array.Empty<Vector3>();
+            Vector3[] corners = area.Corners;
             double z = corners.Length == 0 ? 0 : Centroid(corners).Z;
             int pid = assignment.Place.GetValueOrDefault(id, -1);
             bool seed = assignment.Seeds.Contains(id);

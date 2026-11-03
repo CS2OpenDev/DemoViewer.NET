@@ -38,8 +38,8 @@ public interface IExtensionKeymap
     string? ActionFor(string scope, Key key, KeyModifiers modifiers);
 
     /// <summary>The user's gesture for an action as display text, such as <c>"Ctrl+Z"</c>, or an empty string when unbound.</summary>
-    /// <param name="actionId">The action's id.</param>
-    string GestureText(string actionId);
+    /// <param name="actionId">The action's id; null answers an empty string.</param>
+    string GestureText(string? actionId);
 
     /// <summary>Raised on the UI thread after the user rebinds a key. Refresh labels that show gestures.</summary>
     event Action? Changed;

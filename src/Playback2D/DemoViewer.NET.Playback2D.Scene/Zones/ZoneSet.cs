@@ -46,8 +46,8 @@ public sealed record ZonePlace(int Id, string Name, PlaceOrigin Origin);
 [PublicAPI]
 public sealed class ZoneSet
 {
-    /// <summary>Creates a set. Every list is retained as given.</summary>
-    public ZoneSet(string mapName, string zonesVersion, string bundleMapVersion, string? bakerVersion,
+    /// <summary>Creates a set. Every list is retained as given; a null bundle map version reads as empty.</summary>
+    public ZoneSet(string mapName, string zonesVersion, string? bundleMapVersion, string? bakerVersion,
         double floorQuantum, IReadOnlyList<ZoneFloor> floors, IReadOnlyList<ZonePlace> places,
         IReadOnlyList<ZoneVolume> volumes, IReadOnlyList<ZoneArea> areas,
         IReadOnlyList<(int A, int B)> areaLinks, IReadOnlyList<(int A, int B)> adjacency,

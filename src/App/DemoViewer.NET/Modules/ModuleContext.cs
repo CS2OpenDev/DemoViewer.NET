@@ -190,7 +190,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
     public int LastTick => _controller.Frames is { Count: > 0 } frames ? frames[^1].ServerTick : 0;
     public int FrameIndexAtTick(int tick) => _controller.FrameIndexAtTick(tick);
 
-    public IReadOnlyList<int> EventFrames(string eventName) =>
+    public IReadOnlyList<int> EventFrames(string? eventName) =>
         _navigator is not null && eventName is not null
                                && _navigator.EventBoundaryFramesByName.TryGetValue(eventName, out int[]? frames)
             ? frames

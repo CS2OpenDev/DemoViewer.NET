@@ -138,8 +138,6 @@ internal static class UpdateFixtures
         public List<QueueJobRequest> Requests { get; } = [];
 
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
         public bool BackgroundEnabled { get; set; } = true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
@@ -157,13 +155,9 @@ internal static class UpdateFixtures
             remove { }
         }
 
-        public int ActiveCount(QueueJobKind kind) => 0;
-
         public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
-
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request) => throw new NotSupportedException();
 
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request) => throw new NotSupportedException();
 
@@ -180,10 +174,6 @@ internal static class UpdateFixtures
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
 
         public void RemoveByUser(Guid itemId)
-        {
-        }
-
-        public void CancelOwned(string ownerTag, string path)
         {
         }
 

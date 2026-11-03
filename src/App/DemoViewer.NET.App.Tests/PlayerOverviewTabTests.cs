@@ -592,9 +592,9 @@ public class PlayerOverviewTabTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(vm.SelectedPage.Kind).IsEqualTo(PlayerOverviewPageKind.Achievements);
+            await Assert.That(vm.SelectedPage?.Kind).IsEqualTo(PlayerOverviewPageKind.Achievements);
             await Assert.That(vm.Pages.Count(p => p.IsActive)).IsEqualTo(1);
-            await Assert.That(restored.SelectedPage.Kind).IsEqualTo(PlayerOverviewPageKind.Achievements);
+            await Assert.That(restored.SelectedPage?.Kind).IsEqualTo(PlayerOverviewPageKind.Achievements);
             await Assert.That(restored.Pages.Single(p => p.Kind == PlayerOverviewPageKind.Overview).IsActive).IsFalse();
         }
     }
@@ -752,8 +752,6 @@ public class PlayerOverviewTabTests
             remove { }
         }
 
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
         public bool BackgroundEnabled { get; set; } = true;
         public bool IsPaused { get; private set; }
         public int QueuedCount { get; init; }
@@ -767,13 +765,9 @@ public class PlayerOverviewTabTests
 
         public void Raise() => Changed?.Invoke();
 
-        public int ActiveCount(QueueJobKind kind) => 0;
-
         public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
-
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request) => throw new NotSupportedException();
 
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request) => throw new NotSupportedException();
 
@@ -782,10 +776,6 @@ public class PlayerOverviewTabTests
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
 
         public void RemoveByUser(Guid itemId)
-        {
-        }
-
-        public void CancelOwned(string ownerTag, string path)
         {
         }
 

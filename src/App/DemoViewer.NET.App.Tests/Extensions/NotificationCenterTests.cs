@@ -165,7 +165,7 @@ public class NotificationCenterTests
         NotificationCenter center = new(posts.Post);
         IExtensionNotifications notes = center.For(new FaultRig().Guard);
 
-        notes.Post(null!);
+        notes.Post(null);
         notes.Post(new Notification("", NotificationSeverity.Info, "No id"));
         notes.Post(new Notification("x", NotificationSeverity.Info, " "));
         notes.Post(new Notification(null!, NotificationSeverity.Info, null!));

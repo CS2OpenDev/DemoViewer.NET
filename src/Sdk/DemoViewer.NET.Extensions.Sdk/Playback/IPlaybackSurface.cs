@@ -67,7 +67,7 @@ public interface IPlaybackSurface
     IDisposable OnPlayheadChanged(Action<int> handler);
 
     /// <summary>The bound gesture for an action as <c>" (Ctrl+F)"</c>, or an empty string when unbound.</summary>
-    string GestureHint(string actionId);
+    string GestureHint(string? actionId);
 
     /// <summary>
     ///     The action a key is bound to in <paramref name="scope" /> under the user's keymap, or null. For a

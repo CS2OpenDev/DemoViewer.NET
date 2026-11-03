@@ -139,7 +139,7 @@ public sealed class RecentFilesStore
 
         // Normalized on every load, not only by the migration: an older build can still write the section,
         // and it de-dupes by path alone.
-        loaded.RemoveAll(r => r is null || string.IsNullOrEmpty(r.Path));
+        loaded.RemoveAll(r => string.IsNullOrEmpty(r.Path));
         HashSet<string> seenPaths = new(_pathComparer);
         HashSet<string> seenHashes = new(StringComparer.Ordinal);
         loaded.RemoveAll(r => !seenPaths.Add(r.Path) || (r.Sha256 is { Length: > 0 } sha && !seenHashes.Add(sha)));

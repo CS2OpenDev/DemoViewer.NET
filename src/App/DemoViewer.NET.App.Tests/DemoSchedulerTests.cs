@@ -544,7 +544,6 @@ public class DemoSchedulerTests
             await Assert.That(queue.Visits[0].Path).IsEqualTo("/x/demo.dem");
             await Assert.That(queue.Visits[0].Passes.Select(p => p.Id)).IsEquivalentTo(["a", "b"],
                 CollectionOrdering.Matching).Because("a pass is keyed by its evaluator's id");
-            await Assert.That(queue.Backgrounds).IsEqualTo(0).Because("the scheduler never submits per evaluator");
         }
     }
 
@@ -795,14 +794,11 @@ public class DemoSchedulerTests
         private readonly List<QueueJobRequest> _deferred = [];
         public List<DemoVisitRequest> Visits { get; } = [];
         public List<QueueJobRequest> Jobs { get; } = [];
-        public int Backgrounds { get; private set; }
         public bool Defer { get; init; }
         public bool EndPasses { get; init; }
         public CancellationToken Token { get; set; }
 
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
         public bool BackgroundEnabled { get; set; } = true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
@@ -820,16 +816,8 @@ public class DemoSchedulerTests
             remove { }
         }
 
-        public int ActiveCount(QueueJobKind kind) => 0;
-
         public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request)
-        {
-            Backgrounds++;
-            return new RecordedHandle();
-        }
 
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request)
         {
@@ -888,10 +876,6 @@ public class DemoSchedulerTests
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
 
         public void RemoveByUser(Guid itemId)
-        {
-        }
-
-        public void CancelOwned(string ownerTag, string path)
         {
         }
 

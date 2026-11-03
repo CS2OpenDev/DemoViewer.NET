@@ -377,7 +377,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
     }
 
     [Test]
-    public async Task CancelledWaiter_DoesNotAbandonTheBuild()
+    public async Task CancelledWaiter_DoesNotAbandonTheBuild(CancellationToken cancellationToken)
     {
         string bake = WriteBake("collision.tris", 64);
         using ManualResetEventSlim gate = new(false);
@@ -404,7 +404,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         }
 
         gate.Set();
-        VisibilityEngine engine = await cache.GetOrLoadAsync(bake);
+        VisibilityEngine engine = await cache.GetOrLoadAsync(bake, cancellationToken);
         await Assert.That(engine).IsNotNull();
         await Assert.That(entered).IsEqualTo(1).Because("the cancelled ask's build was reused, not repeated");
     }
@@ -416,7 +416,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
     ///     (Builds reads 1 the moment the cancelled ask throws), run, and serve the next ask.
     /// </summary>
     [Test]
-    public async Task PreCancelledWaiter_StillLandsTheBuild_ForTheNextAsk()
+    public async Task PreCancelledWaiter_StillLandsTheBuild_ForTheNextAsk(CancellationToken cancellationToken)
     {
         string bake = WriteBake("collision.tris", 64);
         using ManualResetEventSlim gate = new(false);
@@ -445,7 +445,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
             "the build to be entered despite the cancelled waiter");
         gate.Set();
 
-        VisibilityEngine engine = await cache.GetOrLoadAsync(bake);
+        VisibilityEngine engine = await cache.GetOrLoadAsync(bake, cancellationToken);
         await Assert.That(engine).IsNotNull();
         await Assert.That(cache.Builds).IsEqualTo(1)
             .Because("the next ask is a hit on the build the cancelled ask started");

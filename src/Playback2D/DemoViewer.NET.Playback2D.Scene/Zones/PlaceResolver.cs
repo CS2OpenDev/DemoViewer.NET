@@ -261,9 +261,9 @@ public sealed class PlaceResolver
     /// <summary>Whether two places share a nav connection. Symmetric; a place is not adjacent to itself.</summary>
     public bool AreAdjacent(int a, int b) => a != b && _adjacentPairs.Contains(Pair(a, b));
 
-    /// <summary>The id of a place by its raw name, ordinal. Null when the vocabulary has no such name.</summary>
+    /// <summary>The id of a place by its raw name, ordinal. Null for a null name or one the vocabulary lacks.</summary>
     /// <param name="name">The raw name.</param>
-    public int? PlaceId(string name) =>
+    public int? PlaceId(string? name) =>
         name is not null && _placeByName.TryGetValue(name, out int id) ? id : null;
 
     /// <summary>

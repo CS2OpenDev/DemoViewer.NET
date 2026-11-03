@@ -348,6 +348,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
     }
 
+    /// <summary>Queued plus running items of one kind.</summary>
     public int ActiveCount(QueueJobKind kind)
     {
         lock (_sync)
@@ -417,6 +418,10 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         AppLog.DemoRead(DiagLog, name, read, count);
     }
 
+    /// <summary>
+    ///     Max concurrent heavy parses (forwards to <see cref="HeavyJobGate" />). DEFAULT 1: the
+    ///     safe one-at-a-time invariant; &gt; 1 can exhaust RAM.
+    /// </summary>
     public int MaxConcurrency
     {
         get
@@ -438,6 +443,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
     }
 
+    /// <summary>Max background-tier items held at once (Foreground/UserRequested bypass it).</summary>
     public int MaxQueueSize
     {
         get
@@ -720,7 +726,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             {
                 // The parser takes no token: a replaced open still runs to the end of its parse.
                 NoteParse(entry.Path, "open");
-                parsed = await Task.Run(() => _parseBytes(bytes)).ConfigureAwait(false);
+                parsed = await Task.Run(() => _parseBytes(bytes), CancellationToken.None).ConfigureAwait(false);
             }
             finally
             {
@@ -850,6 +856,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
     // ── Background submit + coalescing ───────────────────────────────────
 
+    /// <summary>
+    ///     Submits background work, coalesced BY PATH across owners (one parse, every owner's
+    ///     <see cref="DemoProcessingRequest.OnParsed" /> runs). Returns a handle whose
+    ///     <see cref="IDemoQueueHandle.State" /> is <see cref="DemoQueueItemState.Rejected" /> ONLY when
+    ///     the background tier is at <see cref="MaxQueueSize" /> and this path is not already
+    ///     queued/running (Foreground/UserRequested never rejected).
+    /// </summary>
     public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -1161,6 +1174,10 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
     }
 
+    /// <summary>
+    ///     A module cancels ITS OWN submission for <paramref name="path" />; a coalesced co-owner
+    ///     keeps the item alive.
+    /// </summary>
     public void CancelOwned(string ownerTag, string path)
     {
         bool freedQueueSlot = false;
@@ -1531,8 +1548,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         want += yielded;
         while (_activeWorkers < want)
         {
+            // Never cancelled: the count above is only given back by a loop that ran.
             _activeWorkers++;
-            _ = Task.Run(WorkerLoopAsync);
+            _ = Task.Run(WorkerLoopAsync, CancellationToken.None);
         }
 
         int lightRunning = _entries.Count(e => e.State == DemoQueueItemState.Running && IsLight(e));
@@ -1540,7 +1558,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         while (_activeLightWorkers < wantLight)
         {
             _activeLightWorkers++;
-            _ = Task.Run(LightWorkerLoopAsync);
+            _ = Task.Run(LightWorkerLoopAsync, CancellationToken.None);
         }
     }
 

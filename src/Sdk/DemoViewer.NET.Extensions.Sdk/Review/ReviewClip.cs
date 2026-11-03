@@ -105,12 +105,12 @@ public sealed class ReviewClip
     /// <param name="demoPath">The demo's path.</param>
     /// <param name="fromTick">First tick, frame clock.</param>
     /// <param name="toTick">Last tick, frame clock.</param>
-    /// <param name="note">What the clip is.</param>
-    /// <param name="source">One of <see cref="ReviewSources" />.</param>
+    /// <param name="note">What the clip is; null for none.</param>
+    /// <param name="source">One of <see cref="ReviewSources" />; null for none.</param>
     /// <param name="tickRate">The demo's tick rate, or 0 when the caller does not know it.</param>
     /// <param name="sha256">The demo's content hash, or null.</param>
     /// <param name="teamId">The team the sending surface was about, or null.</param>
-    public static ReviewClip Clip(string demoPath, int fromTick, int toTick, string note, string source,
+    public static ReviewClip Clip(string demoPath, int fromTick, int toTick, string? note, string? source,
         int tickRate = 0, string? sha256 = null, Guid? teamId = null)
     {
         ArgumentNullException.ThrowIfNull(demoPath);

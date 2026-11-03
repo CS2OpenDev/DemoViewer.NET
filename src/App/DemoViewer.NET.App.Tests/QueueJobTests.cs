@@ -445,7 +445,8 @@ public class QueueJobTests
     }
 
     [Test]
-    public async Task APackExport_IsAUserRequestedItem_ThatTakesItsOwnInteractiveSlot_AndCancelsFromEitherSide()
+    public async Task APackExport_IsAUserRequestedItem_ThatTakesItsOwnInteractiveSlot_AndCancelsFromEitherSide(
+        CancellationToken cancellationToken)
     {
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = NewQueue(gate);
@@ -460,7 +461,7 @@ public class QueueJobTests
                 }
 
                 return 7;
-            }, sink, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+            }, sink, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
 
         await Assert.That(result).IsEqualTo(7);
         DemoQueueItemSnapshot item = queue.Snapshot().Single(s => s.Kind == QueueJobKind.PackExport);
@@ -490,7 +491,7 @@ public class QueueJobTests
             await Task.Delay(Timeout.Infinite, ct);
             return 0;
         }, null, CancellationToken.None);
-        await running.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await running.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
         queue.RemoveByUser(queue.Snapshot().Single(s => s.State == DemoQueueItemState.Running).Id);
         await Assert.That(await EndsCancelledAsync(removed)).IsTrue();
         await Assert.That(started).IsFalse();

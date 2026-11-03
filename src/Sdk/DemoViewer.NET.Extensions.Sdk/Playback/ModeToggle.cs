@@ -14,10 +14,10 @@ public sealed class ModeToggle : INotifyPropertyChanged
     /// <summary>Creates the toggle.</summary>
     /// <param name="id">Unique within the tab.</param>
     /// <param name="label">The toolbar text.</param>
-    /// <param name="tooltip">The toolbar tooltip.</param>
+    /// <param name="tooltip">The toolbar tooltip; null for none.</param>
     /// <param name="actionId">The action that flips it, or null for none.</param>
     /// <param name="icon">The toolbar icon key, or null.</param>
-    public ModeToggle(string id, string label, string tooltip, string? actionId = null, string? icon = null)
+    public ModeToggle(string id, string label, string? tooltip, string? actionId = null, string? icon = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(label);

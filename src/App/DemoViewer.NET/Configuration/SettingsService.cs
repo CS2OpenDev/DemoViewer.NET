@@ -229,18 +229,22 @@ public sealed class SettingsService
     /// <summary>
     ///     Loads the persisted recents list (the <c>Recents</c> section), most-recent-first, or an
     ///     empty list when none. One-time-imports a legacy <c>recent-files.json</c> when the section is absent.
-    ///     WASM/fileless → empty.
+    ///     WASM/fileless → empty. A null row, which a hand-edited file can hold, is left out.
     /// </summary>
     public IReadOnlyList<RecentFile> LoadRecents()
     {
-        List<RecentFile>? current = ReadSection<List<RecentFile>>("Recents");
+        List<RecentFile?>? current = ReadSection<List<RecentFile?>>("Recents");
         if (current is not null || _settingsPath is null)
         {
-            return current ?? [];
+            return WithoutNullRows(current);
         }
 
-        return MigrateLegacySection<List<RecentFile>>("recent-files.json", SaveRecents) ?? [];
+        return WithoutNullRows(MigrateLegacySection<List<RecentFile?>>("recent-files.json",
+            legacy => SaveRecents(WithoutNullRows(legacy))));
     }
+
+    private static List<RecentFile> WithoutNullRows(List<RecentFile?>? rows) =>
+        rows?.OfType<RecentFile>().ToList() ?? [];
 
     /// <summary>
     ///     Persists the recents list into the single config file's <c>Recents</c> section, preserving every

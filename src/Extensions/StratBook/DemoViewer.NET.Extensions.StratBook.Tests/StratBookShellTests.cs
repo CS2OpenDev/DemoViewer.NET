@@ -1221,7 +1221,7 @@ public class StratBookShellTests
         {
             ResolveAllCalls++;
             return demoPaths.ToDictionary(p => p,
-                p => new DemoProvenance(null, null, null, ProvenanceOrigin.None), StringComparer.Ordinal);
+                _ => new DemoProvenance(null, null, null, ProvenanceOrigin.None), StringComparer.Ordinal);
         }
 
         // Never raised: no test here depends on it, and the interface requires the member regardless.

@@ -309,8 +309,9 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
             }
 
             _soonScheduled = true;
-            // The debounce is only a timer; the planning itself is a queue item.
-            _soon = Task.Delay(_planDebounce).ContinueWith(_ =>
+            // The debounce is only a timer and is never cut short: Plan itself answers a stopped service. The
+            // planning is a queue item.
+            _soon = Task.Delay(_planDebounce, CancellationToken.None).ContinueWith(_ =>
             {
                 lock (_soonGate)
                 {
@@ -1006,7 +1007,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     // A queue job, or the pool where there is no queue.
     private Task RunJob(string title, Action work, JobOptions options) =>
         _jobs is null
-            ? Task.Run(work)
+            ? Task.Run(work, CancellationToken.None)
             : _jobs.RunAsync(title, _ =>
             {
                 work();

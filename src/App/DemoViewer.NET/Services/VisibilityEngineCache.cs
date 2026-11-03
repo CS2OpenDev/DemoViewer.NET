@@ -133,7 +133,8 @@ public sealed class VisibilityEngineCache
     {
         ArgumentException.ThrowIfNullOrEmpty(trisPath);
 
-        BakeKey key = await Task.Run(() => BakeKey.For(trisPath)).ConfigureAwait(false);
+        // Not the caller's token: a signalled one still registers the build.
+        BakeKey key = await Task.Run(() => BakeKey.For(trisPath), CancellationToken.None).ConfigureAwait(false);
         Task<VisibilityEngine> build = Acquire(key, trisPath);
         // Checked AFTER the build is registered: a cancelled caller gives up its wait, not the build.
         token.ThrowIfCancellationRequested();

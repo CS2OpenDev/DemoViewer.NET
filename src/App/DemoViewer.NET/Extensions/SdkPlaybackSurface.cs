@@ -108,7 +108,7 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
         return floor is null ? null : PlaceOnFloor(_surface.Zones, floor, worldX, worldY);
     }
 
-    public string GestureHint(string actionId) => actionId is null ? "" : _surface.GestureHint(actionId);
+    public string GestureHint(string? actionId) => actionId is null ? "" : _surface.GestureHint(actionId);
 
     public string? ActionFor(string scope, Key key, KeyModifiers modifiers) =>
         !string.IsNullOrEmpty(scope)

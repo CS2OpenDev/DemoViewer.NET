@@ -1039,7 +1039,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 {
                     try
                     {
-                        await File.WriteAllTextAsync(Path.Combine(dumpDir, "analysis-graph-error.txt"), ex.ToString());
+                        await File.WriteAllTextAsync(Path.Combine(dumpDir, "analysis-graph-error.txt"), ex.ToString(),
+                            runToken);
                     }
                     catch
                     {

@@ -42,20 +42,20 @@ public sealed partial class PlayerOverviewFilterViewModel : ObservableObject
     private DateTime? _from;
 
     [ObservableProperty]
-    private PlayerFilterChoice _map;
+    private PlayerFilterChoice? _map;
 
     [ObservableProperty]
-    private PlayerFilterChoice _mode;
+    private PlayerFilterChoice? _mode;
 
     [ObservableProperty]
-    private PlayerFilterChoice _side;
+    private PlayerFilterChoice? _side;
 
     [ObservableProperty]
     private DateTime? _to;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDateRange))]
-    private PlayerFilterChoice _window;
+    private PlayerFilterChoice? _window;
 
     public PlayerOverviewFilterViewModel()
     {
@@ -93,7 +93,7 @@ public sealed partial class PlayerOverviewFilterViewModel : ObservableObject
     public ObservableCollection<PlayerFilterChoice> Modes { get; } = [new(Any, f => f)];
 
     /// <summary>True when the window is a date range: the two date pickers show.</summary>
-    public bool IsDateRange => Window.Label == DateRangeLabel;
+    public bool IsDateRange => Window?.Label == DateRangeLabel;
 
     /// <summary>The selection as a filter; <see cref="PlayerFilter.All" /> when nothing is narrowed.</summary>
     public PlayerFilter Filter { get; private set; }
@@ -124,8 +124,8 @@ public sealed partial class PlayerOverviewFilterViewModel : ObservableObject
                 To = null;
             }
 
-            string map = reset ? Any : Map.Label;
-            string mode = reset ? Any : Mode.Label;
+            string map = reset ? Any : Map?.Label ?? Any;
+            string mode = reset ? Any : Mode?.Label ?? Any;
             Replace(Maps, matches
                 .Select(m => m.Row.Map)
                 .Where(m => !string.IsNullOrEmpty(m))
@@ -165,13 +165,13 @@ public sealed partial class PlayerOverviewFilterViewModel : ObservableObject
         Apply();
     }
 
-    partial void OnWindowChanged(PlayerFilterChoice value) => Apply();
+    partial void OnWindowChanged(PlayerFilterChoice? value) => Apply();
 
-    partial void OnMapChanged(PlayerFilterChoice value) => Apply();
+    partial void OnMapChanged(PlayerFilterChoice? value) => Apply();
 
-    partial void OnModeChanged(PlayerFilterChoice value) => Apply();
+    partial void OnModeChanged(PlayerFilterChoice? value) => Apply();
 
-    partial void OnSideChanged(PlayerFilterChoice value) => Apply();
+    partial void OnSideChanged(PlayerFilterChoice? value) => Apply();
 
     partial void OnFromChanged(DateTime? value) => Apply();
 
@@ -199,7 +199,7 @@ public sealed partial class PlayerOverviewFilterViewModel : ObservableObject
     // The days are the user's local calendar days; the match time is UTC.
     private PlayerFilter Build()
     {
-        PlayerFilter filter = Side.Apply(Mode.Apply(Map.Apply(Window.Apply(PlayerFilter.All))));
+        PlayerFilter filter = Through(Side, Through(Mode, Through(Map, Through(Window, PlayerFilter.All))));
         if (IsDateRange)
         {
             filter = filter with
@@ -211,6 +211,10 @@ public sealed partial class PlayerOverviewFilterViewModel : ObservableObject
 
         return filter;
     }
+
+    // A cleared ComboBox narrows nothing.
+    private static PlayerFilter Through(PlayerFilterChoice? choice, PlayerFilter filter) =>
+        choice is null ? filter : choice.Apply(filter);
 
     private static long DayStart(DateTime day) =>
         DateTime.SpecifyKind(day.Date, DateTimeKind.Local).ToUniversalTime().Ticks;

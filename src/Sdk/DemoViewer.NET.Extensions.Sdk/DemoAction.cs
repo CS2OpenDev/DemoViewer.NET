@@ -10,11 +10,11 @@ public sealed class DemoAction
     /// <summary>Creates the action.</summary>
     /// <param name="id">Unique across the app. Starts with the extension's id and a dot; a third-party id that does not is left out and logged.</param>
     /// <param name="label">The button text.</param>
-    /// <param name="tooltip">The button tooltip.</param>
+    /// <param name="tooltip">The button tooltip; null for none.</param>
     /// <param name="isAvailable">Whether the demo at the given path should offer it now. Called on the UI thread.</param>
     /// <param name="run">Runs it for the demo at the given path. Queue slow work.</param>
     /// <param name="featureId">Offered only while this feature is on; null for while the extension is on.</param>
-    public DemoAction(string id, string label, string tooltip, Func<string, bool> isAvailable, Action<string> run,
+    public DemoAction(string id, string label, string? tooltip, Func<string, bool> isAvailable, Action<string> run,
         string? featureId = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(id);

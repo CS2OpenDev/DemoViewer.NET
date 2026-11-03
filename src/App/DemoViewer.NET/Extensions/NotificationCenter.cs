@@ -220,7 +220,7 @@ internal sealed class NotificationCenter
 
         public string Name => Guard.Scope.Name;
 
-        public void Post(Notification notification)
+        public void Post(Notification? notification)
         {
             if (notification is null || string.IsNullOrWhiteSpace(notification.Id)
                                      || string.IsNullOrWhiteSpace(notification.Title))

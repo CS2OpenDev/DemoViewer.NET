@@ -102,8 +102,6 @@ public class StratLineupPickerTests
             remove { }
         }
 
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
         public bool BackgroundEnabled { get; set; } = true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
@@ -112,11 +110,7 @@ public class StratLineupPickerTests
         public Task<CS2DemoKit.Parser.ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request) => throw new NotSupportedException();
-
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request) => throw new NotSupportedException();
-
-        public int ActiveCount(QueueJobKind kind) => 0;
 
         public IDemoQueueHandle SubmitJob(QueueJobRequest request)
         {
@@ -127,10 +121,6 @@ public class StratLineupPickerTests
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
 
         public void RemoveByUser(Guid itemId)
-        {
-        }
-
-        public void CancelOwned(string ownerTag, string path)
         {
         }
 

@@ -223,8 +223,11 @@ public sealed class StagedClipState
 /// </summary>
 public sealed class HighlightsSessionState
 {
-    /// <summary>The staged clips, IN TRAY ORDER. Vanished keys are dropped on restore.</summary>
-    public StagedClipState[] StagedClips { get; init; } = [];
+    /// <summary>
+    ///     The staged clips, IN TRAY ORDER. Vanished keys are dropped on restore. Null when a restored blob
+    ///     says <c>"StagedClips": null</c>.
+    /// </summary>
+    public StagedClipState[]? StagedClips { get; init; } = [];
 
     /// <summary>Tray column star weight (splitter position); paired with <see cref="ConfigColumnStars" />.</summary>
     public double TrayColumnStars { get; init; } = 1.4;

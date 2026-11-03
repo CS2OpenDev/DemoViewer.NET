@@ -32,7 +32,9 @@ public enum DemoJobPriority
 /// <summary>What a queue item does. Every heavy background job in the app is one of these.</summary>
 public enum QueueJobKind
 {
-    /// <summary>A demo parse and its owners' post-processing (<see cref="IDemoProcessingQueue.SubmitBackground" />).</summary>
+    /// <summary>
+    ///     A demo parse and its owners' post-processing (<see cref="DemoProcessingQueue.SubmitBackground" />).
+    /// </summary>
     DemoProcessing,
 
     /// <summary>A user-started Pack Export.</summary>
@@ -111,7 +113,7 @@ public enum DemoQueueItemState
     Cancelled,
 
     /// <summary>
-    ///     Not admitted: the background tier was at <see cref="IDemoProcessingQueue.MaxQueueSize" />.
+    ///     Not admitted: the background tier was at <see cref="DemoProcessingQueue.MaxQueueSize" />.
     ///     The submitter keeps it in its durable backlog and re-submits on
     ///     <see cref="IDemoProcessingQueue.CapacityAvailable" />.
     /// </summary>
@@ -333,19 +335,10 @@ public interface IDemoProcessingQueue
     // ── Controls / settings ───────────────────────────────────────────────────
 
     /// <summary>
-    ///     Max concurrent heavy parses (forwards to <see cref="HeavyJobGate" />). DEFAULT 1: the
-    ///     safe one-at-a-time invariant; &gt; 1 can exhaust RAM.
-    /// </summary>
-    int MaxConcurrency { get; set; }
-
-    /// <summary>Max background-tier items held at once (Foreground/UserRequested bypass it).</summary>
-    int MaxQueueSize { get; set; }
-
-    /// <summary>
     ///     Master enable for background processing (the persisted "disable" switch). Foreground
     ///     always runs regardless.
     /// </summary>
-    bool BackgroundEnabled { get; set; }
+    bool BackgroundEnabled { get; }
 
     /// <summary>True while background processing is transiently paused.</summary>
     bool IsPaused { get; }
@@ -367,9 +360,6 @@ public interface IDemoProcessingQueue
 
     /// <summary>Items being parsed right now.</summary>
     int RunningCount { get; }
-
-    /// <summary>Queued plus running items of one kind.</summary>
-    int ActiveCount(QueueJobKind kind);
 
     // ── Foreground (awaitable, highest priority) ──────────────────────────────
 
@@ -398,20 +388,11 @@ public interface IDemoProcessingQueue
     // ── Background (fire-and-forget, coalesced) ───────────────────────────────
 
     /// <summary>
-    ///     Submits background work, coalesced BY PATH across owners (one parse, every owner's
-    ///     <see cref="DemoProcessingRequest.OnParsed" /> runs). Returns a handle whose
-    ///     <see cref="IDemoQueueHandle.State" /> is <see cref="DemoQueueItemState.Rejected" /> ONLY when
-    ///     the background tier is at <see cref="MaxQueueSize" /> and this path is not already
-    ///     queued/running (Foreground/UserRequested never rejected).
-    /// </summary>
-    IDemoQueueHandle SubmitBackground(DemoProcessingRequest request);
-
-    /// <summary>
     ///     Submits passes for one demo's visit, coalesced by path: a queued visit of the demo takes them, a
     ///     running one takes those its read can serve, and the demo is read once in the mode the passes on it
     ///     need. In the slot the passes run in <see cref="IDemoPass.After" /> order, each asked again first.
-    ///     Rejected under the same size cap as <see cref="SubmitBackground" />. The scheduler submits every
-    ///     demo through this member, so a stand-in queue must handle it.
+    ///     Rejected under the same size cap as <see cref="DemoProcessingQueue.SubmitBackground" />. The scheduler
+    ///     submits every demo through this member, so a stand-in queue must handle it.
     /// </summary>
     IDemoQueueHandle SubmitVisit(DemoVisitRequest request);
 
@@ -428,8 +409,8 @@ public interface IDemoProcessingQueue
     event Action? Changed;
 
     /// <summary>
-    ///     Raised (posted) when the background tier drops below <see cref="MaxQueueSize" />: feeders
-    ///     re-submit their pending backlog (idempotent via coalescing).
+    ///     Raised (posted) when the background tier drops below <see cref="DemoProcessingQueue.MaxQueueSize" />:
+    ///     feeders re-submit their pending backlog (idempotent via coalescing).
     /// </summary>
     event Action? CapacityAvailable;
 
@@ -449,12 +430,6 @@ public interface IDemoProcessingQueue
     ///     compaction or a light item, or waits to run on an open's parse.
     /// </summary>
     bool Promote(Guid itemId) => false;
-
-    /// <summary>
-    ///     A module cancels ITS OWN submission for <paramref name="path" />; a coalesced co-owner
-    ///     keeps the item alive.
-    /// </summary>
-    void CancelOwned(string ownerTag, string path);
 
     /// <summary>
     ///     A module cancels EVERY submission it owns: its queued jobs are dropped, a running one is told
@@ -532,7 +507,7 @@ public sealed class PassThroughDemoOpen(Func<ReadOnlyMemory<byte>, CancellationT
 
     /// <inheritdoc />
     public Task RunPassesAsync(ParsedDemo parsed, Action? plan = null) =>
-        plan is null ? Task.CompletedTask : Task.Run(plan);
+        plan is null ? Task.CompletedTask : Task.Run(plan, CancellationToken.None);
 
     public void Complete()
     {

@@ -33,6 +33,7 @@ internal sealed class ExtensionRecordPassHost(
 
     public string Id { get; } = inner.Id;
 
+    /// <summary>The extension the pass belongs to, for fault reports.</summary>
     public string Owner => Guard.Scope.Id;
 
     /// <summary>The inputs the pass named when it registered.</summary>
