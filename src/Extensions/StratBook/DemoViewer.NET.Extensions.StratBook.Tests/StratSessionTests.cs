@@ -304,7 +304,7 @@ public class StratSessionTests
 
             string file = Path.Combine(StratStore.FolderFor(root, committed.Owner, committed.Map),
                 committed.Id + StratStore.StratExtension);
-            JsonNode onDisk = JsonNode.Parse(File.ReadAllText(file))!;
+            JsonNode onDisk = JsonNode.Parse(await File.ReadAllTextAsync(file))!;
 
             using (Assert.Multiple())
             {
@@ -316,7 +316,7 @@ public class StratSessionTests
             }
 
             session.Commit();
-            JsonNode afterCommit = JsonNode.Parse(File.ReadAllText(file))!;
+            JsonNode afterCommit = JsonNode.Parse(await File.ReadAllTextAsync(file))!;
             using (Assert.Multiple())
             {
                 await Assert.That(afterCommit["pending"]).IsNull();
@@ -391,12 +391,12 @@ public class StratSessionTests
                     StratJsonContext.Default.StratStep)!;
             session.Apply(PatchOp.AddOp("/steps/-", step));
             await session.FlushAsync();
-            string workingCopy = File.ReadAllText(file);
+            string workingCopy = await File.ReadAllTextAsync(file);
 
             // The commit's line lands; its strat write is lost, leaving the pending working copy in place.
             session.Commit();
             session.Dispose();
-            File.WriteAllText(file, workingCopy);
+            await File.WriteAllTextAsync(file, workingCopy);
 
             StratDocument reopened = new StratStore(PackStores.At(root)).TryLoad(committed.Id)!;
             using (Assert.Multiple())

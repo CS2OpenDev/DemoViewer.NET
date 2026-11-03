@@ -36,8 +36,8 @@ public class OpeningTendenciesTests
         return Task.CompletedTask;
     };
 
-    private static readonly int[] TeamASlots = [0, 1, 2, 3, 4];
-    private static readonly int[] TeamBSlots = [5, 6, 7, 8, 9];
+    private static readonly int[] _teamASlots = [0, 1, 2, 3, 4];
+    private static readonly int[] _teamBSlots = [5, 6, 7, 8, 9];
 
     private static string Id(int n) => $"7656{n:D4}";
 
@@ -73,11 +73,11 @@ public class OpeningTendenciesTests
         Clock = new RoundFactsClock { TickRate = Rate },
         Rounds =
         [
-            Round(1, 1000, TeamBSlots, TeamASlots, 12, 40, BombSite.A, Kill(1000, 13, 0, 5)),
-            Round(2, 10000, TeamBSlots, TeamASlots, 22, 50, BombSite.B, Kill(10000, 20, 1, 2), Kill(10000, 22, 6, 0)),
-            Round(3, 20000, TeamBSlots, TeamASlots),
-            Round(4, 30000, TeamASlots, TeamBSlots, 31),
-            Round(5, 40000, TeamASlots, TeamBSlots, 61)
+            Round(1, 1000, _teamBSlots, _teamASlots, 12, 40, BombSite.A, Kill(1000, 13, 0, 5)),
+            Round(2, 10000, _teamBSlots, _teamASlots, 22, 50, BombSite.B, Kill(10000, 20, 1, 2), Kill(10000, 22, 6, 0)),
+            Round(3, 20000, _teamBSlots, _teamASlots),
+            Round(4, 30000, _teamASlots, _teamBSlots, 31),
+            Round(5, 40000, _teamASlots, _teamBSlots, 61)
         ]
     };
 
@@ -163,17 +163,17 @@ public class OpeningTendenciesTests
             [
                 new RoundPositionsRound
                 {
-                    Number = 1, FreezeEndTick = 1000, Ct = TeamBSlots, Pos = Steps(s => Together(true, s))
+                    Number = 1, FreezeEndTick = 1000, Ct = _teamBSlots, Pos = Steps(s => Together(true, s))
                 },
                 new RoundPositionsRound
                 {
-                    Number = 2, FreezeEndTick = 10000, Ct = TeamBSlots, Pos = Steps(s => Together(false, s))
+                    Number = 2, FreezeEndTick = 10000, Ct = _teamBSlots, Pos = Steps(s => Together(false, s))
                 },
                 new RoundPositionsRound
                 {
                     Number = 3,
                     FreezeEndTick = 20000,
-                    Ct = TeamBSlots,
+                    Ct = _teamBSlots,
                     Pos = Steps(_ => [new RoundPosition(0, 0, 0, 0, 0), new RoundPosition(3, 3000, 0, 0, 0)])
                 }
             ]
@@ -367,27 +367,26 @@ public class OpeningTendenciesTests
 
     private sealed class Harness : IDisposable
     {
-        private Harness(DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, GrenadeIndex grenades,
+        private readonly GrenadeIndex _grenades;
+
+        private Harness(DemoCacheStore cache, TeamIdentityService teams, GrenadeIndex grenades,
             OpeningTendenciesService service, Guid teamA)
         {
             Cache = cache;
             Teams = teams;
-            Store = store;
-            Grenades = grenades;
+            _grenades = grenades;
             Service = service;
             TeamA = teamA;
         }
 
         public DemoCacheStore Cache { get; }
         public TeamIdentityService Teams { get; }
-        public RoundIndexStore Store { get; }
-        public GrenadeIndex Grenades { get; }
         public OpeningTendenciesService Service { get; }
         public Guid TeamA { get; }
 
         public void Dispose()
         {
-            Grenades.Dispose();
+            _grenades.Dispose();
             Teams.Dispose();
         }
 
@@ -428,7 +427,7 @@ public class OpeningTendenciesTests
             OpeningTendenciesService service = new(teams, cache.Library(), cache.RoundFacts(), grenades, store,
                 sources.FingerprintFor);
             Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(1)) == true)).Id;
-            return new Harness(cache, teams, store, grenades, service, teamA);
+            return new Harness(cache, teams, grenades, service, teamA);
         }
     }
 }

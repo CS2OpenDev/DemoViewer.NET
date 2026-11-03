@@ -24,7 +24,7 @@ namespace DemoViewer.NET.AppTests;
 public class CreateStratFromRoundRealDemoTests
 {
     /// <summary>The two rounds measured and the detonations counted in each.</summary>
-    internal static readonly (string Map, string Demo, int Round, int Detonations)[] Measured =
+    private static readonly (string Map, string Demo, int Round, int Detonations)[] Measured =
     [
         ("de_mirage", "match730_003842233788306292960_0260929275_408.dem", 7, 16),
         ("de_nuke", "match730_003842182368957825245_0056633905_389.dem", 5, 15)
@@ -79,7 +79,7 @@ public class CreateStratFromRoundRealDemoTests
         }
 
         // Each side's strat throws its own utility; a fire whose owner the inferno does not name is in both.
-        int sideless = capture.Moments.Count(m => m.Trigger == CaptureTrigger.Utility && m.ActorTeam == 0);
+        int sideless = capture.Moments.Count(m => m is { Trigger: CaptureTrigger.Utility, ActorTeam: 0 });
         await Assert.That(throwSteps - sideless).IsEqualTo(detonations);
 
         GC.KeepAlive(parsed);
@@ -153,7 +153,7 @@ public class CreateStratFromRoundRealDemoTests
 
     public static IEnumerable<int> Rounds() => Enumerable.Range(0, Measured.Length);
 
-    internal static StratCaptureOptions OptionsFor(RoundCapture capture, int side, bool arrows)
+    private static StratCaptureOptions OptionsFor(RoundCapture capture, int side, bool arrows)
     {
         IReadOnlyDictionary<char, ulong> map =
             StratFromRound.SlotMap(capture.FreezeEnd.Pawns.Where(p => p.Team == side), null, null);

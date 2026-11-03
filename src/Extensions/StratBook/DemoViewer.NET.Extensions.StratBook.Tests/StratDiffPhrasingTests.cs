@@ -33,7 +33,7 @@ public class StratDiffPhrasingTests
 
     private static List<HistoryEntry> SampleLog()
     {
-        string? repo = DemoTestHelper.FindRepoRoot()
+        string repo = DemoTestHelper.FindRepoRoot()
                        ?? throw new SkipTestException("repo root not found from the test output directory");
         string path = Path.Combine(repo, "tests", "fixtures", "strats", "schema-v1.sample.history.jsonl");
         return
@@ -177,10 +177,9 @@ public class StratDiffPhrasingTests
         StratStore store = new(null);
         StratDocument document = WithMolotov();
         store.Save(document, [], "created");
-        using StratSession session = new(store, null, () => false, () => Created)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1), IdleCommitDelay = TimeSpan.FromHours(1)
-        };
+        using StratSession session = new(store, null, () => false, () => Created);
+        session.AutoSaveDelay = TimeSpan.FromHours(1);
+        session.IdleCommitDelay = TimeSpan.FromHours(1);
         session.Open(document.Id);
         session.Apply(PatchOp.ReplaceOp("/economy", null, JsonValue.Create("full")));
         session.Commit();

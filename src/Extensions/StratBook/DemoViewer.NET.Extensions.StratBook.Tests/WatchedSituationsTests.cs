@@ -59,8 +59,8 @@ public class WatchedSituationsTests
             QueryToken[] tokens =
             [
                 .. FiveOnA().Take(2),
-                new QueryToken(QuerySide.T, 0, -900.5f, 200.25f, -512, "Lobby"),
-                new QueryToken(QuerySide.T, 1, 10, 20, 0, null)
+                new(QuerySide.T, 0, -900.5f, 200.25f, -512, "Lobby"),
+                new(QuerySide.T, 1, 10, 20, 0, null)
             ];
 
             WatchedSituation saved;
@@ -401,9 +401,9 @@ public class WatchedSituationsTests
         }
 
         public DemoCacheStore Cache { get; }
-        public RoundIndexStore Sidecars { get; }
+        private RoundIndexStore Sidecars { get; }
         public RoundIndexPlaceSources Sources { get; }
-        public RoundIndexEvaluator Evaluator { get; }
+        private RoundIndexEvaluator Evaluator { get; }
         public SituationIndex Index { get; }
 
         public void Dispose()

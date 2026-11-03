@@ -15,13 +15,13 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratBookUiKitTests
 {
-    private static readonly Assembly Pack = typeof(StratBookPack).Assembly;
+    private static readonly Assembly _pack = typeof(StratBookPack).Assembly;
 
     [Test]
     public async Task NoStratBookType_DerivesFromTheAppsViewModelBase()
     {
         string[] offenders =
-            [.. Pack.GetTypes().Where(t => t.IsSubclassOf(typeof(ViewModelBase))).Select(t => t.FullName!)];
+            [.. _pack.GetTypes().Where(t => t.IsSubclassOf(typeof(ViewModelBase))).Select(t => t.FullName!)];
 
         await Assert.That(offenders).IsEmpty();
     }
@@ -29,7 +29,7 @@ public class StratBookUiKitTests
     [Test]
     public async Task ItsViewModels_ResolveThroughTheSdkMarker()
     {
-        Type[] viewModels = [.. Pack.GetTypes().Where(t => typeof(IExtensionViewModel).IsAssignableFrom(t))];
+        Type[] viewModels = [.. _pack.GetTypes().Where(t => typeof(IExtensionViewModel).IsAssignableFrom(t))];
 
         using (Assert.Multiple())
         {
@@ -38,7 +38,7 @@ public class StratBookUiKitTests
             // the pack's view-model count.
             await Assert.That(viewModels.Length).IsGreaterThanOrEqualTo(13);
             await Assert.That(viewModels.All(t => t.IsSubclassOf(typeof(ExtensionViewModel)))).IsTrue();
-            await Assert.That(Pack.GetReferencedAssemblies().Select(a => a.Name!))
+            await Assert.That(_pack.GetReferencedAssemblies().Select(a => a.Name!))
                 .Contains("DemoViewer.NET.Extensions.Sdk.Ui");
         }
     }

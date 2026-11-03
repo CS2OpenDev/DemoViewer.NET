@@ -20,7 +20,7 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class StratTriggerClockTests
 {
-    private static readonly StratClockInfo Trigger = new() { Kind = StratClock.TriggerKind, RoundSeconds = 115 };
+    private static readonly StratClockInfo _trigger = new() { Kind = StratClock.TriggerKind, RoundSeconds = 115 };
 
     private static StratDocument Triggered(params StratStep[] steps)
     {
@@ -59,10 +59,10 @@ public class StratTriggerClockTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(StratClock.Format(Trigger, 8)).IsEqualTo("+0:08");
-            await Assert.That(StratClock.Format(Trigger, 0)).IsEqualTo("+0:00");
-            await Assert.That(StratClock.Format(Trigger, 75.5)).IsEqualTo("+1:15.5");
-            await Assert.That(StratClock.Format(Trigger, -2)).IsEqualTo("-0:02");
+            await Assert.That(StratClock.Format(_trigger, 8)).IsEqualTo("+0:08");
+            await Assert.That(StratClock.Format(_trigger, 0)).IsEqualTo("+0:00");
+            await Assert.That(StratClock.Format(_trigger, 75.5)).IsEqualTo("+1:15.5");
+            await Assert.That(StratClock.Format(_trigger, -2)).IsEqualTo("-0:02");
             await Assert.That(StratClock.Format(null, 75)).IsEqualTo("1:15").Because("no clock is the round clock");
             await Assert.That(StratClock.Format(null, -5)).IsEqualTo("+0:05")
                 .Because("after the plant on the round clock");
@@ -72,12 +72,12 @@ public class StratTriggerClockTests
                          ("+0:08", 8.0), ("0:08", 8), ("8", 8), ("+1:15.5", 75.5), ("-0:02", -2)
                      })
             {
-                await Assert.That(StratClock.TryParse(Trigger, text, out double parsed)).IsTrue().Because(text);
+                await Assert.That(StratClock.TryParse(_trigger, text, out double parsed)).IsTrue().Because(text);
                 await Assert.That(parsed).IsEqualTo(seconds).Because(text);
             }
 
-            await Assert.That(StratClock.TryParse(Trigger, "++0:08", out _)).IsFalse();
-            await Assert.That(StratClock.TryParse(Trigger, "0:61", out _)).IsFalse();
+            await Assert.That(StratClock.TryParse(_trigger, "++0:08", out _)).IsFalse();
+            await Assert.That(StratClock.TryParse(_trigger, "0:61", out _)).IsFalse();
             await Assert.That(StratClock.TryParse(null, "+0:05", out double round)).IsTrue();
             await Assert.That(round).IsEqualTo(-5).Because("on the round clock + is after the timer stopped");
         }
@@ -95,7 +95,7 @@ public class StratTriggerClockTests
             await Assert.That(projection.CountsUp).IsTrue();
             await Assert.That(projection.ClockTextAt(640)).IsEqualTo("+0:10");
             await Assert.That(projection.ClockClamped).IsFalse();
-            await Assert.That(StratClock.StratTickOf(Trigger, 8)).IsEqualTo(512);
+            await Assert.That(StratClock.StratTickOf(_trigger, 8)).IsEqualTo(512);
             await Assert.That(StratClock.StratTickOf(null, 107)).IsEqualTo(StepSchedule.TickFor(107, 115));
         }
     }
@@ -234,7 +234,7 @@ public class StratTriggerClockTests
     [Test]
     public async Task ATemplate_OnATriggerStrat_IsLaidOutInSecondsAfterTheStart()
     {
-        List<StratStep> steps = StratTemplates.BuildSteps(StratTemplates.Find("rush-a")!, Trigger);
+        List<StratStep> steps = StratTemplates.BuildSteps(StratTemplates.Find("rush-a")!, _trigger);
         await Assert.That(steps.Select(s => s.AtSeconds))
             .IsEquivalentTo([5.0, 7, 9, 20, 25], CollectionOrdering.Matching);
     }

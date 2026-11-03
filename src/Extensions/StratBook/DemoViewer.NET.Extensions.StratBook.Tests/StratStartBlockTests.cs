@@ -27,14 +27,14 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class StratStartBlockTests
 {
-    private static readonly int[] StartTicks = [0, 64, 448, 2000, 4000];
+    private static readonly int[] _startTicks = [0, 64, 448, 2000, 4000];
 
     private const double Level = -99968;
 
     private const string LegacyName = "legacy.seed-move.dvstrat.json";
 
     // A to D's spawn spots as the lurk's copies hold them; E's and the opponents' are still on the move step.
-    private static readonly (string Slot, float X, float Y)[] Spawn =
+    private static readonly (string Slot, float X, float Y)[] _spawn =
         [("A", -750, -791), ("B", -736, -912), ("C", -777, -690), ("D", -864, -737), ("E", -608, -800)];
 
     private static string LegacyText()
@@ -86,10 +86,10 @@ public class StratStartBlockTests
                 await Assert.That(start!.Positions.Select(p => p.Slot))
                     .IsEquivalentTo(["A", "B", "C", "D", "E", "O1", "O2", "O3", "O4", "O5"],
                         CollectionOrdering.Matching);
-                await Assert.That(sources.Where(s => s.Step == 1).Count()).IsEqualTo(4)
+                await Assert.That(sources.Count(s => s.Step == 1)).IsEqualTo(4)
                     .Because("A to D's only spawn entries are the lurk's copies");
-                await Assert.That(sources.Where(s => s.Step == 0).Count()).IsEqualTo(6);
-                foreach ((string slot, float x, float y) in Spawn)
+                await Assert.That(sources.Count(s => s.Step == 0)).IsEqualTo(6);
+                foreach ((string slot, float x, float y) in _spawn)
                 {
                     StartPosition entry = StratStartBlock.For(start, slot)!;
                     await Assert.That((entry.X, entry.Y)).IsEqualTo(((double?)x, (double?)y));
@@ -111,7 +111,7 @@ public class StratStartBlockTests
             using (Assert.Multiple())
             {
                 await Assert.That(projection.HasStart).IsTrue();
-                foreach ((string slot, float x, float y) in Spawn)
+                foreach ((string slot, float x, float y) in _spawn)
                 {
                     TokenKeyframe at = Sample(projection, slot, 0);
                     await Assert.That((at.X, at.Y)).IsEqualTo((x, y)).Because($"{slot} stands in spawn at 1:55");
@@ -119,7 +119,7 @@ public class StratStartBlockTests
 
                 foreach ((string slot, float x, float y) in destinations)
                 {
-                    (string _, float sx, float sy) = Spawn.Single(s => s.Slot == slot);
+                    (string _, float sx, float sy) = _spawn.Single(s => s.Slot == slot);
                     TokenKeyframe second = Sample(projection, slot, 64);
                     await Assert.That(Distance(second, x, y))
                         .IsLessThan(Math.Sqrt((x - sx) * (double)(x - sx) + (y - sy) * (double)(y - sy)))
@@ -253,7 +253,7 @@ public class StratStartBlockTests
                 await Assert.That(Sample(now, "O1", 0).X).IsEqualTo(300f);
                 foreach (string slot in StratVocabulary.Slots)
                 {
-                    foreach (int tick in StartTicks)
+                    foreach (int tick in _startTicks)
                     {
                         TokenKeyframe a = Sample(was, slot, tick), b = Sample(now, slot, tick);
                         await Assert.That((b.X, b.Y)).IsEqualTo((a.X, a.Y)).Because($"{slot} plays the same at {tick}");
@@ -271,17 +271,17 @@ public class StratStartBlockTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            const int freeze = 6400;
+            const int Freeze = 6400;
             List<CapturedPawn> start =
             [
                 .. Enumerable.Range(0, 10).Select(s =>
                     new CapturedPawn(s, s < 5 ? 2 : 3, (ulong)(100 + s), "p" + s, s * 400, 0, 0, 90, "TSpawn"))
             ];
             List<CapturedPawn> later = [.. start.Select(p => p with { X = p.X + 900, Y = 300, Place = "Mid" })];
-            RoundCapture capture = new(7, freeze, freeze + 64 * 100, 64,
+            RoundCapture capture = new(7, Freeze, Freeze + 64 * 100, 64,
             [
-                new CaptureMoment(freeze, CaptureTrigger.FreezeEnd, start),
-                new CaptureMoment(freeze + 64 * 10, CaptureTrigger.Sweep, later)
+                new CaptureMoment(Freeze, CaptureTrigger.FreezeEnd, start),
+                new CaptureMoment(Freeze + 64 * 10, CaptureTrigger.Sweep, later)
             ]);
             StratCaptureOptions options = new(2,
                 StratFromRound.Tokens(start, 2, StratFromRound.SlotMap(start.Where(p => p.Team == 2), null, null)),
@@ -295,7 +295,7 @@ public class StratStartBlockTests
             using (Assert.Multiple())
             {
                 await Assert.That(captured.Start!.Kind).IsEqualTo(StratStart.CapturedKind);
-                await Assert.That(captured.Start.Positions.All(p => p.Observed == true && p.Place == "TSpawn"))
+                await Assert.That(captured.Start.Positions.All(p => p is { Observed: true, Place: "TSpawn" }))
                     .IsTrue();
                 await Assert.That(captured.Steps[0].Verb).IsEqualTo("hold").Because("the freeze-end step stays");
                 await Assert.That(with.Tracks.Select(t => t.Slot))
@@ -313,7 +313,7 @@ public class StratStartBlockTests
         });
     }
 
-    private static readonly StratSpawns FixedSpawns = new(
+    private static readonly StratSpawns _fixedSpawns = new(
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(1000 + 100 * i, 0, 0, "TSpawn"))],
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(-1000 - 100 * i, 0, 0, "CTSpawn"))]);
 
@@ -343,13 +343,13 @@ public class StratStartBlockTests
             StratSceneProjection without =
                 StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres);
             StratSceneProjection with = StratSceneProjection.Build(document, StratPath.MainLine(document), null,
-                centres, spawns: FixedSpawns);
+                centres, spawns: _fixedSpawns);
             int move = StepSchedule.TickFor(106, 115);
             using (Assert.Multiple())
             {
                 await Assert.That(StratStartBlock.Effective(document)!.Positions.Select(p => p.Slot))
                     .IsEquivalentTo(StratVocabulary.OpponentSlots, CollectionOrdering.Matching);
-                await Assert.That(StratStartBlock.Effective(document, FixedSpawns)!.Positions.Count).IsEqualTo(10);
+                await Assert.That(StratStartBlock.Effective(document, _fixedSpawns)!.Positions.Count).IsEqualTo(10);
                 await Assert.That(without.Tracks.Single(t => t.Slot == "A").TrySample(0, out _)).IsFalse()
                     .Because("no spawns, no start for A");
                 await Assert.That(Sample(with, "A", 0).X).IsEqualTo(1000f);

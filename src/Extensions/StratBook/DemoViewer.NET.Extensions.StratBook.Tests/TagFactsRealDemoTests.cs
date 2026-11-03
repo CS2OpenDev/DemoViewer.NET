@@ -25,7 +25,7 @@ public class TagFactsRealDemoTests
     public async Task ATagInEveryLiveRound_CarriesThatRoundsFacts()
     {
         string path = DemoTestHelper.RequireDemo();
-        ParsedDemo parsed = DemoParser.Parse(File.ReadAllBytes(path).AsMemory());
+        ParsedDemo parsed = DemoParser.Parse((await File.ReadAllBytesAsync(path)).AsMemory());
         IReadOnlyList<ClipRound> rounds = ClipRounds.Derive(parsed);
 
         DemoCacheStore cache = new(null);

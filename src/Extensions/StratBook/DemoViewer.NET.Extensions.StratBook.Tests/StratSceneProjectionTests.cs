@@ -40,7 +40,7 @@ public class StratSceneProjectionTests
         using (Assert.Multiple())
         {
             await Assert.That(projection.Ticks)
-                .IsEquivalentTo(new[] { Smoke, Molly, Peek, All }, CollectionOrdering.Matching);
+                .IsEquivalentTo([Smoke, Molly, Peek, All], CollectionOrdering.Matching);
             await Assert.That(projection.Elements.Count).IsEqualTo(2);
             await Assert.That(arrow.Kind).IsEqualTo(AnnotationKind.Arrow);
             await Assert.That(arrow.Time).IsEqualTo(new TimeEnvelope(Smoke, Molly - 1, 8, 16));
@@ -49,7 +49,7 @@ public class StratSceneProjectionTests
                 .Because("the sample's #FFC107 shorthand is read");
             await Assert.That(arrow.Style.WidthWorld).IsEqualTo(3f);
             await Assert.That(arrow.Points.Select(p => (p.X, p.Y)))
-                .IsEquivalentTo(new[] { (420f, -1750f), (-900f, -1600f) }, CollectionOrdering.Matching);
+                .IsEquivalentTo([(420f, -1750f), (-900f, -1600f)], CollectionOrdering.Matching);
             await Assert.That(label.Kind).IsEqualTo(AnnotationKind.Text);
             await Assert.That(label.Text).IsEqualTo("swing wide");
             await Assert.That(label.Time).IsEqualTo(new TimeEnvelope(Peek, All - 1, 8, 16));

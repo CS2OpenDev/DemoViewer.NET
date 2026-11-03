@@ -29,9 +29,9 @@ public class StratThrowOriginTests
     // Step 3 of FiveSteps is at 1:30 on a 115 s clock.
     private const int StepThreeTick = 1600;
 
-    private static readonly Vector3 StandOrigin = new(-300, 500, -160);
-    private static readonly Vector3 JumpOrigin = new(-296, 504, -150);
-    private static readonly Vector3 Landing = new(-1400, -1400, -170);
+    private static readonly Vector3 _standOrigin = new(-300, 500, -160);
+    private static readonly Vector3 _jumpOrigin = new(-296, 504, -150);
+    private static readonly Vector3 _landing = new(-1400, -1400, -170);
 
     [Test]
     public async Task TheExportFrameSource_FindsTheThrower_AtTheLineupOrigin_AtTheStepTime()
@@ -317,10 +317,10 @@ public class StratThrowOriginTests
             {
                 await Assert.That(issues.Any(i => i.Severity == StratIssueSeverity.Refusal)).IsFalse();
                 await Assert.That(issues.Count(i =>
-                    i.Field == "/steps/0/utility/technique" && i.Severity == StratIssueSeverity.Warning)).IsEqualTo(1);
+                    i is { Field: "/steps/0/utility/technique", Severity: StratIssueSeverity.Warning })).IsEqualTo(1);
                 await Assert.That(issues.Any(i => i.Field == "/steps/1/utility/technique")).IsFalse();
                 await Assert
-                    .That(issues.Count(i => i.Field == "/steps/1/actor" && i.Severity == StratIssueSeverity.Warning))
+                    .That(issues.Count(i => i is { Field: "/steps/1/actor", Severity: StratIssueSeverity.Warning }))
                     .IsEqualTo(1);
                 await Assert.That(StratVocabulary.Techniques.Count).IsEqualTo(12);
             }
@@ -359,10 +359,10 @@ public class StratThrowOriginTests
                 Kind = GrenadeKind.Smoke,
                 ThrowerTeam = 2,
                 ReleaseTick = 1000,
-                ReleasePosition = WorldPoint.From((jump ? JumpOrigin : StandOrigin) + new Vector3(n, 0, 0)),
+                ReleasePosition = WorldPoint.From((jump ? _jumpOrigin : _standOrigin) + new Vector3(n, 0, 0)),
                 ReleaseEyeYaw = 30,
                 JumpThrow = jump,
-                DetonationPosition = WorldPoint.From(Landing),
+                DetonationPosition = WorldPoint.From(_landing),
                 EndKind = GrenadeEndKind.Detonated
             };
             shape?.Invoke(row);

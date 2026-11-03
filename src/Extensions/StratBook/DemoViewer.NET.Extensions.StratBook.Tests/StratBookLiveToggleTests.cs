@@ -26,7 +26,7 @@ using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     The live toggle in the real container: off to on runs the startup loads once and queues the
@@ -387,7 +387,7 @@ public class StratBookLiveToggleTests
     [Test]
     public async Task Delete_ReEnabledRightAfterTheReleaseWait_AbortsBeforeTheRemoverRuns()
     {
-        await WithContainer(Seed(packOn: true), async (provider, queue, settings) =>
+        await WithContainer(Seed(packOn: true), async (provider, _, settings) =>
         {
             App.StartPacks(provider);
             PackSwitch packs = provider.GetRequiredService<PackSwitch>();
@@ -524,7 +524,7 @@ public class StratBookLiveToggleTests
     public async Task OnThenOff_ReturnsTheHeap_ToWhereItWasBeforeTheEnable()
     {
         string? copy = Environment.GetEnvironmentVariable("DV_STRATBOOK_TOGGLE_CONFIG");
-        await WithContainer(Seed(packOn: true), async (provider, queue, settings) =>
+        await WithContainer(Seed(packOn: true), async (provider, _, settings) =>
         {
             if (copy is null)
             {
@@ -905,7 +905,7 @@ public class StratBookLiveToggleTests
         Directory.CreateDirectory(dir);
         if (seedSettingsJson is not null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -921,7 +921,7 @@ public class StratBookLiveToggleTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -949,7 +949,7 @@ public class StratBookLiveToggleTests
         Directory.CreateDirectory(dir);
         if (seedSettingsJson is not null && configDir is null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -974,7 +974,7 @@ public class StratBookLiveToggleTests
                 finally
                 {
                     QueueWork.Ambient = null;
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }

@@ -34,7 +34,7 @@ public class StratBookCompositionRootTests
         // eagerly constructs the shell, so a persisted session has to already be on disk to influence it.
         if (seedSettingsJson is not null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -50,7 +50,7 @@ public class StratBookCompositionRootTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -115,15 +115,14 @@ public class StratBookCompositionRootTests
                 provider.GetRequiredService<Services.DemoProcessing.DemoScheduler>();
             await Assert.That(coordinator.PassIds)
                 .IsEquivalentTo(
-                    new[]
-                    {
+                    [
                         "library", "highlights", Services.Facts.RoundFactsEvaluator.EvaluatorId, HostIds.FactsPass,
                         Services.MatchMeta.MatchMetaEvaluator.StampId,
                         DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator.EvaluatorId,
                         DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator.EvaluatorId,
                         DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService.EvaluatorId,
                         DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipPass.PassId
-                    }, CollectionOrdering.Matching);
+                    ], CollectionOrdering.Matching);
             await Assert.That(coordinator.PassIds[2]).IsEqualTo("roundfacts");
             // The rulesets' tables, a core pass beside Round Facts.
             await Assert.That(coordinator.PassIds[3]).IsEqualTo("facts");
@@ -194,7 +193,7 @@ public class StratBookCompositionRootTests
     [Test]
     public async Task PassOrder_WithThePackOff_IsOnlyLibraryAndHighlights_AndBuildsNothingPackOwned()
     {
-        const string packOff = """{ "Features": { "Overrides": { "pack.stratbook": false } } }""";
+        const string PackOff = """{ "Features": { "Overrides": { "pack.stratbook": false } } }""";
         await WithProvider(new DesktopWindowService(() => null), async provider =>
         {
             Services.DemoProcessing.DemoScheduler coordinator =
@@ -216,7 +215,7 @@ public class StratBookCompositionRootTests
                 await Assert.That(instances.GrenadeWalk).IsNull()
                     .Because("the pack is off: Grenade Index evaluator was never constructed, not merely excluded");
             }
-        }, packOff);
+        }, PackOff);
     }
 
     // RoundIndexEvaluator and GrenadeIndexEvaluator can be built through SituationIndex/GrenadeIndex, at
@@ -249,11 +248,11 @@ public class StratBookCompositionRootTests
     [Test]
     public async Task PackOff_NoEvaluatorWantsAnything_AndTheSuggestedBadgeStaysZero()
     {
-        const string demo = "/d/pack-root.dem";
-        // Every background opt-in ON, so a demo that qualifies does so under the gate's own default
+        const string Demo = "/d/pack-root.dem";
+        // Every background opt-in ON, so a Demo that qualifies does so under the gate's own default
         // (Situations) and against it (Grenades, Playback2D): the pack-off asserts below are not
-        // vacuously true because nothing else wanted the demo either.
-        const string packOff = """
+        // vacuously true because nothing else wanted the Demo either.
+        const string PackOff = """
                                {
                                  "Features": { "Overrides": { "pack.stratbook": false } },
                                  "Situations": { "BackgroundIndex": true },
@@ -261,7 +260,7 @@ public class StratBookCompositionRootTests
                                  "Playback2D": { "SuggestedTagsBackground": true }
                                }
                                """;
-        const string packOn = """
+        const string PackOn = """
                               {
                                 "Situations": { "BackgroundIndex": true },
                                 "Grenades": { "BackgroundIndex": true },
@@ -271,7 +270,7 @@ public class StratBookCompositionRootTests
 
         await WithProvider(new DesktopWindowService(() => null), async provider =>
         {
-            SeedQualifyingDemo(provider, demo);
+            SeedQualifyingDemo(provider, Demo);
             Services.Facts.RoundFactsEvaluator roundFacts =
                 provider.GetRequiredService<Services.Facts.RoundFactsEvaluator>();
             DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator roundIndex =
@@ -288,23 +287,23 @@ public class StratBookCompositionRootTests
 
             // The Match Overview chip's own path: a forced request must not leave a stale forced path
             // behind for the pack to pick up unasked once it comes back on.
-            grenades.Request(demo);
+            grenades.Request(Demo);
 
             using (Assert.Multiple())
             {
                 // Round Facts is core: the seeded rows carry a fake fingerprint, so they are stale with the
                 // pack off as well as on.
-                await Assert.That(roundFacts.Wants(demo)).IsTrue();
-                await Assert.That(roundFacts.PendingPaths()).Contains(demo);
-                await Assert.That(roundIndex.Wants(demo)).IsFalse();
+                await Assert.That(roundFacts.Wants(Demo)).IsTrue();
+                await Assert.That(roundFacts.PendingPaths()).Contains(Demo);
+                await Assert.That(roundIndex.Wants(Demo)).IsFalse();
                 await Assert.That(roundIndex.PendingPaths()).IsEmpty();
-                await Assert.That(suggestedTags.Wants(demo)).IsFalse();
+                await Assert.That(suggestedTags.Wants(Demo)).IsFalse();
                 await Assert.That(suggestedTags.PendingPaths()).IsEmpty();
-                await Assert.That(grenades.Wants(demo)).IsFalse();
+                await Assert.That(grenades.Wants(Demo)).IsFalse();
                 await Assert.That(grenades.PendingPaths()).IsEmpty();
                 // Wants is gated either way (forced or not); PriorityFor is not, so this is the assertion
                 // that actually proves Request did nothing rather than merely agreeing with Wants.
-                await Assert.That(grenades.PriorityFor(demo)).IsEqualTo(JobPriority.Background)
+                await Assert.That(grenades.PriorityFor(Demo)).IsEqualTo(JobPriority.Background)
                     .Because("a real forced path reads UserRequested; Request must have been a no-op");
             }
 
@@ -313,13 +312,13 @@ public class StratBookCompositionRootTests
             // round_facts rides the merged set whatever the pack says.
             await Assert.That(provider.GetRequiredService<Modules.Highlights.MergedRulesBuild>().Docs.Select(d => d.Id))
                 .Contains(Services.Facts.RoundFactsFingerprint.RulesetId);
-        }, packOff);
+        }, PackOff);
 
-        // Control: the same seed and the same demo, pack on (its default). Without this, the asserts
+        // Control: the same seed and the same Demo, pack on (its default). Without this, the asserts
         // above would pass just as well if the gate wiring were deleted outright.
         await WithProvider(new DesktopWindowService(() => null), async provider =>
         {
-            SeedQualifyingDemo(provider, demo);
+            SeedQualifyingDemo(provider, Demo);
             Services.Facts.RoundFactsEvaluator roundFacts =
                 provider.GetRequiredService<Services.Facts.RoundFactsEvaluator>();
             DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator roundIndex =
@@ -334,27 +333,27 @@ public class StratBookCompositionRootTests
                     .GetRequiredService<
                         DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator>();
 
-            grenades.Request(demo);
+            grenades.Request(Demo);
 
             using (Assert.Multiple())
             {
-                await Assert.That(roundIndex.Wants(demo)).IsTrue();
-                await Assert.That(suggestedTags.Wants(demo)).IsTrue();
-                await Assert.That(grenades.Wants(demo)).IsTrue();
-                await Assert.That(grenades.PriorityFor(demo)).IsEqualTo(JobPriority.UserRequested);
+                await Assert.That(roundIndex.Wants(Demo)).IsTrue();
+                await Assert.That(suggestedTags.Wants(Demo)).IsTrue();
+                await Assert.That(grenades.Wants(Demo)).IsTrue();
+                await Assert.That(grenades.PriorityFor(Demo)).IsEqualTo(JobPriority.UserRequested);
             }
 
             await Assert.That(SuggestedBadge(provider)).IsEqualTo("7");
             // Last: the first rules read collects the pack contributions, which queues the Review load and
-            // wakes the coordinator, and a job on the seeded demo would clear the forced grenade path above.
+            // wakes the coordinator, and a job on the seeded Demo would clear the forced grenade path above.
             using (Assert.Multiple())
             {
-                await Assert.That(roundFacts.Wants(demo)).IsTrue().Because("the seeded rows carry a stale fingerprint");
+                await Assert.That(roundFacts.Wants(Demo)).IsTrue().Because("the seeded rows carry a stale fingerprint");
                 await Assert.That(provider.GetRequiredService<Modules.Highlights.MergedRulesBuild>().Docs
                         .Select(d => d.Id))
                     .Contains(Services.Facts.RoundFactsFingerprint.RulesetId);
             }
-        }, packOn);
+        }, PackOn);
     }
 
     // A demo whose row carries everything RoundIndexEvaluator, SuggestedTagsService and

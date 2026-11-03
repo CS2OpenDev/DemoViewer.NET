@@ -17,7 +17,7 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class CalloutResolverTests
 {
-    private static readonly string[] ShippedMaps =
+    private static readonly string[] _shippedMaps =
     [
         "de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass",
         "de_train", "de_vertigo"
@@ -122,14 +122,14 @@ public class CalloutResolverTests
             throw new SkipTestException("repo root not found from the test output directory");
         }
 
-        await Assert.That(CanonicalPlaces.Maps).IsEquivalentTo(ShippedMaps, CollectionOrdering.Matching);
+        await Assert.That(CanonicalPlaces.Maps).IsEquivalentTo(_shippedMaps, CollectionOrdering.Matching);
         await Assert.That(CanonicalPlaces.Embedded("de_mirage").Count).IsEqualTo(23)
             .Because("the 23 pawn places measured on de_mirage");
         await Assert.That(CanonicalPlaces.Embedded("de_nuke").Count).IsEqualTo(29)
             .Because("the 29 pawn places measured on de_nuke");
         await Assert.That(CanonicalPlaces.Embedded("de_nowhere").Count).IsEqualTo(0);
 
-        foreach (string map in ShippedMaps)
+        foreach (string map in _shippedMaps)
         {
             ZoneSet baked = ZoneAssetPipeline.TryReadBaked(Path.Combine(repo, "assets", map))!;
             await Assert.That(CanonicalPlaces.Embedded(map))

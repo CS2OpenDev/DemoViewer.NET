@@ -31,7 +31,7 @@ public class UxConsistencyRenderTests
 
     private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
 
-    internal static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map = "de_nuke")
+    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map = "de_nuke")
     {
         DemoCacheRecord record = new()
         {

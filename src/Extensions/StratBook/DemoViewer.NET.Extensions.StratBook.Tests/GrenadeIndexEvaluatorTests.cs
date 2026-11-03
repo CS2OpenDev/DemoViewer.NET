@@ -117,7 +117,7 @@ public class GrenadeIndexEvaluatorTests
 
         public CancellationToken CancellationToken => CancellationToken.None;
 
-        public T? Collected<T>(string collectorId) where T : class => throw new NotSupportedException();
+        public T Collected<T>(string collectorId) where T : class => throw new NotSupportedException();
 
         public IReadOnlyList<FactRow> Table(string table) => throw new NotSupportedException();
     }
@@ -139,7 +139,7 @@ public class GrenadeIndexEvaluatorTests
                 .Because("the walk follows the Library's parse on the same visit");
             await Assert.That(on.WantsAfterUpstream(Demo)).IsFalse().Because("a parsed demo is Wants' call");
             await Assert.That(off.WantsAfterUpstream("/d/unparsed.dem")).IsFalse();
-            await Assert.That(on.PendingPaths()).IsEquivalentTo(new[] { Demo }, CollectionOrdering.Matching);
+            await Assert.That(on.PendingPaths()).IsEquivalentTo([Demo], CollectionOrdering.Matching);
             await Assert.That(on.PriorityFor(Demo)).IsEqualTo(JobPriority.Background);
         }
     }
@@ -224,14 +224,14 @@ public class GrenadeIndexEvaluatorTests
         {
             await Assert.That(evaluator.Wants(Demo)).IsTrue();
             await Assert.That(evaluator.PriorityFor(Demo)).IsEqualTo(JobPriority.UserRequested);
-            await Assert.That(evaluator.PendingPaths()).IsEquivalentTo(new[] { Demo }, CollectionOrdering.Matching);
+            await Assert.That(evaluator.PendingPaths()).IsEquivalentTo([Demo], CollectionOrdering.Matching);
         }
     }
 
     [Test]
     public async Task Evaluate_WritesTheRowsThenTheStamp_NoPaths_AndTheIndexMirrorsIt()
     {
-        (DemoCacheStore cache, GrenadeIndexEvaluator evaluator) = Wire(background: true);
+        (_, GrenadeIndexEvaluator evaluator) = Wire(background: true);
         List<string> indexed = [];
         evaluator.Indexed += indexed.Add;
 
@@ -241,7 +241,7 @@ public class GrenadeIndexEvaluatorTests
         GrenadeDocument rows = evaluator.Store.TryReadRows(Demo, "abc")!;
         using (Assert.Multiple())
         {
-            await Assert.That(indexed).IsEquivalentTo(new[] { Demo }, CollectionOrdering.Matching);
+            await Assert.That(indexed).IsEquivalentTo([Demo], CollectionOrdering.Matching);
             await Assert.That(stamp.Schema).IsEqualTo(GrenadeStore.Schema);
             await Assert.That(stamp.State).IsEqualTo(DemoDataState.Written);
             await Assert.That(stamp.Count).IsEqualTo(1);
@@ -291,7 +291,7 @@ public class GrenadeIndexEvaluatorTests
     public async Task AForcedRequest_OnAParseWithoutUserCommands_StaysForcedAndWanted()
     {
         int walks = 0;
-        (DemoCacheStore cache, GrenadeIndexEvaluator evaluator) = Wire(walk: d =>
+        (_, GrenadeIndexEvaluator evaluator) = Wire(walk: d =>
         {
             walks++;
             return OneSmoke(d);
@@ -376,7 +376,7 @@ public class GrenadeIndexEvaluatorTests
     [Test]
     public async Task AFileNamingAnotherDemosHash_IsIgnored()
     {
-        (DemoCacheStore cache, GrenadeIndexEvaluator evaluator) = Wire(background: true);
+        (_, GrenadeIndexEvaluator evaluator) = Wire(background: true);
         evaluator.Evaluate(Demo, Parse());
         await Assert.That(evaluator.Store.TryReadRows(Demo, "abc")).IsNotNull();
 

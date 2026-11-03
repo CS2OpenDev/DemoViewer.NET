@@ -359,7 +359,7 @@ public class ResultCardTests
     [Test]
     public async Task TheShippedSeam_SkipsTheOpenForTheLoadedDemo_OpensAnother_AndReportsWhatItCouldNot()
     {
-        string? loaded = DemoA;
+        string loaded = DemoA;
         List<string> opened = [];
         List<int> seeks = [];
         List<string> tabs = [];

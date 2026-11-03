@@ -49,7 +49,7 @@ public class StratCanvasTests
             StratSceneProjection projection = canvas.Projection!;
             using (Assert.Multiple())
             {
-                await Assert.That(projection.Ticks).IsEquivalentTo(new[] { Step1, Step2, Step3, Step4, Step5 },
+                await Assert.That(projection.Ticks).IsEquivalentTo([Step1, Step2, Step3, Step4, Step5],
                     CollectionOrdering.Matching);
                 await Assert.That(canvas.Timeline.TotalFrames).IsEqualTo(Step5 + 1);
                 await Assert.That(canvas.Timeline.Markers.Count(m => m.TrackId == StepTrack.TrackId)).IsEqualTo(5);
@@ -344,7 +344,7 @@ public class StratCanvasTests
             using (Assert.Multiple())
             {
                 await Assert.That(ops.Count).IsEqualTo(3);
-                await Assert.That(ops.All(o => o.Op == PatchOp.Remove && o.From is JsonObject)).IsTrue();
+                await Assert.That(ops.All(o => o is { Op: PatchOp.Remove, From: JsonObject })).IsTrue();
                 await Assert.That(ops.Select(o => o.Path)).IsEquivalentTo(_erasedPaths, CollectionOrdering.Matching);
                 await Assert.That(session.Document!.Steps[3].Strokes.Count).IsEqualTo(0);
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
@@ -432,13 +432,12 @@ public class StratCanvasTests
             {
                 await Assert.That(projection.Path.Select(p => p.Step.Id))
                     .IsEquivalentTo(
-                        new[]
-                        {
+                        [
                             StratTestData.StepId(1), StratTestData.StepId(2), StratTestData.StepId(4),
                             StratTestData.StepId(5)
-                        }, CollectionOrdering.Matching);
+                        ], CollectionOrdering.Matching);
                 await Assert.That(session.UndoDepth).IsEqualTo(undo).Because("a path is view state, not an edit");
-                await Assert.That(canvas.Timeline.Markers.Single(m => m.TrackId == StepTrack.TrackId && m.Tick == Step2)
+                await Assert.That(canvas.Timeline.Markers.Single(m => m is { TrackId: StepTrack.TrackId, Tick: Step2 })
                         .Glyph)
                     .IsEqualTo("2" + StepTrack.ForkGlyph);
             }

@@ -64,7 +64,7 @@ public class ThrowerCollectorTests
         }
 
         await Assert.That(rows).IsEquivalentTo(samples
-            .Where(s => s.Removed && s.ClassName is GrenadeProjectileClasses.Molotov or GrenadeProjectileClasses.Decoy)
+            .Where(s => s is { Removed: true, ClassName: GrenadeProjectileClasses.Molotov or GrenadeProjectileClasses.Decoy })
             .Select(RemovedProjectile.From), CollectionOrdering.Matching);
     }
 
@@ -106,7 +106,7 @@ public class ThrowerCollectorTests
 
         public ObservedRead Provider(string providerName) => throw new NotSupportedException();
 
-        public object? Read(string providerName, int playerSlot) => throw new NotSupportedException();
+        public object Read(string providerName, int playerSlot) => throw new NotSupportedException();
 
         public bool TryReadInt(ObservedRead provider, int playerSlot, out int value) =>
             throw new NotSupportedException();
@@ -119,6 +119,6 @@ public class ThrowerCollectorTests
 
         public int Team(int playerSlot) => throw new NotSupportedException();
 
-        public CSGOUserCmdPB? Command(int playerSlot) => throw new NotSupportedException();
+        public CSGOUserCmdPB Command(int playerSlot) => throw new NotSupportedException();
     }
 }

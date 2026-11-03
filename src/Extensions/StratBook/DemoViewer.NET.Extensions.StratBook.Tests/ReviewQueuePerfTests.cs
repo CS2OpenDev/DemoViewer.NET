@@ -29,7 +29,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("Integration")]
 public class ReviewQueuePerfTests
 {
-    private const int SyntheticClips = 5000;
+
 
     [Test]
     public async Task OpenScrollAndABatch_OverAThousandsOfEntriesQueue()
@@ -206,8 +206,8 @@ public class ReviewQueuePerfTests
         }
 
         return view.GetVisualDescendants().OfType<ContentPresenter>()
-            .Where(c => c.DataContext is ReviewRowViewModel && c.IsVisible
-                                                            && c.TranslatePoint(default, scroller) is { Y: >= -1 })
+            .Where(c => c is { DataContext: ReviewRowViewModel, IsVisible: true }
+                        && c.TranslatePoint(default, scroller) is { Y: >= -1 })
             .OrderBy(c => c.TranslatePoint(default, scroller)!.Value.Y)
             .Select(c => ((ReviewRowViewModel)c.DataContext!).Entry.Id)
             .Cast<Guid?>()

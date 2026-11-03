@@ -369,7 +369,7 @@ public class SuggestedTagsOccupancyTests
             await Assert.That(events[3].ThrowerSlot).IsEqualTo(-1).Because("inferno_startburn has no thrower");
             await Assert.That(events[4].ThrowerSlot).IsEqualTo(-1)
                 .Because("decoy_started names a pawn handle, not a slot");
-            await Assert.That(events.All(e => e.Side == 0 && e.Place is null)).IsTrue();
+            await Assert.That(events.All(e => e is { Side: 0, Place: null })).IsTrue();
         }
     }
 

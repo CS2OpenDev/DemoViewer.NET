@@ -15,10 +15,7 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class ToleranceSliderTests
 {
-    private const string DemoA = "/d/a.dem";
-    private const string DemoB = "/d/b.dem";
-    private const string DemoC = "/d/c.dem";
-    private const string DemoTrain = "/d/train.dem";
+
 
     private static readonly string[] _nukePlaces = ["BombsiteA", "Hell", "Ramp", "Outside", "Lobby", "Heaven"];
 

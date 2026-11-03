@@ -302,17 +302,19 @@ public class RoundIndexBuilderTests
     public async Task PlacesAndTransitions_AreSummed()
     {
         RoundFactsRows facts = Facts(Round(1, 1000, 1300), Round(2, 2000, 2200));
-        List<PositionSample> samples = [];
-        // Round 1: everyone in Outside at z=10, then the CTs cross to Hell (z=100), then back.
-        samples.AddRange(CtSlots.Select(s => Sample(1000, s, "Outside", 100, 200, 10)));
-        samples.AddRange(TSlots.Select(s => Sample(1000, s, "Ramp", 500, 600, 10)));
-        samples.AddRange(CtSlots.Select(s => Sample(1064, s, "Hell", 300, 400, 100)));
-        samples.AddRange(TSlots.Select(s => Sample(1064, s, "Ramp", 520, 620, 10)));
-        samples.AddRange(CtSlots.Select(s => Sample(1128, s, "Outside", 100, 200, 10)));
-        samples.AddRange(TSlots.Select(s => Sample(1128, s, "Ramp", 500, 600, 10)));
-        // Round 2: a chain does not cross a round boundary; slot 1 starts in Hell and stays.
-        samples.AddRange(CtSlots.Select(s => Sample(2000, s, "Hell", 300, 400, 100)));
-        samples.AddRange(TSlots.Select(s => Sample(2000, s, "Ramp", 500, 600, 10)));
+        List<PositionSample> samples =
+        [
+            // Round 1: everyone in Outside at z=10, then the CTs cross to Hell (z=100), then back.
+            .. CtSlots.Select(s => Sample(1000, s, "Outside", 100, 200, 10)),
+            .. TSlots.Select(s => Sample(1000, s, "Ramp", 500, 600, 10)),
+            .. CtSlots.Select(s => Sample(1064, s, "Hell", 300, 400, 100)),
+            .. TSlots.Select(s => Sample(1064, s, "Ramp", 520, 620, 10)),
+            .. CtSlots.Select(s => Sample(1128, s, "Outside", 100, 200, 10)),
+            .. TSlots.Select(s => Sample(1128, s, "Ramp", 500, 600, 10)),
+            // Round 2: a chain does not cross a round boundary; slot 1 starts in Hell and stays.
+            .. CtSlots.Select(s => Sample(2000, s, "Hell", 300, 400, 100)),
+            .. TSlots.Select(s => Sample(2000, s, "Ramp", 500, 600, 10))
+        ];
 
         RoundIndexDocument document = Build(Demo(), facts, samples);
 
@@ -327,7 +329,7 @@ public class RoundIndexBuilderTests
                 .Because("z=100 quantizes to the 128 bucket");
             await Assert.That(document.Places["Ramp"].Count).IsEqualTo(20);
 
-            PlaceTransition hellOutside = document.Transitions.Single(t => t.A == "Hell" && t.B == "Outside");
+            PlaceTransition hellOutside = document.Transitions.Single(t => t is { A: "Hell", B: "Outside" });
             await Assert.That(hellOutside.Count).IsEqualTo(10)
                 .Because("five players crossed twice within round 1; round 2 starts a new chain");
             await Assert.That(document.Transitions.Count).IsEqualTo(1).Because("the T side never moved");

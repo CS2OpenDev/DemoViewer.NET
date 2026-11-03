@@ -29,9 +29,9 @@ public class StratVerbsWhoTests
 {
     private const string LurkFixture = "schema-v1.lurk.dvstrat.json";
 
-    private static readonly Guid LurkId = Guid.Parse("7e1f2a3b-4c5d-4e6f-8a9b-0c1d2e3f4a5b");
+    private static readonly Guid _lurkId = Guid.Parse("7e1f2a3b-4c5d-4e6f-8a9b-0c1d2e3f4a5b");
 
-    private static readonly CalloutResolver Mirage = new(CanonicalPlaces.Embedded("de_mirage"));
+    private static readonly CalloutResolver _mirage = new(CanonicalPlaces.Embedded("de_mirage"));
 
     private static bool Updating => Environment.GetEnvironmentVariable("PB2D_GOLDEN_UPDATE") == "1";
 
@@ -577,9 +577,9 @@ public class StratVerbsWhoTests
 
     // ── Lurk: model, checks, projection, words ────────────────────────────────────────────────────
 
-    internal static StratDocument WithLurk()
+    private static StratDocument WithLurk()
     {
-        StratDocument document = Minimal(LurkId);
+        StratDocument document = Minimal(_lurkId);
         StratStep lurk = Step(3, 70, "E", "lurk");
         lurk.Lurk = new StepLurk
         {
@@ -616,10 +616,10 @@ public class StratVerbsWhoTests
             string path = Path.Combine(repo, "tests", "fixtures", "strats", LurkFixture);
             if (Updating)
             {
-                File.WriteAllText(path, StratStore.Serialize(WithLurk()) + "\n");
+                await File.WriteAllTextAsync(path, StratStore.Serialize(WithLurk()) + "\n");
             }
 
-            string original = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string original = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
             StratDocument loaded = JsonSerializer.Deserialize(original, StratJsonContext.Default.StratDocument)!;
             using (Assert.Multiple())
             {
@@ -628,7 +628,7 @@ public class StratVerbsWhoTests
                 await Assert.That(StratStore.Serialize(loaded) + "\n").IsEqualTo(original)
                     .Because("load and save is field-identical");
                 await Assert.That(loaded.Steps[2].Lurk!.Rotate!.Extra!.ContainsKey("futureRotate")).IsTrue();
-                await Assert.That(StratValidator.Validate(loaded, Mirage)
+                await Assert.That(StratValidator.Validate(loaded, _mirage)
                     .Where(i => i.Severity != StratIssueSeverity.Info)).IsEmpty();
             }
         });
@@ -668,7 +668,7 @@ public class StratVerbsWhoTests
             lurk.Lurk!.Areas.Add("Nowhere");
             lurk.Lurk.Rotate!.To = new PlaceRef { Place = "Elsewhere" };
             lurk.Lurk.Rotate.AtSeconds = 70;
-            IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, Mirage);
+            IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, _mirage);
 
             string Warned(string field) => string.Join("; ",
                 issues.Where(i => i.Field == field).Select(i => i.Severity + " " + i.Message));
@@ -713,7 +713,7 @@ public class StratVerbsWhoTests
     }
 
     // E stands at the origin from 1:50; a lurk at 1:40 rotates at 1:30 to Ramp, 430 units east.
-    private static readonly PlaceCentreResolver Centres = (place, _) => place == "Ramp" ? (430, 0) : null;
+    private static readonly PlaceCentreResolver _centres = (place, _) => place == "Ramp" ? (430, 0) : null;
 
     private static StratDocument Rotating(double rotateAt = 90, StepPosition? later = null, double laterAt = 60)
     {
@@ -737,7 +737,7 @@ public class StratVerbsWhoTests
     }
 
     private static TokenTrack Track(StratDocument document, string slot, PlaceCentreResolver? centres = null) =>
-        StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres ?? Centres).Tracks
+        StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres ?? _centres).Tracks
             .Single(t => t.Slot == slot);
 
     private static (float X, float Y, float Yaw) At(TokenTrack track, int tick) =>
@@ -764,7 +764,7 @@ public class StratVerbsWhoTests
             }
 
             StratSceneProjection projection =
-                StratSceneProjection.Build(document, StratPath.MainLine(document), null, Centres);
+                StratSceneProjection.Build(document, StratPath.MainLine(document), null, _centres);
             TokenTrack dragged = projection.TrackWith("E", 0, new TokenPlacement(0, 0, 0, 90));
             await Assert.That(At(dragged, arrive).X).IsEqualTo(430f).Because("a drag preview draws the same rotate");
 
@@ -867,7 +867,7 @@ public class StratVerbsWhoTests
             StratDocument document = Rotating();
             document.Steps[0].Positions[0].LevelMinZ = -512;
             StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document), null,
-                (place, level) => centres.Centre(place, level), (place, level) => centres.Arrival(place, level));
+                centres.Centre, centres.Arrival);
             TokenTrack track = projection.Tracks.Single(t => t.Slot == "E");
             using (Assert.Multiple())
             {
@@ -884,8 +884,8 @@ public class StratVerbsWhoTests
         {
             // The rotate is at 1:30; a new step after the lurk at 1:35 comes before it, one at 1:25 after it.
             StratDocument document = Rotating();
-            List<StepPosition> before = StratStepCarry.PositionsAt(document, 1, null, Centres, 95);
-            List<StepPosition> after = StratStepCarry.PositionsAt(document, 1, null, Centres, 85);
+            List<StepPosition> before = StratStepCarry.PositionsAt(document, 1, null, _centres, 95);
+            List<StepPosition> after = StratStepCarry.PositionsAt(document, 1, null, _centres, 85);
             List<StepPosition> nowhere = StratStepCarry.PositionsAt(document, 1, null, (_, _) => null, 85);
             using (Assert.Multiple())
             {
@@ -897,7 +897,7 @@ public class StratVerbsWhoTests
                     .Because("a place that does not resolve moves nothing");
             }
 
-            PatchOp added = StepAuthoringPatches.AddCarriedStep(document, 1, 85, Guid.NewGuid(), null, Centres);
+            PatchOp added = StepAuthoringPatches.AddCarriedStep(document, 1, 85, Guid.NewGuid(), null, _centres);
             await Assert.That(added.Value!["positions"]!.AsArray().Any(p => p!["slot"]!.GetValue<string>() == "E"))
                 .IsFalse();
         });
@@ -943,7 +943,7 @@ public class StratVerbsWhoTests
                     l.Areas.Clear();
                     l.Rotate = null;
                 })).IsEqualTo("E's lurk: lurk removed");
-                await Assert.That(StratDiffPhrasing.Summary(StratHistory.ToNode(Minimal(LurkId)),
+                await Assert.That(StratDiffPhrasing.Summary(StratHistory.ToNode(Minimal(_lurkId)),
                     [
                         PatchOp.AddOp("/steps/2",
                             JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep))

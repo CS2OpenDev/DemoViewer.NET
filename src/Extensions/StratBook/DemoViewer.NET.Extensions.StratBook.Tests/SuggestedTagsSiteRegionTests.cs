@@ -215,7 +215,7 @@ public class SuggestedTagsSiteRegionTests
     [Test]
     public async Task TheShippedProfile_ReadsAsTheDesignWritesIt_AndRoundTrips()
     {
-        const string design = """
+        const string Design = """
                               { "schemaVersion": 1, "id": "team-default",
                                 "order": ["execute", "default", "fake", "opener", "retake"],
                                 "execute": { "N": 4, "T": 4, "touch": 10, "minSecond": 3, "lead": 6, "lag": 8, "rushSecond": 25, "slowSecond": 60 },
@@ -226,7 +226,7 @@ public class SuggestedTagsSiteRegionTests
                                 "siteRegionOverrides": { "de_inferno": { "BombsiteA": { "remove": ["Middle"] } } } }
                               """;
 
-        DetectorProfile parsed = DetectorProfile.Parse(design);
+        DetectorProfile parsed = DetectorProfile.Parse(Design);
         DetectorProfile back = DetectorProfile.Parse(DetectorProfile.Default.ToJson());
 
         using (Assert.Multiple())

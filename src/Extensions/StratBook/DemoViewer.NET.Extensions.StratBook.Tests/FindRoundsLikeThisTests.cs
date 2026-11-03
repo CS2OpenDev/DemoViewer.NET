@@ -298,7 +298,7 @@ public class FindRoundsLikeThisTests
         {
             RecordingSeam seam = new();
             PlaybackContributionHost host =
-                Extensions.StratBook.ReviewPanelsHarness.Host(null, new SituationsPlaybackContribution());
+                ReviewPanelsHarness.Host(null, new SituationsPlaybackContribution());
             (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab(
                 contributions: host, configure: c =>
                 {

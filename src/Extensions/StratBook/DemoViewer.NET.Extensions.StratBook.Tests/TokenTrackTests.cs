@@ -277,7 +277,7 @@ public class TokenTrackTests
         TokenTrackSet set = new([new TokenTrack("A", [Key(0, 1, 1)]), new TokenTrack("O3", [Key(500, 2, 2)])]);
         int before = set.Version;
 
-        List<TokenSample> samples = [new TokenSample("E", default)];
+        List<TokenSample> samples = [new("E", default)];
         set.Sample(100, samples);
         await Assert.That(string.Join("|", samples.Select(s => s.Slot))).IsEqualTo("A");
 

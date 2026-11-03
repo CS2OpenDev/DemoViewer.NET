@@ -21,11 +21,11 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class StratStartEditingTests
 {
-    private static readonly int[] StartTicks = [0, 64, 640];
+    private static readonly int[] _startTicks = [0, 64, 640];
 
     private const double Floor = -512;
 
-    private static readonly StratSpawns Spawns = new(
+    private static readonly StratSpawns _spawns = new(
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(10 + 10 * i, 10, Floor, "Hut"))],
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(400 + 10 * i, 300, Floor, "Ramp"))]);
 
@@ -73,7 +73,7 @@ public class StratStartEditingTests
                 for (int i = 0; i < 5; i++)
                 {
                     string slot = StratVocabulary.Slots[i];
-                    foreach (int tick in StartTicks)
+                    foreach (int tick in _startTicks)
                     {
                         TokenKeyframe at = Sample(projection, slot, tick);
                         await Assert.That((at.X, at.Y)).IsEqualTo(((float)(100 + 200 * i), 600f))
@@ -113,8 +113,8 @@ public class StratStartEditingTests
             {
                 await Assert.That(StratStartBlock.Effective(document)!.Kind).IsEqualTo(StratStart.CustomKind);
                 await Assert.That(StratStartPhrasing.Text(document, null)).IsEqualTo("from step 1");
-                await Assert.That(StratStartBlock.Effective(onSpawns, Spawns)!.Kind).IsEqualTo(StratStart.SpawnKind);
-                await Assert.That(StratStartPhrasing.Text(onSpawns, null, Spawns)).IsEqualTo("spawn");
+                await Assert.That(StratStartBlock.Effective(onSpawns, _spawns)!.Kind).IsEqualTo(StratStart.SpawnKind);
+                await Assert.That(StratStartPhrasing.Text(onSpawns, null, _spawns)).IsEqualTo("spawn");
             }
         });
     }
@@ -168,7 +168,7 @@ public class StratStartEditingTests
                 loaded++;
                 landed.TrySetResult();
             };
-            read.SetResult(Spawns);
+            read.SetResult(_spawns);
             await landed.Task.WaitAsync(TimeSpan.FromSeconds(30));
 
             editor.Project();
@@ -204,7 +204,7 @@ public class StratStartEditingTests
             canvas.PlacesLoaded += () => loaded++;
 
             session.Open(captured.Id);
-            read.SetResult(Spawns);
+            read.SetResult(_spawns);
             await Task.Delay(100);
             await Assert.That(loaded).IsEqualTo(0).Because("the captured strat open now takes no spawns");
 
@@ -261,7 +261,7 @@ public class StratStartEditingTests
         await HeadlessSession.RunOnUi(async () =>
         {
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(Captured());
-            using StratCanvasViewModel canvas = Canvas(session, _ => Task.FromResult<StratSpawns?>(Spawns));
+            using StratCanvasViewModel canvas = Canvas(session, _ => Task.FromResult<StratSpawns?>(_spawns));
             StratEditorViewModel editor = Editor(session, canvas);
             string before = StratHistory.ToNode(session.Document!).ToJsonString();
             canvas.SelectStart();

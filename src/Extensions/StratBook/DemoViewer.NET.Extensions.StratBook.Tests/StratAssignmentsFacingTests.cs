@@ -25,7 +25,7 @@ public class StratAssignmentsFacingTests
     private const int One = 320, Two = 960, Three = 1600, Four = 2240;
 
     // Ramp's centre is up and to the right of B's spot at the origin: 45 degrees.
-    private static readonly PlaceCentreResolver Centres = (place, _) => place == "Ramp" ? (100, 100) : null;
+    private static readonly PlaceCentreResolver _centres = (place, _) => place == "Ramp" ? (100, 100) : null;
 
     // B stands at the origin from step 1 and walks north at step 4; step 2 has B's line and no position.
     private static StratDocument Watching(StepWatch watch, bool positionOnTwo = false)
@@ -61,7 +61,7 @@ public class StratAssignmentsFacingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            TokenTrack b = Track(Watching(new StepWatch { Places = ["Ramp", "Hut"] }), "B", Centres);
+            TokenTrack b = Track(Watching(new StepWatch { Places = ["Ramp", "Hut"] }), "B", _centres);
 
             using (Assert.Multiple())
             {
@@ -77,13 +77,13 @@ public class StratAssignmentsFacingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            PlaceCentreResolver centres = (place, _) => place switch
+            static (double X, double Y)? Centres(string place, double levelMinZ) => place switch
             {
                 "Hut" => (6, -8),
                 "Ramp" => (100, 100),
                 _ => null
             };
-            TokenTrack b = Track(Watching(new StepWatch { Places = ["Hut", "Ramp"] }), "B", centres);
+            TokenTrack b = Track(Watching(new StepWatch { Places = ["Hut", "Ramp"] }), "B", Centres);
 
             await Assert.That(YawAt(b, Two)).IsEqualTo(45f).Because("B stands on Hut, so it faces Ramp");
         });
@@ -94,8 +94,8 @@ public class StratAssignmentsFacingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            TokenTrack b = Track(Watching(new StepWatch { Places = ["Ramp"], YawDegrees = -90 }, true), "B", Centres);
-            TokenTrack authored = Track(Watching(new StepWatch { Places = ["Ramp"] }, true), "B", Centres);
+            TokenTrack b = Track(Watching(new StepWatch { Places = ["Ramp"], YawDegrees = -90 }, true), "B", _centres);
+            TokenTrack authored = Track(Watching(new StepWatch { Places = ["Ramp"] }, true), "B", _centres);
 
             using (Assert.Multiple())
             {
@@ -116,7 +116,7 @@ public class StratAssignmentsFacingTests
             TokenTrack baseline = Track(plain, "B", null);
 
             TokenTrack noZones = Track(Watching(new StepWatch { Places = ["Ramp"] }), "B", null);
-            TokenTrack unknown = Track(Watching(new StepWatch { Places = ["Nowhere", "Ramp"] }), "B", Centres);
+            TokenTrack unknown = Track(Watching(new StepWatch { Places = ["Nowhere", "Ramp"] }), "B", _centres);
             using (Assert.Multiple())
             {
                 await Assert.That(noZones.Keyframes).IsEquivalentTo(baseline.Keyframes, CollectionOrdering.Matching);
@@ -134,7 +134,7 @@ public class StratAssignmentsFacingTests
             StratDocument plain = Watching(new StepWatch());
             plain.Steps[1].Assignments = null;
             TokenTrack baseline = Track(plain, "B", null);
-            TokenTrack turned = Track(Watching(new StepWatch { Places = ["Ramp"] }), "B", Centres);
+            TokenTrack turned = Track(Watching(new StepWatch { Places = ["Ramp"] }), "B", _centres);
 
             List<string> moved = [];
             for (int tick = 0; tick <= Four + 64; tick += 16)
@@ -162,9 +162,9 @@ public class StratAssignmentsFacingTests
             two.Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid() };
             two.Assignments!.RemoveAt(1);
             two.Actor = "B";
-            ThrowOriginResolver origins = (_, _) => new TokenPlacement(-300, -300, 0, 90);
+            static TokenPlacement? Origins(string map, UtilityRef utility) => new TokenPlacement(-300, -300, 0, 90);
 
-            TokenTrack b = Track(document, "B", Centres, origins);
+            TokenTrack b = Track(document, "B", _centres, Origins);
             await Assert.That(b.Keyframes.Single(k => k.Tick == Two))
                 .IsEqualTo(new TokenKeyframe(Two, -300, -300, 0, 90));
         });
@@ -176,7 +176,7 @@ public class StratAssignmentsFacingTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratDocument document = Watching(new StepWatch { Places = ["Ramp"] });
-            List<StepPosition> carried = StratStepCarry.PositionsAt(document, 1, null, Centres);
+            List<StepPosition> carried = StratStepCarry.PositionsAt(document, 1, null, _centres);
             List<StepPosition> without = StratStepCarry.PositionsAt(document, 1, null);
 
             using (Assert.Multiple())

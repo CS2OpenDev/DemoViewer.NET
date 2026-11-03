@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.AppTests.Extensions;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
@@ -16,7 +17,7 @@ using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     The Strat Book pack is plumbing, not behaviour: with it on, the composition root registers the same
@@ -493,7 +494,7 @@ public class StratBookPackTests
     [Test]
     public async Task PackOff_TheShellShowsNoHub_AndNoStratBookSection()
     {
-        const string seed = """
+        const string Seed = """
                             {
                               "Features": {
                                 "Overrides": { "pack.stratbook": false }
@@ -501,7 +502,7 @@ public class StratBookPackTests
                             }
                             """;
 
-        await WithProvider(seed, async provider =>
+        await WithProvider(Seed, async provider =>
         {
             MainViewModel vm = provider.GetRequiredService<MainViewModel>();
             using (Assert.Multiple())
@@ -696,7 +697,7 @@ public class StratBookPackTests
             SettingsService svc = new(dir);
             ServiceCollection services = new();
             services.Configure<AppSettings>(svc.Configuration);
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             using FeatureGate gate = new(sp.GetRequiredService<IOptionsMonitor<AppSettings>>(), false);
             await body(svc, gate);
         }
@@ -712,7 +713,7 @@ public class StratBookPackTests
         string dir = NewTempDir();
         if (seedSettingsJson is not null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -739,7 +740,7 @@ public class StratBookPackTests
             }
             finally
             {
-                provider.Dispose();
+                await provider.DisposeAsync();
             }
         }), seedSettingsJson);
 

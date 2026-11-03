@@ -418,7 +418,7 @@ public class StratEditorRoomTests
             LineupPickerViewModel picker = vm.LineupPicker!;
             Control overlay = view.FindControl<Control>("LineupPickerOverlay")!;
             Control body = view.FindControl<Control>("TabBody")!;
-            IInputElement? focused = TopLevel.GetTopLevel(view)!.FocusManager!.GetFocusedElement();
+            IInputElement? focused = TopLevel.GetTopLevel(view)!.FocusManager.GetFocusedElement();
             using (Assert.Multiple())
             {
                 await Assert.That(overlay.IsEffectivelyVisible).IsTrue();

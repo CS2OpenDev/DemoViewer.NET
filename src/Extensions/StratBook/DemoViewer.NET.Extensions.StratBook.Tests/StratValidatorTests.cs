@@ -16,7 +16,7 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratValidatorTests
 {
-    private static readonly CalloutResolver Mirage = new(CanonicalPlaces.Embedded("de_mirage"));
+    private static readonly CalloutResolver _mirage = new(CanonicalPlaces.Embedded("de_mirage"));
 
     private static async Task Expect(StratDocument document, StratIssueSeverity severity, string field,
         CalloutResolver? places = null,
@@ -31,7 +31,7 @@ public class StratValidatorTests
     [Test]
     public async Task AValidStrat_RaisesNothing()
     {
-        await Assert.That(StratValidator.Validate(Minimal(), Mirage, []).Count).IsEqualTo(0);
+        await Assert.That(StratValidator.Validate(Minimal(), _mirage, []).Count).IsEqualTo(0);
     }
 
     [Test]
@@ -143,7 +143,7 @@ public class StratValidatorTests
             ]
         };
 
-        IReadOnlyList<StratIssue> issues = StratValidator.ValidateCallouts(table, Mirage);
+        IReadOnlyList<StratIssue> issues = StratValidator.ValidateCallouts(table, _mirage);
         using (Assert.Multiple())
         {
             await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Refusal, Field: "/aliases/1/alias" }))
@@ -164,7 +164,7 @@ public class StratValidatorTests
             Aliases = [new CalloutAlias { Alias = "kitchen", Place = "Kitchen" }]
         };
 
-        IReadOnlyList<StratIssue> issues = StratValidator.ValidateCallouts(table, Mirage);
+        IReadOnlyList<StratIssue> issues = StratValidator.ValidateCallouts(table, _mirage);
         using (Assert.Multiple())
         {
             await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Warning, Field: "/aliases/0/place" }))
@@ -228,16 +228,16 @@ public class StratValidatorTests
     {
         StratDocument from = Minimal();
         from.Steps[0].From = new PlaceRef { Place = "Kitchen" };
-        await Expect(from, StratIssueSeverity.Warning, "/steps/0/from/place", Mirage);
+        await Expect(from, StratIssueSeverity.Warning, "/steps/0/from/place", _mirage);
 
         StratDocument to = Minimal();
         to.Steps[0].To = new PlaceRef { Place = "Kitchen" };
-        await Expect(to, StratIssueSeverity.Warning, "/steps/0/to/place", Mirage);
+        await Expect(to, StratIssueSeverity.Warning, "/steps/0/to/place", _mirage);
 
         StratDocument landing = Minimal();
         landing.Steps[0].Utility =
             new UtilityRef { Kind = "smoke", Landing = new UtilityLanding { Place = "Kitchen" } };
-        await Expect(landing, StratIssueSeverity.Warning, "/steps/0/utility/landing/place", Mirage);
+        await Expect(landing, StratIssueSeverity.Warning, "/steps/0/utility/landing/place", _mirage);
     }
 
     [Test]

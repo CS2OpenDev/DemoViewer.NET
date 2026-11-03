@@ -72,7 +72,7 @@ public class SearchFiltersRealDemoTests
         // are the planted ones with a sampled step on or after the plant, not every planted round.
         RoundIndexDocument document =
             RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
-        int sampledAfterPlant = rows.Rounds.Count(r => r.IsLive && r.PlantTick is { } plant
+        int sampledAfterPlant = rows.Rounds.Count(r => r is { IsLive: true, PlantTick: { } plant }
                                                                 && document.Rounds.SingleOrDefault(d =>
                                                                     d.Number == r.Number) is { } indexed
                                                                 && document.ExpandRows(indexed)

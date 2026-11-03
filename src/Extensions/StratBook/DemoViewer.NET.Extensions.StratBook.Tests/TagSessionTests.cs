@@ -20,14 +20,14 @@ public class TagSessionTests
 
     private static readonly List<LibraryRound> _rounds =
     [
-        new LibraryRound(1, 0),
-        new LibraryRound(2, 10_000),
-        new LibraryRound(3, 20_000)
+        new(1, 0),
+        new(2, 10_000),
+        new(3, 20_000)
     ];
 
-    private static readonly string[] WonAtA = ["won", "A"];
-    private static readonly int?[] RoundsThreeAndOne = [3, 1];
-    private static readonly string[] OneCode = ["A execute"];
+    private static readonly string[] _wonAtA = ["won", "A"];
+    private static readonly int?[] _roundsThreeAndOne = [3, 1];
+    private static readonly string[] _oneCode = ["A execute"];
 
     private static TagSession Session(TagStore? store, bool browser = false) =>
         new(store, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => browser, () => Created)
@@ -65,7 +65,7 @@ public class TagSessionTests
 
         await Assert.That(session.Redo()).IsTrue();
         await Assert.That(session.Document!.Instances.Single().Labels.Select(l => l.Value))
-            .IsEquivalentTo(WonAtA, CollectionOrdering.Matching);
+            .IsEquivalentTo(_wonAtA, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -157,7 +157,7 @@ public class TagSessionTests
         using TagSession session = await Attached(store);
 
         await Assert.That(session.Document!.Instances.Select(i => i.Round))
-            .IsEquivalentTo(RoundsThreeAndOne, CollectionOrdering.Matching);
+            .IsEquivalentTo(_roundsThreeAndOne, CollectionOrdering.Matching);
         await Assert.That(session.UndoDepth).IsEqualTo(0);
     }
 
@@ -248,7 +248,7 @@ public class TagSessionTests
             session.Detach();
 
             await Assert.That(new TagStore(PackStores.At(root)).Index.Single().Codes)
-                .IsEquivalentTo(OneCode, CollectionOrdering.Matching);
+                .IsEquivalentTo(_oneCode, CollectionOrdering.Matching);
             await Assert.That(File.Exists(Path.Combine(root, "index.json"))).IsTrue();
 
             // Released: another session can take the document now.
@@ -284,7 +284,7 @@ public class TagSessionTests
     public async Task StatusLine_ReportsAFailedSave()
     {
         string blocker = TempRoot();
-        File.WriteAllText(blocker, "not a directory");
+        await File.WriteAllTextAsync(blocker, "not a directory");
         try
         {
             using TagSession session = await Attached(new TagStore(PackStores.At(blocker)));
@@ -317,8 +317,8 @@ public class TagSessionTests
                     .StartsWith("loaded from a different parse: tag spans may be off · saving to ");
             }
 
-            File.WriteAllText(TagStore.SidecarPathFor(root, Sha),
-                File.ReadAllText(TagStore.SidecarPathFor(root, Sha))
+            await File.WriteAllTextAsync(TagStore.SidecarPathFor(root, Sha),
+                (await File.ReadAllTextAsync(TagStore.SidecarPathFor(root, Sha)))
                     .Replace(Sha, new string('e', 64), StringComparison.Ordinal));
             using TagSession foreign = await Attached(new TagStore(PackStores.At(root)));
             foreign.Apply(new TagDelta.Add(Instance("Default", 1, 2)));
@@ -327,7 +327,7 @@ public class TagSessionTests
             await Assert.That(foreign.DemoMismatch).IsTrue();
             await Assert.That(foreign.StatusText)
                 .IsEqualTo("an existing tag file belongs to a different demo: it will not be touched");
-            await Assert.That(File.ReadAllText(TagStore.SidecarPathFor(root, Sha))).DoesNotContain("Default");
+            await Assert.That(await File.ReadAllTextAsync(TagStore.SidecarPathFor(root, Sha))).DoesNotContain("Default");
         }
         finally
         {
@@ -344,7 +344,7 @@ public class TagSessionTests
             await Assert.That(TagSession.RoundAt(_rounds, 9_999)).IsEqualTo(1);
             await Assert.That(TagSession.RoundAt(_rounds, 10_000)).IsEqualTo(2);
             await Assert.That(TagSession.RoundAt(_rounds, 99_999)).IsEqualTo(3);
-            await Assert.That(TagSession.RoundAt([new LibraryRound(1, 500)], 10)).IsNull();
+            await Assert.That(TagSession.RoundAt([new(1, 500)], 10)).IsNull();
             await Assert.That(TagSession.RoundAt(null, 10)).IsNull();
         }
     }

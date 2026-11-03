@@ -24,7 +24,6 @@ public class SuggestedTagsReviewTests
         h.Build();
 
         ProposalDocument? document = h.Proposals.TryRead(DemoPath);
-        DemoCacheIndexEntry? row = h.Cache.TryGetIndex(DemoPath);
         await Assert.That(document).IsNotNull();
         using (Assert.Multiple())
         {
@@ -127,8 +126,8 @@ public class SuggestedTagsReviewTests
             await Assert.That(instance.Code).IsEqualTo("execute");
             await Assert.That(instance.Source).IsEqualTo(TagSources.Suggested);
             await Assert.That(instance.Round).IsEqualTo(1);
-            await Assert.That(instance.Labels.Any(l => l.Group == "side" && l.Value == "T")).IsTrue();
-            await Assert.That(instance.Labels.Any(l => l.Group == "site" && l.Value == "BombsiteA")).IsTrue();
+            await Assert.That(instance.Labels.Any(l => l is { Group: "side", Value: "T" })).IsTrue();
+            await Assert.That(instance.Labels.Any(l => l is { Group: "site", Value: "BombsiteA" })).IsTrue();
             await Assert.That((string?)instance.Provenance!["source"]).IsEqualTo(SuggestedTagsService.ProvenanceSource);
             await Assert.That((string?)instance.Provenance["detector"]).IsEqualTo("execute");
             await Assert.That((string?)instance.Provenance["proposalId"]).IsEqualTo(ExecuteId);
@@ -161,7 +160,7 @@ public class SuggestedTagsReviewTests
             await Assert.That(instance.FromTick).IsEqualTo(1500);
             await Assert.That(instance.ToTick).IsEqualTo(2500);
             await Assert.That(instance.Note).IsEqualTo("late");
-            await Assert.That(instance.Labels.Any(l => l.Group == "tempo" && l.Value == "slow")).IsTrue();
+            await Assert.That(instance.Labels.Any(l => l is { Group: "tempo", Value: "slow" })).IsTrue();
             await Assert.That(instance.Labels.Any(l => l.Group == "count")).IsFalse()
                 .Because("the edit's labels replace the proposal's");
             await Assert.That((bool?)instance.Provenance!["edited"]).IsTrue();
@@ -175,9 +174,9 @@ public class SuggestedTagsReviewTests
     {
         using SuggestedTagsReviewHarness h = new();
         h.Build();
-        const string other = DefaultId;
+        const string Other = DefaultId;
         await Assert.That(h.Service.Reject(DemoPath, ExecuteId)).IsTrue();
-        await Assert.That(h.Service.Accept(DemoPath, other)).IsTrue();
+        await Assert.That(h.Service.Accept(DemoPath, Other)).IsTrue();
         TagInstance accepted = h.Tags.TryLoad(Sha)!.Instances.Single();
 
         h.Profile = DetectorProfile.Default.With("execute", "lag", 9);
@@ -191,7 +190,7 @@ public class SuggestedTagsReviewTests
                 .Because("the detector still finds it");
             await Assert.That(set.Pending.Any(e => e.Proposal.Id == ExecuteId)).IsFalse()
                 .Because("the rejection stands");
-            await Assert.That(set.Pending.Any(e => e.Proposal.Id == other)).IsFalse();
+            await Assert.That(set.Pending.Any(e => e.Proposal.Id == Other)).IsFalse();
             await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Single().Id).IsEqualTo(accepted.Id);
             await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Single().ToTick).IsEqualTo(accepted.ToTick);
         }
@@ -262,11 +261,11 @@ public class SuggestedTagsReviewTests
     {
         using SuggestedTagsReviewHarness h = new();
         h.Build();
-        const string other = DefaultId;
+        const string Other = DefaultId;
 
         await Assert.That(h.Service.IsPersistent).IsFalse();
         await Assert.That(h.Service.Accept(DemoPath, ExecuteId)).IsTrue();
-        await Assert.That(h.Service.Reject(DemoPath, other)).IsTrue();
+        await Assert.That(h.Service.Reject(DemoPath, Other)).IsTrue();
 
         ProposalSet set = h.Service.Load(DemoPath);
         using (Assert.Multiple())
@@ -274,7 +273,7 @@ public class SuggestedTagsReviewTests
             await Assert.That(set.IsPersistent).IsFalse();
             await Assert.That(set.Entries.Single(e => e.Proposal.Id == ExecuteId).Verdict!.Verdict)
                 .IsEqualTo(SuggestionVerdicts.Accepted);
-            await Assert.That(set.Entries.Single(e => e.Proposal.Id == other).Verdict!.Verdict)
+            await Assert.That(set.Entries.Single(e => e.Proposal.Id == Other).Verdict!.Verdict)
                 .IsEqualTo(SuggestionVerdicts.Rejected);
             await Assert.That(h.Proposals.IsPersistent).IsFalse();
             await Assert.That(h.Tags.VerdictsPathFor(Sha)).IsNull();

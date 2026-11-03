@@ -115,7 +115,7 @@ public class TeamIdentityCorpusTests
             await Assert.That(matched).IsEqualTo(90);
             await Assert.That(assigned.Count(s => s.Tier == 1)).IsEqualTo(19).Because("19 of 90 matches at tier 1");
             await Assert.That(assigned.Count(s => s.StandIn)).IsEqualTo(82);
-            await Assert.That(assigned.Count(s => s.StandIn && s.Tier == 1)).IsEqualTo(17);
+            await Assert.That(assigned.Count(s => s is { StandIn: true, Tier: 1 })).IsEqualTo(17);
             await Assert.That(teams.Teams.Count).IsEqualTo(24).Because("one auto team per auto roster, none tagged");
             await Assert.That(teams.Teams.All(t =>
                     t.NameSource == TeamNameSource.Auto && t.Name.StartsWith("Team of ", StringComparison.Ordinal)))

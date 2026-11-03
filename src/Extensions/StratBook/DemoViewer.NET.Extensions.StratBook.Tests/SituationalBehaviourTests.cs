@@ -33,8 +33,8 @@ public class SituationalBehaviourTests
         return Task.CompletedTask;
     };
 
-    private static readonly int[] TeamASlots = [0, 1, 2, 3, 4];
-    private static readonly int[] TeamBSlots = [5, 6, 7, 8, 9];
+    private static readonly int[] _teamASlots = [0, 1, 2, 3, 4];
+    private static readonly int[] _teamBSlots = [5, 6, 7, 8, 9];
 
     private static string Id(int n) => $"7656{n:D4}";
 
@@ -67,10 +67,10 @@ public class SituationalBehaviourTests
         Clock = new RoundFactsClock { TickRate = Rate },
         Rounds =
         [
-            Round(1, TeamBSlots, TeamASlots, 2, BuyType.Pistol, BuyType.Pistol),
-            Round(2, TeamBSlots, TeamASlots, 3, BuyType.Full, BuyType.Force),
-            Round(3, TeamBSlots, TeamASlots, 2, BuyType.Eco, BuyType.Full, firstContactSeconds: 8),
-            Round(4, TeamBSlots, TeamASlots, 2, BuyType.Full, BuyType.Full,
+            Round(1, _teamBSlots, _teamASlots, 2, BuyType.Pistol, BuyType.Pistol),
+            Round(2, _teamBSlots, _teamASlots, 3, BuyType.Full, BuyType.Force),
+            Round(3, _teamBSlots, _teamASlots, 2, BuyType.Eco, BuyType.Full, firstContactSeconds: 8),
+            Round(4, _teamBSlots, _teamASlots, 2, BuyType.Full, BuyType.Full,
                 kills:
                 [
                     new KillStep
@@ -90,9 +90,9 @@ public class SituationalBehaviourTests
                         TAlive = 5
                     }
                 ]),
-            Round(5, TeamBSlots, TeamASlots, 3, BuyType.Full, BuyType.Full),
-            Round(6, TeamASlots, TeamBSlots, 3, BuyType.Eco, BuyType.Full),
-            Round(7, TeamASlots, TeamBSlots, 2, BuyType.Full, BuyType.Full)
+            Round(5, _teamBSlots, _teamASlots, 3, BuyType.Full, BuyType.Full),
+            Round(6, _teamASlots, _teamBSlots, 3, BuyType.Eco, BuyType.Full),
+            Round(7, _teamASlots, _teamBSlots, 2, BuyType.Full, BuyType.Full)
         ]
     };
 

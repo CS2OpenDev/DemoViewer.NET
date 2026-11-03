@@ -21,25 +21,25 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratEvidenceTests
 {
-    private static readonly Guid StratId = Guid.Parse("0b7e4a21-9c3d-4f58-b6a2-e1d0c9b8a7f6");
-    private static readonly Guid OtherId = Guid.Parse("e4f50000-0000-4000-8000-000000000009");
+    private static readonly Guid _stratId = Guid.Parse("0b7e4a21-9c3d-4f58-b6a2-e1d0c9b8a7f6");
+    private static readonly Guid _otherId = Guid.Parse("e4f50000-0000-4000-8000-000000000009");
 
-    private static readonly string ShaA = new('a', 64);
-    private static readonly string ShaB = new('b', 64);
-    private static readonly string ShaC = new('c', 64);
+    private static readonly string _shaA = new('a', 64);
+    private static readonly string _shaB = new('b', 64);
+    private static readonly string _shaC = new('c', 64);
 
-    private static readonly string[] ProvenanceOrder =
+    private static readonly string[] _provenanceOrder =
         [DemoProvenanceLabel.Scrim, DemoProvenanceLabel.Matchmaking, StratEvidence.Unlabeled];
 
-    private static readonly string[] RevisionOrder = ["1", "2", "3"];
-    private static readonly string[] FailureOrder = ["utility-late", "entry-lost", "early-contact"];
+    private static readonly string[] _revisionOrder = ["1", "2", "3"];
+    private static readonly string[] _failureOrder = ["utility-late", "entry-lost", "early-contact"];
 
-    private static readonly Dictionary<string, string?> Labels = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string?> _labels = new(StringComparer.Ordinal)
     {
-        [ShaA] = DemoProvenanceLabel.Scrim, [ShaB] = DemoProvenanceLabel.Matchmaking, [ShaC] = null
+        [_shaA] = DemoProvenanceLabel.Scrim, [_shaB] = DemoProvenanceLabel.Matchmaking, [_shaC] = null
     };
 
-    private static string S => StratId.ToString("D");
+    private static string S => _stratId.ToString("D");
 
     private static TagInstance Run(int round, (string Group, string Value)[] labels, string? winner = null,
         string source = TagSources.Human)
@@ -67,7 +67,7 @@ public class StratEvidenceTests
     /// </summary>
     private static List<TagDocument> Fixture() =>
     [
-        Document(ShaA,
+        Document(_shaA,
             Run(1, [("strat", S), ("strat.rev", "1"), ("outcome", "lost")], winner: "T"),
             Run(2,
             [
@@ -76,24 +76,24 @@ public class StratEvidenceTests
             ], winner: "CT"),
             Run(3, [("strat", S), ("strat.rev", "2"), ("strat.result", "aborted"), ("strat.failure", "early-contact")],
                 winner: "T"),
-            Run(4, [("strat", OtherId.ToString("D")), ("strat.rev", "7")], winner: "T")),
-        Document(ShaB,
+            Run(4, [("strat", _otherId.ToString("D")), ("strat.rev", "7")], winner: "T")),
+        Document(_shaB,
             Run(1, [("strat", S.ToUpperInvariant()), ("strat.rev", "2"), ("outcome", "won")]),
             Run(2, [("strat", S), ("strat.rev", "2"), ("strat.failure", "utility-late")]),
             Run(3, [("strat", S), ("strat.rev", "2"), ("outcome", "won")], winner: "T", source: TagSources.Import),
             Run(4, [("strat", S), ("strat.rev", "2"), ("outcome", "lost")], winner: "none",
                 source: TagSources.Suggested)),
-        Document(ShaC,
+        Document(_shaC,
             Run(5,
             [
-                ("strat", OtherId.ToString("D")), ("strat.rev", "5"), ("strat", S), ("strat.rev", "3"),
+                ("strat", _otherId.ToString("D")), ("strat.rev", "5"), ("strat", S), ("strat.rev", "3"),
                 ("strat.failure", "other")
             ], winner: "T"))
     ];
 
     private static StratRecord Build(List<TagDocument>? docs = null) =>
-        StratEvidence.Build(StratId, 4, StratVocabulary.SideT, docs ?? Fixture(),
-            hashes => hashes.ToDictionary(h => h, h => Labels.GetValueOrDefault(h)));
+        StratEvidence.Build(_stratId, 4, StratVocabulary.SideT, docs ?? Fixture(),
+            hashes => hashes.ToDictionary(h => h, h => _labels.GetValueOrDefault(h)));
 
     [Test]
     public async Task Record_CountsRunsWonLostAbortedAndUnknown_AndSkipsImportsAndOtherStrats()
@@ -115,10 +115,10 @@ public class StratEvidenceTests
     public async Task TheWinnerFact_BeatsTheOutcomeLabel_AndTheLabelDecides_WhenTheFactIsAbsentOrNone()
     {
         StratRecord record = Build();
-        StratRun onFact = record.Runs.Single(r => r.Sha256 == ShaA && r.Round == 1);
-        StratRun onLabel = record.Runs.Single(r => r.Sha256 == ShaB && r.Round == 1);
-        StratRun onNone = record.Runs.Single(r => r.Sha256 == ShaB && r.Round == 4);
-        StratRun neither = record.Runs.Single(r => r.Sha256 == ShaB && r.Round == 2);
+        StratRun onFact = record.Runs.Single(r => r.Sha256 == _shaA && r.Round == 1);
+        StratRun onLabel = record.Runs.Single(r => r.Sha256 == _shaB && r.Round == 1);
+        StratRun onNone = record.Runs.Single(r => r.Sha256 == _shaB && r.Round == 4);
+        StratRun neither = record.Runs.Single(r => r.Sha256 == _shaB && r.Round == 2);
 
         using (Assert.Multiple())
         {
@@ -146,7 +146,7 @@ public class StratEvidenceTests
     [Test]
     public async Task Aborted_BeatsARoundTheSideWon()
     {
-        StratRun aborted = Build().Runs.Single(r => r.Sha256 == ShaA && r.Round == 3);
+        StratRun aborted = Build().Runs.Single(r => r.Sha256 == _shaA && r.Round == 3);
         await Assert.That(aborted.Outcome).IsEqualTo(RunOutcome.Aborted);
     }
 
@@ -185,7 +185,7 @@ public class StratEvidenceTests
     [Test]
     public async Task ARunWithoutStratRev_IsRevisionZero_AndSitsOnNeitherSideOfAnEntry()
     {
-        StratRecord record = Build([Document(ShaA, Run(1, [("strat", S), ("outcome", "won")]))]);
+        StratRecord record = Build([Document(_shaA, Run(1, [("strat", S), ("outcome", "won")]))]);
 
         using (Assert.Multiple())
         {
@@ -199,7 +199,7 @@ public class StratEvidenceTests
     public async Task FailureBreakdown_CountsARepeatedValueOnce_AndReadsOnlyRunsThatDidNotWin()
     {
         StratRecord record = Build();
-        StratRun lost = record.Runs.Single(r => r.Sha256 == ShaA && r.Round == 2);
+        StratRun lost = record.Runs.Single(r => r.Sha256 == _shaA && r.Round == 2);
 
         using (Assert.Multiple())
         {
@@ -246,12 +246,12 @@ public class StratEvidenceTests
         using (Assert.Multiple())
         {
             await Assert.That(string.Join(",", pane.ByProvenance.Select(r => r.Key)))
-                .IsEqualTo(string.Join(",", ProvenanceOrder));
+                .IsEqualTo(string.Join(",", _provenanceOrder));
             await Assert.That(string.Join(",", pane.ByRevision.Select(r => r.Key)))
-                .IsEqualTo(string.Join(",", RevisionOrder));
+                .IsEqualTo(string.Join(",", _revisionOrder));
             await Assert.That(pane.ByRevision[0].Display).IsEqualTo("revision 1");
             await Assert.That(string.Join(",", pane.Failures.Select(f => f.Failure)))
-                .IsEqualTo(string.Join(",", FailureOrder));
+                .IsEqualTo(string.Join(",", _failureOrder));
             await Assert.That(pane.Failures[0].Runs.Count).IsEqualTo(2);
             await Assert.That(pane.Total.RunsWith(RunOutcome.Won).Count).IsEqualTo(3);
             await Assert.That(pane.ByProvenance[0].RunsWith(RunOutcome.Aborted).Single().Ref.Round).IsEqualTo(3);
@@ -273,9 +273,9 @@ public class StratEvidenceTests
 
         tags.Save(Document(new string('d', 64), Run(1, [("outcome", "won")], winner: "T")));
 
-        StratDocument strat = StratTestData.Minimal(StratId);
+        StratDocument strat = StratTestData.Minimal(_stratId);
         strat.Revision = 4;
-        StratEvidenceService service = new(tags, new FixedProvenance(Labels));
+        StratEvidenceService service = new(tags, new FixedProvenance(_labels));
         StratRecord record = await service.ComputeAsync(strat);
 
         using (Assert.Multiple())
@@ -301,10 +301,10 @@ public class StratEvidenceTests
 
         TagInstance first = Instance("A execute", 1_500, 3_000, ("strat", S), ("strat.rev", "1"), ("outcome", "won"));
         TagInstance second = Instance("A execute", 11_000, 13_000, ("strat", S), ("strat.rev", "1"));
-        TagDocument document = Document(ShaA, first, second);
+        TagDocument document = Document(_shaA, first, second);
         TagFactsRefresher.Refresh(document, RoundIndexTestData.Facts(one, two), RoundFactsRecords.Schema, Created);
 
-        StratRecord record = StratEvidence.Build(StratId, 1, StratVocabulary.SideT, [document]);
+        StratRecord record = StratEvidence.Build(_stratId, 1, StratVocabulary.SideT, [document]);
         using (Assert.Multiple())
         {
             await Assert.That(record.Runs[0].Round).IsEqualTo(1);
@@ -319,8 +319,8 @@ public class StratEvidenceTests
     {
         public string? LabelFor(string sha256) => labels.GetValueOrDefault(sha256);
 
-        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256s) =>
-            sha256s.Distinct(StringComparer.Ordinal).ToDictionary(s => s, LabelFor, StringComparer.Ordinal);
+        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256S) =>
+            sha256S.Distinct(StringComparer.Ordinal).ToDictionary(s => s, LabelFor, StringComparer.Ordinal);
 
         public DemoProvenance? Resolve(string demoPath) => null;
 

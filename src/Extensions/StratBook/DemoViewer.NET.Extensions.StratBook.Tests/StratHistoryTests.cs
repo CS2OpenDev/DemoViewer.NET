@@ -15,9 +15,9 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratHistoryTests
 {
-    private static readonly string[] UnmergedPaths = ["/steps/1/atSeconds", "/steps/0/atSeconds", "/steps/1/atSeconds"];
-    private static readonly string[] InverseKinds = [PatchOp.Add, PatchOp.Remove, PatchOp.Replace];
-    private static readonly string[] EditedTags = ["first", "a/b", "appended"];
+    private static readonly string[] _unmergedPaths = ["/steps/1/atSeconds", "/steps/0/atSeconds", "/steps/1/atSeconds"];
+    private static readonly string[] _inverseKinds = [PatchOp.Add, PatchOp.Remove, PatchOp.Replace];
+    private static readonly string[] _editedTags = ["first", "a/b", "appended"];
 
     private static PatchOp Replace(string path, double from, double to) =>
         PatchOp.ReplaceOp(path, JsonValue.Create(from), JsonValue.Create(to));
@@ -48,7 +48,7 @@ public class StratHistoryTests
         buffer.Record(Replace("/steps/1/atSeconds", 80, 78), Created);
 
         await Assert.That(buffer.Drain().Select(o => o.Path))
-            .IsEquivalentTo(UnmergedPaths, CollectionOrdering.Matching);
+            .IsEquivalentTo(_unmergedPaths, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -121,7 +121,7 @@ public class StratHistoryTests
         {
             await Assert.That(edited.Steps.Count).IsEqualTo(1);
             await Assert.That(edited.Steps[0].To!.Place).IsEqualTo("Stairs");
-            await Assert.That(edited.Tags).IsEquivalentTo(EditedTags, CollectionOrdering.Matching);
+            await Assert.That(edited.Tags).IsEquivalentTo(_editedTags, CollectionOrdering.Matching);
             await Assert.That(edited.Extra!.ContainsKey("extra/field")).IsTrue().Because("~1 unescapes to /");
             await Assert.That(document.Steps.Count).IsEqualTo(2);
             await Assert.That(StratHistory.Escape("a/b~c")).IsEqualTo("a~1b~0c");
@@ -154,7 +154,7 @@ public class StratHistoryTests
         HistoryEntry inverse = entry.Inverse();
         using (Assert.Multiple())
         {
-            await Assert.That(inverse.Ops.Select(o => o.Op)).IsEquivalentTo(InverseKinds, CollectionOrdering.Matching);
+            await Assert.That(inverse.Ops.Select(o => o.Op)).IsEquivalentTo(_inverseKinds, CollectionOrdering.Matching);
             await Assert.That(inverse.Ops[0].Value!.GetValue<string>()).IsEqualTo("n");
             await Assert.That(inverse.Ops[1].From!.GetValue<string>()).IsEqualTo("x");
             await Assert.That(inverse.Ops[2].From!.GetValue<double>()).IsEqualTo(88);

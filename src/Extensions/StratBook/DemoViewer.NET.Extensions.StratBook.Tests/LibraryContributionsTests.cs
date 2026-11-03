@@ -7,7 +7,7 @@ using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     The pack's two Library contributions: <see cref="TeamLibraryContribution" /> (the Team
@@ -111,7 +111,7 @@ public class LibraryContributionsTests
     [Test]
     public async Task TeamContribution_Filter_ListsAllUsAndEveryTeam_AndMatchesByKey()
     {
-        (DemoCacheStore cache, TeamIdentityService teams) = await Library();
+        (_, TeamIdentityService teams) = await Library();
         using (teams)
         {
             TeamLibraryContribution contribution = new(() => teams);
@@ -259,7 +259,7 @@ public class LibraryContributionsTests
         public int ResolveAllCalls { get; set; }
 
         public string? LabelFor(string sha256) => inner.LabelFor(sha256);
-        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256s) => inner.LabelsFor(sha256s);
+        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256S) => inner.LabelsFor(sha256S);
 
         public DemoProvenance? Resolve(string demoPath)
         {

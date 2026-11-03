@@ -185,7 +185,7 @@ public class SearchFiltersTests
             await Assert.That(Keys(opening)).IsEquivalentTo([(DemoA, 1), (DemoA, 2), (DemoB, 1), (DemoC, 1)],
                     CollectionOrdering.Matching)
                 .Because("every round opens; the quiet rounds never leave the opening");
-            await Assert.That(opening.Single(x => x.DemoPath == DemoA && x.RoundNumber == 1).LastMatchTick)
+            await Assert.That(opening.Single(x => x is { DemoPath: DemoA, RoundNumber: 1 }).LastMatchTick)
                 .IsEqualTo(10000 + 7 * 64);
 
             // Bands: only the hundred-second rounds reach 1:15; every round has an early window.
@@ -193,7 +193,7 @@ public class SearchFiltersTests
             await Assert.That(late.Single(x => x.DemoPath == DemoA).FirstMatchTick).IsEqualTo(10000 + 75 * 64);
             await Assert.That(Keys(early)).IsEquivalentTo([(DemoA, 1), (DemoA, 2), (DemoB, 1), (DemoC, 1)],
                 CollectionOrdering.Matching);
-            await Assert.That(early.Single(x => x.DemoPath == DemoA && x.RoundNumber == 1).MatchedSteps).IsEqualTo(30);
+            await Assert.That(early.Single(x => x is { DemoPath: DemoA, RoundNumber: 1 }).MatchedSteps).IsEqualTo(30);
 
             // Man count: 5v4 between the two kills, even before the first and after the second.
             await Assert.That(Keys(ctUp)).IsEquivalentTo([(DemoA, 1), (DemoB, 1)], CollectionOrdering.Matching);
@@ -512,12 +512,12 @@ public class SearchFiltersTests
             Index = new SituationIndex(Cache.Library(), Sidecars, Sources, Facts);
         }
 
-        public DemoCacheStore Cache { get; }
-        public RoundIndexStore Sidecars { get; }
-        public RoundIndexPlaceSources Sources { get; }
-        public FakeFacts Facts { get; }
+        private DemoCacheStore Cache { get; }
+        private RoundIndexStore Sidecars { get; }
+        private RoundIndexPlaceSources Sources { get; }
+        private FakeFacts Facts { get; }
         public TeamIdentityService Teams { get; }
-        public DemoProvenanceSource Provenance { get; }
+        private DemoProvenanceSource Provenance { get; }
         public SituationIndex Index { get; }
         public SearchFiltersViewModel Filters { get; private set; } = null!;
         public QueryCanvasViewModel Canvas { get; private set; } = null!;

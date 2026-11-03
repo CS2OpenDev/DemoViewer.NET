@@ -17,7 +17,6 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class StratLinePatchesTests
 {
-    private static string Shape(StratStep step) => JsonSerializer.Serialize(step, StratJsonContext.Default.StratStep);
 
     // Step 1 of FiveSteps as five bare lines to BombsiteA, with its positions kept.
     private static StratDocument FiveLines(string? oddPlace = null)

@@ -43,7 +43,7 @@ public class FindRoundsLikeThisRealDemoTests
         // tick, which a mid-run step is not by construction.
         RoundIndexRound round = document.Rounds.First(r => r.Runs.Count > 1);
         RoundIndexRun run = round.Runs.First(r =>
-            r.FromStep > 0 && r.Ct.Length > 0 && !r.Ct.Contains('?') && r.T.Length > 0 && !r.T.Contains('?'));
+            r is { FromStep: > 0, Ct.Length: > 0, T.Length: > 0 } && !r.Ct.Contains('?') && !r.T.Contains('?'));
         int tick = round.FreezeEndTick + run.FromStep * document.CadenceTicks;
         int frameIndex = FrameIndexAtTick(parsed.Frames, tick);
         int tickRate = parsed.TickRate > 0 ? (int)Math.Round((double)parsed.TickRate) : 64;

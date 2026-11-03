@@ -5,7 +5,6 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
-using DemoViewer.NET.AppTests.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Palette;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
@@ -33,9 +32,9 @@ public class ReviewPanelTests
 
     private static readonly List<LibraryRound> _rounds =
     [
-        new LibraryRound(1, 0),
-        new LibraryRound(2, 10_000),
-        new LibraryRound(3, 20_000)
+        new(1, 0),
+        new(2, 10_000),
+        new(3, 20_000)
     ];
 
     private static async Task<(TagSession Session, ReviewPanelViewModel Panel, List<int> Seeks, Func<int> SetPlayhead)>

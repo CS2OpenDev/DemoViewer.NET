@@ -11,7 +11,7 @@ using DemoViewer.NET.Services.DemoCache;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     <see cref="StratBookStores.All" /> against the real writers: every descriptor's path is

@@ -39,7 +39,7 @@ public class ResultCardThumbnailTests
     private const int MatchTick = 10746 + 5 * 64;
 
     /// <summary>The document the fixture, the golden and the in-process render all come from.</summary>
-    internal static RoundPositionsDocument FixturePositions() => new()
+    private static RoundPositionsDocument FixturePositions() => new()
     {
         Fingerprint = "ri1;cadence=1;token=1;rf=1;src=pawn;pos=1",
         Demo = new RoundPositionsDemo { StableKey = "3f9c0a1b2c3d4e5f60718293" },
@@ -83,7 +83,7 @@ public class ResultCardThumbnailTests
             await Assert.That(frame.Markers.Count(m => m.Team == 3)).IsEqualTo(5);
             await Assert.That(frame.Markers.Count(m => m.Team == 2)).IsEqualTo(3);
             await Assert.That(frame.Markers.All(m =>
-                m.IsAlive && m.Ring == RingState.Team && m.Label.Length == 0 && m.YawDegrees == 0)).IsTrue();
+                m is { IsAlive: true, Ring: RingState.Team, Label.Length: 0, YawDegrees: 0 })).IsTrue();
             await Assert.That(frame.Markers.Single(m => m.Slot == 1).Place).IsEqualTo("Ramp");
             await Assert.That(frame.Markers.Single(m => m.Slot == 1).WorldZ).IsEqualTo(-700f);
             await Assert.That(frame.Time.Tick).IsEqualTo(MatchTick);

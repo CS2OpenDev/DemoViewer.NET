@@ -12,7 +12,7 @@ using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     <see cref="IExtensionResident" /> on each resident, outside any container: Release empties and

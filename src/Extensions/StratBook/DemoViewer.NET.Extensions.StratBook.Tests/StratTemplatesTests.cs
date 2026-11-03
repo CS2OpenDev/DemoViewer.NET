@@ -18,13 +18,13 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratTemplatesTests
 {
-    private static readonly string[] ShippedMaps =
+    private static readonly string[] _shippedMaps =
     [
         "de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass",
         "de_train", "de_vertigo"
     ];
 
-    private static readonly StratSpawns Fixed = new(
+    private static readonly StratSpawns _fixed = new(
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(1000 + 100 * i, 0, 64))],
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(-1000 - 100 * i, 0, -128))]);
 
@@ -35,7 +35,7 @@ public class StratTemplatesTests
     {
         StratDocument document =
             StratDocument.Create(Guid.NewGuid(), Team, map, side, "default", template.Name, Created);
-        Fixed.PlaceStart(document);
+        _fixed.PlaceStart(document);
         StratTemplates.Apply(document, template);
         return document;
     }
@@ -50,7 +50,7 @@ public class StratTemplatesTests
             {
                 foreach (string side in SidesOf(template))
                 {
-                    foreach (string map in ShippedMaps)
+                    foreach (string map in _shippedMaps)
                     {
                         StratDocument document = Seeded(template, map, side);
                         CalloutResolver places = CalloutResolver.For(map, null, null);
@@ -152,7 +152,7 @@ public class StratTemplatesTests
         {
             StratDocument fresh = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", StratVocabulary.SideT,
                 "default", "n", Created);
-            Fixed.PlaceStart(fresh);
+            _fixed.PlaceStart(fresh);
             StratDocument legacy = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", StratVocabulary.SideT,
                 "default", "l", Created);
             StratStep seed = Step(1, legacy.Clock.RoundSeconds, StratVocabulary.ActorAll, "hold");
@@ -210,7 +210,7 @@ public class StratTemplatesTests
                 StratDocument created = store.Create(Team, "de_inferno", StratVocabulary.SideCt, template.Type,
                     template.Name, d =>
                     {
-                        Fixed.PlaceStart(d);
+                        _fixed.PlaceStart(d);
                         StratTemplates.Apply(d, template);
                     });
 
@@ -240,7 +240,7 @@ public class StratTemplatesTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStore store = new(null);
-            StratSpawnSource spawns = new(_ => Fixed);
+            StratSpawnSource spawns = new(_ => _fixed);
             await spawns.ForAsync("de_mirage");
             using StratBookTabViewModel vm = new(store, null, null, false, spawns: spawns);
             vm.SelectedMap = "de_mirage";
@@ -279,7 +279,7 @@ public class StratTemplatesTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStore store = new(null);
-            StratSpawnSource spawns = new(_ => Fixed);
+            StratSpawnSource spawns = new(_ => _fixed);
             await spawns.ForAsync("de_mirage");
             using StratBookTabViewModel vm = new(store, null, null, false, spawns: spawns);
             vm.SelectedMap = "de_mirage";
@@ -305,7 +305,7 @@ public class StratTemplatesTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStore store = new(null);
-            StratSpawnSource spawns = new(_ => Fixed);
+            StratSpawnSource spawns = new(_ => _fixed);
             await spawns.ForAsync("de_nuke");
             using StratBookTabViewModel vm = new(store, null, null, false, spawns: spawns);
             vm.Session.AutoSaveDelay = TimeSpan.FromHours(1);
@@ -355,14 +355,14 @@ public class StratTemplatesTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            const int freeze = 6400;
+            const int Freeze = 6400;
             List<CapturedPawn> pawns =
             [
                 .. Enumerable.Range(0, 10).Select(s =>
                     new CapturedPawn(s, s < 5 ? 2 : 3, (ulong)(100 + s), "p" + s, s * 1000, 0, 0, 90, "TSpawn"))
             ];
-            RoundCapture capture = new(7, freeze, freeze + 64 * 100, 64,
-                [new CaptureMoment(freeze, CaptureTrigger.FreezeEnd, pawns)]);
+            RoundCapture capture = new(7, Freeze, Freeze + 64 * 100, 64,
+                [new CaptureMoment(Freeze, CaptureTrigger.FreezeEnd, pawns)]);
             StratCaptureOptions options = new(2,
                 StratFromRound.Tokens(pawns, 2, StratFromRound.SlotMap(pawns.Where(p => p.Team == 2), null, null)),
                 StratClock.DefaultRoundSeconds, true, StratFromRound.QuantizedLevel);
@@ -401,7 +401,7 @@ public class StratTemplatesTests
             StratSpawnSource spawns = new(_ =>
             {
                 gate.Task.Wait();
-                return Fixed;
+                return _fixed;
             });
             PostedActions posted = new();
             using StratBookTabViewModel vm = new(store, null, posted.Enqueue, false, spawns: spawns);
@@ -447,7 +447,7 @@ public class StratTemplatesTests
         {
             StratDocument ct = StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", StratVocabulary.SideCt, "setup",
                 "s", Created);
-            Fixed.PlaceStart(ct);
+            _fixed.PlaceStart(ct);
             StratDocument t = Seeded(StratTemplates.Find("default")!, "de_dust2", StratVocabulary.SideT);
             using (Assert.Multiple())
             {

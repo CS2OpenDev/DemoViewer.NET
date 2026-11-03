@@ -20,7 +20,7 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratHistoryPanelTests
 {
-    private static readonly string ShaA = new('a', 64);
+    private static readonly string _shaA = new('a', 64);
 
     private static string S => HistoryId.ToString("D");
 
@@ -98,7 +98,7 @@ public class StratHistoryPanelTests
             [PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(82), JsonValue.Create(76))]);
         fixture.Store.Save(edited,
             [PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(82), JsonValue.Create(76))], null);
-        fixture.Tags.Save(Document(ShaA, Run(1, 1, "T"), Run(2, 2, "CT")));
+        fixture.Tags.Save(Document(_shaA, Run(1, 1, "T"), Run(2, 2, "CT")));
 
         fixture.Panel.Configure(edited);
         await fixture.Panel.Pending;
@@ -118,7 +118,7 @@ public class StratHistoryPanelTests
         using Fixture fixture = new();
         StratDocument created = Minimal(HistoryId);
         fixture.Store.Save(created, [], null);
-        fixture.Tags.Save(Document(ShaA, Run(1, 1, "T")));
+        fixture.Tags.Save(Document(_shaA, Run(1, 1, "T")));
 
         fixture.Panel.Configure(created);
         await fixture.Panel.Pending;

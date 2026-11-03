@@ -279,19 +279,21 @@ public class PackThroughTheSdkTests
         HashSet<string> known = new(pack.Features.Select(f => f.Id), StringComparer.Ordinal);
         known.UnionWith(HostPublishedIds());
 
-        List<(string Where, string? FeatureId)> gates = [];
-        gates.AddRange(recorded.HubTabs.Select(h => ($"hub {h.Id}", h.FeatureId)));
-        gates.AddRange(recorded.SettingsPages.Select(p => ($"settings page {p.Id}", p.FeatureId)));
-        gates.AddRange(recorded.SettingsSchemas.Select(s => ($"settings schema {s.Id}", s.FeatureId)));
-        gates.AddRange(recorded.Rulesets.Select(r => ($"ruleset {r.Id}", r.FeatureId)));
-        gates.AddRange(recorded.DemoActions.Select(a => ($"demo action {a.Id}", a.FeatureId)));
-        gates.AddRange(recorded.StatusChips.Select(c => ($"status chip {c.Id}", c.FeatureId)));
-        gates.AddRange(recorded.LibraryContributions
-            .Select(c => ($"library {c.GetType().Name}", c.FeatureId)));
-        gates.AddRange(recorded.ReindexEstimates
-            .Select(e => ($"reindex estimate {e.GetType().Name}", (string?)e.FeatureId)));
-        gates.AddRange(recorded.DataRemovals
-            .Select(r => ($"data removal {r.GetType().Name}", (string?)r.FeatureId)));
+        List<(string Where, string? FeatureId)> gates =
+        [
+            .. recorded.HubTabs.Select(h => ($"hub {h.Id}", h.FeatureId)),
+            .. recorded.SettingsPages.Select(p => ($"settings page {p.Id}", p.FeatureId)),
+            .. recorded.SettingsSchemas.Select(s => ($"settings schema {s.Id}", s.FeatureId)),
+            .. recorded.Rulesets.Select(r => ($"ruleset {r.Id}", r.FeatureId)),
+            .. recorded.DemoActions.Select(a => ($"demo action {a.Id}", a.FeatureId)),
+            .. recorded.StatusChips.Select(c => ($"status chip {c.Id}", c.FeatureId)),
+            .. recorded.LibraryContributions
+                .Select(c => ($"library {c.GetType().Name}", c.FeatureId)),
+            .. recorded.ReindexEstimates
+                .Select(e => ($"reindex estimate {e.GetType().Name}", (string?)e.FeatureId)),
+            .. recorded.DataRemovals
+                .Select(r => ($"data removal {r.GetType().Name}", (string?)r.FeatureId))
+        ];
 
         string[] undeclared =
         [

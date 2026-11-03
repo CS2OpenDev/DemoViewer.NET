@@ -117,8 +117,6 @@ internal sealed class ManualTicker : IStratTicker
 {
     private Action<double>? _onTick;
 
-    public bool IsRunning => _onTick is not null;
-
     public IDisposable Start(Action<double> onTick)
     {
         _onTick = onTick;

@@ -30,7 +30,7 @@ public class TagMatrixRealDemoTests
     public async Task TheRealDemosTaggedRounds_PivotOnTheParsersBuy_AndACellQueuesItsClips()
     {
         string path = DemoTestHelper.RequireDemo();
-        ParsedDemo parsed = DemoParser.Parse(File.ReadAllBytes(path).AsMemory());
+        ParsedDemo parsed = DemoParser.Parse((await File.ReadAllBytesAsync(path)).AsMemory());
         IReadOnlyList<ClipRound> rounds = ClipRounds.Derive(parsed);
 
         DemoCacheStore cache = new(null);

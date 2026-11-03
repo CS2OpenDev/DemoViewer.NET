@@ -124,11 +124,10 @@ public class ParseOncePerDemoTests
     public async Task AnImportWithLineupClipsOn_RendersTheClipsOnTheImportsReads()
     {
         string folder = Corpus("benchmarks");
-        string? clips = null;
         await WithApp(folder, async provider =>
         {
             DemoProcessingQueue queue = provider.GetRequiredService<DemoProcessingQueue>();
-            clips = Path.Combine(AppPaths.ConfigRoot!, LineupClipService.DirectoryName);
+            string clips = Path.Combine(AppPaths.ConfigRoot!, LineupClipService.DirectoryName);
             await provider.GetRequiredService<DemoLibraryService>().RescanAsync();
             await SettleAsync(queue);
             provider.GetRequiredService<DemoScheduler>().RecheckAll();
@@ -343,7 +342,7 @@ public class ParseOncePerDemoTests
     {
         string dir = configDir ?? Path.Combine(Path.GetTempPath(), "dvparseonce_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "settings.json"), Settings(folder, renderClips));
+        await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), Settings(folder, renderClips));
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, dir);
         try
@@ -357,7 +356,7 @@ public class ParseOncePerDemoTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             }, TimeSpan.FromMinutes(20));
         }

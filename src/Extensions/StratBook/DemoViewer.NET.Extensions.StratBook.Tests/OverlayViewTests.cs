@@ -266,7 +266,7 @@ public class OverlayViewTests
         RoundIndexEvaluator evaluator = new(store.Library(), store.RoundFacts(), sidecars, sources, () => true);
         evaluator.Evaluate(path, parsed);
 
-        RoundPositionsDocument positions = sidecars.TryReadPositions(path, sources.FingerprintFor(parsed.MapName!))
+        RoundPositionsDocument positions = sidecars.TryReadPositions(path, sources.FingerprintFor(parsed.MapName))
                                            ?? throw new InvalidOperationException("the evaluator wrote no positions");
 
         // One hit per round, spanning every step the walk actually sampled.

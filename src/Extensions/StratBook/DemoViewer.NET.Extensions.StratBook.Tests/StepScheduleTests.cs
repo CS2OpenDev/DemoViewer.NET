@@ -14,10 +14,10 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StepScheduleTests
 {
-    private static readonly Guid First = Guid.Parse("00000000-0000-0000-0000-000000000001");
-    private static readonly Guid Second = Guid.Parse("00000000-0000-0000-0000-000000000002");
-    private static readonly Guid Third = Guid.Parse("00000000-0000-0000-0000-000000000003");
-    private static readonly Guid Fourth = Guid.Parse("00000000-0000-0000-0000-000000000004");
+    private static readonly Guid _first = Guid.Parse("00000000-0000-0000-0000-000000000001");
+    private static readonly Guid _second = Guid.Parse("00000000-0000-0000-0000-000000000002");
+    private static readonly Guid _third = Guid.Parse("00000000-0000-0000-0000-000000000003");
+    private static readonly Guid _fourth = Guid.Parse("00000000-0000-0000-0000-000000000004");
 
     [Test]
     public async Task TheRate_IsTheAnnotationSessionsFallback()
@@ -32,12 +32,12 @@ public class StepScheduleTests
     [Test]
     public async Task Windows_FollowAtSeconds_CountingDownFromTheRoundLength()
     {
-        StepSchedule schedule = StepSchedule.FromRoundClock([(First, 115), (Second, 110), (Third, 102.5)], 115);
+        StepSchedule schedule = StepSchedule.FromRoundClock([(_first, 115), (_second, 110), (_third, 102.5)], 115);
 
         await Assert.That(schedule.Windows.Count).IsEqualTo(3);
-        await Assert.That(schedule.Windows[0]).IsEqualTo(new StepWindow(First, 0, 319));
-        await Assert.That(schedule.Windows[1]).IsEqualTo(new StepWindow(Second, 320, 799));
-        await Assert.That(schedule.Windows[2]).IsEqualTo(new StepWindow(Third, 800, null))
+        await Assert.That(schedule.Windows[0]).IsEqualTo(new StepWindow(_first, 0, 319));
+        await Assert.That(schedule.Windows[1]).IsEqualTo(new StepWindow(_second, 320, 799));
+        await Assert.That(schedule.Windows[2]).IsEqualTo(new StepWindow(_third, 800, null))
             .Because("the last window is open-ended, TimeEnvelope's 'until the end'");
         await Assert.That(schedule.LastTick).IsEqualTo(800);
     }
@@ -45,14 +45,14 @@ public class StepScheduleTests
     [Test]
     public async Task At_FindsTheWindowOwningATick()
     {
-        StepSchedule schedule = new([(First, 64), (Second, 128), (Third, 256)]);
+        StepSchedule schedule = new([(_first, 64), (_second, 128), (_third, 256)]);
 
         await Assert.That(schedule.At(63)).IsNull().Because("before the first step no window owns the tick");
-        await Assert.That(schedule.At(64)!.Value.StepId).IsEqualTo(First);
-        await Assert.That(schedule.At(127)!.Value.StepId).IsEqualTo(First);
-        await Assert.That(schedule.At(128)!.Value.StepId).IsEqualTo(Second);
-        await Assert.That(schedule.At(1_000_000)!.Value.StepId).IsEqualTo(Third);
-        await Assert.That(schedule.IndexOf(Second)).IsEqualTo(1);
+        await Assert.That(schedule.At(64)!.Value.StepId).IsEqualTo(_first);
+        await Assert.That(schedule.At(127)!.Value.StepId).IsEqualTo(_first);
+        await Assert.That(schedule.At(128)!.Value.StepId).IsEqualTo(_second);
+        await Assert.That(schedule.At(1_000_000)!.Value.StepId).IsEqualTo(_third);
+        await Assert.That(schedule.IndexOf(_second)).IsEqualTo(1);
         await Assert.That(schedule.IndexOf(Guid.Empty)).IsEqualTo(-1);
     }
 
@@ -60,26 +60,26 @@ public class StepScheduleTests
     public async Task SharedTicks_GiveTheEarlierStepAZeroLengthWindow_InAuthoringOrder()
     {
         StepSchedule schedule = StepSchedule.FromRoundClock(
-            [(First, 115), (Second, 100), (Third, 100), (Fourth, 90)], 115);
+            [(_first, 115), (_second, 100), (_third, 100), (_fourth, 90)], 115);
 
         StepWindow second = schedule.Windows[1];
         StepWindow third = schedule.Windows[2];
 
-        await Assert.That(second.StepId).IsEqualTo(Second).Because("authoring order is kept");
+        await Assert.That(second.StepId).IsEqualTo(_second).Because("authoring order is kept");
         await Assert.That(second.FromTick).IsEqualTo(960);
         await Assert.That(second.UntilTick).IsEqualTo(959);
         await Assert.That(second.IsEmpty).IsTrue();
         await Assert.That(second.Contains(960)).IsFalse();
         await Assert.That(third.FromTick).IsEqualTo(960);
         await Assert.That(third.IsEmpty).IsFalse();
-        await Assert.That(schedule.At(960)!.Value.StepId).IsEqualTo(Third)
+        await Assert.That(schedule.At(960)!.Value.StepId).IsEqualTo(_third)
             .Because("the later of two steps sharing a tick owns it");
     }
 
     [Test]
     public async Task NegativeAtSeconds_IsATickPastTheRoundLength_AndLegal()
     {
-        StepSchedule schedule = StepSchedule.FromRoundClock([(First, 5), (Second, -10.5)], 115);
+        StepSchedule schedule = StepSchedule.FromRoundClock([(_first, 5), (_second, -10.5)], 115);
 
         await Assert.That(schedule.Windows[1].FromTick).IsEqualTo((115 + 10) * 64 + 32);
         await Assert.That(schedule.LastTick).IsGreaterThan(115 * 64);
@@ -98,7 +98,7 @@ public class StepScheduleTests
     [Test]
     public void AClockThatCountsUp_IsRefused()
     {
-        Assert.Throws<ArgumentException>(() => StepSchedule.FromRoundClock([(First, 100), (Second, 101)], 115));
+        Assert.Throws<ArgumentException>(() => StepSchedule.FromRoundClock([(_first, 100), (_second, 101)], 115));
     }
 
     [Test]

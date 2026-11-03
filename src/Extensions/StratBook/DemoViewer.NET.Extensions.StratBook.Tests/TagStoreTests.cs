@@ -18,8 +18,8 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class TagStoreTests
 {
-    private static readonly string[] TwoCodes = ["A execute", "Default"];
-    private static readonly string[] OneStrat = ["a-split"];
+    private static readonly string[] _twoCodes = ["A execute", "Default"];
+    private static readonly string[] _oneStrat = ["a-split"];
 
     private static string ShaOf(int n) => n.ToString("x64", System.Globalization.CultureInfo.InvariantCulture);
 
@@ -42,8 +42,8 @@ public class TagStoreTests
                 await Assert.That(File.Exists(Path.Combine(root, "demos", Sha + ".dvtag.json"))).IsTrue();
                 await Assert.That(row.Sha256).IsEqualTo(Sha);
                 await Assert.That(row.InstanceCount).IsEqualTo(3);
-                await Assert.That(row.Codes).IsEquivalentTo(TwoCodes, CollectionOrdering.Matching);
-                await Assert.That(row.StratIds).IsEquivalentTo(OneStrat, CollectionOrdering.Matching);
+                await Assert.That(row.Codes).IsEquivalentTo(_twoCodes, CollectionOrdering.Matching);
+                await Assert.That(row.StratIds).IsEquivalentTo(_oneStrat, CollectionOrdering.Matching);
                 await Assert.That(row.TickRate).IsEqualTo(64);
                 await Assert.That(File.Exists(Path.Combine(root, "index.json"))).IsFalse()
                     .Because("index.json is deferred to SaveIndex, the DemoCacheStore rule");
@@ -79,7 +79,7 @@ public class TagStoreTests
 
             // Corrupt the sidecar behind the index's back: a store that read sidecars at start would
             // drop the row, one that reads lazily keeps it and finds out only when asked.
-            File.WriteAllText(TagStore.SidecarPathFor(root, Sha), "{ not json");
+            await File.WriteAllTextAsync(TagStore.SidecarPathFor(root, Sha), "{ not json");
             TagStore reopened = new(PackStores.At(root));
 
             await Assert.That(reopened.Index.Count).IsEqualTo(1);
@@ -99,7 +99,7 @@ public class TagStoreTests
         {
             string path = TagStore.SidecarPathFor(root, Sha);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, "{ \"schemaVersion\": 1, \"instances\": [");
+            await File.WriteAllTextAsync(path, "{ \"schemaVersion\": 1, \"instances\": [");
 
             TagStore store = new(PackStores.At(root));
             TagLoadResult result = store.Load(Sha, Clock);
@@ -113,7 +113,7 @@ public class TagStoreTests
                 await Assert.That(store.TryLoad(Sha)).IsNull();
                 await Assert.That(store.Save(fresh)).IsFalse()
                     .Because("a file someone may have hand-edited is not replaced by what this session typed");
-                await Assert.That(File.ReadAllText(path)).IsEqualTo("{ \"schemaVersion\": 1, \"instances\": [");
+                await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("{ \"schemaVersion\": 1, \"instances\": [");
             }
         }
         finally
@@ -132,7 +132,7 @@ public class TagStoreTests
             store.Save(Document(ShaOf(1), Instance("A execute", 1, 2)));
             store.Save(Document(ShaOf(2), Instance("B execute", 1, 2), Instance("Default", 3, 4)));
             store.SaveIndex();
-            File.WriteAllText(Path.Combine(root, "index.json"), "][");
+            await File.WriteAllTextAsync(Path.Combine(root, "index.json"), "][");
 
             TagStore reopened = new(PackStores.At(root));
 
@@ -140,7 +140,7 @@ public class TagStoreTests
             {
                 await Assert.That(reopened.Index.Count).IsEqualTo(2);
                 await Assert.That(reopened.Index.Single(e => e.Sha256 == ShaOf(2)).InstanceCount).IsEqualTo(2);
-                await Assert.That(File.ReadAllText(Path.Combine(root, "index.json"))).Contains(ShaOf(2));
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, "index.json"))).Contains(ShaOf(2));
             }
         }
         finally
@@ -165,7 +165,7 @@ public class TagStoreTests
 
             TagStore reopened = new(PackStores.At(root));
             await Assert.That(reopened.Index.Select(e => e.Sha256))
-                .IsEquivalentTo(new[] { ShaOf(2) }, CollectionOrdering.Matching);
+                .IsEquivalentTo([ShaOf(2)], CollectionOrdering.Matching);
         }
         finally
         {
@@ -200,7 +200,7 @@ public class TagStoreTests
     {
         // A FILE where the root directory should be: every create under it fails, on every OS.
         string blocker = TempRoot();
-        File.WriteAllText(blocker, "not a directory");
+        await File.WriteAllTextAsync(blocker, "not a directory");
         try
         {
             TagStore store = new(PackStores.At(blocker));
@@ -324,7 +324,7 @@ public class TagStoreTests
             store.Save(Document(ShaOf(3), Instance("A execute", 1, 2)));
         }
 
-        await Assert.That(raised).IsEquivalentTo(new[] { ShaOf(1), null }, CollectionOrdering.Matching);
+        await Assert.That(raised).IsEquivalentTo([ShaOf(1), null], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -367,9 +367,9 @@ public class TagStoreIdentityTests
             writer.Save(Document(Other, Instance("A execute", 1, 2)));
 
             // Someone copied another demo's sidecar under this demo's name.
-            string foreign = File.ReadAllText(TagStore.SidecarPathFor(root, Other));
+            string foreign = await File.ReadAllTextAsync(TagStore.SidecarPathFor(root, Other));
             string path = TagStore.SidecarPathFor(root, Sha);
-            File.WriteAllText(path, foreign);
+            await File.WriteAllTextAsync(path, foreign);
 
             TagStore store = new(PackStores.At(root));
             TagLoadResult result = store.Load(Sha, Clock);
@@ -382,7 +382,7 @@ public class TagStoreIdentityTests
                 await Assert.That(result.Document).IsNull();
                 await Assert.That(fresh.Instances.Single().Code).IsEqualTo("Default");
                 await Assert.That(store.Save(fresh)).IsFalse();
-                await Assert.That(File.ReadAllText(path)).IsEqualTo(foreign);
+                await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(foreign);
             }
         }
         finally

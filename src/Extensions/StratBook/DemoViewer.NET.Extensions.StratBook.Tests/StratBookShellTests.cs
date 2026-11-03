@@ -156,7 +156,7 @@ public class StratBookShellTests
                 SettingsService svc = new(dir);
                 ServiceCollection services = new();
                 services.Configure<AppSettings>(svc.Configuration);
-                using ServiceProvider sp = services.BuildServiceProvider();
+                await using ServiceProvider sp = services.BuildServiceProvider();
                 IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
                 using FeatureGate gate = new(monitor, false);
 
@@ -503,7 +503,7 @@ public class StratBookShellTests
         gate.Answers.Remove("tab.review");
     }
 
-    private static (DemoCacheStore Cache, TeamIdentityService Teams) NewTeams()
+    private static TeamIdentityService NewTeams()
     {
         DemoCacheStore cache = new(null);
         TeamIdentityService teams = new(null, cache.Library(), run: a =>
@@ -511,7 +511,7 @@ public class StratBookShellTests
             a();
             return Task.CompletedTask;
         });
-        return (cache, teams);
+        return teams;
     }
 
     [Test]
@@ -520,7 +520,7 @@ public class StratBookShellTests
         {
             FakeGate gate = new();
             SetPackOff(gate);
-            (_, TeamIdentityService teams) = NewTeams();
+            TeamIdentityService teams = NewTeams();
             await teams.StartAsync();
             CountingProvenanceSource provenance = new();
 
@@ -953,7 +953,7 @@ public class StratBookShellTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeGate gate = new();
-            (_, TeamIdentityService teams) = NewTeams();
+            TeamIdentityService teams = NewTeams();
             await teams.StartAsync();
             CountingProvenanceSource provenance = new();
             SectionsModule module = new();
@@ -1014,7 +1014,7 @@ public class StratBookShellTests
     public async Task PackOn_TheLibraryTeamFilterAndProvenanceChip_WorkAsBefore() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            (_, TeamIdentityService teams) = NewTeams();
+            TeamIdentityService teams = NewTeams();
             await teams.StartAsync();
             CountingProvenanceSource provenance = new();
 
@@ -1176,7 +1176,7 @@ public class StratBookShellTests
         {
         }
 
-        public object? SnapshotState() => new SectionState(id);
+        public object SnapshotState() => new SectionState(id);
     }
 
     private sealed record SectionState(string Id);
@@ -1207,10 +1207,10 @@ public class StratBookShellTests
 
         public string? LabelFor(string sha256) => null;
 
-        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256s) =>
-            sha256s.ToDictionary(s => s, _ => (string?)null, StringComparer.Ordinal);
+        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256S) =>
+            sha256S.ToDictionary(s => s, _ => (string?)null, StringComparer.Ordinal);
 
-        public DemoProvenance? Resolve(string demoPath)
+        public DemoProvenance Resolve(string demoPath)
         {
             ResolveCalls++;
             return new DemoProvenance(demoPath, null, null, null, ProvenanceOrigin.None);

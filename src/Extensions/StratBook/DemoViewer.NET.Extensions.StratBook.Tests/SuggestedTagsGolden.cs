@@ -35,7 +35,7 @@ internal sealed class SuggestedTagsGolden
         DefaultIgnoreCondition = JsonIgnoreCondition.Never
     };
 
-    public int Schema { get; set; } = SchemaVersion;
+    public int Schema { get; init; } = SchemaVersion;
 
     public string Note { get; set; } =
         "One real round's occupancy (runs of 'from-to:place' seconds per slot, '?' alive and unplaced, " +
@@ -52,29 +52,29 @@ internal sealed class SuggestedTagsGolden
         "The same round as ../<map>.json, folded over the engine's own Round Facts rows (the shipped " +
         "round_facts ruleset), which end the round at round_decided rather than round_officially_ended. Recapture with ST_GOLDEN_UPDATE=1.";
 
-    public string Demo { get; set; } = "";
+    public string Demo { get; init; } = "";
 
-    public string Map { get; set; } = "";
+    public string Map { get; init; } = "";
 
-    public int TickRate { get; set; }
+    public int TickRate { get; init; }
 
-    public JsonNode? RegionTable { get; set; }
+    public JsonNode? RegionTable { get; init; }
 
-    public GoldenRound Round { get; set; } = new();
+    public GoldenRound Round { get; init; } = new();
 
-    public List<GoldenEvent> Events { get; set; } = [];
+    public List<GoldenEvent> Events { get; init; } = [];
 
     public List<GoldenProposal> Proposals { get; set; } = [];
 
     internal sealed class GoldenRound
     {
-        public int Number { get; set; }
+        public int Number { get; init; }
 
-        public int StartTick { get; set; }
+        public int StartTick { get; init; }
 
-        public int EndTick { get; set; }
+        public int EndTick { get; init; }
 
-        public RoundBomb? Bomb { get; set; }
+        public RoundBomb? Bomb { get; init; }
 
         /// <summary>Slot to side.</summary>
         public SortedDictionary<int, int> Sides { get; set; } = [];

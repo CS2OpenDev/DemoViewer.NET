@@ -50,11 +50,11 @@ public class CalloutAliasesTests
         using (Assert.Multiple())
         {
             await Assert.That(byAlias.Select(r => r.Id))
-                .IsEquivalentTo(new[] { atRamp.Id }, CollectionOrdering.Matching);
-            await Assert.That(byCase.Select(r => r.Id)).IsEquivalentTo(new[] { atRamp.Id }, CollectionOrdering.Matching)
+                .IsEquivalentTo([atRamp.Id], CollectionOrdering.Matching);
+            await Assert.That(byCase.Select(r => r.Id)).IsEquivalentTo([atRamp.Id], CollectionOrdering.Matching)
                 .Because("case and spacing fold the same as any other alias lookup");
             await Assert.That(byCanonical.Select(r => r.Id))
-                .IsEquivalentTo(new[] { atRamp.Id }, CollectionOrdering.Matching)
+                .IsEquivalentTo([atRamp.Id], CollectionOrdering.Matching)
                 .Because("the canonical spelling still matches its own place");
             await Assert.That(byUnknown).IsEmpty()
                 .Because("a word with no place resolves to a filter that matches nothing, not to no filter at all");
@@ -207,7 +207,7 @@ public class CalloutAliasesTests
         // Bypassing the pointer tool: what a resolved drop leaves behind is a placed token, which is
         // exactly what QueryRailSlotViewModel.Status and the resolver's Display both read from.
         vm.Document.Place(new QueryToken(QuerySide.Ct, 0, 1300, -1000, -416, "Ramp"));
-        QueryRailSlotViewModel slot = vm.Slots.First(s => s.Side == QuerySide.Ct && s.Slot == 0);
+        QueryRailSlotViewModel slot = vm.Slots.First(s => s is { Side: QuerySide.Ct, Slot: 0 });
         slot.Refresh();
 
         using (Assert.Multiple())

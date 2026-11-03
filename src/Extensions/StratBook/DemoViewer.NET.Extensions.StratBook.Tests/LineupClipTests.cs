@@ -281,11 +281,11 @@ public class LineupClipTests
             await Assert.That(jobs[0].Stem).IsEqualTo(old + "-stand-jump-left");
             await Assert.That(jobs[1].DemoPath).IsEqualTo("/d/c.dem")
                 .Because("each technique's clip shows its own throw");
-            await Assert.That(jobs[0].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f) ?? ""))
+            await Assert.That(jobs[0].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f)))
                 .Contains(old);
-            await Assert.That(jobs[0].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f) ?? ""))
+            await Assert.That(jobs[0].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f)))
                 .Contains(LineupClipPlanner.FileStem(Mirage, GrenadeKind.Smoke, IdOf("older")));
-            await Assert.That(jobs[1].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f) ?? ""))
+            await Assert.That(jobs[1].FormerGifPaths.Select(f => Path.GetFileNameWithoutExtension(f)))
                 .DoesNotContain(old);
         }
 
@@ -360,7 +360,7 @@ public class LineupClipTests
         {
             string old = LineupClipPlanner.FileStem(Mirage, GrenadeKind.Smoke, IdOf("spot"));
             WritePair(clips, old, 100, DateTime.UtcNow);
-            File.WriteAllText(Path.Combine(clips, old + LineupClipPlanner.SetposExtension),
+            await File.WriteAllTextAsync(Path.Combine(clips, old + LineupClipPlanner.SetposExtension),
                 "setpos 1.00 2.00 3.00; setang 0.00 0.00 0.00");
             FileRenderer renderer = new();
             using LineupClipService service = new(() => [Cluster(lineup)], PackStores.At(clips), () => true, renderer);
@@ -391,7 +391,7 @@ public class LineupClipTests
         try
         {
             string old = LineupClipPlanner.FileStem(Mirage, GrenadeKind.Smoke, IdOf("spot"));
-            File.WriteAllText(Path.Combine(clips, LineupClipService.EvictedFileName), old);
+            await File.WriteAllTextAsync(Path.Combine(clips, LineupClipService.EvictedFileName), old);
             FileRenderer renderer = new();
             using LineupClipService service = new(() => [Cluster(lineup)], PackStores.At(clips), () => true, renderer);
 
@@ -626,7 +626,7 @@ public class LineupClipTests
             }
 
             WritePair(clips, "de_mirage-smoke-0123456789ab", 100, DateTime.UtcNow);
-            File.WriteAllText(Path.Combine(clips, "notes.txt"), "not a clip");
+            await File.WriteAllTextAsync(Path.Combine(clips, "notes.txt"), "not a clip");
 
             bool complete = false;
             using (LineupClipService loading = new(() => [cluster], PackStores.At(clips), () => true,
@@ -702,7 +702,7 @@ public class LineupClipTests
             // An evicted current lineup stays evicted across sessions until it is asked for.
             File.Delete(jobs[0].GifPath);
             File.Delete(jobs[0].SetposPath);
-            File.WriteAllText(Path.Combine(clips, LineupClipService.EvictedFileName), jobs[0].Stem);
+            await File.WriteAllTextAsync(Path.Combine(clips, LineupClipService.EvictedFileName), jobs[0].Stem);
             FileRenderer later = new();
             using LineupClipService next = new(() => [cluster], PackStores.At(clips), () => true, later);
             await Assert.That(next.Plan()).IsEqualTo(0);
@@ -731,7 +731,7 @@ public class LineupClipTests
         {
             IReadOnlyList<LineupClipJob> jobs = LineupClipPlanner.PlanEvery([cluster], clips);
             WritePair(clips, jobs[0].Stem, 100, DateTime.UtcNow);
-            File.WriteAllText(Path.Combine(clips, LineupClipService.EvictedFileName), jobs[1].Stem);
+            await File.WriteAllTextAsync(Path.Combine(clips, LineupClipService.EvictedFileName), jobs[1].Stem);
 
             // A re-index drops the demo's rows for a moment, then puts them back.
             bool present = true;
@@ -1137,7 +1137,7 @@ public class LineupClipTests
 
         public TaskCompletionSource? Hold { get; init; }
 
-        public bool Fail { get; set; }
+        public bool Fail { get; init; }
 
         public async Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, ParsedDemo? demo,
             IReadOnlyList<LineupClipJob> jobs,

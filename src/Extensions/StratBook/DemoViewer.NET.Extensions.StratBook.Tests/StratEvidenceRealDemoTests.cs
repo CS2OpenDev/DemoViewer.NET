@@ -28,7 +28,7 @@ public class StratEvidenceRealDemoTests
     public async Task EveryTaggedRound_IsWonOrLost_ByTheRoundsWinner()
     {
         string path = DemoTestHelper.RequireDemo();
-        ParsedDemo parsed = DemoParser.Parse(File.ReadAllBytes(path).AsMemory());
+        ParsedDemo parsed = DemoParser.Parse((await File.ReadAllBytesAsync(path)).AsMemory());
         IReadOnlyList<ClipRound> rounds = ClipRounds.Derive(parsed);
         Guid stratId = Guid.NewGuid();
 
@@ -49,7 +49,7 @@ public class StratEvidenceRealDemoTests
         evaluator.Evaluate(path, parsed);
 
         RoundFactsRows rows = facts.TryGet(path) ?? throw new InvalidOperationException("the evaluator wrote no rows");
-        StratDocument strat = StratDocument.Create(stratId, StratOwner.Me(), parsed.MapName ?? "de_mirage",
+        StratDocument strat = StratDocument.Create(stratId, StratOwner.Me(), parsed.MapName,
             StratVocabulary.SideT, "execute", "real", Created);
         StratRecord record = new StratEvidenceService(tags).Compute(strat);
 

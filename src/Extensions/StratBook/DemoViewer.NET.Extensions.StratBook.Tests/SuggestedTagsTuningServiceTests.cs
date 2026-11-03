@@ -43,7 +43,7 @@ public class SuggestedTagsTuningServiceTests
         return instance;
     }
 
-    private static readonly ClockIdentity Clock = new(ClockIdentity.DvFrameClock, 64, 2, 1, 20000);
+    private static readonly ClockIdentity _clock = new(ClockIdentity.DvFrameClock, 64, 2, 1, 20000);
 
     private static SuggestedTagsTuningService Tuning(SuggestedTagsReviewHarness h) =>
         new(h.Cache.Library(), h.Service, h.Tags, h.Regions, new InlineJobs { ParseDemo = _ => Parse() });
@@ -196,17 +196,17 @@ public class SuggestedTagsTuningServiceTests
         // Demo B: same rounds and the same walk, but a profile under which the execute never fires, so
         // its only execute-coded evidence is a hand tag sitting exactly on A's execute window. Round
         // numbers and ticks coincide across the two demos; only the demo identity tells them apart.
-        const string otherPath = "/d/other.dem";
+        const string OtherPath = "/d/other.dem";
         string otherSha = new('b', 64);
-        h.Cache.Upsert(RoundIndexTestData.ParsedRecord(otherPath, SuggestedTagsTestData.Map, otherSha,
+        h.Cache.Upsert(RoundIndexTestData.ParsedRecord(OtherPath, SuggestedTagsTestData.Map, otherSha,
             Rows()));
         h.Profile = h.Profile.With("execute", "minSecond", 100);
-        h.Service.Evaluate(otherPath, Parse());
+        h.Service.Evaluate(OtherPath, Parse());
         h.Profile = DetectorProfile.Default;
 
         TagProposal execute = h.Service.Load(DemoPath).Entries.Single(e => e.Proposal.Detector == "execute").Proposal;
-        await Assert.That(h.Service.Load(otherPath).Entries.Any(e => e.Proposal.Detector == "execute")).IsFalse();
-        h.Tags.Append(new DemoIdentity(otherSha, "other.dem", 10), Clock, HumanTagFor(execute));
+        await Assert.That(h.Service.Load(OtherPath).Entries.Any(e => e.Proposal.Detector == "execute")).IsFalse();
+        h.Tags.Append(new DemoIdentity(otherSha, "other.dem", 10), _clock, HumanTagFor(execute));
 
         TuningReport report = Tuning(h).BuildStoredReport();
         DetectorTuningRow row = report.Rows.Single(r => r.Detector == "execute");
@@ -226,7 +226,7 @@ public class SuggestedTagsTuningServiceTests
 
         TagProposal execute = h.Service.Load(DemoPath).Entries.Single(e => e.Proposal.Detector == "execute").Proposal;
         await Assert.That(execute.Labels["site"]).IsEqualTo("BombsiteA");
-        h.Tags.Append(new DemoIdentity(Sha, "review.dem", 10), Clock, HumanTagFor(execute, "BombsiteB"));
+        h.Tags.Append(new DemoIdentity(Sha, "review.dem", 10), _clock, HumanTagFor(execute, "BombsiteB"));
 
         DetectorTuningRow row = Tuning(h).BuildStoredReport().Rows.Single(r => r.Detector == "execute");
 

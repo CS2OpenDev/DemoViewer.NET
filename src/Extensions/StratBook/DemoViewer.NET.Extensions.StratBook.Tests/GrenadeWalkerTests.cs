@@ -23,7 +23,7 @@ public class GrenadeWalkerTests
     private const int Index = 120;
     private const int Serial = 7;
 
-    private static readonly int[] BounceTicks = [117, 133, 151];
+    private static readonly int[] _bounceTicks = [117, 133, 151];
 
     // A pawn read with the fields a row prints.
     private static ThrowerRead Read(int tick, Vector3? at, float? pitch = null, float? yaw = null,
@@ -187,7 +187,7 @@ public class GrenadeWalkerTests
         {
             await Assert.That(points[0]).IsEqualTo(new TrajectoryPoint(100, 0, 0, 64, 0));
             await Assert.That(points[^1].Tick).IsEqualTo(160);
-            foreach (int bounceTick in BounceTicks)
+            foreach (int bounceTick in _bounceTicks)
             {
                 await Assert.That(points.Any(p => p.Tick == bounceTick)).IsTrue()
                     .Because($"bounce at {bounceTick}, stride {stride}");

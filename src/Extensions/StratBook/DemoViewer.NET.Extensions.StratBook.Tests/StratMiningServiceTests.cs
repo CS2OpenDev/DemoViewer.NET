@@ -32,9 +32,9 @@ public class StratMiningServiceTests
         return Task.CompletedTask;
     };
 
-    internal static readonly RoundIndexPlaceSources _sources = new(() => RoundIndexTokenSource.Pawn);
+    internal static readonly RoundIndexPlaceSources Sources = new(() => RoundIndexTokenSource.Pawn);
 
-    private static string Sha(int n) => new string((char)('a' + n), 64);
+    private static string Sha(int n) => new((char)('a' + n), 64);
 
     // Places: 0 TSpawn, 1 Palace, 2 BombsiteA, 3 BombsiteB, 4 CTSpawn.
     private static int Place(float x, float y) => x >= 900 ? y >= 0 ? 2 : 3 : x > 300 ? 1 : 0;
@@ -86,7 +86,7 @@ public class StratMiningServiceTests
     // The Ts walk from spawn to the site over 45 s and stay; the CTs hold. `jitter` moves one demo's walk a little.
     internal static RoundPositionsDocument Positions(int n, BombSite site, float jitter) => new()
     {
-        Fingerprint = _sources.FingerprintFor(Map),
+        Fingerprint = Sources.FingerprintFor(Map),
         Demo = new RoundPositionsDemo { StableKey = DemoCacheStore.StableKey($"/d/m{n}.dem"), Sha256 = Sha(n) },
         CadenceTicks = Rate,
         Places = ["TSpawn", "Palace", "BombsiteA", "BombsiteB", "CTSpawn"],
@@ -131,7 +131,7 @@ public class StratMiningServiceTests
         public required string Root { get; init; }
 
         public StratMiningService Service(Func<Action, Task>? run = null, Func<bool>? enabled = null) =>
-            new(Cache.Library(), Cache.RoundFacts(), Positions, _sources.FingerprintFor, null, null, Strats, Tags,
+            new(Cache.Library(), Cache.RoundFacts(), Positions, Sources.FingerprintFor, null, null, Strats, Tags,
                 TestFiles.Mining(Path.Combine(Root, "cache"), Root), run: run ?? _inline, enabled: enabled)
             {
                 QuietDelay = Timeout.InfiniteTimeSpan

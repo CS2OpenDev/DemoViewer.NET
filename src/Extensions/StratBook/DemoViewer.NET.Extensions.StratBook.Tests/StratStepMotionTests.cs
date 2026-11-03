@@ -24,13 +24,13 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class StratStepMotionTests
 {
-    private static readonly string[] VerbsWithoutPlaceFields = ["throw", "wait", "call", "lurk"];
+    private static readonly string[] _verbsWithoutPlaceFields = ["throw", "wait", "call", "lurk"];
 
     // 1:50 and 1:40 on a 115 s clock.
     private const int One = 320, Two = 960;
 
     // TSpawn and BombsiteA on the upper floor, BombsiteB on the lower one only.
-    internal static IZonePlaceResolver Zones() => new ZonePlaceResolverAdapter(new PlaceResolver(new ZoneSet(
+    private static ZonePlaceResolverAdapter Zones() => new ZonePlaceResolverAdapter(new PlaceResolver(new ZoneSet(
         "de_motion", "1", "1", null, 64,
         [new ZoneFloor(-512, -528, 100_000), new ZoneFloor(-2048, -100_000, -528)],
         [
@@ -45,13 +45,13 @@ public class StratStepMotionTests
         ],
         [(1, 2), (1, 3)], [(0, 1), (0, 2)], null)));
 
-    private static readonly IZonePlaceResolver Map = Zones();
+    private static readonly ZonePlaceResolverAdapter _map = Zones();
 
-    private static bool Inside(string place, TokenKeyframe k) => Map.ResolveOnFloor(k.X, k.Y, k.LevelMinZ) == place;
+    private static bool Inside(string place, TokenKeyframe k) => _map.ResolveOnFloor(k.X, k.Y, k.LevelMinZ) == place;
 
     private static StratSceneProjection Project(StratDocument document, ThrowOriginResolver? origins = null) =>
-        StratSceneProjection.Build(document, StratPath.MainLine(document), origins, Map.PlaceCentre, Map.PlaceArrival,
-            (place, x, y, level) => Map.ResolveOnFloor(x, y, level) == place);
+        StratSceneProjection.Build(document, StratPath.MainLine(document), origins, _map.PlaceCentre, _map.PlaceArrival,
+            (place, x, y, level) => _map.ResolveOnFloor(x, y, level) == place);
 
     private static TokenTrack Track(StratDocument document, string slot, ThrowOriginResolver? origins = null) =>
         Project(document, origins).Tracks.Single(t => t.Slot == slot);
@@ -473,7 +473,7 @@ public class StratStepMotionTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            foreach (string verb in VerbsWithoutPlaceFields)
+            foreach (string verb in _verbsWithoutPlaceFields)
             {
                 StratDocument document = Sent(verb);
                 document.Steps[1].To = null;
@@ -864,7 +864,7 @@ public class StratStepMotionTests
             (StratStore _, StratSession session) = Opened(document);
             session.Apply(StepAuthoringPatches.DuplicateStep(session.Document!, 0, Guid.NewGuid()));
             StratDocument after = session.Document!;
-            List<StepPosition> carried = StratStepCarry.PositionsAt(after, 0, null, Map.PlaceCentre);
+            List<StepPosition> carried = StratStepCarry.PositionsAt(after, 0, null, _map.PlaceCentre);
             PatchOp drag = StepAuthoringPatches.TokenPosition(after, 0, "A", 500, 500, -512, null);
             using (Assert.Multiple())
             {
@@ -904,7 +904,7 @@ public class StratStepMotionTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratDocument document = Sent("move");
-            List<StepPosition> carried = StratStepCarry.PositionsAt(document, 1, null, Map.PlaceCentre);
+            List<StepPosition> carried = StratStepCarry.PositionsAt(document, 1, null, _map.PlaceCentre);
             using (Assert.Multiple())
             {
                 await Assert.That(carried.Any(p => p.Slot == "A")).IsFalse();
@@ -998,7 +998,7 @@ public class StratStepMotionTests
             // Routing off: the straight-line arithmetic this pins. StratRoutingTests covers the routed arrival.
             using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
                 StratTestKeymap.Shipped,
-                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(Map), post: a => a(), routing: () => false);
+                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(_map), post: a => a(), routing: () => false);
             canvas.Transport.Seek(0);
             int arrive = Two + RunTicks(1100, 100);
             StratSceneProjection projection = canvas.Projection!;
@@ -1019,15 +1019,15 @@ public class StratStepMotionTests
     }
 
     // A strat from a template on the motion map: the five in TSpawn at the round start, then the template's steps.
-    internal static StratDocument FromTemplate(StratTemplate template)
+    private static StratDocument FromTemplate(StratTemplate template)
     {
         StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_motion", template.Side ?? "T",
             template.Type, template.Name, Created);
         StratStep seed = new()
         {
-            Id = Guid.NewGuid(), AtSeconds = 115, Actor = StratVocabulary.ActorAll, Verb = "hold"
+            Id = Guid.NewGuid(), AtSeconds = 115, Actor = StratVocabulary.ActorAll, Verb = "hold",
+            Positions = [.. StratVocabulary.Slots.Select((s, i) => Upper(s, 20 + 40 * i, 100)), .. Opponents()]
         };
-        seed.Positions = [.. StratVocabulary.Slots.Select((s, i) => Upper(s, 20 + 40 * i, 100)), .. Opponents()];
         document.Steps = [seed];
         StratTemplates.Apply(document, template);
         return document;

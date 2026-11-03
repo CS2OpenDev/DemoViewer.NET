@@ -359,7 +359,8 @@ public class DemoProvenanceTests
                 await Assert.That(raised).IsEqualTo(1);
             }
 
-            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(Path.Combine(root, "teams.json")),
+            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(
+                await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
                 TeamsFile.JsonOptions)!;
             ProvenanceOverride stored = file.Provenance.Overrides.Single();
             using (Assert.Multiple())
@@ -396,7 +397,7 @@ public class DemoProvenanceTests
                 }
 
                 TeamsFile after =
-                    JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(Path.Combine(root, "teams.json")),
+                    JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
                         TeamsFile.JsonOptions)!;
                 await Assert.That(after.Provenance.Overrides).IsEmpty();
             }

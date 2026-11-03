@@ -29,7 +29,7 @@ public class StratThrowsTests
     private const int Release = 1600;
     private const int Landed = Release + 128;
     private const int Pops = Release + 160;
-    private static readonly int SmokeEnds = Pops + (int)(StratFrameSource.SmokeSeconds * StepSchedule.TicksPerSecond);
+    private static readonly int _smokeEnds = Pops + (int)(StratFrameSource.SmokeSeconds * StepSchedule.TicksPerSecond);
 
     [Test]
     public async Task ALineupSmoke_FliesFromTheOrigin_ToTheLanding_ThenSmokesThere_For18Seconds()
@@ -75,8 +75,8 @@ public class StratThrowsTests
                 await Assert.That(popped.WorldX).IsEqualTo(-1400f);
                 await Assert.That(popped.WorldRadius).IsLessThan(144f).Because("it blooms");
                 await Assert.That(source.FrameAt(Pops + 64).AreaEffects.Single().WorldRadius).IsEqualTo(144f);
-                await Assert.That(Smokes(source.FrameAt(SmokeEnds - 1))).IsEqualTo(1);
-                await Assert.That(Smokes(source.FrameAt(SmokeEnds))).IsEqualTo(0);
+                await Assert.That(Smokes(source.FrameAt(_smokeEnds - 1))).IsEqualTo(1);
+                await Assert.That(Smokes(source.FrameAt(_smokeEnds))).IsEqualTo(0);
                 await Assert.That(source.FrameAt(Landed + 2 * 64).Trails).IsEmpty()
                     .Because("the line fades over 2 s after it stops");
             }
@@ -100,7 +100,6 @@ public class StratThrowsTests
             StratSceneProjection projection = capture.Projection;
             SceneExportRange range = StratExportJob.Ranges(projection)[0];
             StratFrameSource source = new(StratExportJob.BuildSpec(capture, null, range.Start, range.End, 30, 1.0));
-            List<Scene2DFrame> frames = [];
             int smokes = 0, trails = 0;
             for (int i = 0; i < source.FrameCount; i++)
             {
@@ -111,13 +110,13 @@ public class StratThrowsTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(projection.LastTick).IsLessThan(SmokeEnds)
+                await Assert.That(projection.LastTick).IsLessThan(_smokeEnds)
                     .Because("the last step is before the smoke clears");
-                await Assert.That(projection.ContentEndTick).IsEqualTo(SmokeEnds - 1);
-                await Assert.That(range.End).IsGreaterThanOrEqualTo(SmokeEnds - 1);
+                await Assert.That(projection.ContentEndTick).IsEqualTo(_smokeEnds - 1);
+                await Assert.That(range.End).IsGreaterThanOrEqualTo(_smokeEnds - 1);
                 await Assert.That(smokes).IsGreaterThanOrEqualTo(18 * 30 - 1).Because("the whole smoke is in the file");
                 await Assert.That(trails).IsGreaterThan(0);
-                await Assert.That(canvas.Transport.EndTick).IsEqualTo(SmokeEnds - 1);
+                await Assert.That(canvas.Transport.EndTick).IsEqualTo(_smokeEnds - 1);
             }
         });
     }

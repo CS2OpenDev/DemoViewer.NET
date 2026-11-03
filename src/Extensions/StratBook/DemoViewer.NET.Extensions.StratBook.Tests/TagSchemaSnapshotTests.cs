@@ -175,7 +175,7 @@ public class TagSchemaSnapshotTests
         if (Environment.GetEnvironmentVariable("PB2D_GOLDEN_UPDATE") == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path,
+            await File.WriteAllTextAsync(path,
                 JsonSerializer.Serialize(TagTestData.SchemaSample(), TagJsonContext.Default.TagDocument) + "\n");
         }
 
@@ -184,7 +184,7 @@ public class TagSchemaSnapshotTests
             throw new SkipTestException($"missing {path}; regenerate with PB2D_GOLDEN_UPDATE=1");
         }
 
-        string original = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string original = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         string root = TagTestData.TempRoot();
         try
         {
@@ -192,7 +192,7 @@ public class TagSchemaSnapshotTests
             // goes through are the store's.
             string sidecar = TagStore.SidecarPathFor(root, TagTestData.Sha);
             Directory.CreateDirectory(Path.GetDirectoryName(sidecar)!);
-            File.WriteAllText(sidecar, original);
+            await File.WriteAllTextAsync(sidecar, original);
 
             TagStore store = new(PackStores.At(root));
             TagLoadResult loaded = store.Load(TagTestData.Sha, TagTestData.Clock);
@@ -213,7 +213,7 @@ public class TagSchemaSnapshotTests
             }
 
             await Assert.That(store.Save(document)).IsTrue();
-            string round = File.ReadAllText(sidecar);
+            string round = await File.ReadAllTextAsync(sidecar);
             await Assert.That(round + "\n").IsEqualTo(original)
                 .Because(
                     "the v1 sidecar is a published format; a round trip must be field-identical, unknown fields included");

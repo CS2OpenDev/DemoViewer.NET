@@ -20,8 +20,8 @@ internal sealed class SuggestedTagsReviewHarness : IDisposable
 {
     internal const string DemoPath = "/d/review.dem";
     internal const int FreezeEnd = 1000;
-    internal const int Seconds = 90;
-    internal const int SecondFreezeEnd = FreezeEnd + Seconds * 64 + 640;
+    private const int Seconds = 90;
+    private const int SecondFreezeEnd = FreezeEnd + Seconds * 64 + 640;
     internal const string ExecuteId = "exec|r1|T|BombsiteA|s=10";
     internal const string DefaultId = "default|r2|T";
 

@@ -183,7 +183,7 @@ public class RoundIndexStoreTests
         if (Environment.GetEnvironmentVariable("RI_GOLDEN_UPDATE") == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, FixtureDocument().Serialize() + "\n");
+            await File.WriteAllTextAsync(path, FixtureDocument().Serialize() + "\n");
         }
 
         if (!File.Exists(path))
@@ -191,7 +191,7 @@ public class RoundIndexStoreTests
             throw new SkipTestException($"missing {path}; regenerate with RI_GOLDEN_UPDATE=1");
         }
 
-        string original = File.ReadAllText(path);
+        string original = await File.ReadAllTextAsync(path);
         RoundIndexDocument? loaded = RoundIndexDocument.TryDeserialize(original);
 
         using (Assert.Multiple())

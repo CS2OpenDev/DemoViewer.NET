@@ -19,9 +19,9 @@ public class StratAssignmentsTests
 {
     private const string FixtureName = "schema-v1.assignments.dvstrat.json";
 
-    internal static readonly Guid LinesId = Guid.Parse("5d0c7e1a-2b3c-4d5e-8f60-718293a4b5c6");
+    private static readonly Guid LinesId = Guid.Parse("5d0c7e1a-2b3c-4d5e-8f60-718293a4b5c6");
 
-    private static readonly CalloutResolver Mirage = new(CanonicalPlaces.Embedded("de_mirage"));
+    private static readonly CalloutResolver _mirage = new(CanonicalPlaces.Embedded("de_mirage"));
 
     private static bool Updating => Environment.GetEnvironmentVariable("PB2D_GOLDEN_UPDATE") == "1";
 
@@ -57,11 +57,11 @@ public class StratAssignmentsTests
     }
 
     private static string Issues(StratDocument document) =>
-        string.Join("; ", StratValidator.Validate(document, Mirage).Select(i => $"{i.Severity} {i.Field}"));
+        string.Join("; ", StratValidator.Validate(document, _mirage).Select(i => $"{i.Severity} {i.Field}"));
 
     private static async Task Expect(StratDocument document, StratIssueSeverity severity, string field)
     {
-        IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, Mirage);
+        IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, _mirage);
         await Assert.That(issues.Any(i => i.Severity == severity && i.Field == field)).IsTrue()
             .Because($"expected a {severity} at '{field}', got: {Issues(document)}");
     }
@@ -91,17 +91,17 @@ public class StratAssignmentsTests
         string path = Path.Combine(repo, "tests", "fixtures", "strats", FixtureName);
         if (Updating)
         {
-            File.WriteAllText(path, StratStore.Serialize(WithLines()) + "\n");
+            await File.WriteAllTextAsync(path, StratStore.Serialize(WithLines()) + "\n");
         }
 
-        string original = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string original = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         string root = TempRoot();
         try
         {
             string file = Path.Combine(StratStore.FolderFor(root, Team, "de_mirage"),
                 LinesId + StratStore.StratExtension);
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-            File.WriteAllText(file, original);
+            await File.WriteAllTextAsync(file, original);
 
             StratLoadResult loaded = new StratStore(PackStores.At(root)).Load(LinesId);
             StratStep step = loaded.Document!.Steps[2];
@@ -187,7 +187,7 @@ public class StratAssignmentsTests
     {
         StratDocument document = WithLines();
         document.Steps[2].Assignments![1].To = null;
-        IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, Mirage);
+        IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, _mirage);
         using (Assert.Multiple())
         {
             await Assert.That(issues.Any(i => i is
@@ -199,7 +199,7 @@ public class StratAssignmentsTests
         StratDocument hold = WithLines();
         hold.Steps[2].Verb = "hold";
         hold.Steps[2].Assignments![1].To = null;
-        await Assert.That(StratValidator.Validate(hold, Mirage)
+        await Assert.That(StratValidator.Validate(hold, _mirage)
                 .Any(i => i.Field.StartsWith("/steps/2/assignments/1/to", StringComparison.Ordinal)))
             .IsFalse().Because("only a move needs a place");
     }
@@ -215,7 +215,7 @@ public class StratAssignmentsTests
         single.Steps[2].Assignments!.RemoveRange(1, 2);
         await Expect(single, StratIssueSeverity.Warning, "/steps/2/actor");
         single.Steps[2].Actor = "B";
-        await Assert.That(StratValidator.Validate(single, Mirage).Any(i => i.Field == "/steps/2/actor")).IsFalse();
+        await Assert.That(StratValidator.Validate(single, _mirage).Any(i => i.Field == "/steps/2/actor")).IsFalse();
 
         StratDocument to = WithLines();
         to.Steps[2].To = Place("BombsiteA");
@@ -229,13 +229,13 @@ public class StratAssignmentsTests
         StratStep step = document.Steps[2];
         step.Verb = "throw";
         step.Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid() };
-        IReadOnlyList<StratIssue> several = StratValidator.Validate(document, Mirage, lineupExists: (_, _) => true);
+        IReadOnlyList<StratIssue> several = StratValidator.Validate(document, _mirage, lineupExists: (_, _) => true);
         await Assert.That(several.Any(i =>
             i.Field == "/steps/2/actor" && i.Message.Contains("thrower", StringComparison.Ordinal))).IsTrue();
 
         step.Assignments!.RemoveRange(1, 2);
         step.Actor = "B";
-        IReadOnlyList<StratIssue> one = StratValidator.Validate(document, Mirage, lineupExists: (_, _) => true);
+        IReadOnlyList<StratIssue> one = StratValidator.Validate(document, _mirage, lineupExists: (_, _) => true);
         await Assert.That(one.Any(i => i.Field == "/steps/2/actor")).IsFalse();
     }
 }

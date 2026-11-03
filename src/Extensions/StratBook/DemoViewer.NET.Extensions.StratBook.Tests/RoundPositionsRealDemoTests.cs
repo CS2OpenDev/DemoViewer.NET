@@ -179,7 +179,7 @@ public class RoundPositionsRealDemoTests
         List<SituationHit> hits =
         [
             .. rows.Rounds.Select(r => new SituationHit(path, DemoCacheStore.StableKey(path), null,
-                parsed.MapName ?? "",
+                parsed.MapName,
                 r.Number, r.FreezeEndTick, r.FreezeEndTick, r.FreezeEndTick, 1))
         ];
 

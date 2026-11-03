@@ -31,7 +31,7 @@ public class SuggestedTagsGoldenTests
 
         foreach (string file in files.Order(StringComparer.Ordinal))
         {
-            string original = File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string original = (await File.ReadAllTextAsync(file)).Replace("\r\n", "\n", StringComparison.Ordinal);
             SuggestedTagsGolden golden = SuggestedTagsGolden.Load(file);
             golden.Proposals = golden.Detect();
 

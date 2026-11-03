@@ -125,14 +125,14 @@ public class TokenToolTests
     [Test]
     public async Task HitTest_SplitsTheDiscFromTheHeadingStub()
     {
-        const float radius = 9f;
+        const float Radius = 9f;
 
-        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(4, 3), radius)).IsEqualTo(TokenGrip.Body);
-        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(14, 0), radius)).IsEqualTo(TokenGrip.Heading);
-        await Assert.That(TokenHitTest.Classify(0, 0, 90, new SKPoint(0, 15), radius)).IsEqualTo(TokenGrip.Heading)
+        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(4, 3), Radius)).IsEqualTo(TokenGrip.Body);
+        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(14, 0), Radius)).IsEqualTo(TokenGrip.Heading);
+        await Assert.That(TokenHitTest.Classify(0, 0, 90, new SKPoint(0, 15), Radius)).IsEqualTo(TokenGrip.Heading)
             .Because("the stub follows the yaw, world yaw 90 pointing +Y");
-        await Assert.That(TokenHitTest.Classify(0, 0, 90, new SKPoint(15, 0), radius)).IsNull();
-        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(-14, 0), radius)).IsNull()
+        await Assert.That(TokenHitTest.Classify(0, 0, 90, new SKPoint(15, 0), Radius)).IsNull();
+        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(-14, 0), Radius)).IsNull()
             .Because("behind the token there is no stub");
         await Assert.That(TokenHitTest.WorldRadius(2)).IsEqualTo(SceneDefaults.MarkerRadius * 2);
     }
@@ -287,7 +287,7 @@ public class TokenToolTests
 
         public FakeToolServices(PaneSet panes) => _panes = panes;
 
-        public int CurrentTick { get; set; }
+        public int CurrentTick => 0;
 
         public LevelPane? PaneAt(SKPoint screen) =>
             _panes is not null ? _panes.PaneAt(screen.X, screen.Y) : _single;

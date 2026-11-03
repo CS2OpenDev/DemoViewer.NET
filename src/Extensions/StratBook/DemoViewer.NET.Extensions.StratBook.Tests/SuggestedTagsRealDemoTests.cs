@@ -43,7 +43,6 @@ public class SuggestedTagsRealDemoTests
     private sealed record Walked(
         ParsedDemo Parsed,
         RoundFactsRows Rows,
-        List<PositionSample> Samples,
         OccupancyBuild Build,
         SiteRegionTable Table,
         List<PlacedEvent> Events);
@@ -69,7 +68,7 @@ public class SuggestedTagsRealDemoTests
         SiteRegionTable table = SiteRegionLearner.Learn(parsed.MapName, [build.Rounds]);
         List<PlacedEvent> events =
             new DetonationPlaceResolver(null, null, build.Cloud).Place(DetonationEvents.From(parsed));
-        return new Walked(parsed, rows, samples, build, table, events);
+        return new Walked(parsed, rows, build, table, events);
     }
 
     // Same walk, but the rows come from the shipped engine ruleset rather than the demo's own kill
@@ -94,7 +93,7 @@ public class SuggestedTagsRealDemoTests
         SiteRegionTable table = SiteRegionLearner.Learn(parsed.MapName, [build.Rounds]);
         List<PlacedEvent> events =
             new DetonationPlaceResolver(null, null, build.Cloud).Place(DetonationEvents.From(parsed));
-        return new Walked(parsed, rows, samples, build, table, events);
+        return new Walked(parsed, rows, build, table, events);
     }
 
     [Test]
@@ -117,7 +116,7 @@ public class SuggestedTagsRealDemoTests
         if (Environment.GetEnvironmentVariable("ST_GOLDEN_UPDATE") == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-            File.WriteAllText(file, golden.Serialize());
+            await File.WriteAllTextAsync(file, golden.Serialize());
         }
 
         if (!File.Exists(file))
@@ -129,7 +128,7 @@ public class SuggestedTagsRealDemoTests
         {
             await Assert.That(walked.Parsed.MapName).IsEqualTo(map);
             await Assert.That(golden.Serialize())
-                .IsEqualTo(File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal))
+                .IsEqualTo((await File.ReadAllTextAsync(file)).Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("the fold, the placed events and the learned table of the pinned round are pinned");
         }
     }
@@ -159,7 +158,9 @@ public class SuggestedTagsRealDemoTests
 
                     cells++;
                     if (walkedRound.CountsAt(side, s).OrderBy(p => p.Key, StringComparer.Ordinal)
-                        .SequenceEqual(indexed.CountsAt(side, s).OrderBy(p => p.Key, StringComparer.Ordinal)))
+                        .Select(p => (p.Key, p.Value))
+                        .SequenceEqual(indexed.CountsAt(side, s).OrderBy(p => p.Key, StringComparer.Ordinal)
+                            .Select(p => (p.Key, p.Value))))
                     {
                         agree++;
                     }
@@ -253,7 +254,7 @@ public class SuggestedTagsRealDemoTests
         if (Environment.GetEnvironmentVariable("ST_GOLDEN_UPDATE") == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-            File.WriteAllText(file, golden.Serialize());
+            await File.WriteAllTextAsync(file, golden.Serialize());
         }
 
         if (!File.Exists(file) || !File.Exists(synthesised))
@@ -265,7 +266,7 @@ public class SuggestedTagsRealDemoTests
         using (Assert.Multiple())
         {
             await Assert.That(golden.Serialize())
-                .IsEqualTo(File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal))
+                .IsEqualTo((await File.ReadAllTextAsync(file)).Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("the fold, the placed events and the learned table over the engine's rows are pinned");
             await Assert.That(golden.Round.StartTick).IsEqualTo(fromSynthesised.Round.StartTick);
             await Assert.That(golden.Round.EndTick).IsLessThan(fromSynthesised.Round.EndTick)

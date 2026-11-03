@@ -63,7 +63,7 @@ public class StratMiningCalibration
             IReadOnlyList<MinedPattern> patterns = StratMiner.Mine(signatures, cutoff);
             long ms = watch.ElapsedMilliseconds;
             int backToBack = patterns.Count(p =>
-                p.Support == 2 && p.Demos == 1 && Math.Abs(p.Members[0].Round - p.Members[1].Round) == 1);
+                p is { Support: 2, Demos: 1 } && Math.Abs(p.Members[0].Round - p.Members[1].Round) == 1);
             string line = string.Join(" ", patterns.GroupBy(p => p.Kind).OrderBy(g => g.Key).Select(g =>
                 $"{g.Key}={g.Count()} (support 2: {g.Count(p => p.Support == 2)}, 3-4: {g.Count(p => p.Support is 3 or 4)}, 5+: {g.Count(p => p.Support >= 5)}, utility compared: {g.Count(p => p.UtilityCompared)}, multi-demo: {g.Count(p => p.Demos > 1)}, multi-team: {g.Count(p => p.Teams.Count > 1)})"));
             Console.WriteLine(

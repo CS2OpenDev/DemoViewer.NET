@@ -293,8 +293,8 @@ public class StratDragFieldsTests
             using StratCanvasViewModel canvas = Canvas(session);
 
             // E rotated at 1:45 (tick 640) and is walking to Ramp.
-            const int end = 650;
-            canvas.Timeline.RequestSeek(end);
+            const int End = 650;
+            canvas.Timeline.RequestSeek(End);
             string before = Json(session);
             Drag(canvas, "E", 20, 80);
             StepLurk written = session.Document!.Steps[1].Lurk!;
@@ -303,7 +303,7 @@ public class StratDragFieldsTests
                 await Assert.That(written.Rotate!.To!.Place).IsEqualTo("Hut");
                 await Assert.That(written.Rotate!.To!.X).IsEqualTo(20);
                 await Assert.That(written.Areas).IsEquivalentTo(["Hut"], CollectionOrdering.Matching);
-                await Assert.That(canvas.Transport.Tick).IsEqualTo(end);
+                await Assert.That(canvas.Transport.Tick).IsEqualTo(End);
             }
 
             await OneEntryByteExact(canvas, session, before, 0);

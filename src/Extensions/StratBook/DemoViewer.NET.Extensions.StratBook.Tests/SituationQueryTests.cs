@@ -19,7 +19,7 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class SituationQueryTests
 {
-    private static readonly string Fingerprint =
+    private static readonly string _fingerprint =
         "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm;
 
     private const string DemoA = "/d/a.dem";
@@ -28,7 +28,7 @@ public class SituationQueryTests
 
     private static RoundIndexDocument DocA()
     {
-        RoundIndexDocument document = Document("de_nuke", Fingerprint,
+        RoundIndexDocument document = Document("de_nuke", _fingerprint,
             (1, 10746, 17138,
             [
                 new RoundIndexRun(0, 4, "CTSpawn:5", "TSpawn:5"),
@@ -50,7 +50,7 @@ public class SituationQueryTests
 
     private static RoundIndexDocument DocB()
     {
-        RoundIndexDocument document = Document("de_nuke", Fingerprint,
+        RoundIndexDocument document = Document("de_nuke", _fingerprint,
             (1, 5000, 9000, [new RoundIndexRun(0, 2, "BombsiteA:4|Outside:1", "Lobby:3|Ramp:2")]));
         document.Transitions = [new PlaceTransition("Outside", "Ramp", 2)];
         document.Places["BombsiteA"] = new PlaceSampleSummary
@@ -61,7 +61,7 @@ public class SituationQueryTests
     }
 
     private static RoundIndexDocument DocC() =>
-        Document("de_dust2", Fingerprint, (1, 3000, 6000, [new RoundIndexRun(0, 1, "BombsiteA:2", "Ramp:3")]));
+        Document("de_dust2", _fingerprint, (1, 3000, 6000, [new RoundIndexRun(0, 1, "BombsiteA:2", "Ramp:3")]));
 
     private static Harness Load(IZonePlaceResolverSource? zones = null, IRoundFactsSource? facts = null)
     {
@@ -130,7 +130,7 @@ public class SituationQueryTests
     public async Task TheCountNeverFalls_AsTheSliderLoosens()
     {
         using Harness h = Load();
-        PlaceQuery[] three = [new PlaceQuery("BombsiteA", 3)];
+        PlaceQuery[] three = [new("BombsiteA", 3)];
         int exact = await CountAndCheck(h.Index, Q("de_nuke", three));
         int adjacent = await CountAndCheck(h.Index, Q("de_nuke", three, tolerance: SituationTolerance.Adjacent));
         int twoHops = await CountAndCheck(h.Index, Q("de_nuke", three, tolerance: SituationTolerance.TwoHops));
@@ -154,7 +154,7 @@ public class SituationQueryTests
     {
         using Harness h = Load();
         // dust2 has one demo with no transitions: an empirical graph with no edges, so Adjacent equals Exact.
-        PlaceQuery[] two = [new PlaceQuery("BombsiteA", 2)];
+        PlaceQuery[] two = [new("BombsiteA", 2)];
         int exact = await CountAndCheck(h.Index, Q("de_dust2", two));
         int adjacent = await CountAndCheck(h.Index, Q("de_dust2", two, tolerance: SituationTolerance.Adjacent));
 
@@ -187,7 +187,7 @@ public class SituationQueryTests
                 rounds.Add((r, 1000 * r, 1000 * r + 900, [.. runs]));
             }
 
-            RoundIndexDocument document = Document("de_rand", Fingerprint, [.. rounds]);
+            RoundIndexDocument document = Document("de_rand", _fingerprint, [.. rounds]);
             for (int i = 0; i < places.Length - 1; i++)
             {
                 document.Transitions.Add(new PlaceTransition(places[i], places[i + 1], 3));
@@ -215,7 +215,7 @@ public class SituationQueryTests
                 await Assert.That(twoHops).IsLessThanOrEqualTo(any)
                     .Because($"trial {trial}: two hops implies any place");
 
-                PlaceQuery[] more = [.. ct, new PlaceQuery(places[random.Next(places.Length)], random.Next(1, 3))];
+                PlaceQuery[] more = [.. ct, new(places[random.Next(places.Length)], random.Next(1, 3))];
                 foreach (SituationTolerance level in Enum.GetValues<SituationTolerance>())
                 {
                     int before = await CountAndCheck(h.Index, Q("de_rand", ct, t, level));
@@ -231,7 +231,7 @@ public class SituationQueryTests
     public async Task TheDemoAndWatermarkFilters_NarrowTheSameHitSet()
     {
         using Harness h = Load();
-        PlaceQuery[] anyA = [new PlaceQuery("BombsiteA", 1)];
+        PlaceQuery[] anyA = [new("BombsiteA", 1)];
         SituationQuery all = Q("de_nuke", anyA, tolerance: SituationTolerance.AnyPlace);
         SituationQuery onlyB = all with
         {
@@ -253,8 +253,7 @@ public class SituationQueryTests
     [Test]
     public async Task ARoundFactsFilter_JoinsByPathAndRoundNumber()
     {
-        FakeFacts facts = new();
-        facts.Rows[DemoA] = Facts(Round(1, 10746, 17138), Round(2, 20000, 24000));
+        FakeFacts facts = new() { Rows = { [DemoA] = Facts(Round(1, 10746, 17138), Round(2, 20000, 24000)) } };
         facts.Rows[DemoA].Rounds[1].WinnerSide = 2;
         using Harness h = Load(facts: facts);
         SituationQuery tWins = Q("de_nuke", tolerance: SituationTolerance.AnyPlace) with

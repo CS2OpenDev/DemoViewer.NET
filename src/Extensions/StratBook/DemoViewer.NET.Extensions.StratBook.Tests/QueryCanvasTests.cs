@@ -117,7 +117,7 @@ public class QueryCanvasTests
         h.Press(3000, 2500);
         h.Release(3000, 2500);
 
-        QueryRailSlotViewModel slot = h.Vm.Slots.Single(s => s.Side == QuerySide.Ct && s.Slot == 0);
+        QueryRailSlotViewModel slot = h.Vm.Slots.Single(s => s is { Side: QuerySide.Ct, Slot: 0 });
         using (Assert.Multiple())
         {
             await Assert.That(h.Vm.Document.IsPlaced(QuerySide.Ct, 0)).IsTrue();
@@ -176,7 +176,7 @@ public class QueryCanvasTests
         h.Press(bx, by);
         h.Release(bx, by);
         await Assert.That(h.Vm.CtToken).IsEqualTo("BombsiteA:2");
-        h.Vm.Lift(h.Vm.Slots.Single(s => s.Side == QuerySide.Ct && s.Slot == 1));
+        h.Vm.Lift(h.Vm.Slots.Single(s => s is { Side: QuerySide.Ct, Slot: 1 }));
 
         // Grab the token, carry it to Outside: the place is decided at the release, and the disc
         // goes hollow on the way.
@@ -221,8 +221,8 @@ public class QueryCanvasTests
     public async Task TheRail_ArmsPlacesAndLifts_AndFollowsTheDocument()
     {
         using Harness h = new();
-        QueryRailSlotViewModel ct1 = h.Vm.Slots.Single(s => s.Side == QuerySide.Ct && s.Slot == 0);
-        QueryRailSlotViewModel t5 = h.Vm.Slots.Single(s => s.Side == QuerySide.T && s.Slot == 4);
+        QueryRailSlotViewModel ct1 = h.Vm.Slots.Single(s => s is { Side: QuerySide.Ct, Slot: 0 });
+        QueryRailSlotViewModel t5 = h.Vm.Slots.Single(s => s is { Side: QuerySide.T, Slot: 4 });
 
         await Assert.That(h.Vm.Slots.Count).IsEqualTo(10);
         await Assert.That(h.Vm.CtSlots.Count()).IsEqualTo(5);

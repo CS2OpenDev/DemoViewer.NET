@@ -173,7 +173,7 @@ public class RoundIndexRealDemoTests
         Stopwatch watch = Stopwatch.StartNew();
         foreach (string demo in demos)
         {
-            ParsedDemo parsed = DemoParser.Parse(File.ReadAllBytes(demo).AsMemory());
+            ParsedDemo parsed = DemoParser.Parse((await File.ReadAllBytesAsync(demo)).AsMemory());
             store.Upsert(new DemoCacheRecord
             {
                 Path = demo,

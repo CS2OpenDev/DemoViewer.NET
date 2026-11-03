@@ -19,12 +19,12 @@ namespace DemoViewer.NET.AppTests;
 public class StratLogPositionTests
 {
     // A duplicate run not at the tail, and the real file's shape.
-    private static readonly int[] NotAtTail = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 9, 10];
-    private static readonly int[] OwnerShape = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12];
+    private static readonly int[] _notAtTail = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 9, 10];
+    private static readonly int[] _ownerShape = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12];
 
-    private static readonly string[] NotesOnly = ["/notes"];
+    private static readonly string[] _notesOnly = ["/notes"];
 
-    private static readonly DateTime Past = DateTime.UtcNow.AddHours(-3);
+    private static readonly DateTime _past = DateTime.UtcNow.AddHours(-3);
 
     private static StratSession Session(StratStore store) =>
         new(store, null, () => false, () => Created)
@@ -49,7 +49,7 @@ public class StratLogPositionTests
     /// </summary>
     private static List<StratDocument> WriteLog(string root, int[] revisions)
     {
-        StratStore store = new(PackStores.At(root), utcNow: SteppingClock(Past));
+        StratStore store = new(PackStores.At(root), utcNow: SteppingClock(_past));
         StratDocument created = Minimal();
         store.Save(created, [], "created");
         string log = LogFile(root, created);
@@ -76,7 +76,7 @@ public class StratLogPositionTests
             ];
             HistoryEntry entry = new()
             {
-                Revision = revisions[i], AtUtc = Past.AddMinutes(10 + i), Summary = $"line {i}", Ops = [.. ops]
+                Revision = revisions[i], AtUtc = _past.AddMinutes(10 + i), Summary = $"line {i}", Ops = [.. ops]
             };
             StratDocument after = StratHistory.Apply(before, ops);
             after.Revision = entry.Revision;
@@ -104,14 +104,14 @@ public class StratLogPositionTests
         {
             List<StratDocument> states = WriteLog(root, shape);
             WriteStrat(root, states[^1]);
-            string before = File.ReadAllText(StratFile(root, states[^1]));
+            string before = await File.ReadAllTextAsync(StratFile(root, states[^1]));
 
             StratStore store = new(PackStores.At(root));
             StratDocument loaded = store.TryLoad(states[^1].Id)!;
             using (Assert.Multiple())
             {
                 await Assert.That(StratStore.Serialize(loaded)).IsEqualTo(before);
-                await Assert.That(File.ReadAllText(StratFile(root, states[^1]))).IsEqualTo(before);
+                await Assert.That(await File.ReadAllTextAsync(StratFile(root, states[^1]))).IsEqualTo(before);
                 await Assert.That(store.TakeNote(states[^1].Id)).IsNull();
             }
         }
@@ -141,7 +141,7 @@ public class StratLogPositionTests
                     .IsEquivalentTo(states[^1].Steps.Select(s => s.Id), CollectionOrdering.Matching);
                 await Assert.That(loaded.Steps.Select(s => s.Id).Distinct().Count()).IsEqualTo(loaded.Steps.Count);
                 await Assert.That(Committed(loaded)).IsEqualTo(Committed(states[^1]));
-                await Assert.That(File.ReadAllText(StratFile(root, states[^1]))).IsEqualTo(Committed(states[^1]));
+                await Assert.That(await File.ReadAllTextAsync(StratFile(root, states[^1]))).IsEqualTo(Committed(states[^1]));
                 await Assert.That(store.TakeNote(states[^1].Id)).Contains("re-applied");
             }
         }
@@ -158,7 +158,7 @@ public class StratLogPositionTests
         try
         {
             // The file is the first 10. Everything after that position is applied, ending at the tail.
-            List<StratDocument> states = WriteLog(root, NotAtTail);
+            List<StratDocument> states = WriteLog(root, _notAtTail);
             WriteStrat(root, states[9]);
 
             StratStore store = new(PackStores.At(root));
@@ -181,18 +181,18 @@ public class StratLogPositionTests
         string root = TempRoot();
         try
         {
-            List<StratDocument> states = WriteLog(root, NotAtTail);
+            List<StratDocument> states = WriteLog(root, _notAtTail);
             StratDocument stray = states[10].Clone();
             stray.Name = "edited by hand";
             stray.Revision = 10;
             WriteStrat(root, stray);
-            string before = File.ReadAllText(StratFile(root, stray));
+            string before = await File.ReadAllTextAsync(StratFile(root, stray));
 
             StratStore store = new(PackStores.At(root));
             store.TryLoad(stray.Id);
             using (Assert.Multiple())
             {
-                await Assert.That(File.ReadAllText(StratFile(root, stray))).IsEqualTo(before);
+                await Assert.That(await File.ReadAllTextAsync(StratFile(root, stray))).IsEqualTo(before);
                 await Assert.That(store.TakeNote(stray.Id)).Contains("matches no line");
             }
         }
@@ -214,7 +214,7 @@ public class StratLogPositionTests
             working.Notes = "uncommitted";
             WriteStrat(root, StratStore.WithPending(working, true));
 
-            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(Past.AddHours(1)));
+            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
             bool unique = shape.Count(r => r == shape[^1]) == 1;
             using StratSession session = Session(store);
             session.Open(working.Id);
@@ -225,7 +225,7 @@ public class StratLogPositionTests
                 {
                     await Assert.That(session.Document!.Notes).IsEqualTo("uncommitted");
                     await Assert.That(session.PendingOps.Select(o => o.Path))
-                        .IsEquivalentTo(NotesOnly, CollectionOrdering.Matching);
+                        .IsEquivalentTo(_notesOnly, CollectionOrdering.Matching);
                     await Assert.That(session.RecoveryNote).IsNull();
                 }
 
@@ -237,10 +237,10 @@ public class StratLogPositionTests
             using (Assert.Multiple())
             {
                 await Assert.That(Committed(session.Document!)).IsEqualTo(Committed(states[^1]));
-                await Assert.That(File.ReadAllText(StratFile(root, working))).IsEqualTo(Committed(states[^1]));
+                await Assert.That(await File.ReadAllTextAsync(StratFile(root, working))).IsEqualTo(Committed(states[^1]));
                 await Assert.That(session.RecoveryNote).Contains("more than once");
                 await Assert.That(SetAsideFiles(root, working).Length).IsEqualTo(1);
-                await Assert.That(JsonNode.Parse(File.ReadAllText(SetAsideFiles(root, working)[0]))!["notes"]!
+                await Assert.That(JsonNode.Parse(await File.ReadAllTextAsync(SetAsideFiles(root, working)[0]))!["notes"]!
                         .GetValue<string>())
                     .IsEqualTo("uncommitted");
             }
@@ -270,10 +270,10 @@ public class StratLogPositionTests
             using (Assert.Multiple())
             {
                 await Assert.That(Committed(loaded)).IsEqualTo(Committed(states[^1]));
-                await Assert.That(File.ReadAllText(StratFile(root, working))).IsEqualTo(Committed(states[^1]));
+                await Assert.That(await File.ReadAllTextAsync(StratFile(root, working))).IsEqualTo(Committed(states[^1]));
                 await Assert.That(store.TakeNote(working.Id)).Contains("more than once");
                 await Assert.That(kept.Length).IsEqualTo(1);
-                await Assert.That(JsonNode.Parse(File.ReadAllText(kept[0]))!["notes"]!.GetValue<string>())
+                await Assert.That(JsonNode.Parse(await File.ReadAllTextAsync(kept[0]))!["notes"]!.GetValue<string>())
                     .IsEqualTo("on the first 9");
             }
         }
@@ -289,7 +289,7 @@ public class StratLogPositionTests
         string root = TempRoot();
         try
         {
-            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(Past));
+            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(_past));
             StratDocument document = Minimal();
             store.Save(document, [], "created");
 
@@ -317,7 +317,7 @@ public class StratLogPositionTests
                 await Assert.That(restarted.TakeNote(document.Id)).Contains("conflict with revision 2");
                 await Assert.That(kept.Length).IsEqualTo(1);
                 await Assert
-                    .That(JsonNode.Parse(File.ReadAllText(kept[0]))!["steps"]![0]!["atSeconds"]!.GetValue<double>())
+                    .That(JsonNode.Parse(await File.ReadAllTextAsync(kept[0]))!["steps"]![0]!["atSeconds"]!.GetValue<double>())
                     .IsEqualTo(100);
             }
         }
@@ -333,7 +333,7 @@ public class StratLogPositionTests
         string root = TempRoot();
         try
         {
-            List<StratDocument> states = WriteLog(root, OwnerShape);
+            List<StratDocument> states = WriteLog(root, _ownerShape);
             WriteStrat(root, states[^1]);
             StratStore store = new(PackStores.At(root));
             IReadOnlyList<StratHistoryRow> rows = StratHistoryPane.Rows(store.History(states[^1].Id));
@@ -341,10 +341,10 @@ public class StratLogPositionTests
             using (Assert.Multiple())
             {
                 await Assert.That(Committed(store.Materialize(states[^1].Id, 12)!)).IsEqualTo(Committed(states[^1]));
-                await Assert.That(rows.Count).IsEqualTo(OwnerShape.Length);
+                await Assert.That(rows.Count).IsEqualTo(_ownerShape.Length);
                 await Assert.That(rows.Select(r => r.Revision))
-                    .IsEquivalentTo(OwnerShape.Reverse(), CollectionOrdering.Matching);
-                await Assert.That(rows.Take(OwnerShape.Length - 1).All(r => r.Changes.Count == 2)).IsTrue();
+                    .IsEquivalentTo(_ownerShape.Reverse(), CollectionOrdering.Matching);
+                await Assert.That(rows.Take(_ownerShape.Length - 1).All(r => r.Changes.Count == 2)).IsTrue();
             }
         }
         finally
@@ -355,7 +355,7 @@ public class StratLogPositionTests
 
     public static IEnumerable<Func<int[]>> Shapes()
     {
-        yield return () => NotAtTail;
-        yield return () => OwnerShape;
+        yield return () => _notAtTail;
+        yield return () => _ownerShape;
     }
 }

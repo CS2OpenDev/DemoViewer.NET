@@ -55,7 +55,7 @@ public class CreateStratFromRoundTests
             // goes, 30 s stays, and nothing is swept at or after the end.
             IReadOnlyList<int> sweeps = RoundCaptureWalker.SweepTicks([At(8), At(21.5)], Freeze, At(45), Rate);
 
-            await Assert.That(sweeps).IsEquivalentTo(new[] { At(30), At(40) }, CollectionOrdering.Matching);
+            await Assert.That(sweeps).IsEquivalentTo([At(30), At(40)], CollectionOrdering.Matching);
         });
     }
 
@@ -267,8 +267,11 @@ public class CreateStratFromRoundTests
 
             StratDocument walked = StratFromRound.Document(capture, Options(capture), StratOwner.Me(), "de_mirage",
                 "r7", origin, null, now);
-            RoundFacts row = new() { Number = 7, PlantTick = At(40), PlantSite = BombSite.B, RoundTimeSeconds = 115 };
-            row.T.BuyType = BuyType.Force;
+            RoundFacts row = new()
+            {
+                Number = 7, PlantTick = At(40), PlantSite = BombSite.B, RoundTimeSeconds = 115,
+                T = { BuyType = BuyType.Force }
+            };
             StratDocument withRow = StratFromRound.Document(capture, Options(capture), StratOwner.Me(), "de_mirage",
                 "r7", origin, row, now);
             StratDocument ct = StratFromRound.Document(capture, Options(capture, side: 3), StratOwner.Me(), "de_mirage",

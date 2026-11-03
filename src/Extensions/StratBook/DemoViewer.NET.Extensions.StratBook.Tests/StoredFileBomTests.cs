@@ -2,10 +2,11 @@
 
 using System.Text;
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook;
 
 #endregion
 
-namespace DemoViewer.NET.Extensions.StratBook.Tests;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     A user-edited store file with a UTF-8 BOM still parses.

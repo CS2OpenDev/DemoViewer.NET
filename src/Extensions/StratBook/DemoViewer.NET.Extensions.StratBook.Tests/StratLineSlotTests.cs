@@ -19,7 +19,7 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel(nameof(StratLineSlotTests))]
 public class StratLineSlotTests
 {
-    private static readonly string[] SlotOrder = ["C", "D", "E", "A", "D", "B"];
+    private static readonly string[] _slotOrder = ["C", "D", "E", "A", "D", "B"];
 
     private static string Bytes(StratBookTabViewModel vm) => StratStore.Serialize(vm.Session.Document!);
 
@@ -329,9 +329,9 @@ public class StratLineSlotTests
             X = 10,
             Y = 20,
             LevelMinZ = -99968,
-            YawDegrees = 45
+            YawDegrees = 45,
+            Extra = new Dictionary<string, JsonElement> { ["callNote"] = JsonSerializer.SerializeToElement("deep") }
         };
-        b.Extra = new Dictionary<string, JsonElement> { ["callNote"] = JsonSerializer.SerializeToElement("deep") };
         step.Positions =
         [
             b, new StepPosition
@@ -428,7 +428,7 @@ public class StratLineSlotTests
             string before = Bytes(vm);
             int depth = vm.Session.UndoDepth;
 
-            foreach (string slot in SlotOrder)
+            foreach (string slot in _slotOrder)
             {
                 Row(vm, id).Lines[0].Slot = slot;
             }
@@ -664,7 +664,7 @@ public class StratLineSlotTests
             StratDocument document = FiveSteps();
             document.Steps[0].To = null;
             document.Steps[0].Assignments = [Line("B", "BombsiteB"), Line("C", "Window")];
-            JsonNode? tree = StratHistory.ToNode(document);
+            JsonNode tree = StratHistory.ToNode(document);
             PatchOp replace = PatchOp.ReplaceOp("/steps/0/assignments/1", null,
                 JsonSerializer.SerializeToNode(Line("A", "Connector"), StratJsonContext.Default.StepAssignment));
 

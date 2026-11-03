@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
-using DemoViewer.NET.AppTests.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Palette;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
@@ -31,21 +30,21 @@ public class TagPositionTests
 {
     private const string DemoPath = "/d/match.dem";
 
-    private static readonly List<LibraryRound> _rounds = [new LibraryRound(1, 0)];
+    private static readonly List<LibraryRound> _rounds = [new(1, 0)];
 
     // The upper floor of a two-floor map: band [-500, 100000), key QuantizeZ(-500) = -512.
-    private static readonly MapLevel Upper = new()
+    private static readonly MapLevel _upper = new()
     {
         Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000
     };
 
-    private static readonly MapLevel Lower = new()
+    private static readonly MapLevel _lower = new()
     {
         Id = MapSpace.IdForZMin(-2000), Name = "lower", ZMin = -2000, ZMax = -500
     };
 
-    private static readonly string[] HutOnly = ["Hut"];
-    private static readonly string[] RampOnly = ["Ramp"];
+    private static readonly string[] _hutOnly = ["Hut"];
+    private static readonly string[] _rampOnly = ["Ramp"];
 
     // Hut is a 100-unit square at the origin on the upper floor; Ramp sits to its right.
     private static PlaceResolver Zones() => new(new ZoneSet("de_synthetic", "9f1c02aa", "075a27b3", null, 64,
@@ -89,9 +88,9 @@ public class TagPositionTests
         await HeadlessSession.RunOnUi(async () =>
         {
             PlaceResolver zones = Zones();
-            TagPosition hut = TagPositionResolver.Resolve(50, 50, Upper, 4_000, zones, [Pawn(0, 150, 50, 0, "Ramp")]);
+            TagPosition hut = TagPositionResolver.Resolve(50, 50, _upper, 4_000, zones, [Pawn(0, 150, 50, 0, "Ramp")]);
             TagPosition nowhere =
-                TagPositionResolver.Resolve(5_000, 5_000, Upper, 4_000, zones, [Pawn(0, 5_010, 5_000, 0, "Ramp")]);
+                TagPositionResolver.Resolve(5_000, 5_000, _upper, 4_000, zones, [Pawn(0, 5_010, 5_000, 0, "Ramp")]);
 
             using (Assert.Multiple())
             {
@@ -123,9 +122,9 @@ public class TagPositionTests
                 Pawn(4, 50, 0, 0, null) // no named nav area
             ];
 
-            TagPosition near = TagPositionResolver.Resolve(0, 0, Upper, 10, null, markers);
-            TagPosition below = TagPositionResolver.Resolve(0, 0, Lower, 10, null, markers);
-            TagPosition far = TagPositionResolver.Resolve(5_000, 0, Upper, 10, null, markers);
+            TagPosition near = TagPositionResolver.Resolve(0, 0, _upper, 10, null, markers);
+            TagPosition below = TagPositionResolver.Resolve(0, 0, _lower, 10, null, markers);
+            TagPosition far = TagPositionResolver.Resolve(5_000, 0, _upper, 10, null, markers);
 
             using (Assert.Multiple())
             {
@@ -224,10 +223,10 @@ public class TagPositionTests
             using TagPaletteViewModel palette = new(session, null, () => 5_000);
             palette.Focus();
             palette.TryHandleKey(Key.D3, KeyModifiers.None);
-            palette.AttachPosition(TagPositionResolver.Resolve(50, 50, Upper, 5_000, Zones(), null));
+            palette.AttachPosition(TagPositionResolver.Resolve(50, 50, _upper, 5_000, Zones(), null));
             palette.TryHandleKey(Key.D3, KeyModifiers.None);
-            palette.AttachPosition(TagPositionResolver.Resolve(120, 50, Upper, 5_000, Zones(), null));
-            palette.AttachPosition(TagPositionResolver.Resolve(900, 900, Lower, 5_000, null, null));
+            palette.AttachPosition(TagPositionResolver.Resolve(120, 50, _upper, 5_000, Zones(), null));
+            palette.AttachPosition(TagPositionResolver.Resolve(900, 900, _lower, 5_000, null, null));
 
             // Through the stored shape, not the live objects: what a cross-demo reader gets off disk.
             List<TagDocument> docs = [session.Document!.Clone()];
@@ -235,9 +234,9 @@ public class TagPositionTests
             Guid moveTag = docs[0].Instances[1].Id;
 
             IReadOnlyList<TagInstanceRef> atHut = TagQuery.Find(docs,
-                TagSlice.Everything with { Positions = [new PositionPredicate(new HashSet<string>(HutOnly))] });
+                TagSlice.Everything with { Positions = [new PositionPredicate(new HashSet<string>(_hutOnly))] });
             IReadOnlyList<TagInstanceRef> atRamp = TagQuery.Find(docs,
-                TagSlice.Everything with { Positions = [new PositionPredicate(new HashSet<string>(RampOnly))] });
+                TagSlice.Everything with { Positions = [new PositionPredicate(new HashSet<string>(_rampOnly))] });
             IReadOnlyList<TagInstanceRef> inSquare = TagQuery.Find(docs,
                 TagSlice.Everything with
                 {
@@ -252,7 +251,7 @@ public class TagPositionTests
             {
                 Positions =
                 [
-                    new PositionPredicate(new HashSet<string>(RampOnly)),
+                    new PositionPredicate(new HashSet<string>(_rampOnly)),
                     new PositionPredicate(null, LevelMinZ: MapSpace.QuantizeZ(-2000))
                 ]
             });
@@ -261,23 +260,23 @@ public class TagPositionTests
                 {
                     Positions =
                     [
-                        new PositionPredicate(new HashSet<string>(RampOnly), LevelMinZ: MapSpace.QuantizeZ(-2000))
+                        new PositionPredicate(new HashSet<string>(_rampOnly), LevelMinZ: MapSpace.QuantizeZ(-2000))
                     ]
                 });
 
             using (Assert.Multiple())
             {
                 await Assert.That(atHut.Select(r => r.Id))
-                    .IsEquivalentTo(new[] { hutTag }, CollectionOrdering.Matching);
+                    .IsEquivalentTo([hutTag], CollectionOrdering.Matching);
                 await Assert.That(atRamp.Select(r => r.Id))
-                    .IsEquivalentTo(new[] { moveTag }, CollectionOrdering.Matching)
+                    .IsEquivalentTo([moveTag], CollectionOrdering.Matching)
                     .Because("a movement's end counts as a point of the tag");
                 await Assert.That(inSquare.Select(r => r.Id))
-                    .IsEquivalentTo(new[] { hutTag }, CollectionOrdering.Matching);
+                    .IsEquivalentTo([hutTag], CollectionOrdering.Matching);
                 await Assert.That(belowAnywhere.Select(r => r.Id))
-                    .IsEquivalentTo(new[] { moveTag }, CollectionOrdering.Matching);
+                    .IsEquivalentTo([moveTag], CollectionOrdering.Matching);
                 await Assert.That(rampAndBelow.Select(r => r.Id))
-                    .IsEquivalentTo(new[] { moveTag }, CollectionOrdering.Matching)
+                    .IsEquivalentTo([moveTag], CollectionOrdering.Matching)
                     .Because("separate predicates may be met by separate points");
                 await Assert.That(rampBelow).IsEmpty().Because("one predicate's clauses must hold on the same point");
                 await Assert.That(TagQuery.Find(docs, TagSlice.Everything).Count).IsEqualTo(2)

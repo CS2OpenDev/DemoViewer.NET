@@ -259,7 +259,7 @@ public class StratExportTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -412,7 +412,7 @@ public class StratExportTests
 
     // The scene the pane's Start would hand over, as the host builds it: the tab's capture, no map art (the
     // canvas has none here, and the golden is recorded on the grid), and the range in strat ticks.
-    private static ExportSceneSetup? Capture(StratBookTabViewModel vm, Playback2DExportDialogViewModel dialog,
+    private static ExportSceneSetup Capture(StratBookTabViewModel vm, Playback2DExportDialogViewModel dialog,
         ExportRangeOption range)
     {
         if (vm.Canvas.CaptureForExport() is not { } capture)
@@ -431,7 +431,7 @@ public class StratExportTests
     private static async Task RenderAsync(StratBookTabViewModel vm, Playback2DExportDialogViewModel dialog,
         ExportRangeOption range, string output, Action<SceneCompositor>? configureLayers)
     {
-        ExportSceneSetup setup = Capture(vm, dialog, range)! with { ConfigureLayers = configureLayers };
+        ExportSceneSetup setup = Capture(vm, dialog, range) with { ConfigureLayers = configureLayers };
         Scene2DExportRequest request = new(dialog.BuildRequest(range), output, string.Empty,
             range.StartFrame, range.EndFrame, dialog.SelectedEncoder, dialog.SelectedQuality,
             setup.Annotations);

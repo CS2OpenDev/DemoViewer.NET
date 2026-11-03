@@ -22,7 +22,7 @@ using SdkMenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     Create Strat From Round as the pack's playback contribution: with the pack on, a round band
@@ -249,7 +249,7 @@ public class CreateStratPlaybackContributionTests
         public bool IsAvailable(ITimelineData data) => true;
 
         public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
-            [new TimelineBand("round", 10, 20, "7", "", 0)];
+            [new("round", 10, 20, "7", "", 0)];
 
         public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
     }
@@ -259,7 +259,7 @@ public class CreateStratPlaybackContributionTests
     {
         public const string Entry = "Foreign lane entry";
 
-        public IEnumerable<SdkMenuEntry> MenuFor(PlaybackBand band) => [new SdkMenuEntry(Entry, () => { })];
+        public IEnumerable<SdkMenuEntry> MenuFor(PlaybackBand band) => [new(Entry, () => { })];
     }
 
     // A second pack, so the lane is filed under an owner that is not the Strat Book's.

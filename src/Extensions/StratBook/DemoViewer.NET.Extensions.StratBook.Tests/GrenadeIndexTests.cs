@@ -37,14 +37,14 @@ public class GrenadeIndexTests
     private const string Mirage = "de_mirage";
 
     // Mirage's zones for these tests: west of x = -1000 is CT spawn, east of x = 1000 is T spawn.
-    private static readonly RoundIndexBuilderTests.FakeZoneResolver MirageZones = new("zv-mirage",
+    private static readonly RoundIndexBuilderTests.FakeZoneResolver _mirageZones = new("zv-mirage",
         v => v.X < -1000 ? "CTSpawn" : v.X > 1000 ? "TSpawn" : "Mid");
 
-    private static readonly RoundIndexBuilderTests.FakeZoneResolver InfernoZones = new("zv-inferno", _ => "CTSpawn");
+    private static readonly RoundIndexBuilderTests.FakeZoneResolver _infernoZones = new("zv-inferno", _ => "CTSpawn");
 
-    private static readonly string[] CtAndT = ["CTSpawn", "TSpawn"];
+    private static readonly string[] _ctAndT = ["CTSpawn", "TSpawn"];
     private static readonly string[] TOnly = ["TSpawn"];
-    private static readonly string[] Renamed = ["CT"];
+    private static readonly string[] _renamed = ["CT"];
 
     private static string DemoPath(int n) => $"/d/mirage-{n}.dem";
 
@@ -142,7 +142,7 @@ public class GrenadeIndexTests
     private static GrenadeIndex Loaded(DemoCacheStore cache, IZonePlaceResolverSource? zones = null)
     {
         GrenadeIndex index = new(cache.Library(),
-            zones ?? new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones), ("de_inferno", InfernoZones)));
+            zones ?? new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones), ("de_inferno", _infernoZones)));
         index.Load();
         return index;
     }
@@ -159,7 +159,7 @@ public class GrenadeIndexTests
             DemoCacheStore cache = Library();
             Guid first;
             using (GrenadeIndex index = new(cache.Library(),
-                       new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)),
+                       new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)),
                        lineups: new GrenadeLineupStore(root)))
             {
                 index.Load();
@@ -172,7 +172,7 @@ public class GrenadeIndexTests
             GrenadeLineupStore reread = new(root);
             int anchors = reread.For(Mirage).Anchors.Count;
             using GrenadeIndex again = new(cache.Library(),
-                new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)), lineups: reread);
+                new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)), lineups: reread);
             again.Load();
             GrenadeLineup a = again.Query(SmokesIntoCt())[0].Lineups[0];
             using (Assert.Multiple())
@@ -219,7 +219,7 @@ public class GrenadeIndexTests
     {
         DemoCacheStore cache = Library();
         GrenadeLineupStore store = new(null);
-        using GrenadeIndex index = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)),
+        using GrenadeIndex index = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)),
             lineups: store);
         index.Query(new GrenadeQuery(Mirage));
         await Assert.That(store.For(Mirage).Anchors).IsEmpty()
@@ -309,7 +309,7 @@ public class GrenadeIndexTests
             background: background.Enqueue, post: posted.Enqueue);
         vm.SelectedMap = Mirage;
         vm.ShowSingleThrows = true;
-        bool nothingYet = !vm.HasGroups && vm.Maps.Count == 0;
+        bool nothingYet = vm is { HasGroups: false, Maps.Count: 0 };
         while (background.Count > 0)
         {
             background.Dequeue()();
@@ -343,7 +343,7 @@ public class GrenadeIndexTests
         {
             GrenadeLineupStore store = new(root);
             using GrenadeIndex index = new(Library().Library(),
-                new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)), lineups: store);
+                new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)), lineups: store);
             index.Load();
             Guid id = index.Query(SmokesIntoCt())[0].Lineups[0].Id;
             index.FlushLineups();
@@ -393,7 +393,7 @@ public class GrenadeIndexTests
             await Assert.That(b.Throws.Count).IsEqualTo(6);
             await Assert.That(b.JumpThrow).IsTrue().Because("its most thrown technique is the jump-throw");
             await Assert.That(b.Techniques.Select(t => (t.Key, t.Throws.Count)))
-                .IsEquivalentTo(new[] { ("stand-jump-left", 4), ("stand-throw-left", 2) }, CollectionOrdering.Matching)
+                .IsEquivalentTo([("stand-jump-left", 4), ("stand-throw-left", 2)], CollectionOrdering.Matching)
                 .Because("the same spot thrown another way is another position of the same lineup");
             await Assert.That(GrenadeIndex.RoundedOrigin(b.Techniques[1].Origin))
                 .IsEqualTo(GrenadeIndex.RoundedOrigin(b.Techniques[0].Origin));
@@ -401,7 +401,7 @@ public class GrenadeIndexTests
             await Assert.That(north.Cell).IsEqualTo((-5, -5, -2));
             await Assert.That(north.LandingPlace).IsEqualTo("CTSpawn");
             await Assert.That(north.Lineups.Single().Throws.Select(t => t.Demo.Path))
-                .IsEquivalentTo(new[] { DemoPath(6), DemoPath(7) }, CollectionOrdering.Matching);
+                .IsEquivalentTo([DemoPath(6), DemoPath(7)], CollectionOrdering.Matching);
         }
     }
 
@@ -422,8 +422,8 @@ public class GrenadeIndexTests
             await Assert.That(index.DemoCount).IsEqualTo(10).Because("the nine and inferno: the copy is the same demo");
             await Assert.That(index.GrenadeCount).IsEqualTo(9 * 3 + 4 + 2 + 2 + 1)
                 .Because("rows without a landing point are not index rows; the copy is not counted");
-            await Assert.That(index.Maps()).IsEquivalentTo(new[] { "de_inferno", Mirage }, CollectionOrdering.Matching);
-            await Assert.That(index.LandingPlaces(Mirage)).IsEquivalentTo(CtAndT, CollectionOrdering.Matching);
+            await Assert.That(index.Maps()).IsEquivalentTo(["de_inferno", Mirage], CollectionOrdering.Matching);
+            await Assert.That(index.LandingPlaces(Mirage)).IsEquivalentTo(_ctAndT, CollectionOrdering.Matching);
         }
     }
 
@@ -448,7 +448,7 @@ public class GrenadeIndexTests
                     Grenades = [.. MirageRows(3)]
                 });
             using GrenadeIndex index = new(cache.Library(),
-                new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones), ("de_inferno", InfernoZones)),
+                new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones), ("de_inferno", _infernoZones)),
                 store: store);
             index.Load();
             int before = index.GrenadeCount;
@@ -516,7 +516,7 @@ public class GrenadeIndexTests
     [Test]
     public async Task AZonesVersionChange_ReResolvesTheMapAtQueryTime()
     {
-        SwitchableZones zones = new(MirageZones);
+        SwitchableZones zones = new(_mirageZones);
         using GrenadeIndex index = Loaded(Library(), zones);
         await Assert.That(index.Query(SmokesIntoCt()).Count).IsEqualTo(2);
 
@@ -527,7 +527,7 @@ public class GrenadeIndexTests
             await Assert.That(index.Query(SmokesIntoCt())).IsEmpty();
             await Assert.That(index.Rows(new GrenadeQuery(Mirage, LandingPlaces: new HashSet<string> { "ct" })).Count)
                 .IsEqualTo(9 * 2 + 4 + 2 + 2).Because("the new name, compared without case");
-            await Assert.That(index.LandingPlaces(Mirage)).IsEquivalentTo(Renamed, CollectionOrdering.Matching);
+            await Assert.That(index.LandingPlaces(Mirage)).IsEquivalentTo(_renamed, CollectionOrdering.Matching);
         }
     }
 
@@ -538,7 +538,7 @@ public class GrenadeIndexTests
         cache.Upsert(RoundIndexTestData.ParsedRecord("/d/new.dem", Mirage, "shaN"));
         GrenadeIndexEvaluator evaluator = new(cache.Library(), cache.Grenades(), () => true,
             walk: _ => new GrenadeWalk(MirageRows(1), 1, GrenadeWalker.InputDecoderName, 4));
-        using GrenadeIndex index = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)),
+        using GrenadeIndex index = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)),
             evaluator);
         index.Load();
         int changes = 0;
@@ -758,7 +758,6 @@ public class GrenadeIndexTests
     public async Task TheCard_CopiesTheSetposSetangLine()
     {
         DemoCacheStore cache = new(null);
-        List<GrenadeRow> rows = [];
         for (int n = 1; n <= 2; n++)
         {
             GrenadeRow row = Row("a", GrenadeKind.Smoke, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170));

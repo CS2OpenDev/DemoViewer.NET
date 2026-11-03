@@ -39,8 +39,8 @@ public class SetupHeatmapTests
         return Task.CompletedTask;
     };
 
-    private static readonly int[] TeamASlots = [0, 1, 2, 3, 4];
-    private static readonly int[] TeamBSlots = [5, 6, 7, 8, 9];
+    private static readonly int[] _teamASlots = [0, 1, 2, 3, 4];
+    private static readonly int[] _teamBSlots = [5, 6, 7, 8, 9];
 
     private static string Id(int n) => $"7656{n:D4}";
 
@@ -64,11 +64,11 @@ public class SetupHeatmapTests
         Clock = new RoundFactsClock { TickRate = Rate },
         Rounds =
         [
-            Round(1, 1000, BuyType.Pistol, TeamBSlots, TeamASlots),
-            Round(2, 10000, BuyType.Full, TeamBSlots, TeamASlots, 20),
-            Round(3, 20000, BuyType.Full, TeamBSlots, TeamASlots, 5),
-            Round(4, 30000, BuyType.Full, TeamASlots, TeamBSlots),
-            Round(5, 40000, BuyType.Full, TeamBSlots, TeamASlots)
+            Round(1, 1000, BuyType.Pistol, _teamBSlots, _teamASlots),
+            Round(2, 10000, BuyType.Full, _teamBSlots, _teamASlots, 20),
+            Round(3, 20000, BuyType.Full, _teamBSlots, _teamASlots, 5),
+            Round(4, 30000, BuyType.Full, _teamASlots, _teamBSlots),
+            Round(5, 40000, BuyType.Full, _teamBSlots, _teamASlots)
         ]
     });
 
@@ -121,7 +121,7 @@ public class SetupHeatmapTests
             {
                 Number = 1,
                 FreezeEndTick = 1000,
-                Ct = TeamBSlots,
+                Ct = _teamBSlots,
                 Pos = Steps(_ =>
                 [
                     new RoundPosition(5, 600, -400, -416, 0), new RoundPosition(6, 1400, -700, -700, 1),
@@ -132,7 +132,7 @@ public class SetupHeatmapTests
             {
                 Number = 2,
                 FreezeEndTick = 10000,
-                Ct = TeamBSlots,
+                Ct = _teamBSlots,
                 Pos = Steps(_ =>
                     [new RoundPosition(5, 610, -410, -416, 0), new RoundPosition(7, 500, -100, -200, 3)])
             },
@@ -140,21 +140,21 @@ public class SetupHeatmapTests
             {
                 Number = 3,
                 FreezeEndTick = 20000,
-                Ct = TeamBSlots,
+                Ct = _teamBSlots,
                 Pos = Steps(_ => [new RoundPosition(5, 620, -420, -416, 0)])
             },
             new RoundPositionsRound
             {
                 Number = 4,
                 FreezeEndTick = 30000,
-                Ct = TeamASlots,
+                Ct = _teamASlots,
                 Pos = Steps(_ => [new RoundPosition(0, 600, -400, -416, 0)])
             },
             new RoundPositionsRound
             {
                 Number = 5,
                 FreezeEndTick = 40000,
-                Ct = TeamBSlots,
+                Ct = _teamBSlots,
                 Pos = Steps(_ => [new RoundPosition(5, 630, -430, -416, 0)])
             }
         ]
@@ -237,7 +237,7 @@ public class SetupHeatmapTests
     [Test]
     public async Task TheSetupWindow_IsCutShortByContactThePlantAndTheEnd()
     {
-        RoundFacts round = Round(1, 1000, BuyType.Full, TeamBSlots, TeamASlots);
+        RoundFacts round = Round(1, 1000, BuyType.Full, _teamBSlots, _teamASlots);
         await Assert.That(SetupHeatmapService.SetupWindow(round, Rate)).IsEqualTo((1000 + 15 * Rate, 1000 + 35 * Rate));
 
         round.PlantTick = 1000 + 25 * Rate;
@@ -326,13 +326,11 @@ public class SetupHeatmapTests
 
     private sealed class Harness : IDisposable
     {
-        private Harness(DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store,
-            SetupHeatmapService service,
+        private Harness(DemoCacheStore cache, TeamIdentityService teams, SetupHeatmapService service,
             Guid teamA, Guid teamB)
         {
             Cache = cache;
             Teams = teams;
-            Store = store;
             Service = service;
             TeamA = teamA;
             TeamB = teamB;
@@ -340,7 +338,6 @@ public class SetupHeatmapTests
 
         public DemoCacheStore Cache { get; }
         public TeamIdentityService Teams { get; }
-        public RoundIndexStore Store { get; }
         public SetupHeatmapService Service { get; }
         public Guid TeamA { get; }
         public Guid TeamB { get; }
@@ -371,7 +368,7 @@ public class SetupHeatmapTests
 
             Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(1)) == true)).Id;
             Guid teamB = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(11)) == true)).Id;
-            return new Harness(cache, teams, store, service, teamA, teamB);
+            return new Harness(cache, teams, service, teamA, teamB);
         }
     }
 }

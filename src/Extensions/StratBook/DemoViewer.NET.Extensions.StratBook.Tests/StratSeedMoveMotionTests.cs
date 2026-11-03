@@ -25,7 +25,7 @@ public class StratSeedMoveMotionTests
 {
     private const double Level = -99968;
 
-    private static readonly (string Slot, double X, double Y)[] Spawn =
+    private static readonly (string Slot, double X, double Y)[] _spawn =
         [("A", -750, -790), ("B", -735, -910), ("C", -775, -690), ("D", -865, -735), ("E", -610, -800)];
 
     private static IZonePlaceResolver Dust2()
@@ -43,11 +43,11 @@ public class StratSeedMoveMotionTests
 
     private static List<StepPosition> Seeded() =>
     [
-        .. Spawn.Select(s => At(s.Slot, s.X, s.Y)),
+        .. _spawn.Select(s => At(s.Slot, s.X, s.Y)),
         .. StratVocabulary.OpponentSlots.Select((s, i) => At(s, 100 + 50 * i, 2250))
     ];
 
-    internal static StratDocument ExecuteB()
+    private static StratDocument ExecuteB()
     {
         StratDocument document =
             StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "B exec", Created);
@@ -95,7 +95,7 @@ public class StratSeedMoveMotionTests
         return document;
     }
 
-    internal static StratSceneProjection Project(StratDocument document, IZonePlaceResolver map) =>
+    private static StratSceneProjection Project(StratDocument document, IZonePlaceResolver map) =>
         StratSceneProjection.Build(document, StratPath.MainLine(document), null, map.PlaceCentre, map.PlaceArrival,
             (place, x, y, level) => map.ResolveOnFloor(x, y, level) == place);
 
@@ -143,7 +143,7 @@ public class StratSeedMoveMotionTests
             [("B", "TopofMid", 25, 390), ("C", "LongDoors", 645, 480), ("D", "UpperTunnel", -1955, 1070)];
         using (Assert.Multiple())
         {
-            foreach ((string slot, double x, double y) in Spawn)
+            foreach ((string slot, double x, double y) in _spawn)
             {
                 TokenKeyframe start = Sample(projection.Tracks.Single(t => t.Slot == slot), 0);
                 await Assert.That((start.X, start.Y)).IsEqualTo(((float)x, (float)y))
@@ -153,7 +153,7 @@ public class StratSeedMoveMotionTests
             foreach ((string slot, string place, double x, double y) in lines)
             {
                 TokenTrack track = projection.Tracks.Single(t => t.Slot == slot);
-                (string _, double sx, double sy) = Spawn.Single(s => s.Slot == slot);
+                (string _, double sx, double sy) = _spawn.Single(s => s.Slot == slot);
                 int arrive = RunTicks(x - sx, y - sy);
                 await Assert.That(Sample(track, arrive - 5).X).IsNotEqualTo((float)x)
                     .Because($"{slot} is still running");
@@ -202,7 +202,7 @@ public class StratSeedMoveMotionTests
             await Assert.That((Sample(e, there).X, Sample(e, there).Y)).IsEqualTo((lx, ly))
                 .Because("the lurk's first area, at a walk");
             await Assert.That(map.ResolveOnFloor(lx, ly, Level)).IsEqualTo("LongDoors");
-            await Assert.That(e.Keyframes.Any(k => k.X == 650f && k.Y == 140f)).IsFalse()
+            await Assert.That(e.Keyframes.Any(k => k is { X: 650f, Y: 140f })).IsFalse()
                 .Because("the seed's OutsideLong line is the earlier step");
             await Assert.That((Sample(e, rotate).X, Sample(e, rotate).Y)).IsEqualTo((mx, my))
                 .Because("it walks on to its last area and holds there");
@@ -249,14 +249,14 @@ public class StratSeedMoveMotionTests
         }
     }
 
-    private static readonly string[] LurkWatch = ["LongDoors", "TopofMid", "Catwalk", "Middle", "MidDoors"];
+    private static readonly string[] _lurkWatch = ["LongDoors", "TopofMid", "Catwalk", "Middle", "MidDoors"];
 
     /// <summary>
     ///     The same execute as it was later left: the seed's move has no line for E, and E lurks a second later
     ///     on its own step, via Long Doors, watching and working five areas. The lurk step holds unmarked copies of the
     ///     ten seed positions; <paramref name="dragged" /> replaces E's with a drag a few units from Long Doors' centre.
     /// </summary>
-    internal static StratDocument OwnersLurk(IZonePlaceResolver map, bool dragged)
+    private static StratDocument OwnersLurk(IZonePlaceResolver map, bool dragged)
     {
         StratDocument document = ExecuteB();
         StratStep seed = document.Steps[0];
@@ -273,10 +273,10 @@ public class StratSeedMoveMotionTests
         }
 
         lurk.Assignments =
-            [new StepAssignment { Slot = "E", Via = ["LongDoors"], Watch = new StepWatch { Places = [.. LurkWatch] } }];
+            [new StepAssignment { Slot = "E", Via = ["LongDoors"], Watch = new StepWatch { Places = [.. _lurkWatch] } }];
         lurk.Lurk = new StepLurk
         {
-            Areas = [.. LurkWatch],
+            Areas = [.. _lurkWatch],
             Rotate = new LurkRotate { AtSeconds = 39, To = Point("LowerTunnel", -580, 1435) }
         };
         return document;
@@ -312,7 +312,7 @@ public class StratSeedMoveMotionTests
     // The first tick E stands on each lurk area's arrival, in the areas' order; -1 for one it never reaches.
     private static int[] AreaArrivals(IZonePlaceResolver map, TokenTrack e, int until) =>
     [
-        .. LurkWatch.Select(area =>
+        .. _lurkWatch.Select(area =>
         {
             (double x, double y, double _) = map.PlaceArrival(area, Level)!.Value;
             for (int t = 0; t <= until; t++)
@@ -351,14 +351,14 @@ public class StratSeedMoveMotionTests
         StratSceneProjection projection = Routed(document, map);
         TokenTrack e = projection.Tracks.Single(t => t.Slot == "E");
         (float lx, float ly) = LongDoors(map);
-        (string _, double sx, double sy) = Spawn.Single(s => s.Slot == "E");
+        (string _, double sx, double sy) = _spawn.Single(s => s.Slot == "E");
         double walk = NavPathfinder.Length(map.Paths!.Route(sx, sy, Level, lx, ly, Level, "LongDoors")!);
         int lurk = Tick(114), there = lurk + (int)Math.Ceiling(walk / StratSceneProjection.WalkUnitsPerSecond * 64);
         int rotate = Tick(39);
         int[] arrivals = AreaArrivals(map, e, projection.ContentEndTick);
         (float mx, float my) = MidDoors(map);
         Console.WriteLine(
-            $"[lurk areas] {string.Join(", ", LurkWatch.Zip(arrivals, (a, t) => $"{a} {115 - t / 64.0:F1}"))}");
+            $"[lurk areas] {string.Join(", ", _lurkWatch.Zip(arrivals, (a, t) => $"{a} {115 - t / 64.0:F1}"))}");
         using (Assert.Multiple())
         {
             await Assert.That((Sample(e, lurk).X, Sample(e, lurk).Y)).IsEqualTo(((float)sx, (float)sy))
@@ -368,8 +368,8 @@ public class StratSeedMoveMotionTests
             for (int k = 1; k < arrivals.Length; k++)
             {
                 await Assert.That(arrivals[k])
-                    .IsEqualTo(arrivals[k - 1] + LegTicks(map, LurkWatch[k - 1], LurkWatch[k]))
-                    .Because($"{LurkWatch[k]} straight after {LurkWatch[k - 1]}, at a walk");
+                    .IsEqualTo(arrivals[k - 1] + LegTicks(map, _lurkWatch[k - 1], _lurkWatch[k]))
+                    .Because($"{_lurkWatch[k]} straight after {_lurkWatch[k - 1]}, at a walk");
             }
 
             await Assert.That(arrivals[^1]).IsLessThan(rotate);
@@ -424,7 +424,7 @@ public class StratSeedMoveMotionTests
             for (int k = 1; k < before.Length; k++)
             {
                 await Assert.That(after[k] - before[k]).IsEqualTo(3 * 64)
-                    .Because($"the hold delays the walk, so {LurkWatch[k]} comes 3 s later");
+                    .Because($"the hold delays the walk, so {_lurkWatch[k]} comes 3 s later");
             }
 
             await Assert.That(jumped.Skip(1)).IsEquivalentTo(before.Skip(1), CollectionOrdering.Matching)
@@ -489,7 +489,7 @@ public class StratSeedMoveMotionTests
     }
 
     private static StepAssignment Lurker(string slot) =>
-        new() { Slot = slot, Watch = new StepWatch { Places = [.. LurkWatch] } };
+        new() { Slot = slot, Watch = new StepWatch { Places = [.. _lurkWatch] } };
 
     [Test]
     public async Task TwoLurkersOnOneStep_HoldDistinctSpots_AtEveryArea()
@@ -513,7 +513,7 @@ public class StratSeedMoveMotionTests
         TokenTrack d = projection.Tracks.Single(t => t.Slot == "D"), e = projection.Tracks.Single(t => t.Slot == "E");
         using (Assert.Multiple())
         {
-            foreach (string area in LurkWatch)
+            foreach (string area in _lurkWatch)
             {
                 (double x, double y, double level) = map.PlaceArrival(area, Level)!.Value;
                 foreach ((string slot, TokenTrack track) in new[] { ("D", d), ("E", e) })

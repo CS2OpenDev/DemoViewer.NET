@@ -14,7 +14,7 @@ using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     The Strat Book extension's 22 keymap commands, declared in <see cref="StratBookCommands" /> and
@@ -299,7 +299,7 @@ public class StratBookCommandsTests
             services.Configure<AppSettings>(svc.Configuration);
             services.AddSingleton<IFeatureGate>(s =>
                 new FeatureGate(s.GetRequiredService<IOptionsMonitor<AppSettings>>(), false));
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
 
             SettingsViewModel vm = new(svc, sp.GetRequiredService<IOptionsMonitor<AppSettings>>(),
                 sp.GetRequiredService<IFeatureGate>(), new ThemeRegistry());

@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
-using DemoViewer.NET.AppTests.Extensions.StratBook;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
@@ -49,13 +48,13 @@ public class TagTrackTests
         public bool HasEvent(string eventName) => false;
     }
 
-    private static readonly int[] MarkerFrames = [50, 90, 700];
-    private static readonly string[] RoundOnly = ["round"];
+    private static readonly int[] _markerFrames = [50, 90, 700];
+    private static readonly string[] _roundOnly = ["round"];
 
     private static readonly List<LibraryRound> _rounds =
     [
-        new LibraryRound(1, 0),
-        new LibraryRound(2, 1_000)
+        new(1, 0),
+        new(2, 1_000)
     ];
 
     private static async Task<TagSession> Attached(params TagInstance[] instances)
@@ -132,7 +131,7 @@ public class TagTrackTests
 
             await Assert.That(markers.Count).IsEqualTo(3).Because("the merge must hide nothing");
             await Assert.That(markers.Select(m => m.FrameIndex))
-                .IsEquivalentTo(MarkerFrames, CollectionOrdering.Matching);
+                .IsEquivalentTo(_markerFrames, CollectionOrdering.Matching);
 
             using (Assert.Multiple())
             {
@@ -251,10 +250,10 @@ public class TagTrackTests
         {
             using TagSession session = await Attached(Instance("A execute", 100, 1_300));
             using TagTrack track = Track(session);
-            FakeTimelineData data = new(1000);
-            data.EventFrames["round_freeze_end"] = [0, 500];
+            FakeTimelineData data = new(1000) { EventFrames = { ["round_freeze_end"] = [0, 500] } };
 
-            using Playback2DTimelineViewModel timeline = new() { PixelWidth = 1000 };
+            using Playback2DTimelineViewModel timeline = new();
+            timeline.PixelWidth = 1000;
             SdkPlaybackSurface.CoreTrack filed = new(track, ExtensionGuard.Standalone(new StratBookPack()));
             timeline.RegisterTrack(new RoundTrack());
             timeline.RegisterTrack(filed, TimelineBandRow.Lane);
@@ -264,7 +263,7 @@ public class TagTrackTests
             using (Assert.Multiple())
             {
                 await Assert.That(timeline.Bands.Select(b => b.TrackId).Distinct())
-                    .IsEquivalentTo(RoundOnly, CollectionOrdering.Matching);
+                    .IsEquivalentTo(_roundOnly, CollectionOrdering.Matching);
                 await Assert.That(timeline.LaneBands.Count).IsEqualTo(1);
                 await Assert.That(timeline.LaneBands[0].StartFrameIndex).IsEqualTo(50);
                 await Assert.That(timeline.HasLaneBands).IsTrue();

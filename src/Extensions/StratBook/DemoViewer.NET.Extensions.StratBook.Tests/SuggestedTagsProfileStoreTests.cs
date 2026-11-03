@@ -46,7 +46,7 @@ public class SuggestedTagsProfileStoreTests
                 await Assert.That(current.ToJson()).IsEqualTo(DetectorProfile.Default.ToJson());
                 await Assert.That(File.Exists(file)).IsTrue()
                     .Because("the first read seeds the file, the way a theme drop-in folder is seeded");
-                await Assert.That(DetectorProfile.Parse(File.ReadAllText(file)).ToJson())
+                await Assert.That(DetectorProfile.Parse(await File.ReadAllTextAsync(file)).ToJson())
                     .IsEqualTo(DetectorProfile.Default.ToJson());
             }
         }
@@ -107,7 +107,7 @@ public class SuggestedTagsProfileStoreTests
         {
             IExtensionFolder folder = PackStores.Folder(root, StratBookStores.SuggestedTags);
             Directory.CreateDirectory(folder.Path);
-            File.WriteAllText(Path.Combine(folder.Path, "profile.json"), "not json");
+            await File.WriteAllTextAsync(Path.Combine(folder.Path, "profile.json"), "not json");
 
             ProfileStore store = new(folder);
 

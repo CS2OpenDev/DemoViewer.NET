@@ -11,7 +11,7 @@ using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     Boots the real composition root with the pack disabled (pack.stratbook = false) and asserts
@@ -34,7 +34,7 @@ public class PackOffCompositionTests
             }
             finally
             {
-                provider.Dispose();
+                await provider.DisposeAsync();
             }
         }), seedSettingsJson: """
                               {
@@ -154,7 +154,7 @@ public class PackOffCompositionTests
     {
         await WithProvider(async provider =>
         {
-            const string demoPath = "/test/demo.dem";
+            const string DemoPath = "/test/demo.dem";
 
             // When the pack is off, these evaluators want nothing because their Wants() predicate
             // gates on the feature flag; Round Facts is the host's, gated on the pack's claim of its ruleset.
@@ -174,13 +174,13 @@ public class PackOffCompositionTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(roundFacts.Wants(demoPath)).IsFalse()
+                await Assert.That(roundFacts.Wants(DemoPath)).IsFalse()
                     .Because("the pack is off: Round Facts evaluator wants nothing");
-                await Assert.That(roundIndex.Wants(demoPath)).IsFalse()
+                await Assert.That(roundIndex.Wants(DemoPath)).IsFalse()
                     .Because("the pack is off: Round Index evaluator wants nothing");
-                await Assert.That(suggestedTags.Wants(demoPath)).IsFalse()
+                await Assert.That(suggestedTags.Wants(DemoPath)).IsFalse()
                     .Because("the pack is off: Suggested Tags service wants nothing");
-                await Assert.That(grenades.Wants(demoPath)).IsFalse()
+                await Assert.That(grenades.Wants(DemoPath)).IsFalse()
                     .Because("the pack is off: Grenade Index evaluator wants nothing");
             }
         });
@@ -214,7 +214,7 @@ public class PackOffCompositionTests
         string dir = NewTempDir();
         if (seedSettingsJson is not null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);

@@ -35,7 +35,7 @@ public class StratMapFirstTests
         Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000
     };
 
-    private static readonly MapLevel Lower = new()
+    private static readonly MapLevel _lower = new()
     {
         Id = MapSpace.IdForZMin(-2000), Name = "lower", ZMin = -2000, ZMax = -500
     };
@@ -297,7 +297,7 @@ public class StratMapFirstTests
 
             // The lower floor has no places: the upper floor's Hut does not answer a click there, so it is a point too.
             canvas.BeginSetPlace();
-            canvas.TryTagPositionAt(Lower, 50, 50);
+            canvas.TryTagPositionAt(_lower, 50, 50);
             using (Assert.Multiple())
             {
                 await Assert.That(session.UndoDepth).IsEqualTo(2);
@@ -566,9 +566,9 @@ public class StratMapFirstTests
     {
         public string ZonesVersion => "test";
 
-        public string? Resolve(Vector3 world) => place;
+        public string Resolve(Vector3 world) => place;
 
-        public string? ResolveOnFloor(double x, double y, double floorKey) => place;
+        public string ResolveOnFloor(double x, double y, double floorKey) => place;
 
         public IReadOnlySet<string> Adjacent(string name) => new HashSet<string>();
     }

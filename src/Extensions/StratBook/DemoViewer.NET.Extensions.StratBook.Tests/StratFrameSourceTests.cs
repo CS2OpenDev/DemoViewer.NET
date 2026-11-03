@@ -239,7 +239,7 @@ public class StratFrameSourceTests
         await Assert.That(start.GameInfo.RoundSeconds).IsEqualTo(115.0);
         await Assert.That(start.GameInfo.TScore).IsEqualTo(0);
         await Assert.That(start.Map.MapName).IsEqualTo("de_mirage");
-        await Assert.That(start.Map.NetworkedBounds).IsEqualTo(Bounds);
+        await Assert.That(start.Map.NetworkedBounds).IsEqualTo(_bounds);
         await Assert.That(start.Bomb).IsNull();
         await Assert.That(start.Trails.Count).IsEqualTo(0);
         await Assert.That(start.KillFeed.Count).IsEqualTo(0);
@@ -341,7 +341,7 @@ public class StratFrameSourceTests
         TokenRouteLine line = moving.Routes.Single();
         await Assert.That(line.Team).IsEqualTo(2);
         await Assert.That(line.Points.Select(p => (p.X, p.Y)))
-            .IsEquivalentTo(new[] { (150f, 0f), (300f, 0f), (300f, 300f) }, CollectionOrdering.Matching);
+            .IsEquivalentTo([(150f, 0f), (300f, 0f), (300f, 300f)], CollectionOrdering.Matching);
         await Assert.That(source.FrameAt(96).Routes.Single().Points.Count).IsEqualTo(2)
             .Because("the corner is behind it");
         await Assert.That(source.FrameAt(128).Routes.Count).IsEqualTo(0).Because("gone on arrival");
@@ -378,7 +378,7 @@ public class StratFrameSourceTests
         return sink.FrameHashes;
     }
 
-    private static readonly WorldBounds Bounds = new(-3000, -3000, 1500, 1500);
+    private static readonly WorldBounds _bounds = new(-3000, -3000, 1500, 1500);
 
     private static StratSceneSpec Spec(int start, int end, int fps, double speed)
     {
@@ -398,7 +398,7 @@ public class StratFrameSourceTests
         return new StratSceneSpec(
             tracks, schedule, new AnnotationSession(new AnnotationDocument()),
             [new TokenLabel("A", null, 2), new TokenLabel("B", "BB", 2), new TokenLabel("O1", "", 3)],
-            "de_mirage", [], Bounds, null,
+            "de_mirage", [], _bounds, null,
             [
                 new UtilityCue(100, GrenadeKind.Flash, 0, 0, 0),
                 new UtilityCue(SmokeTick, GrenadeKind.Smoke, -300, 200, 0)

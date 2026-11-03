@@ -542,7 +542,7 @@ public class StratLineupPickerTests
         await HeadlessSession.RunOnUi(async () =>
         {
             using Harness h = new();
-            StratStepRow row = h.AddThrow();
+            h.AddThrow();
             LineupTechnique second = h.Lineup.Techniques[1];
             h.Tab.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null,
                 new JsonObject

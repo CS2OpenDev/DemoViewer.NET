@@ -24,7 +24,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("Integration")]
 public class StratStartRowWindowTests
 {
-    private static readonly StratSpawns Spawns = new(
+    private static readonly StratSpawns _spawns = new(
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(-700 - 40 * i, -800, 0, "TSpawn"))],
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(200 + 40 * i, 2200, 0, "CTSpawn"))]);
 
@@ -32,7 +32,7 @@ public class StratStartRowWindowTests
     public async Task TheStartRow_OpensToAFieldPerToken_SelectsTheStart_AndTheSwitchMovesTheClock() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratSpawnSource spawns = new(_ => Spawns);
+            StratSpawnSource spawns = new(_ => _spawns);
             await spawns.ForAsync("de_dust2");
             using StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false,
                 spawns: spawns);

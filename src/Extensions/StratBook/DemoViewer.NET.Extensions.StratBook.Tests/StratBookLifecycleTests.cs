@@ -22,7 +22,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     The pack lifecycle: what <see cref="App.StartPacks" /> runs with the extension on and
@@ -30,7 +30,7 @@ namespace DemoViewer.NET.AppTests.Extensions.StratBook;
 ///     Review badges and their startup reads; and what <see cref="StratBookLifecycle.OnShutdown" />
 ///     touches, called unconditionally, with no "ran at startup" gate.
 ///     <see cref="NotInParallelAttribute" /> because the container cases pin the process-global config
-///     dir, as <see cref="DemoViewer.NET.AppTests.Extensions.StratBook.StratBookPackTests" /> does.
+///     dir, as <see cref="StratBookPackTests" /> does.
 /// </summary>
 [NotInParallel]
 public class StratBookLifecycleTests
@@ -196,7 +196,7 @@ public class StratBookLifecycleTests
                 constructed++;
                 return new GrenadeIndex(new DemoCacheStore(null).Library());
             });
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             StratBookLifecycle lifecycle = new(sp, instances);
 
             lifecycle.OnShutdown(TimeSpan.FromSeconds(1));
@@ -229,7 +229,7 @@ public class StratBookLifecycleTests
                 StratBookPackInstances instances = new() { Grenades = grenades };
                 ServiceCollection services = new();
                 services.AddSingleton(new ModuleRegistry());
-                using ServiceProvider sp = services.BuildServiceProvider();
+                await using ServiceProvider sp = services.BuildServiceProvider();
                 StratBookLifecycle lifecycle = new(sp, instances);
 
                 await Assert.That(File.Exists(lineupsPath)).IsFalse().Because("nothing has flushed yet");
@@ -258,7 +258,7 @@ public class StratBookLifecycleTests
                 StratBookTabViewModel vm = new(store);
                 StratBookModule module = new(() => vm);
                 StratBookPackInstances instances = new() { StratBook = module };
-                using ServiceProvider sp = new ServiceCollection().BuildServiceProvider();
+                await using ServiceProvider sp = new ServiceCollection().BuildServiceProvider();
                 StratBookLifecycle lifecycle = new(sp, instances);
 
                 // Never activated: Shutdown is StratBookModule's own no-op (StratBookModuleTests' guard, not
@@ -346,8 +346,6 @@ public class StratBookLifecycleTests
     {
         public List<string> Titles { get; } = [];
 
-        public List<string> CancelledOwners { get; } = [];
-
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
         public int MaxConcurrency { get; set; } = 1;
         public int MaxQueueSize { get; set; } = 200;
@@ -396,10 +394,6 @@ public class StratBookLifecycleTests
 
         public void CancelOwned(string ownerTag)
         {
-            lock (Titles)
-            {
-                CancelledOwners.Add(ownerTag);
-            }
         }
 
         public void Pause()
@@ -431,7 +425,7 @@ public class StratBookLifecycleTests
         Directory.CreateDirectory(dir);
         if (seedSettingsJson is not null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -455,7 +449,7 @@ public class StratBookLifecycleTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }

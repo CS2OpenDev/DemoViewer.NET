@@ -40,7 +40,7 @@ public class StratStepKeysTests
     ];
 
     private static StratStepRow? FocusedRow(Window window) =>
-        (window.FocusManager?.GetFocusedElement() as Control)?.DataContext as StratStepRow;
+        (window.FocusManager.GetFocusedElement() as Control)?.DataContext as StratStepRow;
 
     [Test]
     public async Task FocusInALinesField_SelectsTheStepAndTheLine_AndPlusPlayerAddsOne() =>
@@ -60,7 +60,7 @@ public class StratStepKeysTests
 
             ContentPresenter row = RowContainer(view, index);
             TextBox cPlace = row.GetVisualDescendants().OfType<TextBox>()
-                .First(t => t.DataContext is StratLineRow { Slot: "C" } && t.IsEffectivelyVisible);
+                .First(t => t is { DataContext: StratLineRow { Slot: "C" }, IsEffectivelyVisible: true });
             cPlace.Focus();
             Dispatcher.UIThread.RunJobs();
             using (Assert.Multiple())
@@ -142,7 +142,7 @@ public class StratStepKeysTests
                 await Assert.That(document.Steps[1].AtSeconds).IsEqualTo(95);
                 await Assert.That(document.Steps[2].Actor).IsEqualTo("B");
                 await Assert.That(FocusedRow(window)?.Id).IsEqualTo(document.Steps[1].Id);
-                await Assert.That(window.FocusManager?.GetFocusedElement()).IsTypeOf<TextBox>();
+                await Assert.That(window.FocusManager.GetFocusedElement()).IsTypeOf<TextBox>();
             }
 
             window.Close();
@@ -182,14 +182,14 @@ public class StratStepKeysTests
             // Escape leaves the field for its row; Delete there removes the row.
             window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
             Dispatcher.UIThread.RunJobs();
-            await Assert.That(window.FocusManager?.GetFocusedElement()).IsSameReferenceAs(RowContainer(view, 0));
+            await Assert.That(window.FocusManager.GetFocusedElement()).IsSameReferenceAs(RowContainer(view, 0));
             window.KeyPressQwerty(PhysicalKey.Delete, RawInputModifiers.None);
             Dispatcher.UIThread.RunJobs();
             using (Assert.Multiple())
             {
                 await Assert.That(vm.Session.Document!.Steps.Select(s => s.Actor))
                     .IsEquivalentTo(["B", "B"], CollectionOrdering.Matching);
-                await Assert.That(window.FocusManager?.GetFocusedElement()).IsSameReferenceAs(RowContainer(view, 0));
+                await Assert.That(window.FocusManager.GetFocusedElement()).IsSameReferenceAs(RowContainer(view, 0));
             }
 
             window.Close();
@@ -212,12 +212,12 @@ public class StratStepKeysTests
             // row starts at its time.
             await Assert.That(first.Count).IsEqualTo(7);
             first[0].Focus();
-            List<object> walked = [window.FocusManager!.GetFocusedElement()!];
+            List<object> walked = [window.FocusManager.GetFocusedElement()!];
             for (int i = 1; i < expected.Count; i++)
             {
                 window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None);
                 Dispatcher.UIThread.RunJobs();
-                walked.Add(window.FocusManager!.GetFocusedElement()!);
+                walked.Add(window.FocusManager.GetFocusedElement()!);
             }
 
             // Identity, not structure: TUnit 1.x deep-compares reference elements, and two TextBoxes then differ by
@@ -245,7 +245,7 @@ public class StratStepKeysTests
             Dispatcher.UIThread.RunJobs();
 
             TextBlock Marker() => RowContainer(view, 0).GetVisualDescendants().OfType<TextBlock>()
-                .Single(t => t.Classes.Contains("stratIssue") && t.Text == "⚠" && t.IsEffectivelyVisible
+                .Single(t => t.Classes.Contains("stratIssue") && t is { Text: "⚠", IsEffectivelyVisible: true }
                              && t.GetVisualParent() is StackPanel
                              {
                                  Orientation: Avalonia.Layout.Orientation.Horizontal
@@ -257,7 +257,7 @@ public class StratStepKeysTests
                 await Assert.That(marker.IsEffectivelyVisible).IsTrue();
                 await Assert.That(ToolTip.GetTip(marker) as string).Contains("destination");
                 await Assert.That(RowContainer(view, 0).GetVisualDescendants().OfType<TextBlock>()
-                        .Any(t => t.IsEffectivelyVisible && t.Text == "warning: a move has no destination place (to)"))
+                        .Any(t => t is { IsEffectivelyVisible: true, Text: "warning: a move has no destination place (to)" }))
                     .IsTrue();
             }
 

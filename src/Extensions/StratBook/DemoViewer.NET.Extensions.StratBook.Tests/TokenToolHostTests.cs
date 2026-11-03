@@ -31,7 +31,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("Render")]
 public class TokenToolHostTests
 {
-    private static readonly WorldBounds Mirage = new(-3230, -3410, 1860, 1680);
+    private static readonly WorldBounds _mirage = new(-3230, -3410, 1860, 1680);
 
     [Test]
     public async Task TokenEditor_ReachesTheToolServices()
@@ -116,7 +116,7 @@ public class TokenToolHostTests
     {
         Time = new SceneTime(tick, tick, tick / 64.0, 1 / 64.0, discontinuity),
         Markers = markers,
-        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = Mirage, NetworkedBounds = Mirage }
+        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = _mirage, NetworkedBounds = _mirage }
     };
 
     private static PlayerMarker Token(int slot, int team, float x, float y, float z) =>

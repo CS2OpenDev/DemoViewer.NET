@@ -37,7 +37,7 @@ public partial class StratLocationFieldTests
     [Test]
     public async Task TheAddField_AppendsByPickNameAndCoordinate_RefusesDuplicates_AndDoesNotOfferChosenCallouts()
     {
-        PlaceFieldModel model = new(true) { Options = PlaceFieldOptions.For(Mirage), CurrentLevelMinZ = -256 };
+        PlaceFieldModel model = new(true) { Options = PlaceFieldOptions.For(_mirage), CurrentLevelMinZ = -256 };
         model.Load([Named("Stairs")]);
         model.Open();
         await Assert.That(model.Items.Any(o => o.Place == "Stairs")).IsFalse()
@@ -79,7 +79,7 @@ public partial class StratLocationFieldTests
     [Test]
     public async Task Chips_AreRemovedAndMovedOneAtATime_WithinThePlacesOrThePoints_AndPointsStayExact()
     {
-        PlaceFieldModel model = new(true) { Options = PlaceFieldOptions.For(Mirage) };
+        PlaceFieldModel model = new(true) { Options = PlaceFieldOptions.For(_mirage) };
         PlaceRef a = Point(1.2, 2), b = Point(1.4, 2);
         model.Load([Named("Stairs"), Named("Jungle"), a, b]);
         using (Assert.Multiple())
@@ -100,8 +100,8 @@ public partial class StratLocationFieldTests
                 .Because("two points that print alike stay two points");
             await Assert.That(StratLocations.Same(left[1], b)).IsTrue();
             await Assert.That(StratLocations.Same(left[2], a)).IsTrue();
-            await Assert.That(PlaceFieldModel.DisplayOf([left[1]], Mirage))
-                .IsEqualTo(PlaceFieldModel.DisplayOf([left[2]], Mirage));
+            await Assert.That(PlaceFieldModel.DisplayOf([left[1]], _mirage))
+                .IsEqualTo(PlaceFieldModel.DisplayOf([left[2]], _mirage));
         }
     }
 
@@ -316,9 +316,9 @@ public partial class StratLocationFieldTests
             }
 
             // Stairs up and to the right of B, Jungle up and to the left: the token now faces Jungle.
-            PlaceCentreResolver centres = (place, _) =>
+            static (double X, double Y)? Centres(string place, double levelMinZ) =>
                 place switch { "Stairs" => (100, 100), "Jungle" => (-100, 100), _ => null };
-            TokenTrack b = StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres).Tracks
+            TokenTrack b = StratSceneProjection.Build(document, StratPath.MainLine(document), null, Centres).Tracks
                 .Single(t => t.Slot == "B");
             await Assert
                 .That(b.TrySample(StepSchedule.TickFor(100, 115), out TokenKeyframe sample)
@@ -368,7 +368,7 @@ public partial class StratLocationFieldTests
     [Test]
     public async Task AnAliasTypedExactly_ForAChosenCallout_HighlightsNothing_AndIsRefused()
     {
-        PlaceFieldModel model = new(true) { Options = PlaceFieldOptions.For(Mirage) };
+        PlaceFieldModel model = new(true) { Options = PlaceFieldOptions.For(_mirage) };
         model.Load([Named("PalaceInterior")]);
         model.Type("palace");
         using (Assert.Multiple())

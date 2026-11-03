@@ -23,7 +23,7 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel(TestLanes.HeadlessUi)]
 public class GeneratedInboxTests
 {
-    internal static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
+    private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
 
     private static int _stranger = 9000;
 
@@ -58,7 +58,7 @@ public class GeneratedInboxTests
     }
 
     /// <summary>A trio in matchmaking with you (id 0), and a scrim team whose fifth changed from 7 to 9.</summary>
-    internal static async Task<(TeamIdentityService Service, DemoCacheStore Cache)> Teams()
+    private static async Task<(TeamIdentityService Service, DemoCacheStore Cache)> Teams()
     {
         DemoCacheStore cache = new(null);
         FakeExtensionIdentity identity = new();

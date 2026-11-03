@@ -14,7 +14,7 @@ using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     Find Rounds Like This and the Situations result walk as a playback contribution: the
@@ -173,7 +173,7 @@ public class SituationsPlaybackContributionTests
                 });
             ctx.PushPlacedMarkers((1, 3, 600, -400, 64, "BombsiteA"));
 
-            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+            (Window window, _) = Playback2DTimelineHarness.Show(vm);
             Playback2DTimelineHarness.Pump();
 
             SplitButton modeButton =

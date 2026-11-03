@@ -78,7 +78,7 @@ public class TeamIdentityTests
 
     // Start first (an empty rebuild), then one batch, so the records are assigned in a single pass
     // rather than assigned and then rebuilt against their own snapshots.
-    private static async Task<TeamIdentityService> Seed(DemoCacheStore cache, TeamIdentityService teams,
+    private static async Task Seed(DemoCacheStore cache, TeamIdentityService teams,
         params DemoCacheRecord[] records)
     {
         await teams.StartAsync();
@@ -91,7 +91,6 @@ public class TeamIdentityTests
         }
 
         await teams.Idle;
-        return teams;
     }
 
     // Every batch of store changes asked for a full sync of the library, and each one queued behind the last. A
@@ -424,7 +423,7 @@ public class TeamIdentityTests
         try
         {
             // A teams.json from before the host kept the accounts, naming someone else.
-            File.WriteAllText(Path.Combine(root, "teams.json"),
+            await File.WriteAllTextAsync(Path.Combine(root, "teams.json"),
                 $$"""{ "schemaVersion": 1, "me": { "steamIds": ["{{Ids(99)[0]}}"] } }""");
             FakeExtensionIdentity identity = new(Ids(1)[0]);
             (DemoCacheStore cache, TeamIdentityService teams) = Fresh(root, identity: identity);
@@ -502,7 +501,7 @@ public class TeamIdentityTests
                 await Assert.That(teams.GetAssignment("/d/b2.dem")!.T.TeamId).IsEqualTo(a);
             }
 
-            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(Path.Combine(root, "teams.json")),
+            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
                 TeamsFile.JsonOptions)!;
             await Assert.That(file.Tombstones).IsEquivalentTo([b], CollectionOrdering.Matching);
 
@@ -630,7 +629,7 @@ public class TeamIdentityTests
 
             Guid team = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
             teams.Override("/d/x.dem", 2, team);
-            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(Path.Combine(root, "teams.json")),
+            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
                 TeamsFile.JsonOptions)!;
             using (Assert.Multiple())
             {
@@ -644,7 +643,7 @@ public class TeamIdentityTests
 
             cache.Upsert(Record("/d/x.dem", 3, Ids(21, 22, 23, 24, 25), Strangers(), sha: "ab12"));
             await teams.Idle;
-            file = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(Path.Combine(root, "teams.json")),
+            file = JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
                 TeamsFile.JsonOptions)!;
             using (Assert.Multiple())
             {
@@ -673,7 +672,7 @@ public class TeamIdentityTests
         try
         {
             Directory.CreateDirectory(Path.Combine(root, "cache"));
-            File.WriteAllText(Path.Combine(root, "cache", "team-index.json"), "{ not json");
+            await File.WriteAllTextAsync(Path.Combine(root, "cache", "team-index.json"), "{ not json");
             (DemoCacheStore cache, TeamIdentityService teams) = Fresh(root);
             await Assert.That(teams.NeedsRebuild).IsTrue()
                 .Because("a corrupt index is a cache to rebuild, not a crash");
@@ -686,7 +685,7 @@ public class TeamIdentityTests
                 await Assert.That(teams.TeamsFileProblem).IsNull();
                 await Assert.That(File.Exists(Path.Combine(root, "teams.json"))).IsTrue();
                 await Assert.That(JsonSerializer.Deserialize<TeamIndexFile>(
-                    File.ReadAllText(Path.Combine(root, "cache", "team-index.json")),
+                    await File.ReadAllTextAsync(Path.Combine(root, "cache", "team-index.json")),
                     TeamsFile.JsonOptions)!.Demos.Count).IsEqualTo(2);
                 await Assert.That(Directory.GetFiles(root, ".dc-*.tmp", SearchOption.AllDirectories)).IsEmpty()
                     .Because("temp files are replaced, never left");
@@ -694,8 +693,8 @@ public class TeamIdentityTests
 
             cache.SaveIndex(); // the library persists index.json itself; the sidecars are already on disk
             teams.Dispose();
-            const string junk = "{ \"schemaVersion\": 1, \"teams\": [ oops";
-            File.WriteAllText(Path.Combine(root, "teams.json"), junk);
+            const string Junk = "{ \"schemaVersion\": 1, \"teams\": [ oops";
+            await File.WriteAllTextAsync(Path.Combine(root, "teams.json"), Junk);
             FakeExtensionIdentity identity = new();
             (_, TeamIdentityService refused) = Fresh(root, identity: identity);
             await refused.StartAsync();
@@ -703,7 +702,7 @@ public class TeamIdentityTests
             using (Assert.Multiple())
             {
                 await Assert.That(refused.TeamsFileProblem).IsNotNull();
-                await Assert.That(File.ReadAllText(Path.Combine(root, "teams.json"))).IsEqualTo(junk)
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, "teams.json"))).IsEqualTo(Junk)
                     .Because("a file that could not be read is never overwritten");
                 await Assert.That(refused.MyAccounts).IsEquivalentTo(Ids(1), CollectionOrdering.Matching)
                     .Because("the session still works in memory");
@@ -811,8 +810,8 @@ public class TeamIdentityTests
         string indexPath = Path.Combine(repo, "tests", "fixtures", "team-identity", "team-index.sample.json");
         if (Environment.GetEnvironmentVariable("TI_GOLDEN_UPDATE") == "1")
         {
-            File.WriteAllText(teamsPath, teamsJson);
-            File.WriteAllText(indexPath, indexJson);
+            await File.WriteAllTextAsync(teamsPath, teamsJson);
+            await File.WriteAllTextAsync(indexPath, indexJson);
         }
 
         if (!File.Exists(teamsPath) || !File.Exists(indexPath))
@@ -821,16 +820,16 @@ public class TeamIdentityTests
         }
 
         TeamsFile? teamsBack =
-            JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(teamsPath), TeamsFile.JsonOptions);
+            JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(teamsPath), TeamsFile.JsonOptions);
         TeamIndexFile? indexBack =
-            JsonSerializer.Deserialize<TeamIndexFile>(File.ReadAllText(indexPath), TeamsFile.JsonOptions);
+            JsonSerializer.Deserialize<TeamIndexFile>(await File.ReadAllTextAsync(indexPath), TeamsFile.JsonOptions);
         using (Assert.Multiple())
         {
             await Assert.That(teamsJson)
-                .IsEqualTo(File.ReadAllText(teamsPath).Replace("\r\n", "\n", StringComparison.Ordinal))
+                .IsEqualTo((await File.ReadAllTextAsync(teamsPath)).Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("teams.json is a published format; this build still writes the committed shape");
             await Assert.That(indexJson)
-                .IsEqualTo(File.ReadAllText(indexPath).Replace("\r\n", "\n", StringComparison.Ordinal))
+                .IsEqualTo((await File.ReadAllTextAsync(indexPath)).Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("team-index.json is a published format; this build still writes the committed shape");
             await Assert.That(Lf(JsonSerializer.Serialize(teamsBack, TeamsFile.JsonOptions))).IsEqualTo(teamsJson)
                 .Because("round trip");
@@ -895,7 +894,7 @@ public class TeamIdentityTests
             remove { }
         }
 
-        public RoundFactsRows? TryGet(string demoPath) => rows;
+        public RoundFactsRows TryGet(string demoPath) => rows;
 
         public RoundFacts? RoundAt(string demoPath, int frameClockTick) => null;
 
@@ -944,7 +943,7 @@ public class TeamIdentityTests
             remove { }
         }
 
-        public RoundFactsRows? TryGet(string demoPath)
+        public RoundFactsRows TryGet(string demoPath)
         {
             Interlocked.Increment(ref _reads);
             return rows;

@@ -287,8 +287,10 @@ public class ReviewTabRowsTests
             Settle();
 
             TextBox note = view.GetVisualDescendants().OfType<TextBox>()
-                .First(t => t.DataContext is ReviewRowViewModel { IsClip: true } r && r.Note == "two" && t.Text == "two"
-                            && t.IsEffectivelyVisible);
+                .First(t => t is
+                {
+                    DataContext: ReviewRowViewModel { IsClip: true, Note: "two" }, Text: "two", IsEffectivelyVisible: true
+                });
             window.Activate();
             note.Focus();
             note.Text = "two, half typed";

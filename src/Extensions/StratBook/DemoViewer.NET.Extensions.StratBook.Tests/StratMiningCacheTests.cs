@@ -73,15 +73,15 @@ public class StratMiningCacheTests
 
     private sealed class Rig
     {
-        public string Fingerprint { get; set; } = StratMiningServiceTests._sources.FingerprintFor(Map);
+        public string Fingerprint { get; set; } = StratMiningServiceTests.Sources.FingerprintFor(Map);
 
         public Guid Lineup { get; set; } = Guid.NewGuid();
 
-        public TeamIdentityService? Teams { get; set; }
+        public TeamIdentityService? Teams { get; init; }
 
         public RoundSignatureBuilder Builder(Library library, SignatureCache? cache) =>
             new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions, _ => Fingerprint,
-                map => [Grenade(1, Lineup), Grenade(2, Lineup)], Teams, cache);
+                _ => [Grenade(1, Lineup), Grenade(2, Lineup)], Teams, cache);
     }
 
     private sealed class RecordFacts(DemoCacheStore cache) : IRoundFactsSource
@@ -227,7 +227,7 @@ public class StratMiningCacheTests
         InlineJobs jobs = new();
         FakePasses passes = new() { Busy = true };
         using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
-            StratMiningServiceTests._sources.FingerprintFor, null, null,
+            StratMiningServiceTests.Sources.FingerprintFor, null, null,
             library.Strats, library.Tags, null, run: a =>
             {
                 a();
@@ -275,7 +275,7 @@ public class StratMiningCacheTests
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = RealQueue(gate);
         using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
-            StratMiningServiceTests._sources.FingerprintFor, null, null,
+            StratMiningServiceTests.Sources.FingerprintFor, null, null,
             library.Strats, library.Tags, null, jobs: Jobs(queue)) { QuietDelay = Timeout.InfiniteTimeSpan };
 
         Task mine;
@@ -307,7 +307,7 @@ public class StratMiningCacheTests
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = RealQueue(gate);
         using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
-            StratMiningServiceTests._sources.FingerprintFor, null, null,
+            StratMiningServiceTests.Sources.FingerprintFor, null, null,
             library.Strats, library.Tags, null, jobs: Jobs(queue)) { QuietDelay = Timeout.InfiniteTimeSpan };
         await service.MineAsync().WaitAsync(TimeSpan.FromSeconds(10));
         MinedPattern execute = service.Patterns.Select(p => p.Pattern).Single(p => p.Kind == PatternKind.Execute);
@@ -344,7 +344,7 @@ public class StratMiningCacheTests
         TaskCompletionSource proceed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         int steps = 0;
         using StratMiningService service = new(library.Cache.Library(), library.Cache.RoundFacts(), library.Positions,
-            StratMiningServiceTests._sources.FingerprintFor, null, null,
+            StratMiningServiceTests.Sources.FingerprintFor, null, null,
             library.Strats, library.Tags, null, jobs: Jobs(queue), run: a => Task.Run(async () =>
             {
                 a();

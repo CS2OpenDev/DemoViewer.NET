@@ -302,10 +302,9 @@ public class StratBookModuleTests
             StratStore store = new(null);
             StratDocument document = Minimal();
             store.Save(document, [], "created");
-            using StratSession session = new(store, null, () => false, () => Created)
-            {
-                AutoSaveDelay = TimeSpan.FromHours(1), IdleCommitDelay = TimeSpan.FromHours(1)
-            };
+            using StratSession session = new(store, null, () => false, () => Created);
+            session.AutoSaveDelay = TimeSpan.FromHours(1);
+            session.IdleCommitDelay = TimeSpan.FromHours(1);
             session.Open(document.Id);
 
             Guid smokeLineupId = Guid.NewGuid();

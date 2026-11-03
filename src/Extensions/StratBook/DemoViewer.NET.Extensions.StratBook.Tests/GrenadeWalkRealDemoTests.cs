@@ -60,8 +60,7 @@ public class GrenadeWalkRealDemoTests
         List<SmokeGrenadeDetonateEvent> smokePops =
             [.. parsed.AllGameEvents.Select(e => e.Payload).OfType<SmokeGrenadeDetonateEvent>()];
         List<double> yawErrors = [];
-        foreach (GrenadeRow row in rows.Where(r => r.ReleaseOnGround == true && r.ReleaseEyeYaw is not null
-                                                                             && r.SpawnVelocity is { } v
+        foreach (GrenadeRow row in rows.Where(r => r is { ReleaseOnGround: true, ReleaseEyeYaw: not null, SpawnVelocity: { } v }
                                                                              && MathF.Abs(v.X) + MathF.Abs(v.Y) > 1))
         {
             WorldPoint v = row.SpawnVelocity!.Value;
@@ -95,7 +94,7 @@ public class GrenadeWalkRealDemoTests
             }
 
             foreach (GrenadeRow row in rows.Where(r =>
-                         r.Kind == GrenadeKind.Smoke && r.DetonationSource == DetonationSource.Event))
+                         r is { Kind: GrenadeKind.Smoke, DetonationSource: DetonationSource.Event }))
             {
                 WorldPoint p = row.DetonationPosition!.Value;
                 await Assert.That(smokePops.Any(e =>

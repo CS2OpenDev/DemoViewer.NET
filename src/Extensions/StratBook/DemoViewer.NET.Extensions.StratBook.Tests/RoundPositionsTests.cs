@@ -54,7 +54,7 @@ public class RoundPositionsTests
         List<PositionSample> samples =
         [
             .. Placed(1000),
-            .. Placed(1064, deadSlots: new HashSet<int> { 3 }),
+            .. Placed(1064, deadSlots: [3]),
             Sample(1128, 6, null, 10.4f, 20.6f, 30f)
         ];
 
@@ -243,7 +243,7 @@ public class RoundPositionsTests
         if (Environment.GetEnvironmentVariable("RI_GOLDEN_UPDATE") == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, FixtureDocument().Serialize() + "\n");
+            await File.WriteAllTextAsync(path, FixtureDocument().Serialize() + "\n");
         }
 
         if (!File.Exists(path))
@@ -251,7 +251,7 @@ public class RoundPositionsTests
             throw new SkipTestException($"missing {path}; regenerate with RI_GOLDEN_UPDATE=1");
         }
 
-        string original = File.ReadAllText(path);
+        string original = await File.ReadAllTextAsync(path);
         RoundPositionsDocument? loaded = RoundPositionsDocument.TryDeserialize(original);
 
         using (Assert.Multiple())

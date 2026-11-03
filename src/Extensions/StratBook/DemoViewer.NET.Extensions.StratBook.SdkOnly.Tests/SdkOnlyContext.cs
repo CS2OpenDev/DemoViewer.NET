@@ -66,27 +66,19 @@ internal sealed class EverythingOff : IExtensionFeatures
 }
 
 /// <summary>
-///     A host with no processing queue, the browser's posture. Work is recorded and never run, so a
-///     factory that queues during composition shows up as a recorded title instead of as side effects.
+///     A host with no processing queue, the browser's posture. Work is never run, so a factory that
+///     queues during composition has no side effects.
 /// </summary>
 internal sealed class NoQueue : IExtensionJobs
 {
-    private readonly List<string> _titles = [];
-
-    public IReadOnlyList<string> Titles => _titles;
-
     public IJobHandle Enqueue(JobRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        _titles.Add(request.Title);
         return new RejectedJob();
     }
 
-    public Task RunAsync(string title, Func<IJobContext, Task> work, JobOptions? options = null)
-    {
-        _titles.Add(title);
-        return Task.CompletedTask;
-    }
+    public Task RunAsync(string title, Func<IJobContext, Task> work, JobOptions? options = null) =>
+        Task.CompletedTask;
 
     public void CancelAll()
     {
@@ -112,15 +104,13 @@ internal sealed class RejectedJob : IJobHandle
 
 internal sealed class NoPasses : IExtensionPasses
 {
-    private readonly List<string> _requested = [];
+    public void Request(string demoPath)
+    {
+    }
 
-    public IReadOnlyList<string> Requested => _requested;
-
-    public int RecheckCount { get; private set; }
-
-    public void Request(string demoPath) => _requested.Add(demoPath);
-
-    public void RecheckAll() => RecheckCount++;
+    public void RecheckAll()
+    {
+    }
 
     public bool IsBusy(string passId) => false;
 
@@ -300,15 +290,7 @@ internal sealed class NoRoundFacts : IRoundFacts
 
 internal sealed class NoNotifications : IExtensionNotifications
 {
-    private readonly List<string> _posted = [];
-
-    public IReadOnlyList<string> Posted => _posted;
-
-    public void Post(Notification notification)
-    {
-        ArgumentNullException.ThrowIfNull(notification);
-        _posted.Add(notification.Id);
-    }
+    public void Post(Notification notification) => ArgumentNullException.ThrowIfNull(notification);
 
     public void Dismiss(string id)
     {

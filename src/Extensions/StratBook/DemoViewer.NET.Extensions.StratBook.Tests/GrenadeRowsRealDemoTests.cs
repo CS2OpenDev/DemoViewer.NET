@@ -24,7 +24,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public class GrenadeRowsRealDemoTests
 {
-    private static readonly JsonSerializerOptions Json = new(GrenadeSidecar.JsonOptions) { WriteIndented = false };
+    private static readonly JsonSerializerOptions _json = new(GrenadeSidecar.JsonOptions) { WriteIndented = false };
 
     [Test]
     [Arguments(0)]
@@ -118,10 +118,10 @@ public class GrenadeRowsRealDemoTests
                 continue;
             }
 
-            JsonObject left = (JsonObject)JsonSerializer.SerializeToNode(a.Rows[i], Json)!;
-            JsonObject right = (JsonObject)JsonSerializer.SerializeToNode(b.Rows[i], Json)!;
-            left["trajectory"] = JsonSerializer.SerializeToNode(a.Rows[i].Trajectory, Json);
-            right["trajectory"] = JsonSerializer.SerializeToNode(b.Rows[i].Trajectory, Json);
+            JsonObject left = (JsonObject)JsonSerializer.SerializeToNode(a.Rows[i], _json)!;
+            JsonObject right = (JsonObject)JsonSerializer.SerializeToNode(b.Rows[i], _json)!;
+            left["trajectory"] = JsonSerializer.SerializeToNode(a.Rows[i].Trajectory, _json);
+            right["trajectory"] = JsonSerializer.SerializeToNode(b.Rows[i].Trajectory, _json);
             foreach ((string key, JsonNode? value) in left)
             {
                 string l = value?.ToJsonString() ?? "null";
@@ -138,7 +138,7 @@ public class GrenadeRowsRealDemoTests
 
     // The five benchmark demos, then the seven pro demos. Resolving through the manifest sets rather
     // than a directory walk is what lets a machine with no local corpus serve these from DEMO_SOURCES.
-    internal static string CorpusDemo(int which)
+    private static string CorpusDemo(int which)
     {
         int benchmarks = DemoTestHelper.Corpus.SetMembers("benchmarks").Count;
         return which < benchmarks

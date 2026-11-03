@@ -18,7 +18,6 @@ public class SuggestedTagsRecordPassTests
 {
     private sealed record Wired(
         SuggestedTagsReviewHarness Harness,
-        MemoryDemoData Data,
         RoundIndexStore Index,
         RoundIndexPlaceSources Sources,
         DetonationStore Detonations)
@@ -65,7 +64,7 @@ public class SuggestedTagsRecordPassTests
         SuggestedTagsReviewHarness h = new();
         h.Seed();
         MemoryDemoData data = h.Cache.Data();
-        return new Wired(h, data, new RoundIndexStore(data),
+        return new Wired(h, new RoundIndexStore(data),
             new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn),
             new DetonationStore(data));
     }

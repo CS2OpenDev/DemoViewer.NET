@@ -19,8 +19,8 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class TagPaletteStoreTests
 {
-    private static readonly string[] BuiltInThenAlphaThenZeta = [TagPaletteStore.DefaultId, "alpha", "zeta"];
-    private static readonly string[] DefaultCodes = ["A execute", "B execute", "Default", "Retake"];
+    private static readonly string[] _builtInThenAlphaThenZeta = [TagPaletteStore.DefaultId, "alpha", "zeta"];
+    private static readonly string[] _defaultCodes = ["A execute", "B execute", "Default", "Retake"];
 
     private static string Palette(string id, string hotkey = "1", string group = "outcome", string extra = "") => $$"""
           {
@@ -56,7 +56,7 @@ public class TagPaletteStoreTests
         {
             await Assert.That(palette.Id).IsEqualTo(TagPaletteStore.DefaultId);
             await Assert.That(palette.Root!.Buttons.Select(b => b.Code!))
-                .IsEquivalentTo(DefaultCodes, CollectionOrdering.Matching);
+                .IsEquivalentTo(_defaultCodes, CollectionOrdering.Matching);
             await Assert.That(palette.ClampToRound).IsTrue().Because("the shipped palette clamps");
             await Assert.That(palette.StickyGroups).Contains("opponent");
             // Refused for nothing, and shadowing exactly what it should: the
@@ -82,15 +82,15 @@ public class TagPaletteStoreTests
         string dir = folder.Path;
         try
         {
-            File.WriteAllText(Path.Combine(dir, "b-team.tagpalette.json"), Palette("zeta"));
-            File.WriteAllText(Path.Combine(dir, "a-team.tagpalette.json"), Palette("alpha"));
-            File.WriteAllText(Path.Combine(dir, "notes.json"), Palette("ignored"));
+            await File.WriteAllTextAsync(Path.Combine(dir, "b-team.tagpalette.json"), Palette("zeta"));
+            await File.WriteAllTextAsync(Path.Combine(dir, "a-team.tagpalette.json"), Palette("alpha"));
+            await File.WriteAllTextAsync(Path.Combine(dir, "notes.json"), Palette("ignored"));
 
             TagPaletteStore store = new(folder, keymap: HostKeymap.Instance);
             await Assert.That(store.Palettes.Count).IsEqualTo(1).Because("drop-ins wait for Reload, like themes");
 
             store.Reload();
-            await Assert.That(store.Palettes.Select(p => p.Id).SequenceEqual(BuiltInThenAlphaThenZeta)).IsTrue()
+            await Assert.That(store.Palettes.Select(p => p.Id).SequenceEqual(_builtInThenAlphaThenZeta)).IsTrue()
                 .Because("built-ins first, then drop-ins by filename, not by id");
             await Assert.That(store.Resolve("zeta").Name).IsEqualTo("zeta palette");
             await Assert.That(store.Resolve("gone").Id).IsEqualTo(TagPaletteStore.DefaultId)
@@ -114,10 +114,10 @@ public class TagPaletteStoreTests
         string dir = folder.Path;
         try
         {
-            File.WriteAllText(Path.Combine(dir, "1-broken.tagpalette.json"), "{ \"id\": \"broken\", \"panels\": [ ");
-            File.WriteAllText(Path.Combine(dir, "2-refused.tagpalette.json"), Palette("refused", "Ctrl+1"));
-            File.WriteAllText(Path.Combine(dir, "3-good.tagpalette.json"), Palette("good"));
-            File.WriteAllText(Path.Combine(dir, "4-builtin.tagpalette.json"), Palette(TagPaletteStore.DefaultId));
+            await File.WriteAllTextAsync(Path.Combine(dir, "1-broken.tagpalette.json"), "{ \"id\": \"broken\", \"panels\": [ ");
+            await File.WriteAllTextAsync(Path.Combine(dir, "2-refused.tagpalette.json"), Palette("refused", "Ctrl+1"));
+            await File.WriteAllTextAsync(Path.Combine(dir, "3-good.tagpalette.json"), Palette("good"));
+            await File.WriteAllTextAsync(Path.Combine(dir, "4-builtin.tagpalette.json"), Palette(TagPaletteStore.DefaultId));
 
             TagPaletteStore store = new(folder, keymap: HostKeymap.Instance);
             store.Reload();
@@ -219,34 +219,34 @@ public class TagPaletteStoreTests
     [Test]
     public async Task ABrokenFlow_IsRefused()
     {
-        const string loop = """
+        const string Loop = """
                             { "id": "loop", "panels": [
                                 { "id": "root", "buttons": [ { "code": "X", "hotkey": "1", "then": "a" } ] },
                                 { "id": "a", "kind": "labels", "group": "g1", "buttons": [ { "value": "v" } ], "then": "b" },
                                 { "id": "b", "kind": "labels", "group": "g2", "buttons": [ { "value": "v" } ], "then": "a" } ] }
                             """;
-        const string missing = """
+        const string Missing = """
                                { "id": "missing", "panels": [ { "id": "root", "buttons": [ { "code": "X", "then": "nowhere" } ] } ] }
                                """;
-        const string toCodes = """
+        const string ToCodes = """
                                { "id": "codes", "panels": [
                                    { "id": "root", "buttons": [ { "code": "X", "then": "more" } ] },
                                    { "id": "more", "buttons": [ { "code": "Y" } ] } ] }
                                """;
-        const string duplicateKey = """
+        const string DuplicateKey = """
                                     { "id": "dup", "panels": [ { "id": "root", "buttons": [
                                         { "code": "X", "hotkey": "1" }, { "code": "Y", "hotkey": "1" } ] } ] }
                                     """;
 
         using (Assert.Multiple())
         {
-            await Assert.That(Validate(loop).Errors.Any(e => e.Contains("loop", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(Validate(missing).Errors.Any(e => e.Contains("not a panel", StringComparison.Ordinal)))
+            await Assert.That(Validate(Loop).Errors.Any(e => e.Contains("loop", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(Validate(Missing).Errors.Any(e => e.Contains("not a panel", StringComparison.Ordinal)))
                 .IsTrue();
-            await Assert.That(Validate(toCodes).Errors.Any(e => e.Contains("codes panel", StringComparison.Ordinal)))
+            await Assert.That(Validate(ToCodes).Errors.Any(e => e.Contains("codes panel", StringComparison.Ordinal)))
                 .IsTrue();
             await Assert
-                .That(Validate(duplicateKey).Errors.Any(e => e.Contains("used twice", StringComparison.Ordinal)))
+                .That(Validate(DuplicateKey).Errors.Any(e => e.Contains("used twice", StringComparison.Ordinal)))
                 .IsTrue();
         }
     }

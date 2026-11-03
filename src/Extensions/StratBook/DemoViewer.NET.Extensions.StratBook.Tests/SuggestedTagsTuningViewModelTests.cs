@@ -80,7 +80,7 @@ public class SuggestedTagsTuningViewModelTests
         ProfileStore profiles = new(null);
         SuggestedTagsTuningViewModel vm = new(tuning, profiles);
 
-        TuningParameterRow row = vm.ParameterRows.Single(r => r.Detector == "execute" && r.Name == "N");
+        TuningParameterRow row = vm.ParameterRows.Single(r => r is { Detector: "execute", Name: "N" });
         row.Value = row.ShippedDefault + 1;
 
         await Assert.That(vm.IsDirty).IsTrue();

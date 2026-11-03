@@ -18,7 +18,7 @@ using static DemoViewer.NET.AppTests.TagTestData;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     Review mode as the pack's playback contribution: with the pack off nothing is built
@@ -35,7 +35,7 @@ public class ReviewPanelsPlaybackContributionTests
 {
     private const string DemoPath = "/d/match.dem";
     private const string OtherPath = "/d/other.dem";
-    private static readonly string OtherSha = new('b', 64);
+    private static readonly string _otherSha = new('b', 64);
 
     // SynchronousPost, so the session's changes, the lane's re-query and the queue's reload are visible in
     // the statement after the one that caused them, with no Pump in between.
@@ -166,12 +166,12 @@ public class ReviewPanelsPlaybackContributionTests
                 ModifiedUtc = Created
             }));
             ctx.DemoPath = OtherPath;
-            ctx.DemoSha256 = OtherSha;
+            ctx.DemoSha256 = _otherSha;
             ctx.RaiseDemoReset();
             await AttachedAsync(session, OtherPath);
             using (Assert.Multiple())
             {
-                await Assert.That(session.Document!.Demo.Sha256).IsEqualTo(OtherSha);
+                await Assert.That(session.Document!.Demo.Sha256).IsEqualTo(_otherSha);
                 await Assert.That(session.Document.Instances).IsEmpty();
                 await Assert.That(store.TryLoad(Sha)!.Instances.Select(i => i.Code))
                     .IsEquivalentTo(["Default"], CollectionOrdering.Matching)
@@ -493,7 +493,7 @@ public class ReviewPanelsPlaybackContributionTests
 
             // The swap arrives the way the app delivers it: the context moved on and raised DemoReset.
             ctx.DemoPath = OtherPath;
-            ctx.DemoSha256 = OtherSha;
+            ctx.DemoSha256 = _otherSha;
             ctx.RaiseDemoReset();
             await AttachedAsync(session, OtherPath);
             using (Assert.Multiple())

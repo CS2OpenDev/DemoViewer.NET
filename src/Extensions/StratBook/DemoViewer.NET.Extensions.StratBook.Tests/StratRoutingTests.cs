@@ -27,10 +27,10 @@ public class StratRoutingTests
 {
     private const int One = 0, Two = 640;
 
-    private static readonly Lazy<ZonePlaceResolverAdapter?> Dust2 = new(() => Load("de_dust2"));
-    private static readonly Lazy<ZonePlaceResolverAdapter?> Nuke = new(() => Load("de_nuke"));
+    private static readonly Lazy<ZonePlaceResolverAdapter?> _dust2 = new(() => Load("de_dust2"));
+    private static readonly Lazy<ZonePlaceResolverAdapter?> _nuke = new(() => Load("de_nuke"));
 
-    internal static ZonePlaceResolverAdapter? Load(string map)
+    private static ZonePlaceResolverAdapter? Load(string map)
     {
         using AssetZonePlaceResolverSource source = new();
         return source.TryGet(map) as ZonePlaceResolverAdapter;
@@ -90,7 +90,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "LongDoors", -99968, map);
             TokenTrack routed = Track(Project(document, map), "A");
             TokenTrack straight = Track(Project(document, map, false), "A");
@@ -110,7 +110,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "LongDoors", -99968, map);
             TokenTrack a = Track(Project(document, map), "A");
             (double X, double Y, double Level) start = Arrival(map, "TSpawn");
@@ -150,7 +150,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "LongDoors", -99968, map);
             document.Steps[1].Interpolation = "hold";
             TokenTrack a = Track(Project(document, map), "A");
@@ -165,7 +165,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document =
                 StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "drag", Created);
             StratStep one = Step(1, 115, "A", "hold");
@@ -193,7 +193,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document =
                 StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "short drag", Created);
             StratStep one = Step(1, from, "A", "hold");
@@ -234,7 +234,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Nuke);
+            ZonePlaceResolverAdapter map = Map(_nuke);
             StratDocument document = Sent("de_nuke", "Outside", "move", "BombsiteB", -512, map);
             document.Steps[1].Via = ["Ramp"];
             TokenTrack a = Track(Project(document, map), "A");
@@ -268,7 +268,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document =
                 StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "fan", Created);
             StratStep one = Step(1, 115, StratVocabulary.ActorAll, "hold");
@@ -298,7 +298,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "lurk", "Middle", -99968, map);
             document.Steps[1].To = null;
             document.Steps[1].Lurk = new StepLurk
@@ -335,7 +335,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "BombsiteB", -99968, map);
             document.Steps[1].Via = [first, second];
             TokenTrack a = Track(Project(document, map), "A");
@@ -363,7 +363,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
 
             StratDocument Doc(bool via)
             {
@@ -389,7 +389,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = ExecuteB(map);
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             bool routing = false;
@@ -429,7 +429,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = ExecuteB(map);
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             FakeFeatureGate gate = new();
@@ -454,7 +454,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "LongDoors", -99968, map);
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
@@ -495,7 +495,7 @@ public class StratRoutingTests
     ///     Execute B on dust2: eight steps, ten tokens, a lurk, two throws, and opponents dragged at three
     ///     steps, so every kind of move is in it: runs, position walks, a lurk's walk and rotate, and fixed-time drags.
     /// </summary>
-    internal static StratDocument ExecuteB(IZonePlaceResolver map)
+    private static StratDocument ExecuteB(IZonePlaceResolver map)
     {
         const double Floor = -99968;
         StratDocument document =
@@ -561,7 +561,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = ExecuteB(map);
             IReadOnlyList<StratPathStep> path = StratPath.MainLine(document);
             PathResolver fresh = new NavPathResolver(map.Resolver.Zones);
@@ -634,7 +634,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument plain = Sent("de_dust2", "TSpawn", "move", "BombsiteB", -99968, map);
             StratDocument via = Sent("de_dust2", "TSpawn", "move", "BombsiteB", -99968, map);
             via.Steps[1].Via = ["Middle"];

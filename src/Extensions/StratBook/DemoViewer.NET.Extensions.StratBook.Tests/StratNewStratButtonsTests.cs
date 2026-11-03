@@ -136,7 +136,7 @@ public class StratNewStratButtonsTests
                 finally
                 {
                     window?.Close();
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }

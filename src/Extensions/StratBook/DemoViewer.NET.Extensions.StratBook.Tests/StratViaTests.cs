@@ -58,7 +58,7 @@ public class StratViaTests
             // A pick outside every place adds a point; a place already there is not added twice.
             StratLocationField plain = new(step.Id, null, StratLocationKind.Via);
             await Assert.That(StratLocationPatches.Applies(step, plain)).IsTrue();
-            await Assert.That(string.Join(",", StratLocationPatches.Read(step, plain).Select(p => p.Place)!))
+            await Assert.That(string.Join(",", StratLocationPatches.Read(step, plain).Select(p => p.Place)))
                 .IsEqualTo("OutsideLong");
             List<PatchOp> pick = StratLocationPatches.Pick(document, 0, plain, null, 300, 400, -99968, true);
             await Assert.That(pick.Single().Path).IsEqualTo("/steps/0/viaPoints");
@@ -121,7 +121,7 @@ public class StratViaTests
             using (Assert.Multiple())
             {
                 await Assert
-                    .That(issues.Any(i => i.Field == "/steps/0/via/1" && i.Severity == StratIssueSeverity.Warning))
+                    .That(issues.Any(i => i is { Field: "/steps/0/via/1", Severity: StratIssueSeverity.Warning }))
                     .IsTrue();
                 await Assert.That(issues.Any(i => i.Field == "/steps/0/via/0")).IsFalse();
                 await Assert
@@ -245,7 +245,7 @@ public class StratViaTests
 
             row.GroupViaValue = [new PlaceRef { Place = "Middle" }];
             StratStep written = vm.Session.Document!.Steps[0];
-            await Assert.That(written.Assignments!.All(l => l.Via is { Count: 1 } via && via[0] == "Middle")).IsTrue();
+            await Assert.That(written.Assignments!.All(l => l.Via is ["Middle"])).IsTrue();
 
             row.SplitCommand.Execute(null);
             StratLineRow b = row.Lines.Single(l => l.Slot == "B");

@@ -21,13 +21,13 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratSpawnTests
 {
-    private static readonly string[] ShippedMaps =
+    private static readonly string[] _shippedMaps =
     [
         "de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass",
         "de_train", "de_vertigo"
     ];
 
-    private static readonly StratSpawns Fixed = new(
+    private static readonly StratSpawns _fixed = new(
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(1000 + 100 * i, 0, 64))],
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(-1000 - 100 * i, 0, -128))]);
 
@@ -86,13 +86,13 @@ public class StratSpawnTests
             using (Assert.Multiple())
             {
                 await Assert.That(vertigo.T.Select(s => s.LevelMinZ).Distinct())
-                    .IsEquivalentTo(new[] { below }, CollectionOrdering.Matching);
+                    .IsEquivalentTo([below], CollectionOrdering.Matching);
                 await Assert.That(vertigo.Ct.Select(s => s.LevelMinZ).Distinct())
-                    .IsEquivalentTo(new[] { MapSpace.QuantizeZ(11728) }, CollectionOrdering.Matching);
+                    .IsEquivalentTo([MapSpace.QuantizeZ(11728)], CollectionOrdering.Matching);
                 await Assert.That(nuke.T.Select(s => s.LevelMinZ).Distinct())
-                    .IsEquivalentTo(new[] { MapSpace.QuantizeZ(-528) }, CollectionOrdering.Matching);
+                    .IsEquivalentTo([MapSpace.QuantizeZ(-528)], CollectionOrdering.Matching);
                 await Assert.That(nuke.Ct.Select(s => s.LevelMinZ).Distinct())
-                    .IsEquivalentTo(new[] { MapSpace.QuantizeZ(-528) }, CollectionOrdering.Matching);
+                    .IsEquivalentTo([MapSpace.QuantizeZ(-528)], CollectionOrdering.Matching);
             }
         });
     }
@@ -100,7 +100,7 @@ public class StratSpawnTests
     private static List<FloorSlice> Floors(string map)
     {
         string dir = MapAssetBundleReader.FindBundleDirectory(map)!;
-        return MapAssetBundleReader.TryRead(dir)!.Floors!.Select(f => new FloorSlice(f.MinZ, f.MaxZ)).ToList();
+        return MapAssetBundleReader.TryRead(dir)!.Floors.Select(f => new FloorSlice(f.MinZ, f.MaxZ)).ToList();
     }
 
     [Test]
@@ -110,8 +110,8 @@ public class StratSpawnTests
         {
             StratDocument t = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "default", "t", Created);
             StratDocument ct = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "CT", "setup", "ct", Created);
-            Fixed.PlaceStart(t);
-            Fixed.PlaceStart(ct);
+            _fixed.PlaceStart(t);
+            _fixed.PlaceStart(ct);
 
             StratStart start = t.Start!;
             using (Assert.Multiple())
@@ -146,7 +146,7 @@ public class StratSpawnTests
                 Kind = StratStart.CustomKind, Positions = [new StartPosition { Slot = "A", X = 5, Y = 6 }]
             };
 
-            Fixed.PlaceStart(document);
+            _fixed.PlaceStart(document);
 
             using (Assert.Multiple())
             {
@@ -174,7 +174,7 @@ public class StratSpawnTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStore store = new(null);
-            StratSpawnSource spawns = new(_ => Fixed);
+            StratSpawnSource spawns = new(_ => _fixed);
             await spawns.ForAsync("de_mirage");
             using StratBookTabViewModel vm = new(store, null, null, false, spawns: spawns);
             vm.SelectedMap = "de_mirage";
@@ -203,7 +203,7 @@ public class StratSpawnTests
             StratSpawnSource spawns = new(_ =>
             {
                 gate.Task.Wait();
-                return Fixed;
+                return _fixed;
             });
             PostedActions posted = new();
             using StratBookTabViewModel vm = new(store, null, posted.Enqueue, false, spawns: spawns);
@@ -238,7 +238,7 @@ public class StratSpawnTests
                     gate.Task.Wait();
                 }
 
-                return Fixed;
+                return _fixed;
             });
             await spawns.ForAsync("de_dust2");
             PostedActions posted = new();
@@ -277,7 +277,7 @@ public class StratSpawnTests
         });
     }
 
-    public static IEnumerable<Func<string>> Maps() => ShippedMaps.Select(m => (Func<string>)(() => m));
+    public static IEnumerable<Func<string>> Maps() => _shippedMaps.Select(m => (Func<string>)(() => m));
 
     private static ZoneSet RequireZones(string map)
     {

@@ -46,9 +46,9 @@ public class StratGoldenCaptureTests
 {
     private const string UpdateEnvVar = "PB2D_GOLDEN_UPDATE";
 
-    // The schema sample's own step ticks (StratSceneProjectionTests): 1:30, 1:16, 1:05 and 1:00 on the
+    // Two of the schema sample's own step ticks (StratSceneProjectionTests): 1:30 and 1:00 on the
     // 115 s clock the sample declares.
-    private const int Smoke = 1600, Molly = 2496, Peek = 3200, All = 3520;
+    private const int Smoke = 1600, All = 3520;
 
     // Between the molotov step and the peek step, while the smoke step's grenade is still up (it goes off
     // after its flight from Smoke and lasts 18 s, 1152 ticks): A is mid-interpolation toward its peek keyframe, B/C/O1 are each held
@@ -60,7 +60,7 @@ public class StratGoldenCaptureTests
     // between two adjacent, non-overlapping windows.
     private const int Mid = 2750;
 
-    private static readonly SKSizeI Square = new(StratExportJob.DefaultWidth, StratExportJob.DefaultHeight);
+    private static readonly SKSizeI _square = new(StratExportJob.DefaultWidth, StratExportJob.DefaultHeight);
 
     private static readonly string[] _layerIds =
     [
@@ -73,7 +73,7 @@ public class StratGoldenCaptureTests
     public async Task Step1_TokensAtKeyframes_StrokesFull_OpponentDrawn()
     {
         StratDocument document = Fixture();
-        await CaptureAndCompare("strat-mirage-exec-step1", document, StratPath.MainLine(document), Smoke, Square,
+        await CaptureAndCompare("strat-mirage-exec-step1", document, StratPath.MainLine(document), Smoke, _square,
             "PENDING for dv2d: this entry names hud.clock, which render/golden/bench refuse outright (a " +
             "fixture carries no clock; dv2d.md, 'Current limitations'), so only StratGoldenCaptureTests can " +
             "verify it. The smoke step's tick: A, B and the opponent O1 at their first keyframes, the " +
@@ -89,7 +89,7 @@ public class StratGoldenCaptureTests
     public async Task Mid_LinearInterpolation_HeldSlot_SmokeDisc()
     {
         StratDocument document = Fixture();
-        await CaptureAndCompare("strat-mirage-exec-mid", document, StratPath.MainLine(document), Mid, Square,
+        await CaptureAndCompare("strat-mirage-exec-mid", document, StratPath.MainLine(document), Mid, _square,
             "PENDING for dv2d: this entry names hud.clock, which render/golden/bench refuse outright (a " +
             "fixture carries no clock; dv2d.md, 'Current limitations'), so only StratGoldenCaptureTests can " +
             "verify it. Between the molotov and peek steps: A linearly interpolating toward its peek " +
@@ -126,7 +126,7 @@ public class StratGoldenCaptureTests
             throw new InvalidOperationException("the sample's branch did not resolve to a path");
         }
 
-        await CaptureAndCompare("strat-mirage-exec-branch", document, path, All, Square,
+        await CaptureAndCompare("strat-mirage-exec-branch", document, path, All, _square,
             "PENDING for dv2d: this entry names hud.clock, which render/golden/bench refuse outright (a " +
             "fixture carries no clock; dv2d.md, 'Current limitations'), so only StratGoldenCaptureTests can " +
             "verify it. The branch's target step (the sample's branch skips the peek step straight to " +
