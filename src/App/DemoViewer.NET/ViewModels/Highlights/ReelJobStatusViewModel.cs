@@ -258,7 +258,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
         // A failed job is a user-visible fault worth persisting: mirror it to the diagnostics pillar
         // (Diagnostics tab + rolling log file) so the report survives dismissing the chip. Deduped on the
         // message, because Apply also runs at construction and on unrelated re-applies of the same status.
-        if (status.Phase == ReelJobPhase.Failed && status.Error is { Length: > 0 } err
+        if (status is { Phase: ReelJobPhase.Failed, Error: { Length: > 0 } err }
                                                 && !string.Equals(err, _loggedError, StringComparison.Ordinal))
         {
             _loggedError = err;
@@ -311,7 +311,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
             string label = state == ReelClipRowState.Current && clipLabel is not null
                 ? clipLabel
                 : "Clip " + (i + 1).ToString(CultureInfo.InvariantCulture);
-            Clips.Add(new ReelClipStatusRow(i + 1, label, state));
+            Clips.Add(new ReelClipStatusRow(label, state));
         }
     }
 
@@ -333,10 +333,8 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
 }
 
 /// <summary>One row of the reel chip flyout's per-clip status list.</summary>
-public sealed class ReelClipStatusRow(int number, string label, ReelClipRowState state)
+public sealed class ReelClipStatusRow(string label, ReelClipRowState state)
 {
-    public int Number { get; } = number;
-
     /// <summary>The clip label: the live <c>CurrentClipLabel</c> for the active clip, else "Clip k".</summary>
     public string Label { get; } = label;
 

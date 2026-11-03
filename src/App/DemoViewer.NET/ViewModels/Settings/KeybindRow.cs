@@ -29,14 +29,17 @@ public sealed partial class KeybindRow : ObservableObject
 
     /// <summary>Why the last rebind attempt was refused, or "". Shown inline under the row.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasConflict))]
     private string _conflict = "";
 
     /// <summary>The gesture text currently resolving to this action ("Shift+E"), or "" when unbound.</summary>
     [ObservableProperty]
-    private string _gesture = "";
+    [NotifyPropertyChangedFor(nameof(CaptureLabel))]
+    private string _gesture;
 
     /// <summary>True while this row is waiting for the next keypress (the capture affordance is armed).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CaptureLabel))]
     private bool _isCapturing;
 
     /// <summary>Whether this row's gesture comes from the user's overrides rather than the shipped table.</summary>
@@ -81,7 +84,7 @@ public sealed partial class KeybindRow : ObservableObject
     public string? PackLabel { get; }
 
     /// <summary>The owning pack's umbrella gate id, read live by <see cref="IsVisible" />. Null for a core row.</summary>
-    public string? PackFeatureId { get; }
+    private string? PackFeatureId { get; }
 
     /// <summary>Whether this row's label chip should show (a pack row only).</summary>
     public bool HasPackLabel => PackLabel is { Length: > 0 };
@@ -112,12 +115,6 @@ public sealed partial class KeybindRow : ObservableObject
         IsOverridden = profile.IsOverridden(Action);
         OnPropertyChanged(nameof(IsVisible));
     }
-
-    partial void OnGestureChanged(string value) => OnPropertyChanged(nameof(CaptureLabel));
-
-    partial void OnIsCapturingChanged(bool value) => OnPropertyChanged(nameof(CaptureLabel));
-
-    partial void OnConflictChanged(string value) => OnPropertyChanged(nameof(HasConflict));
 
     // Arms the capture: the NEXT keypress anywhere in the Settings view becomes this row's gesture. The
     // view's tunnelling handler is what routes it here: see SettingsView.axaml.cs.

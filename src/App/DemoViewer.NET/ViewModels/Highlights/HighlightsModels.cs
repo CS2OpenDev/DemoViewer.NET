@@ -49,7 +49,7 @@ public sealed record HighlightSelection(DemoCacheRecord Record, CachedHighlightE
         Highlight.Tick, Highlight.PlayerSlot);
 
     /// <summary>The attributed player, resolved by slot against the record's roster; null when absent.</summary>
-    public CachedPlayerInfo? Player =>
+    private CachedPlayerInfo? Player =>
         Record.Players.FirstOrDefault(p => p.Slot == Highlight.PlayerSlot);
 
     /// <summary>
@@ -80,11 +80,6 @@ public interface IClipTrayHost
     /// <param name="delta">Signed position delta; clamped to the tray bounds.</param>
     void MoveGroup(string groupKey, int delta);
 
-    /// <summary>Moves one group to an absolute tray position (the drag-and-drop path).</summary>
-    /// <param name="groupKey">The group's stable key (see <see cref="ClipTrayKeys.Group" />).</param>
-    /// <param name="targetIndex">Zero-based destination; clamped to the tray bounds.</param>
-    void MoveGroupTo(string groupKey, int targetIndex);
-
     /// <summary>Un-stages every clip belonging to one (player · demo) group.</summary>
     /// <param name="groupKey">The group's stable key (see <see cref="ClipTrayKeys.Group" />).</param>
     void RemoveGroup(string groupKey);
@@ -107,7 +102,7 @@ public static class ClipTrayKeys
     public static string Group(string demoPath, string? steamId64) =>
         // U+001F (unit separator) rather than '|' or ':', both are legal in a POSIX path, so a demo named
         // "a|b.dem" would otherwise collide with a different (path, steamId) pair.
-        (demoPath ?? "").ToUpperInvariant() + '\u001f' + (steamId64 ?? "");
+        demoPath.ToUpperInvariant() + '\u001f' + (steamId64 ?? "");
 }
 
 /// <summary>
@@ -134,7 +129,7 @@ public partial class HighlightTypeFilterItem(string typeKey, string display, int
     public string Display { get; } = display;
 
     /// <summary>How many highlights of this type exist across the library.</summary>
-    public int Count { get; } = count;
+    private int Count { get; } = count;
 
     /// <summary>Chip label with count, e.g. "ace (4)".</summary>
     public string Label => $"{Display} ({Count})";
@@ -158,10 +153,10 @@ public partial class HighlightKindFilterItem(HighlightKind kind, string display,
     public HighlightKind Kind { get; } = kind;
 
     /// <summary>Friendly label shown on the chip.</summary>
-    public string Display { get; } = display;
+    private string Display { get; } = display;
 
     /// <summary>How many highlights of this kind exist across the library.</summary>
-    public int Count { get; } = count;
+    private int Count { get; } = count;
 
     /// <summary>Chip label with count, e.g. "Funny (4)".</summary>
     public string Label => $"{Display} ({Count})";
@@ -201,19 +196,19 @@ public partial class PlayerFilterItem(string steamId64, string display, int coun
 public sealed class StagedClipState
 {
     /// <summary>Owning demo path.</summary>
-    public string FilePath { get; set; } = "";
+    public string FilePath { get; init; } = "";
 
     /// <summary>Ruleset that emitted the highlight.</summary>
-    public string RulesetId { get; set; } = "";
+    public string RulesetId { get; init; } = "";
 
     /// <summary>Highlight id inside that ruleset.</summary>
-    public string HighlightId { get; set; } = "";
+    public string HighlightId { get; init; } = "";
 
     /// <summary>Firing tick (frame clock).</summary>
-    public int Tick { get; set; }
+    public int Tick { get; init; }
 
     /// <summary>Attributed player slot.</summary>
-    public int PlayerSlot { get; set; }
+    public int PlayerSlot { get; init; }
 }
 
 /// <summary>
@@ -229,11 +224,11 @@ public sealed class StagedClipState
 public sealed class HighlightsSessionState
 {
     /// <summary>The staged clips, IN TRAY ORDER. Vanished keys are dropped on restore.</summary>
-    public StagedClipState[] StagedClips { get; set; } = [];
+    public StagedClipState[] StagedClips { get; init; } = [];
 
     /// <summary>Tray column star weight (splitter position); paired with <see cref="ConfigColumnStars" />.</summary>
-    public double TrayColumnStars { get; set; } = 1.4;
+    public double TrayColumnStars { get; init; } = 1.4;
 
     /// <summary>Config-pane column star weight (splitter position).</summary>
-    public double ConfigColumnStars { get; set; } = 1.0;
+    public double ConfigColumnStars { get; init; } = 1.0;
 }

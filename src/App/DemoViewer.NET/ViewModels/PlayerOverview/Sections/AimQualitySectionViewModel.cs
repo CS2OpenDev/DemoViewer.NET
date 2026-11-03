@@ -44,6 +44,7 @@ public sealed partial class AimQualitySectionViewModel : PlayerOverviewSection
     private IReadOnlyList<CategoryItem> _blocks = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNote))]
     private string _note = "";
 
     [ObservableProperty]
@@ -57,8 +58,6 @@ public sealed partial class AimQualitySectionViewModel : PlayerOverviewSection
 
     /// <summary>True when there is a line under the blocks.</summary>
     public bool HasNote => Note.Length > 0;
-
-    partial void OnNoteChanged(string value) => OnPropertyChanged(nameof(HasNote));
 
     /// <inheritdoc />
     public override void Update(PlayerOverviewContext context)

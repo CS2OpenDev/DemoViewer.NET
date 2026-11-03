@@ -123,6 +123,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     private bool _showConfigPane;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatusMessage))]
     private string _statusMessage = "";
 
     /// <summary>Tray column star weight: the CONTENT-DENSE pane here, so the weights invert.</summary>
@@ -178,7 +179,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         AppSettings current = settings?.CurrentValue ?? new AppSettings();
         ReelConfig = new HighlightReelDialogViewModel(
             [], current.Highlights, reelJob,
-            settingsService is null ? null : mutate => settingsService.Write(mutate),
+            settingsService is null ? null : settingsService.Write,
             isLiveSyncSessionActive, dryRunOnly, fileExists,
             ffmpegLocator,
             settings is null ? null : () => Cs2LaunchNotice.IsAcknowledged(settings.CurrentValue.LiveSync))
@@ -321,7 +322,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     public bool CanScan { get; } = !OperatingSystem.IsBrowser();
 
     /// <summary>WASM: the tab is registered-but-degraded. An explanatory body replaces the dashboard.</summary>
-    public bool IsBrowser { get; } = OperatingSystem.IsBrowser();
+    private bool IsBrowser { get; } = OperatingSystem.IsBrowser();
 
     /// <summary>The dashboard is the authoring surface: hidden only on the browser host.</summary>
     public bool ShowBrowseSurface => !IsBrowser;
@@ -340,7 +341,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     public bool ShowLibraryNotIndexedLine => ShowEmptyTray && CanScan && !AnyHighlightsIndexed;
 
     /// <summary>The "Scan my library" CTA is offered only when nothing is already scanning.</summary>
-    public bool ShowScanCta => CanScan && !_scanner.IsScanning && _scanner.QueueLength == 0;
+    public bool ShowScanCta => CanScan && _scanner is { IsScanning: false, QueueLength: 0 };
 
     /// <summary>Any demo in the cache carries at least one harvested highlight (a usable T3 record).</summary>
     public bool AnyHighlightsIndexed => _rows.Any(r => r.HighlightCount > 0);
@@ -419,7 +420,9 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>Moves one group to an absolute tray position (the drag-and-drop path).</summary>
+    /// <param name="groupKey">The group's stable key (see <see cref="ClipTrayKeys.Group" />).</param>
+    /// <param name="targetIndex">Zero-based destination; clamped to the tray bounds.</param>
     public void MoveGroupTo(string groupKey, int targetIndex)
     {
         List<string> groups = GroupOrder();
@@ -495,7 +498,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     }
 
     /// <inheritdoc />
-    public object? SnapshotState() => new HighlightsSessionState
+    public object SnapshotState() => new HighlightsSessionState
     {
         StagedClips =
         [
@@ -596,7 +599,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     ///     the tray's containers down twenty times under the user's pointer.
     /// </summary>
     /// <param name="selections">The highlights to stage, in the order they should appear.</param>
-    public void StageRange(IReadOnlyList<HighlightSelection> selections)
+    private void StageRange(IReadOnlyList<HighlightSelection> selections)
     {
         ArgumentNullException.ThrowIfNull(selections);
 
@@ -671,12 +674,6 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         return true;
     }
 
-    /// <summary>
-    ///     Re-raises <see cref="HasEnrichments" />. The constructor already subscribes to the collection, so
-    ///     callers do not have to remember this. It stays public only as an explicit escape hatch.
-    /// </summary>
-    public void NotifyEnrichmentsChanged() => OnPropertyChanged(nameof(HasEnrichments));
-
     // A session file is user-writable, survives app versions, and predates any field this DTO grows later,
     // so a shape that no longer matches must degrade to "restore nothing", not throw. Activate() wraps this
     // in a try/catch as a backstop; relying on that would cost the user their whole tab restore for one bad
@@ -698,8 +695,6 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
             return null;
         }
     }
-
-    partial void OnStatusMessageChanged(string value) => OnPropertyChanged(nameof(HasStatusMessage));
 
     // ── Feature gate (highlights.encoding) ────────────────────────────────────
 
@@ -829,7 +824,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
 
     /// <summary>Sets narrow/wide from the tab's measured width (responsive collapse).</summary>
     /// <param name="width">Measured viewport width in DIPs.</param>
-    public void SetViewportWidth(double width) => IsNarrow = width > 0 && width < NarrowBreakpoint;
+    public void SetViewportWidth(double width) => IsNarrow = width is > 0 and < NarrowBreakpoint;
 
     partial void OnIsNarrowChanged(bool value)
     {

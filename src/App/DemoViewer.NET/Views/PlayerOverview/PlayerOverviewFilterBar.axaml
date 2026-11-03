@@ -40,9 +40,9 @@
                 </DataTemplate>
             </ComboBox.ItemTemplate>
         </ComboBox>
-        <CalendarDatePicker Classes="filter" IsVisible="{Binding IsDateRange}" Watermark="From"
+        <CalendarDatePicker Classes="filter" IsVisible="{Binding IsDateRange}" PlaceholderText="From"
                             SelectedDate="{Binding From, Mode=TwoWay}" AutomationProperties.Name="From" />
-        <CalendarDatePicker Classes="filter" IsVisible="{Binding IsDateRange}" Watermark="To"
+        <CalendarDatePicker Classes="filter" IsVisible="{Binding IsDateRange}" PlaceholderText="To"
                             SelectedDate="{Binding To, Mode=TwoWay}" AutomationProperties.Name="To" />
         <TextBlock Classes="filterLabel" Text="MAP" />
         <ComboBox Classes="filter" ItemsSource="{Binding Maps}"

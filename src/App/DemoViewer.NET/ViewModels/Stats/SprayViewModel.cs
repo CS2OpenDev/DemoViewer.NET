@@ -65,6 +65,7 @@ public sealed partial class SprayViewModel : ObservableObject
 
     /// <summary>Selected spray; changing it redraws the plot.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Shots))]
     private SprayRunItem? _selectedRun;
 
     /// <summary>
@@ -92,11 +93,6 @@ public sealed partial class SprayViewModel : ObservableObject
     partial void OnTrackTargetChanged(bool value) => _ = ReloadAsync();
 
     partial void OnSelectedWeaponChanged(string? value) => RebuildRuns();
-
-    partial void OnSelectedRunChanged(SprayRunItem? value)
-    {
-        OnPropertyChanged(nameof(Shots));
-    }
 
     private async Task ReloadAsync()
     {

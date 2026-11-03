@@ -41,7 +41,6 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
     private readonly Func<string?, string?> _collisionResolver;
     private readonly Func<string?> _demoPathAccessor;
-    private Action<string>? _errorReportOpener;
 
     // Optional analyzer options seam (frame window / stride / FOV). null → analyzer defaults over
     // the whole demo (the product path). Tests inject a frame window so the LOS replay covers a
@@ -49,10 +48,6 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     private readonly VisibilityAnalyzer.Options? _visibilityOptions;
 
     private string? _collisionTrisPath;
-
-    // Diagnostics-pillar logger (v0.6.0: failure surfaces show clean text, this carries the real
-    // exception). Lazy: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
 
     // ── Extra tables: configured outputs + keyed breakdowns ───────────────────
 
@@ -181,7 +176,9 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         }
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.Stats");
+    // Diagnostics-pillar logger (v0.6.0: failure surfaces show clean text, this carries the real
+    // exception). Lazy: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.Stats");
 
     /// <summary>
     ///     Opens an account in the Player Overview tab, given its SteamID64 and the name this demo shows. Null where
@@ -305,10 +302,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     (configured outputs, keyed breakdowns) are per-evaluation.
     /// </summary>
     public IReadOnlyList<MetricTable> ExportTables =>
-        new[] { GameTable, RoundTable, EventsTable, VisibilityPlayersTable, VisibilityPairsTable }
+    [
+        .. new[] { GameTable, RoundTable, EventsTable, VisibilityPlayersTable, VisibilityPairsTable }
             .Where(t => t is not null).Cast<MetricTable>()
             .Concat(ExtraTables)
-            .ToList();
+    ];
 
     /// <summary>The table picker's items: every non-built-in table this evaluation produced.</summary>
     public IReadOnlyList<MetricTable> ExtraTables { get; private set; } = [];
@@ -385,16 +383,16 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     /// </summary>
     public Action<string>? ErrorReportOpener
     {
-        get => _errorReportOpener;
+        get;
         set
         {
-            _errorReportOpener = value;
+            field = value;
             OnPropertyChanged(nameof(CanReportErrors));
         }
     }
 
     /// <summary>Gates the toolbar's "Report Analysis Errors" button: this page always reports the OPEN demo.</summary>
-    public bool CanReportErrors => _errorReportOpener is not null && _demoPathAccessor() is { Length: > 0 };
+    public bool CanReportErrors => ErrorReportOpener is not null && _demoPathAccessor() is { Length: > 0 };
 
     /// <summary>
     ///     The shell calls this when the open demo changes. The gate reads a Func the view cannot observe,
@@ -517,7 +515,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
                                   ?? throw new InvalidOperationException(
                                       "Stats tab requires snapshot-mode evaluation.");
 
-        List<MetricTable> extras = new();
+        List<MetricTable> extras = [];
         extras.AddRange(run.ProjectConfiguredOutputs(demo, matchId));
         extras.AddRange(new KeyedStatsProjector { MatchId = matchId }.Project(result, demo));
 
@@ -571,7 +569,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     {
         if (_demoPathAccessor() is { Length: > 0 } path)
         {
-            _errorReportOpener?.Invoke(path);
+            ErrorReportOpener?.Invoke(path);
         }
     }
 
@@ -1309,9 +1307,9 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     /// </summary>
     private List<PodiumEntry> BuildPodium(IReadOnlyList<MetricRow> rows)
     {
-        const string ratingColumn = "HLTV";
-        StatScale? scale = ColumnCatalogue.Resolve(ratingColumn).Scale?.Resolve(
-            rows.Select(r => new StatCell(r.Values.GetValueOrDefault(ratingColumn)).Numeric)
+        const string RatingColumn = "HLTV";
+        StatScale? scale = ColumnCatalogue.Resolve(RatingColumn).Scale?.Resolve(
+            rows.Select(r => new StatCell(r.Values.GetValueOrDefault(RatingColumn)).Numeric)
                 .Where(v => v is not null)
                 .Select(v => v!.Value)
                 .ToList());
@@ -1319,13 +1317,13 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         List<PodiumEntry> podium = [];
         int rank = 1;
         foreach (MetricRow row in rows
-                     .Select(r => (Row: r, Rating: new StatCell(r.Values.GetValueOrDefault(ratingColumn)).Numeric))
+                     .Select(r => (Row: r, Rating: new StatCell(r.Values.GetValueOrDefault(RatingColumn)).Numeric))
                      .Where(x => x.Rating is not null)
                      .OrderByDescending(x => x.Rating!.Value)
                      .Take(3)
                      .Select(x => x.Row))
         {
-            double rating = new StatCell(row.Values.GetValueOrDefault(ratingColumn)).Numeric!.Value;
+            double rating = new StatCell(row.Values.GetValueOrDefault(RatingColumn)).Numeric!.Value;
             int team = row.Dimensions.GetValueOrDefault("team") is { } t
                 ? Convert.ToInt32(t, CultureInfo.InvariantCulture)
                 : 0;
@@ -1654,7 +1652,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>The game-table slot <paramref name="steamId64" /> played the most rounds on a side in, or null.</summary>
-    internal int? SlotOf(ulong steamId64)
+    private int? SlotOf(ulong steamId64)
     {
         if (GameTable is null || steamId64 == 0)
         {
@@ -1836,8 +1834,12 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _visibilityCts?.Cancel();
-        _visibilityCts?.Dispose();
+        if (_visibilityCts is { } previous)
+        {
+            await previous.CancelAsync();
+            previous.Dispose();
+        }
+
         _visibilityCts = new CancellationTokenSource();
         CancellationToken token = _visibilityCts.Token;
 
@@ -1953,9 +1955,6 @@ public sealed record StatColumn(
 
     /// <summary>Full stat description for the header tooltip.</summary>
     public string Tooltip => Meta.Tooltip;
-
-    /// <summary>Group label shown when this column starts a new group band.</summary>
-    public string GroupLabel { get; init; } = "";
 }
 
 /// <summary>
@@ -2063,7 +2062,7 @@ public sealed record PlayerRef(int Slot, string Name, int Team)
     public string? PlayerOverviewTip => CanOpenPlayerOverview ? null : PlayerOverviewLink.NoSteamIdTip;
 
     /// <summary>Team tag (CS2 wire values: 2 = T, 3 = CT).</summary>
-    public string TeamLabel => Team switch
+    private string TeamLabel => Team switch
     {
         2 => "T",
         3 => "CT",
@@ -2122,9 +2121,6 @@ public sealed record TeamSection(
 
     /// <summary>Round total as text, empty when it could not be derived.</summary>
     public string ScoreText => Score is { } s ? s.ToString(CultureInfo.InvariantCulture) : "";
-
-    /// <summary>"CT — 13" or just "CT" when the score couldn't be derived reliably.</summary>
-    public string Header => Score is { } s ? $"{SideLabel}   {s}" : SideLabel;
 }
 
 /// <summary>

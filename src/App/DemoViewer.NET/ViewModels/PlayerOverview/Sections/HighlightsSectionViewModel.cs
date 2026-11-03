@@ -34,6 +34,7 @@ public sealed partial class HighlightsSectionViewModel : PlayerOverviewSection
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLoading))]
+    [NotifyPropertyChangedFor(nameof(ShowEmpty))]
     private string _loadText = "";
 
     [ObservableProperty]
@@ -73,8 +74,6 @@ public sealed partial class HighlightsSectionViewModel : PlayerOverviewSection
 
     /// <summary>The latest read of the highlights; completed when nothing is being read.</summary>
     internal Task Loading { get; private set; } = Task.CompletedTask;
-
-    partial void OnLoadTextChanged(string value) => OnPropertyChanged(nameof(ShowEmpty));
 
     /// <inheritdoc />
     public override void Update(PlayerOverviewContext context)

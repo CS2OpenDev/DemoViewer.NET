@@ -21,8 +21,8 @@ namespace DemoViewer.NET.Views.Highlights;
 ///         <b>Why drag lives in code-behind at all.</b> Avalonia's drag/drop is an input-event protocol, not a
 ///         bindable one. There is no `DragDrop` command surface to bind. The handler therefore does the
 ///         minimum possible: it reads the group key off the dragged/target container's <c>Tag</c> and calls one
-///         view-model method (<see cref="IClipTrayHost.MoveGroupTo" />). All ordering logic stays in the VM,
-///         and the same operation is reachable without a mouse through the ▲▼ buttons.
+///         view-model method (<see cref="HighlightsTabViewModel.MoveGroupTo" />). All ordering logic stays in
+///         the VM, and the same operation is reachable without a mouse through the ▲▼ buttons.
 ///     </para>
 /// </summary>
 public partial class HighlightsTabView : UserControl
@@ -51,15 +51,13 @@ public partial class HighlightsTabView : UserControl
     // VM. Copies the SAME full diagnostic block the flyout's Copy button does (JobStatus.CopyDiagnosticsText).
     private async void OnCopyReelErrorClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not HighlightsTabViewModel { JobStatus: { } jobStatus }
-            || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
-        {
-            return;
-        }
-
         try
         {
-            await clipboard.SetTextAsync(jobStatus.CopyDiagnosticsText);
+            if (DataContext is HighlightsTabViewModel { JobStatus: { } jobStatus }
+                && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(jobStatus.CopyDiagnosticsText);
+            }
         }
         catch (Exception)
         {
@@ -110,6 +108,10 @@ public partial class HighlightsTabView : UserControl
         try
         {
             await DragDrop.DoDragDropAsync(e, payload, DragDropEffects.Move);
+        }
+        catch (Exception)
+        {
+            // A drag the platform refuses leaves the tray as it was; the ▲▼ buttons still reorder it.
         }
         finally
         {

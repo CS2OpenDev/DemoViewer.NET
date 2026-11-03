@@ -56,6 +56,7 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
 
     /// <summary>A transient note shown in the footer (e.g. after <c>Rescan all</c> re-queues the library).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatusNote))]
     private string _statusNote = "";
 
     // Filter re-application is O(rows); the constructor builds three filter lists and each one raises
@@ -176,7 +177,7 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
     public int LibraryRowCount { get; }
 
     /// <summary>Demos without current highlights when the picker opened.</summary>
-    public int ScanQueueDepth { get; }
+    private int ScanQueueDepth { get; }
 
     /// <summary>Filter-button caption, e.g. "Players (2)".</summary>
     public string PlayerFilterSummary => Summary("Players", PlayerFilters.Count(p => p.IsSelected));
@@ -283,8 +284,6 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
-    partial void OnStatusNoteChanged(string value) => OnPropertyChanged(nameof(HasStatusNote));
-
     /// <summary>Stages every ticked row in ONE tray push, then clears the ticks.</summary>
     [RelayCommand(CanExecute = nameof(CanAddSelected))]
     private void AddSelected()
@@ -292,7 +291,7 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
         // Picks are deliberately NOT scoped to the current filter: a user who ticked three rows, changed the
         // player filter and pressed Add meant all three. Clearing on every filter change would silently drop
         // work the footer count says is still there.
-        List<AddClipsRowViewModel> picked = [.. _allRows.Where(r => r.IsPicked && !r.IsStaged)];
+        List<AddClipsRowViewModel> picked = [.. _allRows.Where(r => r is { IsPicked: true, IsStaged: false })];
         if (picked.Count > 0)
         {
             _stage([.. picked.Select(r => r.Selection)]);

@@ -21,7 +21,7 @@ namespace DemoViewer.NET.ViewModels.PlayerOverview.Sections;
 public sealed partial class HeaderSectionViewModel : PlayerOverviewSection
 {
     /// <summary>How many other names the alias line lists before it counts the rest.</summary>
-    public const int AliasesShown = 5;
+    private const int AliasesShown = 5;
 
     private readonly PlayerOverviewServices _services;
 

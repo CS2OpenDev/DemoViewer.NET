@@ -151,7 +151,7 @@ public sealed partial class FeatureToggleRow : ObservableObject
     public bool IsGroupFollower { get; }
 
     /// <summary>The leader's label for the "follows &lt;leader&gt;" hint (null unless <see cref="IsGroupFollower" />).</summary>
-    public string? FollowsLabel { get; }
+    private string? FollowsLabel { get; }
 
     /// <summary>
     ///     True when this feature cannot exist on THIS host whatever the user's override says: the

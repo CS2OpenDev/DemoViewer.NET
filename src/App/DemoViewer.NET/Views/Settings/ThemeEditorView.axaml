@@ -116,7 +116,8 @@
                         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                             <TextBox Grid.Column="0" Classes="field" Text="{Binding Name}"
                                      IsReadOnly="{Binding IsReadOnly}"
-                                     Watermark="Theme name" ToolTip.Tip="The name shown in Settings. Saving writes it." />
+                                     PlaceholderText="Theme name"
+                                     ToolTip.Tip="The name shown in Settings. Saving writes it." />
                             <ComboBox Grid.Column="1" Classes="field" MinWidth="90" ItemsSource="{Binding BaseOptions}"
                                       SelectedItem="{Binding SelectedBase}" IsEnabled="{Binding CanEdit}"
                                       ToolTip.Tip="The palette missing colours come from, and the look of stock controls like scroll bars." />
@@ -140,7 +141,7 @@
                         </Border>
                         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                             <TextBox Grid.Column="0" Classes="field" Text="{Binding SearchText}"
-                                     Watermark="Search tokens, sections or descriptions" />
+                                     PlaceholderText="Search tokens, sections or descriptions" />
                             <CheckBox Grid.Column="1" Content="Missing only" IsChecked="{Binding MissingOnly}"
                                       VerticalAlignment="Center" />
                             <Button Grid.Column="2" Classes="ghost" Padding="10,4" Content="Undo"

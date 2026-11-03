@@ -94,7 +94,7 @@ public sealed partial class HighlightBacklogViewModel : ViewModelBase, IDisposab
         RetryAllFailedCommand.NotifyCanExecuteChanged();
     }
 
-    internal static string BuildNotice(int stale, int failed, bool backgroundScan)
+    private static string BuildNotice(int stale, int failed, bool backgroundScan)
     {
         List<string> parts = [];
         if (stale > 0)

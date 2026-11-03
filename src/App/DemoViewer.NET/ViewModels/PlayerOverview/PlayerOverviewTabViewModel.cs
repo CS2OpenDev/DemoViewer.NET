@@ -40,7 +40,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     /// <summary>The tab's feature id.</summary>
     public const string FeatureId = "tab.playeroverview";
 
-    private static readonly string FacetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _facetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     private readonly Action<Action> _post;
     private readonly IDemoProcessingQueue? _queue;
@@ -105,7 +105,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         _post = post ?? (action => action());
         _search = new PlayerSearch(services.Directory);
         Filter = new PlayerOverviewFilterViewModel();
-        Sections = PlayerOverviewSections.Create(services with { OpenPlayer = OpenPlayer }, Filter);
+        Sections = PlayerOverviewSections.Create(services with { OpenPlayer = OpenPlayer });
         Persistent = [.. Sections.Where(s => s.IsPersistent)];
         // History's two tables need about 1,850px between them; from 1,500 they sit side by side and scroll sideways
         // until they fit.
@@ -221,7 +221,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     public void OnDeactivated() => _active = false;
 
     /// <inheritdoc />
-    public object? SnapshotState() =>
+    public object SnapshotState() =>
         new PlayerOverviewSession(SubjectSteamId64?.ToString(CultureInfo.InvariantCulture), IsPinned,
             SelectedPage.Kind.ToString());
 
@@ -313,7 +313,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         {
             OpenFromSearch(result.Candidates[0].SteamId64);
         }
-        else if (result.SteamId64 is { } id && !result.IsFlagged)
+        else if (result is { SteamId64: { } id, IsFlagged: false })
         {
             OpenFromSearch(id);
         }
@@ -499,7 +499,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         int withStats = 0;
         foreach (PlayerMatch match in matches)
         {
-            if (match.Row.Stamp(FacetStamp) is { State: DemoAnalysisState.Indexed })
+            if (match.Row.Stamp(_facetStamp) is { State: DemoAnalysisState.Indexed })
             {
                 withStats++;
             }
@@ -627,8 +627,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
             demos.Add(read is not null
                       && read.TryGetValue(match.Row.ContentId(), out PlayerDemo? held)
                       && held.HasFacet
-                      && match.Row.Stamp(FacetStamp) is { State: DemoAnalysisState.Indexed } stamp
-                      && held.Match.Row.Stamp(FacetStamp) == stamp
+                      && match.Row.Stamp(_facetStamp) is { State: DemoAnalysisState.Indexed } stamp
+                      && held.Match.Row.Stamp(_facetStamp) == stamp
                 ? held with { Match = match }
                 : new PlayerDemo(match, false, null));
         }

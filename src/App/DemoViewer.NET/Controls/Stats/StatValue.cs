@@ -225,7 +225,7 @@ public class StatValue : StatPresenter
         double h = (text?.Height ?? FontSize) + pad.Top + pad.Bottom;
         if (IsLeader)
         {
-            w += LeaderGap + (BuildStar()?.Width ?? 0);
+            w += LeaderGap + BuildStar().Width;
         }
 
         return new Size(w, h);
@@ -275,7 +275,7 @@ public class StatValue : StatPresenter
 
         IBrush? accent = Accent;
         FormattedText? text = BuildText();
-        double starWidth = IsLeader ? (BuildStar()?.Width ?? 0) + LeaderGap : 0;
+        double starWidth = IsLeader ? BuildStar().Width + LeaderGap : 0;
 
         switch (Mode)
         {

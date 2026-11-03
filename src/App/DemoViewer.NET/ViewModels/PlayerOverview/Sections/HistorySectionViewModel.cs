@@ -23,7 +23,7 @@ namespace DemoViewer.NET.ViewModels.PlayerOverview.Sections;
 /// </summary>
 public sealed partial class HistorySectionViewModel : PlayerOverviewSection
 {
-    private static readonly string FacetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _facetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     private readonly PlayerOverviewServices _services;
 
@@ -61,7 +61,7 @@ public sealed partial class HistorySectionViewModel : PlayerOverviewSection
         foreach (PlayerDemo demo in context.Window)
         {
             HistoryStats state;
-            if (demo.Match.Row.Stamp(FacetStamp) is not { State: DemoAnalysisState.Indexed })
+            if (demo.Match.Row.Stamp(_facetStamp) is not { State: DemoAnalysisState.Indexed })
             {
                 state = HistoryStats.Pending;
             }
@@ -253,7 +253,7 @@ public sealed partial class HistoryRowItem : ObservableObject
     public string ScoreText { get; }
 
     /// <summary>Win, loss or tie for the subject; null without stats.</summary>
-    public MatchOutcome? Outcome { get; }
+    private MatchOutcome? Outcome { get; }
 
     /// <summary>"W", "L" or "T".</summary>
     public string ResultText { get; }
