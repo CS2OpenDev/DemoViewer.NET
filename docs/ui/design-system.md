@@ -2862,8 +2862,8 @@ shared class (`ListBox.card-grid`, above).
     hex depth ramp (`HexSwatchSelected/Parent/Ancestor` + a new `HexSwatchAncestorDeep`), and
     `WorkbenchCompletionData` (9 → `Syntax*` tokens). The remaining four census entries were **DEAD
     surfaces** (no view bound them), so they were recorded as such and no tokens were minted:
-    `FrameGameEventViewModel` (10), `SubTickEventViewModel` (8), `AnalysisMessageViewModel` (4, since
-    **deleted**, no view bound it), and `ParserTabViewModel.GetAccentBrush` (8, **deleted**, zero call sites). The census's remaining
+    `FrameGameEventViewModel` (10), `SubTickEventViewModel` (8), `AnalysisMessageViewModel` (4), all three
+    since **deleted** because no view bound them, and `ParserTabViewModel.GetAccentBrush` (8, **deleted**, zero call sites). The census's remaining
     Playback2D entries are RESOLVED history: `PlayerAttributes.TeamColor` no longer exists (deleted,
     `IsT`/`IsCt` class flags → `Pb2dTeamT/Ct` tokens), and the renderer's ~31 inline hex are
     `ThemeColors.Get` design-time fallbacks since the theme-token promotion, not owned colors, see the
