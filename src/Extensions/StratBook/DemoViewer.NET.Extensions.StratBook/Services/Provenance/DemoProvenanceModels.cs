@@ -47,13 +47,11 @@ public enum ProvenanceOrigin
 }
 
 /// <summary>One demo's resolved provenance: the label in force, the default it would carry without a pin, and which won.</summary>
-/// <param name="DemoPath">The demo.</param>
-/// <param name="Sha256">Its content hash, or null before tier 2 hashed it.</param>
+/// <param name="Sha256">The demo's content hash, or null before tier 2 hashed it.</param>
 /// <param name="Label">The label in force, or null for unlabeled.</param>
 /// <param name="Default">The heuristic's answer, or null; equal to <paramref name="Label" /> unless overridden.</param>
 /// <param name="Source">Which of the two the label came from.</param>
 public sealed record DemoProvenance(
-    string DemoPath,
     string? Sha256,
     string? Label,
     string? Default,

@@ -16,8 +16,6 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 /// </summary>
 /// <param name="Map">The map, the parser's spelling.</param>
 /// <param name="Round"><c>ClipRound.Number</c>.</param>
-/// <param name="FreezeEndTick">The round's freeze-end, frame clock.</param>
-/// <param name="WindowEndTick">The next round's freeze-end, or null for the last round.</param>
 /// <param name="DemoSha256">The demo's content hash, for <c>origin</c>; null when not computed.</param>
 /// <param name="FileName">The demo's file name, for <c>origin</c>.</param>
 /// <param name="Facts">The round's Round Facts row, or null when the demo has none yet; nothing here needs it.</param>
@@ -29,8 +27,6 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 public sealed record StratCaptureRequest(
     string Map,
     int Round,
-    int FreezeEndTick,
-    int? WindowEndTick,
     string? DemoSha256,
     string? FileName,
     RoundFacts? Facts,

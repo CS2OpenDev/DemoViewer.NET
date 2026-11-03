@@ -69,7 +69,7 @@
                                              IsChecked="{Binding IsActive, Mode=OneWay}"
                                              AutomationProperties.Name="Active account"
                                              ToolTip.Tip="{Binding SteamId64}"
-                                             Command="{Binding $parent[ItemsControl].((vm:PlayerOverviewTabViewModel)DataContext).SwitchAccountCommand}"
+                                             Command="{Binding $parent[ItemsControl].((vm:PlayerOverviewTabViewModel)DataContext).SwitchAccountCommand, FallbackValue={x:Null}}"
                                              CommandParameter="{Binding}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -98,7 +98,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:PlayerCandidateItem">
                             <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                    Command="{Binding $parent[ItemsControl].((vm:PlayerOverviewTabViewModel)DataContext).OpenCandidateCommand}"
+                                    Command="{Binding $parent[ItemsControl].((vm:PlayerOverviewTabViewModel)DataContext).OpenCandidateCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding}">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Right" FontSize="11.5"

@@ -141,7 +141,7 @@
                         <!-- Enable/disable dot -->
                         <Button Grid.Column="0"
                                 Classes="icon-btn"
-                                Command="{Binding $parent[ListBox].((vm:DebuggerViewModel)DataContext).ToggleEnabledCommand}"
+                                Command="{Binding $parent[ListBox].((vm:DebuggerViewModel)DataContext).ToggleEnabledCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}"
                                 ToolTip.Tip="Toggle enabled">
                             <Ellipse Width="9" Height="9"
@@ -165,7 +165,7 @@
                                 Classes="icon-btn"
                                 Content="✕"
                                 AutomationProperties.Name="Remove breakpoint"
-                                Command="{Binding $parent[ListBox].((vm:DebuggerViewModel)DataContext).RemoveBreakpointCommand}"
+                                Command="{Binding $parent[ListBox].((vm:DebuggerViewModel)DataContext).RemoveBreakpointCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}"
                                 ToolTip.Tip="Delete breakpoint" />
                     </Grid>

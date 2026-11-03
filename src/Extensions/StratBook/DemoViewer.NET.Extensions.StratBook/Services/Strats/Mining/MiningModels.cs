@@ -29,18 +29,12 @@ public readonly record struct MinedPawn(int Slot, float X, float Y, float Z, str
 /// <param name="Seconds">Seconds from the signature's anchor; negative before it.</param>
 /// <param name="Landing">Where it went off.</param>
 /// <param name="LandingPlace">The zone it landed in, or null.</param>
-/// <param name="Origin">Where it was thrown from.</param>
-/// <param name="ThrowerSteamId">The thrower's SteamID64, or 0 when the walk did not read one.</param>
-/// <param name="ThrowerName">The thrower's name at the time, or null.</param>
 /// <param name="LineupId">The Grenade Index lineup, or null when the throw is in no lineup.</param>
 public sealed record MinedThrow(
     GrenadeKind Kind,
     double Seconds,
     WorldPoint Landing,
     string? LandingPlace,
-    WorldPoint Origin,
-    ulong ThrowerSteamId,
-    string? ThrowerName,
     Guid? LineupId);
 
 /// <summary>

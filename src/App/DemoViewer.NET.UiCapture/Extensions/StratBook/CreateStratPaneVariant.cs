@@ -52,7 +52,7 @@ public static partial class Variants
                 new Vector3(-400, 1200, 0)),
             new CaptureMoment(Freeze + 40 * Rate, CaptureTrigger.Plant, moved, null, 3, 2)
         ]);
-        StratCaptureRequest request = new("de_dust2", 7, Freeze, Freeze + 120 * Rate, "ab",
+        StratCaptureRequest request = new("de_dust2", 7, "ab",
             "match730_capture_dust2.dem", null,
             ["100", "101", "102"], StratOwner.Me(), "me", StratOwner.MeKind, StratFromRound.QuantizedLevel);
 

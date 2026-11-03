@@ -61,7 +61,7 @@
                             <TextBlock Grid.Column="4" Classes="num" Text="{Binding HltvText}" />
                             <Button Grid.Column="5" Classes="ghost chip" Content="Open" HorizontalAlignment="Right"
                                     ToolTip.Tip="Open this player's overview"
-                                    Command="{Binding $parent[ListBox].((sections:TeammatesSectionViewModel)DataContext).OpenTeammateCommand}"
+                                    Command="{Binding $parent[ListBox].((sections:TeammatesSectionViewModel)DataContext).OpenTeammateCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding}" />
                         </Grid>
                     </DataTemplate>

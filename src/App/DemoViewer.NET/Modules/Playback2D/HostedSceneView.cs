@@ -62,7 +62,6 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     /// <inheritdoc />
     public ISceneSource? Source
     {
-        get => _bound?.Source;
         set
         {
             if (ReferenceEquals(_bound?.Source, value))

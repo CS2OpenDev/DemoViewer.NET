@@ -43,7 +43,7 @@
                                                IsVisible="{Binding IsFileMissing}" />
                                     <Button Classes="ghost chip" Content="Open" IsVisible="{Binding !IsFileMissing}"
                                             ToolTip.Tip="Open this demo with the player focused in Stats"
-                                            Command="{Binding $parent[ItemsControl].((sections:PersonalBestsSectionViewModel)DataContext).OpenCommand}"
+                                            Command="{Binding $parent[ItemsControl].((sections:PersonalBestsSectionViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}" />
                                 </StackPanel>
                             </Grid>

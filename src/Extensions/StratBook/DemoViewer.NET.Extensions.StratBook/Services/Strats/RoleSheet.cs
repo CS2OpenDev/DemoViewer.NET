@@ -288,7 +288,6 @@ public sealed record RoleSheetHeader(
 ///     One printed line: this slot's own step, or another slot's step kept as context (the dependency
 ///     rule). <see cref="IsContext" /> is what the sheet greys out.
 /// </summary>
-/// <param name="StepId">The step.</param>
 /// <param name="AtSeconds">Round clock remaining, for ordering and display.</param>
 /// <param name="Actor">
 ///     The step's own actor (a slot letter or <c>all</c>), not necessarily this sheet's slot; on a step with
@@ -296,7 +295,7 @@ public sealed record RoleSheetHeader(
 /// </param>
 /// <param name="Text">The phrased line, with this slot's own note appended when it has one.</param>
 /// <param name="IsContext">True when this is another slot's step kept for context, not one of this slot's own.</param>
-public sealed record RoleSheetLine(Guid StepId, double AtSeconds, string Actor, string Text, bool IsContext);
+public sealed record RoleSheetLine(double AtSeconds, string Actor, string Text, bool IsContext);
 
 /// <summary>One branch line attached to one of this slot's own steps.</summary>
 /// <param name="BranchId">The branch.</param>
@@ -400,7 +399,7 @@ public sealed record RoleSheet(
                 text += " (" + note + ")";
             }
 
-            lines.Add(new RoleSheetLine(step.Id, step.AtSeconds,
+            lines.Add(new RoleSheetLine(step.AtSeconds,
                 mine && StratStepLines.HasLines(step) ? slot : StratStepLines.ActorOf(step), text, !mine));
         }
 

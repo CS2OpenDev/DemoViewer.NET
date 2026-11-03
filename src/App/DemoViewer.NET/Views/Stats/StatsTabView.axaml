@@ -220,7 +220,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="stats:CategoryChip">
                                     <Button Content="{Binding Label}"
-                                            Command="{Binding $parent[ItemsControl].((stats:StatsTabViewModel)DataContext).SelectCategoryCommand}"
+                                            Command="{Binding $parent[ItemsControl].((stats:StatsTabViewModel)DataContext).SelectCategoryCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}"
                                             Classes="statscat"
                                             Classes.selected="{Binding IsSelected}" />
@@ -489,7 +489,7 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="stats:StatColumn">
                                             <Button Width="{Binding Width}"
-                                                    Command="{Binding $parent[ItemsControl].((stats:StatsTabViewModel)DataContext).SortByColumnCommand}"
+                                                    Command="{Binding $parent[ItemsControl].((stats:StatsTabViewModel)DataContext).SortByColumnCommand, FallbackValue={x:Null}}"
                                                     CommandParameter="{Binding}"
                                                     Classes="statsHeadBtn"
                                                     Classes.sorted="{Binding IsSorted}"

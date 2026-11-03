@@ -74,7 +74,7 @@
                                     <DataTemplate x:DataType="vm:ThemeEditorListItem">
                                         <Button Classes="theme-item" Classes.selected="{Binding IsSelected}"
                                                 Margin="0,1"
-                                                Command="{Binding $parent[UserControl].((vm:ThemeEditorViewModel)DataContext).OpenCommand}"
+                                                Command="{Binding $parent[UserControl].((vm:ThemeEditorViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"
                                                 CommandParameter="{Binding}">
                                             <DockPanel>
                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4"
@@ -208,13 +208,13 @@
                                                                      Width="100" MinHeight="24" Padding="6,2"
                                                                      FontSize="11" Text="{Binding Hex}"
                                                                      VerticalAlignment="Center"
-                                                                     IsReadOnly="{Binding $parent[UserControl].((vm:ThemeEditorViewModel)DataContext).IsReadOnly}"
+                                                                     IsReadOnly="{Binding $parent[UserControl].((vm:ThemeEditorViewModel)DataContext).IsReadOnly, FallbackValue=True}"
                                                                      ToolTip.Tip="#RRGGBB or #AARRGGBB" />
                                                             <Button Grid.Column="4" Classes="ghost" Padding="6,2"
                                                                     FontSize="10" Content="Reset"
                                                                     IsEnabled="{Binding CanReset}"
                                                                     Command="{Binding ResetCommand}"
-                                                                    IsVisible="{Binding $parent[UserControl].((vm:ThemeEditorViewModel)DataContext).CanEdit}"
+                                                                    IsVisible="{Binding $parent[UserControl].((vm:ThemeEditorViewModel)DataContext).CanEdit, FallbackValue=False}"
                                                                     ToolTip.Tip="Back to the base palette's value" />
                                                         </Grid>
                                                     </Border>
@@ -254,7 +254,7 @@
                                             <DataTemplate x:DataType="vm:ThemeGradientStopItem">
                                                 <Button Classes="chip" Margin="0,0,4,4" Content="{Binding Label}"
                                                         CommandParameter="{Binding Index}"
-                                                        Command="{Binding $parent[UserControl].((vm:ThemeEditorViewModel)DataContext).SelectStopCommand}" />
+                                                        Command="{Binding $parent[UserControl].((vm:ThemeEditorViewModel)DataContext).SelectStopCommand, FallbackValue={x:Null}}" />
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

@@ -72,7 +72,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="po:PlayerCandidateItem">
                         <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                                Command="{Binding $parent[ItemsControl].((sections:CompareSectionViewModel)DataContext).PickCandidateCommand}"
+                                Command="{Binding $parent[ItemsControl].((sections:CompareSectionViewModel)DataContext).PickCandidateCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}">
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Right" FontSize="11.5"

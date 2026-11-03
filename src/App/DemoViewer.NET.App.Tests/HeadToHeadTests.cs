@@ -159,7 +159,7 @@ public class HeadToHeadTests
             Directory = new PlayerDirectory(store, _ => true);
             Identity = new IdentityService(new SettingsService(null));
             PlayerRowCache rows = new(store, Directory, path => Facet(IndexOf(path)));
-            Services = new PlayerOverviewServices(Directory, Identity, rows, _ => { }, _ => { }, (_, _) => { },
+            Services = new PlayerOverviewServices(Directory, Identity, rows, _ => { }, (_, _) => { },
                 _ => { })
             {
                 Events = new PlayerEventCache((path, key) =>
@@ -397,7 +397,7 @@ public class HeadToHeadRenderTests
             PlayerRowCache rows = new(store, directory, path => HeadToHeadTests.Facet(HeadToHeadTests.IndexOf(path)));
             await rows.LoadAsync(HeadToHeadTests.Grim);
             using PlayerOverviewTabViewModel vm =
-                new(new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { })
+                new(new PlayerOverviewServices(directory, identity, rows, _ => { }, (_, _) => { }, _ => { })
                 {
                     Events = new PlayerEventCache((path, key) =>
                         HeadToHeadTests.Events(HeadToHeadTests.IndexOf(path), key))

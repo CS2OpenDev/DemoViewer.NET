@@ -135,12 +135,12 @@
                                         <Button Classes="ghost chip" Content="Open"
                                                 IsVisible="{Binding !IsFileMissing}"
                                                 ToolTip.Tip="Open this demo"
-                                                Command="{Binding $parent[ListBox].((sections:HistorySectionViewModel)DataContext).OpenDemoCommand}"
+                                                Command="{Binding $parent[ListBox].((sections:HistorySectionViewModel)DataContext).OpenDemoCommand, FallbackValue={x:Null}}"
                                                 CommandParameter="{Binding}" />
                                         <Button Classes="ghost chip" Content="Stats"
                                                 IsVisible="{Binding !IsFileMissing}"
                                                 ToolTip.Tip="Open this demo with the player shown in Stats"
-                                                Command="{Binding $parent[ListBox].((sections:HistorySectionViewModel)DataContext).FocusInStatsCommand}"
+                                                Command="{Binding $parent[ListBox].((sections:HistorySectionViewModel)DataContext).FocusInStatsCommand, FallbackValue={x:Null}}"
                                                 CommandParameter="{Binding}" />
                                     </StackPanel>
                                 </Grid>

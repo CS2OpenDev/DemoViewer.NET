@@ -282,6 +282,7 @@ public class Playback2DSettingsConsumptionTests
 ///     The canary for
 ///     <see cref="Playback2DSettingsConsumptionTests.TheScan_SeparatesAReadOnlyKeyFromAWriteOnlyKeyFromAWiredOne" />.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class SettingsGuardCanary
 {
     /// <summary>Both halves: the shape a healthy key has.</summary>
@@ -295,6 +296,7 @@ internal sealed class SettingsGuardCanary
 }
 
 /// <summary>Gives <see cref="SettingsGuardCanary" /> its three different wirings.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal static class SettingsGuardCanaryConsumer
 {
     public static int Use(SettingsGuardCanary canary)

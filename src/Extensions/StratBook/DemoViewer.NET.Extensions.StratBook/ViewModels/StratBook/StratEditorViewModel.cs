@@ -1570,10 +1570,10 @@ public sealed partial class StratStepRow : ObservableObject
     public bool ShowGroupPlace => StratStepFields.Uses(Verb, StratStepField.To) || GroupPlaceText.Length > 0;
 
     /// <summary>The shared watching as it reads, for display; edits go through <see cref="GroupWatchValue" />.</summary>
-    private string GroupWatchText => Owner.DisplayLocations(GroupWatchValue ?? []);
+    private string GroupWatchText => Owner.DisplayLocations(GroupWatchValue);
 
     /// <summary>The shared via as it reads, for display; edits go through <see cref="GroupViaValue" />.</summary>
-    public string GroupViaText => Owner.DisplayLocations(GroupViaValue ?? []);
+    public string GroupViaText => Owner.DisplayLocations(GroupViaValue);
 
     /// <summary>The compact watching shows when the verb uses it or the lines hold one.</summary>
     public bool ShowGroupWatch => StratStepFields.Uses(Verb, StratStepField.Watch) || GroupWatchText.Length > 0;
@@ -2366,10 +2366,10 @@ public sealed partial class StratLineRow : ObservableObject
     internal StratLineRow(StratStepRow row) => Row = row;
 
     /// <summary>The watching as it reads, for display; edits go through <see cref="WatchValue" />.</summary>
-    public string WatchText => Row.Owner.DisplayLocations(WatchValue ?? []);
+    public string WatchText => Row.Owner.DisplayLocations(WatchValue);
 
     /// <summary>The via as it reads, for display; edits go through <see cref="ViaValue" />.</summary>
-    private string ViaText => Row.Owner.DisplayLocations(ViaValue ?? []);
+    private string ViaText => Row.Owner.DisplayLocations(ViaValue);
 
     /// <summary>The owner's words for the location fields' lists.</summary>
     public CalloutResolver Callouts => Row.Owner.Places;

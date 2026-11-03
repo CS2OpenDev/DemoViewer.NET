@@ -607,7 +607,7 @@ public sealed class SuggestedTagsService : IExtensionPass
     private (ProposalDocument? Document, ProposalSet Set) LoadCore(string path, string? sha256) =>
         Proposals.TryRead(path) is { } document
             ? Resolve(path, sha256, document)
-            : (null, ProposalSet.Empty(path, IsPersistent));
+            : (null, ProposalSet.Empty(IsPersistent));
 
     private int CountPending(string path, ProposalDocument document) => Resolve(path, null, document).Set.Pending.Count;
 
@@ -621,7 +621,7 @@ public sealed class SuggestedTagsService : IExtensionPass
         if (sha is not null && Normalize(document.Demo.Sha256) is { } written
                             && !string.Equals(sha, written, StringComparison.Ordinal))
         {
-            return (null, ProposalSet.Empty(path, persistent)); // built for the file's old bytes
+            return (null, ProposalSet.Empty(persistent)); // built for the file's old bytes
         }
 
         IReadOnlyList<TagProposal> proposals =
@@ -641,7 +641,7 @@ public sealed class SuggestedTagsService : IExtensionPass
             if (_tags.LoadVerdicts(sha) is not { } file)
             {
                 // Without the verdicts nothing can be offered: a rejection would come back.
-                return (document, new ProposalSet(path, sha, [], persistent, true));
+                return (document, new ProposalSet(sha, [], persistent, true));
             }
 
             // A restored rejection is no verdict: the proposal is pending again and may re-match.
@@ -654,7 +654,7 @@ public sealed class SuggestedTagsService : IExtensionPass
             .. ProposalVerdictMatch.Resolve(proposals, verdicts, document.Clock.FrameCount, document.Clock.TickRate)
                 .Select(e => e with { RoundStartTick = roundStarts.GetValueOrDefault(e.Proposal.Id) })
         ];
-        return (document, new ProposalSet(path, sha, entries, persistent, false));
+        return (document, new ProposalSet(sha, entries, persistent, false));
     }
 
     private void Refresh(string path, ParsedDemo parsed, IReadOnlyList<RemovedProjectile>? removed)

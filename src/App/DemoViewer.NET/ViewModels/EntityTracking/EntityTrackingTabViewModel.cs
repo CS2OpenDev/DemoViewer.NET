@@ -167,10 +167,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     /// <summary>Entity field nodes.</summary>
     public ObservableCollection<PayloadNode> EntityFieldNodes { get; } = [];
 
-    // ── Stable-reference collections ──────────────────────────────────────────
-    /// <summary>Entity groups.</summary>
-    public ObservableCollection<EntityGroup> EntityGroups { get; } = [];
-
     // ── Sub-view-models ────────────────────────────────────────────────────────
     /// <summary>Virtualized entity TreeDataGrid.</summary>
     public EntityListViewModel EntityList { get; } = new();
@@ -240,7 +236,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         FirstChangedEntity = null;
         _allEntityNodes = [];
         EntityFieldNodes.Clear();
-        EntityGroups.Clear();
         EntityListItems.Clear();
         EntityList.Clear();
         DeltaLog.Clear();
@@ -261,11 +256,11 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
         if (prevSnapshot is not null)
         {
-            RebuildEntityGroupsWithDelta(tracker, prevSnapshot);
+            RebuildEntitiesWithDelta(tracker, prevSnapshot);
         }
         else
         {
-            RebuildEntityGroups(tracker);
+            RebuildEntities(tracker);
         }
 
         AutoSelectFirstChangedEntity();
@@ -274,7 +269,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
         EntityStatusText = tracker.LastEntityError is { } err
             ? $"⚠ {err}"
-            : $"Tick {tracker.CurrentTick}  •  {EntityGroups.Sum(g => g.Entities.Count)} entities";
+            : $"Tick {tracker.CurrentTick}  •  {LiveEntityCount} entities";
     }
 
     // ── Events ────────────────────────────────────────────────────────────────
@@ -349,11 +344,11 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             if (snapshot is not null)
             {
-                RebuildEntityGroupsWithDelta(tracker, snapshot);
+                RebuildEntitiesWithDelta(tracker, snapshot);
             }
             else
             {
-                RebuildEntityGroups(tracker);
+                RebuildEntities(tracker);
             }
 
             AutoSelectFirstChangedEntity();
@@ -362,7 +357,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             EntityStatusText = tracker.LastEntityError is { } err
                 ? $"⚠ {err}"
-                : $"Tick {tracker.CurrentTick}  •  {EntityGroups.Sum(g => g.Entities.Count)} entities";
+                : $"Tick {tracker.CurrentTick}  •  {LiveEntityCount} entities";
         }
         catch (OperationCanceledException)
         {
@@ -443,11 +438,11 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             if (PrevTickSnapshot is not null)
             {
-                RebuildEntityGroupsWithDelta(tracker, PrevTickSnapshot);
+                RebuildEntitiesWithDelta(tracker, PrevTickSnapshot);
             }
             else
             {
-                RebuildEntityGroups(tracker);
+                RebuildEntities(tracker);
             }
 
             AutoSelectFirstChangedEntity();
@@ -456,7 +451,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             EntityStatusText = tracker.LastEntityError is { } err
                 ? $"⚠ {err}"
-                : $"Tick {tracker.CurrentTick}  •  {EntityGroups.Sum(g => g.Entities.Count)} entities";
+                : $"Tick {tracker.CurrentTick}  •  {LiveEntityCount} entities";
         }
         catch (OperationCanceledException)
         {
@@ -543,18 +538,18 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             if (snapshot is not null)
             {
-                RebuildEntityGroupsWithDelta(tracker, snapshot);
+                RebuildEntitiesWithDelta(tracker, snapshot);
             }
             else
             {
-                RebuildEntityGroups(tracker);
+                RebuildEntities(tracker);
             }
 
             AutoSelectFirstChangedEntity();
 
             EntityStatusText = tracker.LastEntityError is { } err
                 ? $"⚠ {err}"
-                : $"Tick {tracker.CurrentTick}  •  {EntityGroups.Sum(g => g.Entities.Count)} entities";
+                : $"Tick {tracker.CurrentTick}  •  {LiveEntityCount} entities";
         }
         catch (OperationCanceledException)
         {
@@ -628,25 +623,13 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     /// <summary>Internal helper used by MainViewModel to raise <see cref="EntitiesRefreshed" />.</summary>
     private void RaiseEntitiesRefreshed() => EntitiesRefreshed?.Invoke();
 
-    private void RebuildEntityGroups(EntityTracker tracker)
+    private void RebuildEntities(EntityTracker tracker)
     {
-        List<EntityGroup> grouped = LiveEntities(tracker)
-            .GroupBy(e => Categorise(e.ClassName))
-            .OrderBy(g => g.Key)
-            .Select(g => new EntityGroup { Name = g.Key, Entities = g.OrderBy(e => e.ClassName).ToList() })
-            .ToList();
-
-        EntityGroups.Clear();
-        foreach (EntityGroup group in grouped)
-        {
-            EntityGroups.Add(group);
-        }
-
-        HasEntities = EntityGroups.Count > 0;
+        HasEntities = LiveEntities(tracker).Any();
         RebuildEntityListItems(tracker, null);
     }
 
-    private void RebuildEntityGroupsWithDelta(
+    private void RebuildEntitiesWithDelta(
         EntityTracker tracker,
         Dictionary<int, Dictionary<string, object?>> prevSnapshot)
     {
@@ -679,56 +662,42 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             }
         }
 
+        // Auto-select walks the entities by category, then class name, and takes the first changed one in
+        // the first category that has any, preferring an entity whose displayed value changed.
         FirstChangedEntity = null;
-        List<EntityGroup> grouped = LiveEntitiesIndexed(tracker)
-            .GroupBy(t => Categorise(t.Entity.ClassName))
-            .OrderBy(g => g.Key)
-            .Select(g =>
+        foreach (IGrouping<string, (int Index, EntityState Entity)> g in LiveEntitiesIndexed(tracker)
+                     .GroupBy(t => Categorise(t.Entity.ClassName))
+                     .OrderBy(grp => grp.Key))
+        {
+            List<(int Index, EntityState Entity)> entities = g.OrderBy(t => t.Entity.ClassName).ToList();
+            foreach ((int Index, EntityState Entity) t in entities)
             {
-                List<(int Index, EntityState Entity)> entities = g.OrderBy(t => t.Entity.ClassName).ToList();
-                int deltaCount = g.Count(t => changedSlots.Contains(t.Index));
-
-                if (FirstChangedEntity is null && deltaCount > 0)
+                if (displayChangedSlots.Contains(t.Index))
                 {
-                    foreach ((int Index, EntityState Entity) t in entities)
-                    {
-                        if (displayChangedSlots.Contains(t.Index))
-                        {
-                            FirstChangedEntity = t.Entity;
-                            break;
-                        }
-                    }
+                    FirstChangedEntity = t.Entity;
+                    break;
+                }
+            }
 
-                    if (FirstChangedEntity is null)
+            if (FirstChangedEntity is null)
+            {
+                foreach ((int Index, EntityState Entity) t in entities)
+                {
+                    if (changedSlots.Contains(t.Index))
                     {
-                        foreach ((int Index, EntityState Entity) t in entities)
-                        {
-                            if (changedSlots.Contains(t.Index))
-                            {
-                                FirstChangedEntity = t.Entity;
-                                break;
-                            }
-                        }
+                        FirstChangedEntity = t.Entity;
+                        break;
                     }
                 }
+            }
 
-                return new EntityGroup
-                {
-                    Name = g.Key,
-                    Entities = entities.Select(t => t.Entity).ToList(),
-                    DeltaCount = deltaCount,
-                    IsExpanded = deltaCount > 0
-                };
-            })
-            .ToList();
-
-        EntityGroups.Clear();
-        foreach (EntityGroup group in grouped)
-        {
-            EntityGroups.Add(group);
+            if (FirstChangedEntity is not null)
+            {
+                break;
+            }
         }
 
-        HasEntities = EntityGroups.Count > 0;
+        HasEntities = LiveEntitiesIndexed(tracker).Any();
         RebuildEntityListItems(tracker, prevSnapshot);
     }
 
@@ -829,11 +798,11 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
         if (PrevTickSnapshot is not null)
         {
-            RebuildEntityGroupsWithDelta(tracker, PrevTickSnapshot);
+            RebuildEntitiesWithDelta(tracker, PrevTickSnapshot);
         }
         else
         {
-            RebuildEntityGroups(tracker);
+            RebuildEntities(tracker);
         }
     }
 
@@ -889,6 +858,9 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     };
 
     // ── Entity grouping helpers ───────────────────────────────────────────────
+    /// <summary>Entities in the last rebuilt list, not counting the changed/unchanged divider row.</summary>
+    private int LiveEntityCount => EntityListItems.Count(i => !i.IsHeader);
+
     private IEnumerable<EntityState> LiveEntities(EntityTracker t)
         => ShowDormantEntities ? t.CurrentEntities.All() : t.CurrentEntities.AllInPvs();
 

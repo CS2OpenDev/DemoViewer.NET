@@ -125,7 +125,7 @@ public sealed class CreateStratPlaybackContribution(
         }
 
         StratCaptureRequest request =
-            BuildRequest(host, context, round, windowEnd, facts, demo.MapName, Levels(surface));
+            BuildRequest(host, context, round, facts, demo.MapName, Levels(surface));
         OpenWith(request,
             (progress, ct) => RoundCaptureWalker.Walk(demo, round.Number, round.StartTickFrameClock, windowEnd,
                 facts?.EndTick,
@@ -169,7 +169,7 @@ public sealed class CreateStratPlaybackContribution(
     // Our side's key and book from Team Identity: the side key of our end-of-demo side when the demo has one,
     // else the me accounts; the team's book when that side is a known team, else the user's own.
     private static StratCaptureRequest BuildRequest(StratCaptureHost host, IModuleContext context, ClipRound round,
-        int? windowEnd, RoundFacts? facts, string? demoMap, List<MapLevel> levels)
+        RoundFacts? facts, string? demoMap, List<MapLevel> levels)
     {
         TeamAssignment? assignment = context.DemoPath is { } path ? host.Teams?.GetAssignment(path) : null;
         SideAssignment? ours = assignment?.OurSide is { } side ? assignment.Side(side) : null;
@@ -188,7 +188,6 @@ public sealed class CreateStratPlaybackContribution(
         Func<double, double> levelKeys = StratFromRound.LevelKeys(levels.Count > 0 ? levels : null);
         string? fileName = context.DemoPath is { } demoPath ? Path.GetFileName(demoPath) : null;
         return new StratCaptureRequest((context.MapName ?? demoMap ?? "").ToLowerInvariant(), round.Number,
-            round.StartTickFrameClock,
-            windowEnd, context.DemoSha256, fileName, facts, key, owner, ownerLabel, epoch, levelKeys);
+            context.DemoSha256, fileName, facts, key, owner, ownerLabel, epoch, levelKeys);
     }
 }

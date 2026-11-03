@@ -294,7 +294,7 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="vm:RecentFileItem">
                                                         <Button Classes="ctx-action" Opacity="{Binding RowOpacity}"
-                                                                Command="{Binding $parent[ItemsControl].((vm:LibraryTabViewModel)DataContext).OpenRecentCommand}"
+                                                                Command="{Binding $parent[ItemsControl].((vm:LibraryTabViewModel)DataContext).OpenRecentCommand, FallbackValue={x:Null}}"
                                                                 CommandParameter="{Binding}"
                                                                 ToolTip.Tip="{Binding Path}">
                                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
@@ -343,7 +343,7 @@
                                             <Button Content="✕" FontSize="10" Padding="3 0" Background="Transparent"
                                                     AutomationProperties.Name="Remove folder"
                                                     BorderThickness="0" Foreground="{DynamicResource TextDim}"
-                                                    Command="{Binding $parent[ItemsControl].((vm:LibraryTabViewModel)DataContext).RemoveFolderCommand}"
+                                                    Command="{Binding $parent[ItemsControl].((vm:LibraryTabViewModel)DataContext).RemoveFolderCommand, FallbackValue={x:Null}}"
                                                     CommandParameter="{Binding}" ToolTip.Tip="Remove folder" />
                                         </StackPanel>
                                     </Border>
@@ -697,7 +697,7 @@
                                                     <Button Classes="ctx-action" Opacity="{Binding RowOpacity}"
                                                             Padding="10 7" CornerRadius="6" Margin="0 0 0 4"
                                                             Background="{DynamicResource PanelHeaderBg}"
-                                                            Command="{Binding $parent[ItemsControl].((vm:LibraryTabViewModel)DataContext).OpenRecentCommand}"
+                                                            Command="{Binding $parent[ItemsControl].((vm:LibraryTabViewModel)DataContext).OpenRecentCommand, FallbackValue={x:Null}}"
                                                             CommandParameter="{Binding}" ToolTip.Tip="{Binding Path}">
                                                         <StackPanel Spacing="1">
                                                             <TextBlock Text="{Binding FileName}" Classes="mono"

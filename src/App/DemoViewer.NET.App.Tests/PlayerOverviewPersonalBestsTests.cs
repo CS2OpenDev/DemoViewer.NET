@@ -110,7 +110,7 @@ public class PlayerOverviewPersonalBestsTests
         (PlayerDirectory directory, List<PlayerDemo> demos) = Demos(Line(30, 1.5, 100, true));
         using IdentityService identity = new(new SettingsService(null));
         List<(string, ulong)> focused = [];
-        PlayerOverviewServices services = new(directory, identity, null, _ => { }, _ => { },
+        PlayerOverviewServices services = new(directory, identity, null, _ => { },
             (p, id) => focused.Add((p, id)), _ => { });
         PersonalBestsSectionViewModel section = new(services);
         PlayerEntry player = directory.Get(Grim)!;

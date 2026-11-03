@@ -146,7 +146,7 @@
                                                     </StackPanel>
                                                     <Button Grid.Column="1" Content="✕"
                                                             AutomationProperties.Name="Remove bookmark"
-                                                            Command="{Binding $parent[ListBox].((shell:MainViewModel)DataContext).Bookmarks.RemoveCommand}"
+                                                            Command="{Binding $parent[ListBox].((shell:MainViewModel)DataContext).Bookmarks.RemoveCommand, FallbackValue={x:Null}}"
                                                             CommandParameter="{Binding}"
                                                             Background="Transparent" BorderThickness="0"
                                                             FontSize="11" Padding="6 0"

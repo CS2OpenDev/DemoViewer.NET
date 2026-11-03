@@ -89,11 +89,11 @@ public class MemoryReleaseTests
             await vm.AutoLoadDemoAsync(demo);
             await Assert.That(vm.Frames.Count).IsGreaterThan(60);
 
-            // Seek: builds the authoritative tracker (checkpoint replay), the entity node/group trees,
+            // Seek: builds the authoritative tracker (checkpoint replay), the entity node trees,
             // the prev-tick delta snapshot, and the parser card build for the landed frame.
             const int Target = 40;
             vm.Navigation.SeekToFrame(Target);
-            EntityTracker? tracker = await WaitForTrackerAt(vm, Target);
+            await WaitForTrackerAt(vm, Target);
             await Assert.That(vm.EntityTab.EntityListItems.Count).IsGreaterThan(0);
 
             // Inspect: fills EntityInspector (relationship tree) + DeltaLog for the selected entity.
@@ -102,9 +102,8 @@ public class MemoryReleaseTests
             vm.EntityTab.SelectedEntityItem = entity;
 
             refs = CaptureInteractedRefs(vm);
-            // Drop the locals: both are (or may be) hoisted into the async state machine, whose box
-            // outlives this body, leaving either set would make the weak-ref assertions vacuous.
-            tracker = null;
+            // Drop the local: it is (or may be) hoisted into the async state machine, whose box
+            // outlives this body, so leaving it set would make the weak-ref assertions vacuous.
             entity = null;
 
             await vm.CloseDemoCommand.ExecuteAsync(null);

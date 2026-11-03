@@ -76,7 +76,6 @@ public sealed record PlayerOverviewSession(string? SubjectSteamId64, bool Pinned
 /// <param name="Identity">Who the user is.</param>
 /// <param name="Rows">The facet rows of the accounts shown; null where nothing reads stats yet.</param>
 /// <param name="OpenDemo">Opens a demo by path.</param>
-/// <param name="SelectTab">Selects a shell tab by its TabId.</param>
 /// <param name="FocusPlayerInStats">Opens a demo by path and shows the account in Stats.</param>
 /// <param name="OpenSettings">Opens Settings scrolled to a section anchor, or the top when null.</param>
 /// <param name="Facts">The library's analysis outputs, read for highlights; null where nothing reads them.</param>
@@ -87,7 +86,6 @@ public sealed record PlayerOverviewServices(
     IdentityService Identity,
     PlayerRowCache? Rows,
     Action<string> OpenDemo,
-    Action<string> SelectTab,
     Action<string, ulong> FocusPlayerInStats,
     Action<string?> OpenSettings,
     IAnalysisFacts? Facts = null,

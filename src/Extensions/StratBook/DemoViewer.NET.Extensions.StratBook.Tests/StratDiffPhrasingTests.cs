@@ -194,7 +194,7 @@ public class StratDiffPhrasingTests
             new(new TagInstanceRef(new string('a', 64), Guid.NewGuid(), "A execute", 0, 1, 1),
                 new string('a', 64), 1, revision, null, outcome, []);
 
-        StratRecord record = StratEvidence.Record(HistoryId, 5,
+        StratRecord record = StratEvidence.Record(5,
         [
             Tagged(1, RunOutcome.Won), Tagged(1, RunOutcome.Lost), Tagged(2, RunOutcome.Won), Tagged(4, RunOutcome.Won),
             Tagged(0, RunOutcome.Lost)

@@ -230,7 +230,7 @@ public class PlayerOverviewBenchmarksTests
     {
         Fixture library = Library();
         using IdentityService identity = new(new SettingsService(null));
-        PlayerOverviewServices services = new(library.Directory, identity, library.Rows, _ => { }, _ => { },
+        PlayerOverviewServices services = new(library.Directory, identity, library.Rows, _ => { },
             (_, _) => { }, _ => { }, Ranks: library.Ranks);
         BenchmarksSectionViewModel section = new(services);
         ulong subject = Account(3);

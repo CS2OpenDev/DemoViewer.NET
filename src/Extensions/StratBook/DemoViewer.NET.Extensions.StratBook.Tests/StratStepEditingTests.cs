@@ -302,7 +302,7 @@ public class StratStepEditingTests
                 await Assert.That(thrower.RowIssue?.Message).Contains("technique 'sideways'");
                 await Assert.That(thrower.IssueText).DoesNotContain("not checked").Because("infos stay in the summary");
                 await Assert.That(late.TimeIssue?.IsRefusal).IsTrue();
-                await Assert.That(late.TimeIssue?.Glyph).IsNotEqualTo(thrower.RowIssue?.Glyph);
+                await Assert.That(late.TimeIssue!.Glyph).IsNotEqualTo(thrower.RowIssue!.Glyph);
                 await Assert.That(late.IssueText).StartsWith("refusal: ");
             }
         });

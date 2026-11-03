@@ -456,10 +456,6 @@ public sealed partial class PackOptionViewModel(
     /// <summary>One paragraph of what-it-adds / what-it-costs copy.</summary>
     public string Copy { get; } = copy;
 
-    // The descriptor's own category -> default map, kept so Reseed can answer a later category change
-    // without the VM reaching back into FeatureCatalog.
-    private readonly IReadOnlyDictionary<UserCategory, bool> _defaults = defaults;
-
     // True once this question is answered: a persisted override at construction, or an Enabled edit in
     // this session. Reseed is a no-op once true, so it never overwrites either.
     private bool _answered = hasOverride;
@@ -494,7 +490,7 @@ public sealed partial class PackOptionViewModel(
         _reseeding = true;
         try
         {
-            Enabled = PlatformFeatureDefaults.DefaultFor(FeatureId, _defaults, category);
+            Enabled = PlatformFeatureDefaults.DefaultFor(FeatureId, defaults, category);
         }
         finally
         {

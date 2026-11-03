@@ -177,7 +177,7 @@ public sealed class GrenadeRow
 
     /// <summary><see cref="ThrowerSteamId64" /> as a number, without allocating; null when absent or not numeric.</summary>
     [JsonIgnore]
-    public ulong? ThrowerSteamId { get; private set; }
+    public ulong? ThrowerSteamId { get; private init; }
 
     /// <summary>The thrower's name at the time of the throw, from the demo's player list; null when unknown.</summary>
     public string? ThrowerName { get; set; }

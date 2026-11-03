@@ -32,22 +32,19 @@ public sealed record ProposalEntry(TagProposal Proposal, string? VerdictKey, Sug
 ///     A demo's proposals merged with its verdicts: what <see cref="SuggestedTagsService.Load" /> hands
 ///     the track and the queue.
 /// </summary>
-/// <param name="DemoPath">The demo.</param>
 /// <param name="Sha256">The content hash the verdicts are keyed by; null when the demo has none yet.</param>
 /// <param name="Entries">Every proposal in round order, then trigger order.</param>
 /// <param name="IsPersistent">False on the browser host: the queue says "session only".</param>
 /// <param name="VerdictsUnreadable">The verdicts file exists and cannot be read, so nothing is offered.</param>
 public sealed record ProposalSet(
-    string DemoPath,
     string? Sha256,
     IReadOnlyList<ProposalEntry> Entries,
     bool IsPersistent,
     bool VerdictsUnreadable)
 {
     /// <summary>The set for a demo with no proposals.</summary>
-    /// <param name="demoPath">The demo.</param>
     /// <param name="isPersistent">Whether anything here outlives the process.</param>
-    public static ProposalSet Empty(string demoPath, bool isPersistent) => new(demoPath, null, [], isPersistent, false);
+    public static ProposalSet Empty(bool isPersistent) => new(null, [], isPersistent, false);
 
     /// <summary>The proposals still waiting for a verdict.</summary>
     public IReadOnlyList<ProposalEntry> Pending => [.. Entries.Where(e => e.IsPending)];

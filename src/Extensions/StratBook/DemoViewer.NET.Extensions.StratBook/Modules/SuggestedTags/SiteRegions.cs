@@ -404,9 +404,9 @@ public sealed class SiteRegionStore
     public SiteRegionTable? TryLoad(string map)
     {
         string name = FileNameFor(map);
-        lock (_gate)
+        if (_folder is null)
         {
-            if (_folder is null)
+            lock (_gate)
             {
                 return _memory.TryGetValue(name, out string? json) ? SiteRegionTable.TryParse(json) : null;
             }
@@ -433,13 +433,14 @@ public sealed class SiteRegionStore
         ArgumentNullException.ThrowIfNull(table);
         string name = FileNameFor(table.Map);
         string json = table.ToJson();
-        lock (_gate)
+        if (_folder is null)
         {
-            if (_folder is null)
+            lock (_gate)
             {
                 _memory[name] = json;
-                return;
             }
+
+            return;
         }
 
         FolderText.Write(_folder, name, json + "\n");

@@ -35,7 +35,6 @@ public readonly record struct FiredProposal(string Demo, TagProposal Proposal);
 /// <param name="Accepted">Accepted as proposed.</param>
 /// <param name="Edited">Accepted with a change.</param>
 /// <param name="Rejected">Rejected, never offered again.</param>
-/// <param name="Pending">Still waiting for a verdict.</param>
 /// <param name="Recall">Matched hand tags over every hand tag of the code, or null with none to score.</param>
 /// <param name="Precision">Matched proposals over every fired proposal, or null with nothing fired.</param>
 public sealed record DetectorTuningRow(
@@ -44,7 +43,6 @@ public sealed record DetectorTuningRow(
     int Accepted,
     int Edited,
     int Rejected,
-    int Pending,
     double? Recall,
     double? Precision);
 
@@ -100,8 +98,8 @@ public static class SuggestedTagsTuning
             IReadOnlyList<FiredProposal> fired = proposalsByDetector.GetValueOrDefault(detector.Id, []);
             IReadOnlyList<HandTagWindow> hand = handTagsByCode.GetValueOrDefault(detector.Code, []);
             (double? recall, double? precision) = Score(fired, hand);
-            rows.Add(new DetectorTuningRow(detector.Id, c.Made, c.Accepted, c.Edited, c.Rejected, c.Pending,
-                recall, precision));
+            rows.Add(new DetectorTuningRow(detector.Id, c.Made, c.Accepted, c.Edited, c.Rejected, recall,
+                precision));
         }
 
         return new TuningReport(rows, demosWithVerdicts, demosWithHandTags);

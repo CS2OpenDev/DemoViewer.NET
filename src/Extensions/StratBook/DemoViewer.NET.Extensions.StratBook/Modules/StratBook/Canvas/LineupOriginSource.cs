@@ -22,12 +22,10 @@ public sealed record MapLineup(GrenadeLineup Lineup, string Title, GrenadeKind K
 }
 
 /// <summary>One technique's throw as the strat preview plays it.</summary>
-/// <param name="Origin">The technique's mean release point.</param>
 /// <param name="AirSeconds">Release to rest: the members' median air time.</param>
 /// <param name="PopSeconds">Release to going off, never less than <paramref name="AirSeconds" />.</param>
 /// <param name="Path">The stored representative flight, seconds from release, or null when none is stored.</param>
 public sealed record LineupThrow(
-    WorldPoint Origin,
     double AirSeconds,
     double PopSeconds,
     IReadOnlyList<ThrowPathPoint>? Path);
@@ -247,7 +245,7 @@ public sealed class LineupOriginSource : IDisposable
         {
             if (lineup.Throws.Count > 0)
             {
-                throws[""] = ThrowOf(lineup.Origin, lineup.Throws, paths?.Invoke(lineup, null));
+                throws[""] = ThrowOf(lineup.Throws, paths?.Invoke(lineup, null));
             }
 
             return throws;
@@ -255,13 +253,13 @@ public sealed class LineupOriginSource : IDisposable
 
         foreach (LineupTechnique technique in lineup.Techniques)
         {
-            throws[technique.Key] = ThrowOf(technique.Origin, technique.Throws, paths?.Invoke(lineup, technique));
+            throws[technique.Key] = ThrowOf(technique.Throws, paths?.Invoke(lineup, technique));
         }
 
         return throws;
     }
 
-    private static LineupThrow ThrowOf(WorldPoint origin, IReadOnlyList<IndexedGrenade> members,
+    private static LineupThrow ThrowOf(IReadOnlyList<IndexedGrenade> members,
         IReadOnlyList<TrajectoryPoint>? path)
     {
         double air = Median(members.Where(g => g.Row.AirTimeTicks > 0).Select(g => (double)g.AirTimeSeconds));
@@ -280,7 +278,7 @@ public sealed class LineupOriginSource : IDisposable
             air = points is { } flown ? flown[^1].Seconds : pop;
         }
 
-        return new LineupThrow(origin, air, Math.Max(air, pop), points);
+        return new LineupThrow(air, Math.Max(air, pop), points);
     }
 
     // 0 for none.

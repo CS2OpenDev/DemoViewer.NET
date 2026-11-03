@@ -78,7 +78,6 @@ public sealed record StratRun(
 ///     The record of one strat, computed on demand and never stored. Every count is
 ///     backed by the runs that produced it, so a number opens its clips.
 /// </summary>
-/// <param name="StratId">The strat.</param>
 /// <param name="Revision">The strat's revision when the record was computed.</param>
 /// <param name="Runs">One per evidence instance, in document then instance order.</param>
 /// <param name="Total">Every run.</param>
@@ -87,7 +86,6 @@ public sealed record StratRun(
 /// <param name="FailureBreakdown">Keyed by <c>strat.failure</c> value: runs that name it, each counted once.</param>
 /// <param name="SmallSample">Fewer than <see cref="StratEvidence.SmallSampleBelow" /> runs: "caution under eight".</param>
 public sealed record StratRecord(
-    Guid StratId,
     int Revision,
     IReadOnlyList<StratRun> Runs,
     RecordSplit Total,
@@ -211,14 +209,13 @@ public static class StratEvidence
             }
         }
 
-        return Record(stratId, revision, runs);
+        return Record(revision, runs);
     }
 
     /// <summary>The record over runs already classified: the splits, the breakdown and the caution flag.</summary>
-    /// <param name="stratId">The strat.</param>
     /// <param name="revision">Its current revision.</param>
     /// <param name="runs">The runs.</param>
-    public static StratRecord Record(Guid stratId, int revision, IReadOnlyList<StratRun> runs)
+    public static StratRecord Record(int revision, IReadOnlyList<StratRun> runs)
     {
         ArgumentNullException.ThrowIfNull(runs);
         Dictionary<string, RecordSplit> byProvenance = runs
@@ -239,7 +236,7 @@ public static class StratEvidence
             }
         }
 
-        return new StratRecord(stratId, revision, runs, RecordSplit.Of(runs), byProvenance, byRevision, failures,
+        return new StratRecord(revision, runs, RecordSplit.Of(runs), byProvenance, byRevision, failures,
             runs.Count < SmallSampleBelow);
     }
 
@@ -339,7 +336,7 @@ public sealed class StratEvidenceService
 
     /// <summary>The record of a strat as it stands now.</summary>
     /// <param name="strat">The strat; its id, revision and side are read.</param>
-    public StratRecord Compute(StratDocument strat)
+    private StratRecord Compute(StratDocument strat)
     {
         ArgumentNullException.ThrowIfNull(strat);
         Guid id = strat.Id;

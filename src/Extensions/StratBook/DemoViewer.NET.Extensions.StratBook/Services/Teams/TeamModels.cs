@@ -331,8 +331,6 @@ public sealed record SideAssignment(
 ///     played in round N asks <see cref="TeamIdentityService.SideAtRound" />.
 /// </summary>
 public sealed record TeamAssignment(
-    string DemoPath,
-    string? Sha256,
     SideAssignment T,
     SideAssignment Ct,
     int? OurSide,

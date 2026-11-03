@@ -164,6 +164,7 @@ public class Playback2DCommandBindingTests
 ///     Its command name appears in no production source by design: if this ever starts coming back
 ///     "reachable", the corpus has grown to include something it must not.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class CommandGuardCanaryViewModel
 {
     /// <summary>Deliberately un-XAML-able: no view binds it and none ever should.</summary>

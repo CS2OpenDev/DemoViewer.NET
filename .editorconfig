@@ -4913,3 +4913,8 @@ resharper_not_accessed_positional_property_local_highlighting = none
 # loops are deliberate.
 [{src/Playback2D/DemoViewer.NET.Playback2D.Scene/**.cs,src/Playback2D/DemoViewer.NET.Playback2D.Pipeline/**.cs}]
 resharper_for_can_be_converted_to_foreach_highlighting = none
+
+# UiCapture's variant registry is one partial class spread across feature folders; every part has to
+# share the Variants namespace, so the folder-derived namespace cannot apply.
+[src/App/DemoViewer.NET.UiCapture/**.cs]
+resharper_check_namespace_highlighting = none

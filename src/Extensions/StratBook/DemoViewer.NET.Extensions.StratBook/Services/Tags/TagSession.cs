@@ -245,7 +245,7 @@ public sealed class TagSession : IDisposable
         _factRowsRead = false;
         _saveFailed = false;
 
-        TagLoadResult result = _store?.Load(demo.Sha256, clock) ?? TagLoadResult.Empty(null);
+        TagLoadResult result = _store?.Load(demo.Sha256, clock) ?? TagLoadResult.Empty();
         ClockMismatch = result.ClockMismatch;
         DemoMismatch = result.DemoMismatch;
         Unreadable = result.Unreadable;

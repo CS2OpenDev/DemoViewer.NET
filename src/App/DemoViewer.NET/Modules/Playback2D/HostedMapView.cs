@@ -102,7 +102,6 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     /// <inheritdoc />
     public string? MapName
     {
-        get => _mapName;
         set
         {
             if (string.Equals(_mapName, value, StringComparison.Ordinal))

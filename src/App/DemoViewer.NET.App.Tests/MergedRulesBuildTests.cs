@@ -590,7 +590,7 @@ public class MergedRulesBuildTests
             await Assert.That(files.Length).IsGreaterThan(1);
             await Assert.That(Joined(readers)).IsEqualTo(Joined(["aim_rating", PlayerMatchFacet.RulesetId]))
                 .Because("a new enemy_spotted reader needs the bake in the background run or a visibility stamp term");
-            await Assert.That(aim.Highlights ?? []).IsEmpty()
+            await Assert.That(aim.Highlights).IsEmpty()
                 .Because("highlights are persisted from the bake-free runs");
             await Assert.That(aim.Show?.Tables ?? []).IsEmpty()
                 .Because("stamped tables are persisted from the bake-free runs");
@@ -601,7 +601,7 @@ public class MergedRulesBuildTests
             await Assert.That(match.Show!.Tables.Single().Columns.Select(c => c.Label ?? c.Stat))
                 .Contains(ColumnCatalogue.VisibilityAnchorColumn)
                 .Because("the stamp's HasVisibility is read off this column");
-            await Assert.That(match.Highlights ?? []).IsEmpty()
+            await Assert.That(match.Highlights).IsEmpty()
                 .Because("highlights are persisted from the bake-free runs");
             await Assert.That(match.Exports ?? []).IsEmpty().Because("an export could feed a persisted column");
         }

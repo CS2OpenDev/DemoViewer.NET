@@ -115,7 +115,7 @@ public class PlayerOverviewTabTests
 
     private static PlayerOverviewServices Services(PlayerDirectory directory, IdentityService identity,
         List<string?>? settingsOpened = null) =>
-        new(directory, identity, null, _ => { }, _ => { }, (_, _) => { }, section => settingsOpened?.Add(section));
+        new(directory, identity, null, _ => { }, (_, _) => { }, section => settingsOpened?.Add(section));
 
     // A shown tab over the store, so every change refreshes at once.
     private static PlayerOverviewTabViewModel Shown(DemoCacheStore store, IdentityService identity,

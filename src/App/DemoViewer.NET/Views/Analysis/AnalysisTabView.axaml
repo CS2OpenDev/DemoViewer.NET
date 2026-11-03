@@ -408,7 +408,7 @@
                                         <Button Background="Transparent" BorderThickness="0" Padding="2"
                                                 HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Left"
-                                                Command="{Binding $parent[ItemsControl].((vm:AnalysisViewModel)DataContext).OpenDiagnosticFileCommand}"
+                                                Command="{Binding $parent[ItemsControl].((vm:AnalysisViewModel)DataContext).OpenDiagnosticFileCommand, FallbackValue={x:Null}}"
                                                 CommandParameter="{Binding}"
                                                 IsEnabled="{Binding CanOpen}"
                                                 ToolTip.Tip="Open the source file in the editor">
@@ -551,7 +551,7 @@
                                                            Foreground="{DynamicResource AccentAmber}" />
                                             </Panel>
                                             <Button Grid.Column="3" Content="→"
-                                                    Command="{Binding $parent[ItemsControl].((vm:AnalysisViewModel)DataContext).JumpToBreakpointCommand}"
+                                                    Command="{Binding $parent[ItemsControl].((vm:AnalysisViewModel)DataContext).JumpToBreakpointCommand, FallbackValue={x:Null}}"
                                                     CommandParameter="{Binding}"
                                                     ToolTip.Tip="Jump to this breakpoint's first hit"
                                                     Background="Transparent" BorderThickness="0" Padding="4 0"
@@ -559,7 +559,7 @@
                                                     Foreground="{DynamicResource AccentInteractive}" Cursor="Hand" />
                                             <Button Grid.Column="4" Content="✕"
                                                     AutomationProperties.Name="Remove breakpoint"
-                                                    Command="{Binding $parent[ItemsControl].((vm:AnalysisViewModel)DataContext).RemoveBreakpointFromListCommand}"
+                                                    Command="{Binding $parent[ItemsControl].((vm:AnalysisViewModel)DataContext).RemoveBreakpointFromListCommand, FallbackValue={x:Null}}"
                                                     CommandParameter="{Binding}"
                                                     ToolTip.Tip="Remove this breakpoint"
                                                     Background="Transparent" BorderThickness="0" Padding="4 0"
@@ -611,7 +611,7 @@
                                              UserControl.Styles). -->
                                         <Button Classes="filterchip"
                                                 Classes.selected="{Binding IsSelected}"
-                                                Command="{Binding DataContext.Filter.ToggleChainCommand, ElementName=AnalysisContent}"
+                                                Command="{Binding DataContext.Filter.ToggleChainCommand, ElementName=AnalysisContent, FallbackValue={x:Null}}"
                                                 CommandParameter="{Binding}"
                                                 Background="Transparent"
                                                 BorderThickness="0"

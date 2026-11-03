@@ -1432,7 +1432,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         }
 
         _publishedZoneLoad = load;
-        ZoneOverlayDiagnostics.Publish(asset.Bundle.MapName, load.OverlayPath, load.Diagnostics);
+        ZoneOverlayDiagnostics.Publish(load.OverlayPath, load.Diagnostics);
     }
 
     /// <summary>Seek the shared clock to the next kill (player_death). Module-local forward-nav.</summary>

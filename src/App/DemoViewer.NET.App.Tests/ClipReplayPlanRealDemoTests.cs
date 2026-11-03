@@ -111,7 +111,7 @@ public class ClipReplayPlanRealDemoTests
         {
             (int from, int to) = LineupClipPlanner.Range(picked[i], rate);
             string gif = Path.Combine(directory, $"clip{i}{LineupClipPlanner.GifExtension}");
-            jobs.Add(new LineupClipJob($"k{i}", Guid.NewGuid(), path, null, map, $"clip {i}", from, to, rate,
+            jobs.Add(new LineupClipJob($"k{i}", Guid.NewGuid(), path, map, $"clip {i}", from, to, rate,
                 picked[i].ThrowerSteamId, "", gif, LineupClipPlanner.SetposPathFor(gif), [], []));
         }
 

@@ -134,7 +134,7 @@ public static class StratExportJob
 
         // SectionHeights null and the bundle's bounds, the canvas's own spec: the canvas and the file draw the
         // same frames, and the bundle's floors reach the export through AuthoritativeFloors instead.
-        return new StratSceneSpec(capture.Tracks, projection.Schedule, capture.Ink, projection.Labels,
+        return new StratSceneSpec(capture.Tracks, capture.Ink, projection.Labels,
             capture.MapName, asset is null ? [] : asset.DescribeRadars(),
             asset?.RadarBounds ?? capture.FallbackBounds, null,
             projection.Utility, projection.RoundSeconds, startTick, endTick, fps, speed)

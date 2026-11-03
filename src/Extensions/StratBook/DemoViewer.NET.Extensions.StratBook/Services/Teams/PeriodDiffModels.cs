@@ -5,11 +5,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///     resolved winner where the final score is unambiguous, the side-round split, and the roster Team
 ///     Identity put the team's side on. Built by <see cref="PeriodDiffService.Build" />.
 /// </summary>
-/// <param name="DemoPath">The demo.</param>
-/// <param name="Sha256">The demo's content hash, or null.</param>
 /// <param name="Map">The map, or "" when the index has none.</param>
-/// <param name="OrderTicks">Team Identity's own order stamp: the file's write time until a real match date exists.</param>
-/// <param name="Side">2 = T, 3 = CT: the team's end-of-demo side.</param>
 /// <param name="RosterId">The roster Team Identity matched this side to, or null when the side never joined one.</param>
 /// <param name="RosterLabel">The roster's own label when the user set one, else <see cref="RosterId" />; "" without a roster.</param>
 /// <param name="StandIn">Overlap 3 or 4 with a member outside the roster's anchor, surfaced at tier 1 only.</param>
@@ -17,11 +13,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// <param name="CtRounds">Rounds won on the CT side, match-wide (the grain <c>CtSideWins</c> is cached at).</param>
 /// <param name="TRounds">Rounds won on the T side, match-wide.</param>
 public sealed record PeriodDiffDemoRow(
-    string DemoPath,
-    string? Sha256,
     string Map,
-    long OrderTicks,
-    int Side,
     string? RosterId,
     string RosterLabel,
     bool StandIn,

@@ -74,7 +74,7 @@ public class PlayerOverviewTrendsTests
                     ? Facet(int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture))
                     : null);
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, cache, _ => { },
-                _ => { }, (_, _) => { }, _ => { }));
+                (_, _) => { }, _ => { }));
             Tab.OnActivated(null!);
         }
 

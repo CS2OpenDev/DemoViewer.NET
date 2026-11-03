@@ -144,7 +144,7 @@ public sealed class DemoProvenanceSource : IDemoProvenanceSource, IDisposable
         string key = DemoKeys.StableKey(entry.FilePath);
         string? pinned = overrides.FirstOrDefault(o => TeamIdentityService.Matches(o, key, entry.Sha256))?.Label;
         string? fallback = DemoProvenanceHeuristic.Default(InputsFor(entry, _teams.GetAssignment(entry.FilePath)));
-        return new DemoProvenance(entry.FilePath, entry.Sha256, pinned ?? fallback, fallback,
+        return new DemoProvenance(entry.Sha256, pinned ?? fallback, fallback,
             pinned is not null ? ProvenanceOrigin.Override
             : fallback is not null ? ProvenanceOrigin.Heuristic
             : ProvenanceOrigin.None);

@@ -1214,14 +1214,14 @@ public class StratBookShellTests
         public DemoProvenance Resolve(string demoPath)
         {
             ResolveCalls++;
-            return new DemoProvenance(demoPath, null, null, null, ProvenanceOrigin.None);
+            return new DemoProvenance(null, null, null, ProvenanceOrigin.None);
         }
 
         public IReadOnlyDictionary<string, DemoProvenance> ResolveAll(IEnumerable<string> demoPaths)
         {
             ResolveAllCalls++;
             return demoPaths.ToDictionary(p => p,
-                p => new DemoProvenance(p, null, null, null, ProvenanceOrigin.None), StringComparer.Ordinal);
+                p => new DemoProvenance(null, null, null, ProvenanceOrigin.None), StringComparer.Ordinal);
         }
 
         // Never raised: no test here depends on it, and the interface requires the member regardless.

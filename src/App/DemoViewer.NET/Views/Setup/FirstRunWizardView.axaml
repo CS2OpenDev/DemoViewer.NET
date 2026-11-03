@@ -127,7 +127,7 @@
                                 <Button Grid.Column="1" Classes="icon-btn" Content="✕"
                                         AutomationProperties.Name="Remove folder"
                                         ToolTip.Tip="Remove folder"
-                                        Command="{Binding $parent[ListBox].((setup:FirstRunWizardViewModel)DataContext).RemoveFolderCommand}"
+                                        Command="{Binding $parent[ListBox].((setup:FirstRunWizardViewModel)DataContext).RemoveFolderCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                             </Grid>
                         </DataTemplate>

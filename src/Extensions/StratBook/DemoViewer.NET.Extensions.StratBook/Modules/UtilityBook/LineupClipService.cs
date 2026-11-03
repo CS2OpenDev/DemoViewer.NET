@@ -192,14 +192,29 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_disposed)
+        lock (_gate)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
         }
 
-        _disposed = true;
         _cts.Cancel();
         _cts.Dispose();
+    }
+
+    private bool IsDisposed
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _disposed;
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -321,13 +336,13 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
     private int PlanLocked()
     {
-        bool released;
+        bool stopped;
         lock (_gate)
         {
-            released = _released;
+            stopped = _released || _disposed;
         }
 
-        if (released || _disposed || _directory is null || !_enabled())
+        if (stopped || _directory is null || !_enabled())
         {
             return 0;
         }
@@ -1012,9 +1027,10 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     // One queue item at a time: the next demo is chosen when the last one ends, so a replan re-ranks it.
     private void SubmitNext(IExtensionJobs jobs)
     {
-        if (_disposed || NextDemo() is not { } demo)
+        bool disposed = IsDisposed;
+        if (disposed || NextDemo() is not { } demo)
         {
-            Stop(!_disposed);
+            Stop(!disposed);
             return;
         }
 
@@ -1060,7 +1076,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
         }
 
         idle?.TrySetResult();
-        if (restart && !_disposed)
+        if (restart && !IsDisposed)
         {
             StartWorker();
         }
@@ -1093,13 +1109,15 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     private async Task RenderBatchAsync(string demoPath, ParsedDemo? parsed, IJobContext? job, CancellationToken ct)
     {
         List<LineupClipJob> batch;
+        bool disposed;
         lock (_gate)
         {
+            disposed = _disposed;
             batch = [.. _pending.Where(p => string.Equals(p.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))];
             _pending.RemoveAll(p => string.Equals(p.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (batch.Count == 0 || _disposed)
+        if (batch.Count == 0 || disposed)
         {
             return;
         }

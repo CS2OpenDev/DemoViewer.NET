@@ -40,14 +40,14 @@ public class GrenadeWalkerTests
     private static ProjectileFacts He(int thrower = Slot, ThrowerAtSpawn? atSpawn = null, ThrowerRead? offset = null,
         Vector3? offsetBefore = null,
         int? explode = null, int index = Index, bool removed = true) =>
-        new(index, Serial, GrenadeProjectileClasses.HEGrenade, thrower, 100, 100, 204, removed, new Vector3(0, 0, 64),
+        new(index, Serial, GrenadeProjectileClasses.HEGrenade, thrower, 100, 204, removed, new Vector3(0, 0, 64),
             new Vector3(500, 0, 100),
             new Vector3(460, 0, 64), 190, 2, null, explode, null, null, atSpawn, offset, offsetBefore);
 
     private static ProjectileFacts Facts(int index, string cls, int thrower, int spawn, int end, Vector3? last = null,
         bool removed = true,
         int? smokeTick = null, Vector3? smokeAt = null) =>
-        new(index, Serial, cls, thrower, spawn, spawn, end, removed, thrower >= 0 ? new Vector3(1, 1, 1) : null, null,
+        new(index, Serial, cls, thrower, spawn, end, removed, thrower >= 0 ? new Vector3(1, 1, 1) : null, null,
             last, end, 0, null, null,
             smokeTick, smokeAt, thrower >= 0 ? new ThrowerAtSpawn(new Vector3(1, 1, 1), true, 2, -1, 0) : null, null,
             null);

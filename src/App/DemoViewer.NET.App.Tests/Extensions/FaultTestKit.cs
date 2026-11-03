@@ -70,8 +70,6 @@ internal sealed class PostQueue
 /// <summary>Records what the fault tracker asked of the gate.</summary>
 internal sealed class RecordingSwitch : IFeatureSuspension
 {
-    private readonly HashSet<string> _suspended = new(StringComparer.Ordinal);
-
     public List<string> Suspensions { get; } = [];
     public List<string> Resumptions { get; } = [];
 
@@ -81,14 +79,12 @@ internal sealed class RecordingSwitch : IFeatureSuspension
     public void SuspendForSession(string packFeatureId)
     {
         Suspensions.Add(packFeatureId);
-        _suspended.Add(packFeatureId);
         OnSuspend?.Invoke();
     }
 
     public void ResumeForSession(string packFeatureId)
     {
         Resumptions.Add(packFeatureId);
-        _suspended.Remove(packFeatureId);
     }
 }
 

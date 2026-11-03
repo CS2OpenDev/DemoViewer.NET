@@ -1652,7 +1652,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         SyncInk(projection.Elements);
 
         WorldBounds bounds = MapAsset is { } asset ? asset.RadarBounds : BoundsFor(projection);
-        _source = new StratFrameSource(new StratSceneSpec(Tracks, projection.Schedule, Ink, projection.Labels,
+        _source = new StratFrameSource(new StratSceneSpec(Tracks, Ink, projection.Labels,
             document.Map, MapAsset is { } radarAsset ? radarAsset.DescribeRadars() : [], bounds, null,
             projection.Utility, projection.RoundSeconds, 0, projection.ContentEndTick, StepSchedule.TicksPerSecond, 1)
         {

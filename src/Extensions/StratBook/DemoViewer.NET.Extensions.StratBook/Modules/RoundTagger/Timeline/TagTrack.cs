@@ -220,7 +220,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
     {
         // FNV-1a over the UTF-16 code units.
         uint hash = 2166136261;
-        foreach (char c in code ?? "")
+        foreach (char c in code)
         {
             hash = (hash ^ c) * 16777619;
         }

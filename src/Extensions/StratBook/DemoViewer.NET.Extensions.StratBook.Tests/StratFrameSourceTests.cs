@@ -393,10 +393,8 @@ public class StratFrameSourceTests
             new TokenTrack("O1", [new TokenKeyframe(0, -1500, 900, 0, 45)])
         ]);
 
-        StepSchedule schedule = new([(Guid.NewGuid(), 0), (Guid.NewGuid(), 320), (Guid.NewGuid(), 960)]);
-
         return new StratSceneSpec(
-            tracks, schedule, new AnnotationSession(new AnnotationDocument()),
+            tracks, new AnnotationSession(new AnnotationDocument()),
             [new TokenLabel("A", null, 2), new TokenLabel("B", "BB", 2), new TokenLabel("O1", "", 3)],
             "de_mirage", [], _bounds, null,
             [

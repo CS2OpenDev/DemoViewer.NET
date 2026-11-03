@@ -119,7 +119,7 @@ public class PlayerOverviewAimQualityTests
             Identity.SetAccounts([new IdentityAccount(Id(Grim), null, DateTime.UtcNow)]);
             Rows = Cache(store, directory);
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, Rows, _ => { },
-                _ => { }, (_, _) => { }, _ => { }));
+                (_, _) => { }, _ => { }));
             Tab.OnActivated(null!);
         }
 
@@ -268,7 +268,7 @@ public class PlayerOverviewAimQualityRenderTests
             PlayerRowCache rows = PlayerOverviewAimQualityTests.Cache(store, directory);
             await rows.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }));
+                _ => { }, (_, _) => { }, _ => { }));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
             await vm.Loading;

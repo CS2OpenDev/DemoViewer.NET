@@ -110,7 +110,7 @@ public class PlayerOverviewRankTests
                 return store.TryLoadRecord(path, false)?.MatchMeta;
             });
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: Ranks));
+                _ => { }, (_, _) => { }, _ => { }, Ranks: Ranks));
             Tab.OnActivated(null!);
         }
 
@@ -360,7 +360,7 @@ public class PlayerOverviewRankRenderTests
             PlayerRankCache ranks = new(store, directory);
             await ranks.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
+                _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
 
@@ -403,7 +403,7 @@ public class PlayerOverviewRankRenderTests
             PlayerRankCache ranks = new(store, directory);
             await ranks.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
+                _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
             vm.ShowPage(PlayerOverviewPageKind.History);
@@ -467,7 +467,7 @@ public class PlayerOverviewRankRenderTests
             PlayerRankCache ranks = new(store, directory);
             await ranks.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
+                _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
             vm.ShowPage(PlayerOverviewPageKind.History);

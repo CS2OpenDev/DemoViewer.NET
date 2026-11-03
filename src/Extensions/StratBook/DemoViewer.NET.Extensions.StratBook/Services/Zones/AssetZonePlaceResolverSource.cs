@@ -200,7 +200,7 @@ public sealed class ZonePlaceResolverAdapter : IZonePlaceResolver
 
     /// <inheritdoc />
     public IReadOnlySet<string> Adjacent(string place) =>
-        _adjacent.TryGetValue(place, out IReadOnlySet<string>? names) ? names : _none;
+        _adjacent.GetValueOrDefault(place, _none);
 
     /// <inheritdoc />
     public (double X, double Y)? PlaceCentre(string place, double floorKey) => _centres.Centre(place, floorKey);

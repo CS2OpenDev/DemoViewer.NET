@@ -95,7 +95,7 @@ public class PlayerOverviewHighlightsTests
             Directory = new PlayerDirectory(store, _ => true);
             Identity = new IdentityService(new SettingsService(null));
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(Directory, Identity, null,
-                Opened.Add, _ => { }, (_, _) => { }, _ => { }, Facts, withPicker ? AddedFor.Add : null));
+                Opened.Add, (_, _) => { }, _ => { }, Facts, withPicker ? AddedFor.Add : null));
             Tab.OnActivated(null!);
         }
 
@@ -327,7 +327,7 @@ public class PlayerOverviewHighlightsRenderTests
             PlayerDirectory directory = new(store, _ => true);
             using IdentityService identity = new(new SettingsService(null));
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, new AnalysisFacts(store, null, new NoRoundFacts()),
+                _ => { }, (_, _) => { }, _ => { }, new AnalysisFacts(store, null, new NoRoundFacts()),
                 _ => { }));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);

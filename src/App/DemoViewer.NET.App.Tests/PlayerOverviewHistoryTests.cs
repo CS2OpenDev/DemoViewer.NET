@@ -132,7 +132,7 @@ public class PlayerOverviewHistoryTests
             Identity.SetAccounts(me.Select(a => new IdentityAccount(Id(a), null, _added)));
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(Directory, Identity,
                 Cache(store, Directory, Reads),
-                Opened.Add, _ => { }, (path, id) => Focused.Add((path, id)), _ => { }));
+                Opened.Add, (path, id) => Focused.Add((path, id)), _ => { }));
             Tab.OnActivated(null!);
         }
 
@@ -372,7 +372,7 @@ public class PlayerOverviewHistoryRenderTests
             PlayerRowCache cache = PlayerOverviewHistoryTests.Cache(store, directory);
             await cache.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, cache,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }));
+                _ => { }, (_, _) => { }, _ => { }));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
             HistorySectionViewModel history = vm.Reveal<HistorySectionViewModel>();

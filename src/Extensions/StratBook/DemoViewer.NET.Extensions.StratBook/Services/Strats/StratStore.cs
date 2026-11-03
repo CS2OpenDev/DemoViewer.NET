@@ -157,14 +157,14 @@ public sealed class StratStore
             if (json is null)
             {
                 return ioFailed
-                    ? StratLoadResult.Unreadable(id, Absolute(path))
-                    : new StratLoadResult(null, Absolute(path), false, []);
+                    ? StratLoadResult.Unreadable(id)
+                    : new StratLoadResult(null, false, []);
             }
 
             StratDocument? document = Parse(json);
             if (document is null || document.Id != id)
             {
-                return StratLoadResult.Unreadable(id, Absolute(path));
+                return StratLoadResult.Unreadable(id);
             }
 
             document = Reconcile(document, path);
@@ -175,7 +175,7 @@ public sealed class StratStore
                 note = _notes.GetValueOrDefault(id);
             }
 
-            return new StratLoadResult(document, Absolute(path), false, StratValidator.Validate(document, index: Index))
+            return new StratLoadResult(document, false, StratValidator.Validate(document, index: Index))
             {
                 Note = note
             };
@@ -1444,10 +1444,6 @@ public sealed class StratStore
     private static string FolderIn(StratOwner owner, string map) =>
         Path.Combine(owner.FolderName, map.ToLowerInvariant());
 
-    // A path inside the store as the world outside it sees the file; null in memory.
-    private string? Absolute(string? relativePath) =>
-        relativePath is null || _folder is null ? null : Path.Combine(_folder.Path, relativePath);
-
     private static string HistoryPathBeside(string stratPath) =>
         stratPath[..^StratExtension.Length] + HistoryExtension;
 
@@ -1723,20 +1719,18 @@ public sealed class StratStore
 
 /// <summary>The outcome of a load: the strat after reconciliation, or why there is none.</summary>
 /// <param name="Document">The strat, or null when absent or unreadable.</param>
-/// <param name="Path">The file that was read, or null in memory or when the strat is unknown.</param>
 /// <param name="IsUnreadable">A file exists and could not be read or parsed. Never overwritten.</param>
 /// <param name="Issues">The validator's findings on load; the strat opens whatever they say.</param>
 public sealed record StratLoadResult(
     StratDocument? Document,
-    string? Path,
     bool IsUnreadable,
     IReadOnlyList<StratIssue> Issues)
 {
     /// <summary>What the load did to a recovered working copy (rebased or set aside), for the status line; null for nothing.</summary>
     public string? Note { get; init; }
 
-    public static StratLoadResult Unreadable(Guid id, string? path) =>
-        new(null, path, true, [new StratIssue(StratIssueSeverity.Refusal, "", $"strat {id} could not be read")]);
+    public static StratLoadResult Unreadable(Guid id) =>
+        new(null, true, [new StratIssue(StratIssueSeverity.Refusal, "", $"strat {id} could not be read")]);
 }
 
 /// <summary>The outcome of a commit. <see cref="Reason" /> is what the tab's status line says when it failed.</summary>

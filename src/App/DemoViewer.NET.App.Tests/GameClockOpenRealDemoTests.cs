@@ -85,7 +85,7 @@ public class GameClockOpenRealDemoTests
                 await Assert.That(se.Serial).IsEqualTo(re.Serial);
             }
 
-            await Assert.That(vm.EntityTab.EntityGroups.Count).IsGreaterThan(0);
+            await Assert.That(vm.EntityTab.HasEntities).IsTrue();
         });
     }
 

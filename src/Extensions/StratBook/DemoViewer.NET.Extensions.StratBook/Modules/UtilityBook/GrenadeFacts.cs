@@ -51,7 +51,6 @@ public readonly record struct ThrowerAtSpawn(
 /// <param name="ClassName">The server class, one of <see cref="GrenadeProjectileClasses" />.</param>
 /// <param name="ThrowerSlot">The thrower's slot held from its first resolution, or -1.</param>
 /// <param name="SpawnTick">The frame-clock tick the projectile first appeared on.</param>
-/// <param name="CreatedTick">The tick its instance started on: the spawn unless <c>projectile_created</c> waited for the thrower.</param>
 /// <param name="EndTick">The removal frame's tick, or the run's last tick when it was still live.</param>
 /// <param name="Removed">False for a grenade still in the world when the run ended.</param>
 /// <param name="InitialPosition"><c>m_vInitialPosition</c>; on a landing row, from the observer's flight (<see cref="GrenadeWalker.WithFlights" />).</param>
@@ -72,7 +71,6 @@ public sealed record ProjectileFacts(
     string ClassName,
     int ThrowerSlot,
     int SpawnTick,
-    int CreatedTick,
     int EndTick,
     bool Removed,
     Vector3? InitialPosition,

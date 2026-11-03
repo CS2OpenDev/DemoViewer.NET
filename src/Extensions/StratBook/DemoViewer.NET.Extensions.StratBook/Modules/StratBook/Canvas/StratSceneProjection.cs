@@ -15,13 +15,12 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 
 /// <summary>One step on a path, and where it lives: this strat, or the strat a branch continues in.</summary>
 /// <param name="Step">The step as stored.</param>
-/// <param name="StratId">The strat the step belongs to.</param>
 /// <param name="StepIndex">Its index in that strat's <c>steps[]</c>, which is what an op's pointer names.</param>
 /// <param name="Editable">
 ///     Whether the canvas may write it: true for the open strat's own steps. Another strat's steps play
 ///     but are not edited from here, since that document has its own session and single writer.
 /// </param>
-public sealed record StratPathStep(StratStep Step, Guid StratId, int StepIndex, bool Editable);
+public sealed record StratPathStep(StratStep Step, int StepIndex, bool Editable);
 
 /// <summary>
 ///     Which steps the canvas plays. A branch adds no second step list: a path is
@@ -35,7 +34,7 @@ public static class StratPath
     public static IReadOnlyList<StratPathStep> MainLine(StratDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        return [.. document.Steps.Select((s, i) => new StratPathStep(s, document.Id, i, true))];
+        return [.. document.Steps.Select((s, i) => new StratPathStep(s, i, true))];
     }
 
     /// <summary>
@@ -74,7 +73,7 @@ public static class StratPath
             }
 
             path.AddRange(document.Steps.Skip(from)
-                .Select((s, i) => new StratPathStep(s, document.Id, from + i, true)));
+                .Select((s, i) => new StratPathStep(s, from + i, true)));
             return path;
         }
 
@@ -86,7 +85,7 @@ public static class StratPath
         int start = branch.Target.StepId is { } targetStep
             ? Math.Max(0, target.Steps.FindIndex(s => s.Id == targetStep))
             : 0;
-        path.AddRange(target.Steps.Skip(start).Select((s, i) => new StratPathStep(s, target.Id, start + i, false)));
+        path.AddRange(target.Steps.Skip(start).Select((s, i) => new StratPathStep(s, start + i, false)));
         return path;
     }
 }

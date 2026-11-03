@@ -3816,7 +3816,7 @@ public static partial class Variants
         }
 
         PlayerOverviewTabViewModel vm = new(
-            new PlayerOverviewServices(directory, identity, null, _ => { }, _ => { }, (_, _) => { }, _ => { }),
+            new PlayerOverviewServices(directory, identity, null, _ => { }, (_, _) => { }, _ => { }),
             new FakeProcessingQueue { BackgroundEnabled = false });
         vm.OnActivated(null!);
         if (search is not null)
@@ -3946,7 +3946,7 @@ public static partial class Variants
         IdentityService identity = new(new SettingsService(null), directory);
         identity.SetAccounts([new IdentityAccount(Me, "main", DateTime.UtcNow)]);
         PlayerOverviewTabViewModel vm = new(
-            new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { },
+            new PlayerOverviewServices(directory, identity, rows, _ => { }, (_, _) => { }, _ => { },
                 Ranks: ranks),
             new FakeProcessingQueue { QueuedCount = 1 });
         vm.OnActivated(null!);

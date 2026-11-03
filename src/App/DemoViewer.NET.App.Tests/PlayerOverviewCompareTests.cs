@@ -74,7 +74,7 @@ public class PlayerOverviewCompareTests
             Directory = new PlayerDirectory(store, _ => true);
             Identity = new IdentityService(new SettingsService(null));
             Rows = Cache(store, Directory);
-            Services = new PlayerOverviewServices(Directory, Identity, Rows, _ => { }, _ => { }, (_, _) => { },
+            Services = new PlayerOverviewServices(Directory, Identity, Rows, _ => { }, (_, _) => { },
                 _ => { }) { OpenPlayer = id => Opened.Add(id) };
             Section = new CompareSectionViewModel(Services);
         }
@@ -249,7 +249,7 @@ public class PlayerOverviewCompareRenderTests
             PlayerRowCache rows = PlayerOverviewCompareTests.Cache(store, directory);
             await rows.LoadAsync(PlayerOverviewCompareTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows, _ => { },
-                _ => { }, (_, _) => { }, _ => { }));
+                (_, _) => { }, _ => { }));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewCompareTests.Grim);
             await vm.Loading;

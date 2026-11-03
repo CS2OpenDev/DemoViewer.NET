@@ -17,7 +17,6 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 /// <param name="Key">The representative throw's <see cref="IndexedGrenade.Key" />. Changes when an older demo is indexed.</param>
 /// <param name="LineupId">The lineup's <see cref="GrenadeLineup.Id" />: what the pair's file name and the queue entry are keyed by.</param>
 /// <param name="DemoPath">The demo the throw is in.</param>
-/// <param name="Sha256">The demo's content hash, or null.</param>
 /// <param name="Map">The map, as the demo header spells it.</param>
 /// <param name="Title">"Smoke into CTSpawn", or the landing point when no zone placed it.</param>
 /// <param name="FromTick">First tick of the clip, frame clock.</param>
@@ -33,7 +32,6 @@ public sealed record LineupClipJob(
     string Key,
     Guid LineupId,
     string DemoPath,
-    string? Sha256,
     string Map,
     string Title,
     int FromTick,
@@ -172,7 +170,7 @@ public static class LineupClipPlanner
             ? id
             : null;
 
-        return new LineupClipJob(representative.Key, lineup.Id, shown.Demo.Path, shown.Demo.Sha256,
+        return new LineupClipJob(representative.Key, lineup.Id, shown.Demo.Path,
             representative.Map, title, from, to, rate, steamId, console,
             Path.Combine(directory, stem + GifExtension), Path.Combine(directory, stem + SetposExtension),
             lineup.AliasIds, former) { Throws = technique?.Throws.Count ?? lineup.Throws.Count, TechniqueKey = key };

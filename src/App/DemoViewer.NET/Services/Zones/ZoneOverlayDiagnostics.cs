@@ -21,7 +21,6 @@ public static class ZoneOverlayDiagnostics
 {
     private static readonly Lock _lock = new();
     private static IReadOnlyList<ZoneDiagnostic> _current = [];
-    private static string? _mapName;
     private static string? _overlayPath;
 
     /// <summary>Raised after every <see cref="Publish" />, on the publisher's thread.</summary>
@@ -39,18 +38,6 @@ public static class ZoneOverlayDiagnostics
         }
     }
 
-    /// <summary>The map the last load was for, or null.</summary>
-    public static string? MapName
-    {
-        get
-        {
-            lock (_lock)
-            {
-                return _mapName;
-            }
-        }
-    }
-
     /// <summary>The overlay file the last load looked for, or null.</summary>
     public static string? OverlayPath
     {
@@ -64,16 +51,14 @@ public static class ZoneOverlayDiagnostics
     }
 
     /// <summary>Replaces the current set. The 2D Playback tab calls this after every zones load.</summary>
-    /// <param name="mapName">The map loaded.</param>
     /// <param name="overlayPath">The overlay file looked for, or null.</param>
     /// <param name="diagnostics">What the loader skipped or flagged.</param>
-    internal static void Publish(string? mapName, string? overlayPath, IReadOnlyList<ZoneDiagnostic> diagnostics)
+    internal static void Publish(string? overlayPath, IReadOnlyList<ZoneDiagnostic> diagnostics)
     {
         ArgumentNullException.ThrowIfNull(diagnostics);
 
         lock (_lock)
         {
-            _mapName = mapName;
             _overlayPath = overlayPath;
             _current = diagnostics;
         }
@@ -86,7 +71,6 @@ public static class ZoneOverlayDiagnostics
     {
         lock (_lock)
         {
-            _mapName = null;
             _overlayPath = null;
             _current = [];
         }

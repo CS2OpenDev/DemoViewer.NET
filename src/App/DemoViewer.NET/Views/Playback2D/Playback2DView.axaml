@@ -518,7 +518,7 @@
                             <DataTemplate x:DataType="lv:LevelChipViewModel">
                                 <Button Width="52" Height="26" Padding="0" Margin="0,0,0,3"
                                         HorizontalContentAlignment="Center"
-                                        Command="{Binding $parent[ItemsControl].((lv:LevelStripViewModel)DataContext).SelectCommand}"
+                                        Command="{Binding $parent[ItemsControl].((lv:LevelStripViewModel)DataContext).SelectCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}"
                                         ToolTip.Tip="{Binding Tooltip}">
                                     <StackPanel Orientation="Horizontal" Spacing="3"

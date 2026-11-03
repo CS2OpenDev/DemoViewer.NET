@@ -128,7 +128,7 @@ public static class GrenadeWalker
             }
 
             added++;
-            all.Add(new ProjectileFacts(index, serial, f.ClassName, -1, f.SpawnTick, f.SpawnTick, f.EndTick, f.Removed,
+            all.Add(new ProjectileFacts(index, serial, f.ClassName, -1, f.SpawnTick, f.EndTick, f.Removed,
                 f.InitialPosition,
                 f.InitialVelocity, f.LastPosition, f.LastMovedTick, f.Bounces, f.IsIncendiary, null, null, null, null,
                 null, null));

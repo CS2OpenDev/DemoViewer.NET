@@ -130,7 +130,7 @@ public class TeammatesTests
                 return Facet(IndexOf(path));
             });
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(Directory, Identity, Cache, _ => { },
-                _ => { }, (_, _) => { }, _ => { }));
+                (_, _) => { }, _ => { }));
             Tab.OnActivated(null!);
         }
 
@@ -263,7 +263,7 @@ public class TeammatesTests
         store.Upsert(solo);
         PlayerDirectory directory = new(store, _ => true);
         using IdentityService identity = new(new SettingsService(null));
-        PlayerOverviewServices services = new(directory, identity, null, _ => { }, _ => { }, (_, _) => { }, _ => { });
+        PlayerOverviewServices services = new(directory, identity, null, _ => { }, (_, _) => { }, _ => { });
         TeammatesSectionViewModel section = new(services);
         IReadOnlyList<PlayerMatch> matches = directory.Matches(Grim);
         PlayerDemo[] demos = [.. matches.Select(m => new PlayerDemo(m, false, null))];
@@ -296,7 +296,7 @@ public class TeammatesRenderTests
             PlayerRowCache rows = new(store, directory, path => TeammatesTests.Facet(TeammatesTests.IndexOf(path)));
             await rows.LoadAsync(TeammatesTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows, _ => { },
-                _ => { }, (_, _) => { }, _ => { }));
+                (_, _) => { }, _ => { }));
             vm.OnActivated(null!);
             vm.OpenPlayer(TeammatesTests.Grim);
             await vm.Loading;

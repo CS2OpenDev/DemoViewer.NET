@@ -110,24 +110,24 @@ public class UnconfirmedLocationTests
         string root = Path.Combine(Path.GetTempPath(), $"dv-unconfirmed-{Guid.NewGuid():N}");
         try
         {
-            const string B = "/gone/b.dem";
+            const string Gone = "/gone/b.dem";
             DateTime written = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             long local = written.ToLocalTime().Ticks;
             DemoCacheStore store = new(root);
             store.Upsert(Analysed(A));
-            store.NoteContentRead(B, Sha, null, 1000, written);
-            store.AttachUnconfirmed(Sha, B, 1000, local);
+            store.NoteContentRead(Gone, Sha, null, 1000, written);
+            store.AttachUnconfirmed(Sha, Gone, 1000, local);
             store.Remove(A);
             store.SaveIndex();
 
-            store.UpdateExisting(B, r => r.Server = "from b");
+            store.UpdateExisting(Gone, r => r.Server = "from b");
 
             using (Assert.Multiple())
             {
-                await Assert.That(store.LocationOf(B)?.ContentId).IsEqualTo(Sha);
-                await Assert.That(store.LocationOf(B)?.Location.Confirmed).IsTrue();
-                await Assert.That(store.TryLoadRecord(B)?.Scoreboard.Count).IsEqualTo(1);
-                await Assert.That(store.TryLoadRecord(B)?.Server).IsEqualTo("from b");
+                await Assert.That(store.LocationOf(Gone)?.ContentId).IsEqualTo(Sha);
+                await Assert.That(store.LocationOf(Gone)?.Location.Confirmed).IsTrue();
+                await Assert.That(store.TryLoadRecord(Gone)?.Scoreboard.Count).IsEqualTo(1);
+                await Assert.That(store.TryLoadRecord(Gone)?.Server).IsEqualTo("from b");
                 await Assert.That(File.Exists(Path.Combine(root, "demos", Sha + DemoCacheStore.RecordSuffix))).IsTrue();
             }
         }

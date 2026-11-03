@@ -126,7 +126,7 @@ public class PlayerOverviewFilterTests
             });
             Cache = new PlayerRowCache(store, Directory, facet, readRounds);
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(Directory, Identity, Cache, _ => { },
-                _ => { }, (_, _) => { }, _ => { }));
+                (_, _) => { }, _ => { }));
             Tab.OnActivated(null!);
         }
 

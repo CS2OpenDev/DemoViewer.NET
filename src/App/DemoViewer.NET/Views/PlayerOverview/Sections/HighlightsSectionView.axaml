@@ -104,7 +104,7 @@
                                            IsVisible="{Binding IsFileMissing}" />
                                 <Button Classes="ghost chip" Content="Open" IsVisible="{Binding !IsFileMissing}"
                                         ToolTip.Tip="Open this demo"
-                                        Command="{Binding $parent[ListBox].((sections:HighlightsSectionViewModel)DataContext).OpenDemoCommand}"
+                                        Command="{Binding $parent[ListBox].((sections:HighlightsSectionViewModel)DataContext).OpenDemoCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                             </StackPanel>
                         </Grid>

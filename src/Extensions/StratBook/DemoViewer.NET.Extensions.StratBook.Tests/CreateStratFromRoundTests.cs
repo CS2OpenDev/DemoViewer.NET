@@ -455,6 +455,6 @@ public class CreateStratFromRoundTests
         new(new TimelineBand(track, 0, 10, label, label, 0), 0, 1, Brushes.Gray);
 
     internal static StratCaptureRequest Request(IReadOnlyCollection<string> key) =>
-        new("de_mirage", 7, Freeze, At(120), "ab", "match.dem", null, key, StratOwner.Me(), "me", StratOwner.MeKind,
+        new("de_mirage", 7, "ab", "match.dem", null, key, StratOwner.Me(), "me", StratOwner.MeKind,
             StratFromRound.QuantizedLevel);
 }

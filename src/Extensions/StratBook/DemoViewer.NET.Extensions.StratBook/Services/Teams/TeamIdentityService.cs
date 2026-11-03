@@ -1654,8 +1654,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         new(row.Value.Path, row.Key, row.Value.Sha256);
 
     private static TeamAssignment ToAssignment(TeamIndexDemo row) =>
-        new(row.Path, row.Sha256, ToSide(row.Side(2)), ToSide(row.Side(3)), row.OurSide, row.OurSideSource,
-            row.OpponentTeamId);
+        new(ToSide(row.Side(2)), ToSide(row.Side(3)), row.OurSide, row.OurSideSource, row.OpponentTeamId);
 
     private static SideAssignment ToSide(TeamIndexSide? side) =>
         side is null

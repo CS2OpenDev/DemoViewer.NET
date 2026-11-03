@@ -316,6 +316,7 @@ public class Playback2DEventWiringTests
 ///     Three events with three different wirings, so the scan is shown to separate them rather than to
 ///     report nothing.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class EventGuardCanary
 {
     /// <summary>Raised below, subscribed from <see cref="EventGuardCanaryHost" />. Must come back clean.</summary>
@@ -353,6 +354,7 @@ internal sealed class EventGuardCanaryForwarder(EventGuardCanary inner)
 }
 
 /// <summary>Hand-written accessors that forward nowhere: the one shape the scan cannot see, and must say so.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class EventGuardCanaryOpaque
 {
     public event Action? OpaqueCanary
@@ -369,6 +371,7 @@ internal sealed class EventGuardCanaryOpaque
 ///     direct <c>Delegate.Combine</c> on the backing field and never calls <c>add_</c>, so a self-wired
 ///     canary would prove nothing about how a real subscriber is detected.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class EventGuardCanaryHost
 {
     public static void Wire(EventGuardCanary canary)

@@ -115,7 +115,7 @@
                                     Padding="0"
                                     Cursor="Hand"
                                     ToolTip.Tip="Toggle breakpoint at this frame"
-                                    Command="{Binding $parent[UserControl].((shell:MainViewModel)DataContext).ToggleFrameBreakpointCommand}"
+                                    Command="{Binding $parent[UserControl].((shell:MainViewModel)DataContext).ToggleFrameBreakpointCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding FrameNumber}">
                                 <Ellipse Width="8" Height="8"
                                          Classes="bp-dot"

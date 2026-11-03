@@ -194,7 +194,7 @@ public static class GrenadeTables
                 : null;
         }
 
-        return new ProjectileFacts(index, serial, className, slot, spawn, Int(d, "created_tick") ?? spawn, end,
+        return new ProjectileFacts(index, serial, className, slot, spawn, end,
             Bool(d, "removed") ?? true,
             Vector(v, "initial_x", "initial_y", "initial_z"), Vector(v, "velocity_x", "velocity_y", "velocity_z"),
             Vector(v, "end_x", "end_y", "end_z"), Int(v, "last_moved_tick") ?? spawn, Int(v, "bounces") ?? 0,
@@ -214,7 +214,7 @@ public static class GrenadeTables
             return null;
         }
 
-        return new ProjectileFacts(index, serial, className, -1, spawn, spawn, end, true, null, null,
+        return new ProjectileFacts(index, serial, className, -1, spawn, end, true, null, null,
             Vector(v, "x", "y", "z"), end,
             Int(v, "bounces") ?? 0, null, null, null, null, null, null, null);
     }

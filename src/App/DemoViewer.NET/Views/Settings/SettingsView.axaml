@@ -262,7 +262,7 @@
                                                                  IsChecked="{Binding IsActive, Mode=OneWay}"
                                                                  AutomationProperties.Name="Active account"
                                                                  ToolTip.Tip="Make this the active account"
-                                                                 Command="{Binding $parent[ListBox].((settings:SettingsViewModel)DataContext).SetActiveIdentityAccountCommand}"
+                                                                 Command="{Binding $parent[ListBox].((settings:SettingsViewModel)DataContext).SetActiveIdentityAccountCommand, FallbackValue={x:Null}}"
                                                                  CommandParameter="{Binding}" />
                                                     <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding Title}"
@@ -276,7 +276,7 @@
                                                     <Button Grid.Column="2" Classes="icon-btn" Content="✕"
                                                             AutomationProperties.Name="Remove account"
                                                             ToolTip.Tip="Remove account"
-                                                            Command="{Binding $parent[ListBox].((settings:SettingsViewModel)DataContext).RemoveIdentityAccountCommand}"
+                                                            Command="{Binding $parent[ListBox].((settings:SettingsViewModel)DataContext).RemoveIdentityAccountCommand, FallbackValue={x:Null}}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
                                             </DataTemplate>
@@ -604,7 +604,7 @@
                                                     <Button Grid.Column="1" Classes="icon-btn" Content="✕"
                                                             AutomationProperties.Name="Remove folder"
                                                             ToolTip.Tip="Remove folder"
-                                                            Command="{Binding $parent[ListBox].((settings:SettingsViewModel)DataContext).RemoveFolderCommand}"
+                                                            Command="{Binding $parent[ListBox].((settings:SettingsViewModel)DataContext).RemoveFolderCommand, FallbackValue={x:Null}}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
                                             </DataTemplate>

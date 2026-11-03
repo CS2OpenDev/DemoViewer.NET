@@ -1,9 +1,6 @@
 namespace DemoViewer.NET.Playback2D.Pipeline.Rendering;
 
-/// <summary>
-///     Which Skia backend an <see cref="IRenderSurfaceProvider" /> hands out surfaces from.
-///     <see cref="Vulkan" /> is declared so the enum does not churn later; nothing reaches it in v1.
-/// </summary>
+/// <summary>Which Skia backend an <see cref="IRenderSurfaceProvider" /> hands out surfaces from.</summary>
 public enum RenderBackend
 {
     /// <summary>Software raster. Always available, and the contract baseline goldens are authored on it.</summary>
@@ -13,8 +10,5 @@ public enum RenderBackend
     OpenGl,
 
     /// <summary>ANGLE over D3D11 via an EGL pbuffer, the Windows GPU path.</summary>
-    Angle,
-
-    /// <summary>Declared, unreachable in v1.</summary>
-    Vulkan
+    Angle
 }

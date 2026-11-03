@@ -199,7 +199,6 @@ public sealed class TagStore
         ArgumentNullException.ThrowIfNull(current);
 
         string key = Normalize(sha256);
-        string? path = PathFor(key);
         string? json;
         if (_folder is null)
         {
@@ -217,20 +216,20 @@ public sealed class TagStore
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 Refuse(key);
-                return new TagLoadResult(null, path, false, false, true, SchemaVersion);
+                return new TagLoadResult(null, false, false, true, SchemaVersion);
             }
         }
 
         if (json is null)
         {
-            return TagLoadResult.Empty(path);
+            return TagLoadResult.Empty();
         }
 
         TagDocument? document = Parse(json);
         if (document is null)
         {
             Refuse(key);
-            return new TagLoadResult(null, path, false, false, true, SchemaVersion);
+            return new TagLoadResult(null, false, false, true, SchemaVersion);
         }
 
         // Only reachable by a hand-edit, since the file is named by its hash; a copy of someone else's
@@ -238,7 +237,7 @@ public sealed class TagStore
         if (!string.Equals(Normalize(document.Demo.Sha256), key, StringComparison.Ordinal))
         {
             Refuse(key);
-            return new TagLoadResult(null, path, true, false, false, document.SchemaVersion);
+            return new TagLoadResult(null, true, false, false, document.SchemaVersion);
         }
 
         lock (_gate)
@@ -247,7 +246,7 @@ public sealed class TagStore
         }
 
         bool clockMismatch = !current.Matches(document.Clock.ToClock());
-        return new TagLoadResult(document, path, false, clockMismatch, false, document.SchemaVersion);
+        return new TagLoadResult(document, false, clockMismatch, false, document.SchemaVersion);
     }
 
     /// <summary>
@@ -882,20 +881,17 @@ public sealed class TagStore
 ///     error the user can act on mid-session and each has a correct degraded behaviour.
 /// </summary>
 /// <param name="Document">The document, or null when there was none or it was refused.</param>
-/// <param name="Path">The file that was read, or null in memory.</param>
 /// <param name="DemoMismatch">The file names a different demo. Ignored and never overwritten.</param>
 /// <param name="ClockMismatch">The ticks were written against a different parse. Loaded; the status line warns.</param>
 /// <param name="Unreadable">The file exists and could not be read or parsed. Never overwritten.</param>
 /// <param name="SchemaVersion">The schema version the file declared.</param>
 public sealed record TagLoadResult(
     TagDocument? Document,
-    string? Path,
     bool DemoMismatch,
     bool ClockMismatch,
     bool Unreadable,
     int SchemaVersion)
 {
     /// <summary>Nothing stored, nothing wrong.</summary>
-    /// <param name="path">Where the store looked, or null in memory.</param>
-    public static TagLoadResult Empty(string? path) => new(null, path, false, false, false, TagStore.SchemaVersion);
+    public static TagLoadResult Empty() => new(null, false, false, false, TagStore.SchemaVersion);
 }

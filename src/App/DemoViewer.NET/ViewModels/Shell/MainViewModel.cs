@@ -659,7 +659,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                     identity,
                     playerRows,
                     path => _ = LoadDemoFromPathAsync(path),
-                    SelectTabById,
                     (path, steamId64) => _ = FocusPlayerInStatsAsync(path, steamId64),
                     OpenSettingsCore,
                     facts,
@@ -1315,9 +1314,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     //         and in-class call sites working unchanged. XAML retargets in 3.5.
     /// <summary>Entity field nodes.</summary>
     public ObservableCollection<PayloadNode> EntityFieldNodes => EntityTab.EntityFieldNodes;
-
-    /// <summary>Entity groups.</summary>
-    public ObservableCollection<EntityGroup> EntityGroups => EntityTab.EntityGroups;
 
     /// <summary>Entity header text.</summary>
 
@@ -3139,7 +3135,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // ── Value formatting ──────────────────────────────────────────────────────
 
     // 3.4c: promoted to `internal` so EntityTrackingTabViewModel can call it from
-    // moved methods (RebuildEntityGroupsWithDelta, RebuildEntityListItems,
+    // moved methods (RebuildEntitiesWithDelta, RebuildEntityListItems,
     // OnSelectedEntityItemChanged). Still stateless.
     internal static string FormatValue(object? v) => v switch
     {
@@ -3523,8 +3519,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         NotifyDebuggerCommandsCanExecute();
         NotifyNavCommandsCanExecute();
     }
-
-    // Categorise moved to EntityTab in 3.4c (helper for RebuildEntityGroups).
 
     /// <summary>Opens the command palette (Ctrl+P). Delegates to the palette VM's open action.</summary>
     [RelayCommand]
