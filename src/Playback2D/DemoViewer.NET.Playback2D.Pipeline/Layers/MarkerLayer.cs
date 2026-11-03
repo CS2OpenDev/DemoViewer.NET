@@ -57,7 +57,7 @@ public sealed class MarkerLayer : ISceneLayer
     }
 
     /// <summary>The shared smoothing state.</summary>
-    public MarkerSmoother Smoother { get; }
+    private MarkerSmoother Smoother { get; }
 
     /// <summary>
     ///     Whether to draw the initials labels. Off is what the byte-exact golden tier renders with:
@@ -169,16 +169,12 @@ public sealed class MarkerLayer : ISceneLayer
         canvas.DrawPath(_routePath, _route);
     }
 
-    /// <summary>The smoothed draw position for a slot: the pre-v2 test hook, same name and shape.</summary>
-    /// <param name="slot">Roster slot.</param>
-    public (float X, float Y)? SmoothedMarkerPosition(int slot) => Smoother.Position(slot);
-
     private void DrawMarker(SKCanvas canvas, PlayerMarker marker, in SceneRenderContext ctx)
     {
         (float dx, float dy) = Smoother.Position(marker.Slot) ?? (marker.WorldX, marker.WorldY);
         (double sx, double sy) = ctx.Transform.WorldToScreen(dx, dy);
         float cx = (float)sx, cy = (float)sy;
-        const float radius = SceneDefaults.MarkerRadius;
+        const float Radius = SceneDefaults.MarkerRadius;
 
         SKColor teamFill = ctx.Palette.TeamFill(marker.Team);
 
@@ -192,8 +188,8 @@ public sealed class MarkerLayer : ISceneLayer
         {
             double yawRad = marker.YawDegrees * Math.PI / 180.0;
             // World yaw 0 = +X (east); screen Y is inverted, hence the minus on the sine.
-            float tipX = cx + (float)(Math.Cos(yawRad) * (radius + SceneDefaults.MarkerHeadingLength));
-            float tipY = cy - (float)(Math.Sin(yawRad) * (radius + SceneDefaults.MarkerHeadingLength));
+            float tipX = cx + (float)(Math.Cos(yawRad) * (Radius + SceneDefaults.MarkerHeadingLength));
+            float tipY = cy - (float)(Math.Sin(yawRad) * (Radius + SceneDefaults.MarkerHeadingLength));
             _heading.Color = teamFill;
             canvas.DrawLine(cx, cy, tipX, tipY, _heading);
         }
@@ -203,7 +199,7 @@ public sealed class MarkerLayer : ISceneLayer
         if (marker.IsAlive)
         {
             _fill.Color = teamFill;
-            canvas.DrawCircle(cx, cy, radius, _fill);
+            canvas.DrawCircle(cx, cy, Radius, _fill);
         }
 
         SKColor ringColour = marker.Ring switch
@@ -218,7 +214,7 @@ public sealed class MarkerLayer : ISceneLayer
         byte alpha = (byte)Math.Clamp(marker.RingAlpha * 255, 0, 255);
         _ring.Color = ringColour.WithAlpha(alpha);
         _ring.StrokeWidth = marker.Ring == RingState.Team ? 1.5f : 2.5f;
-        canvas.DrawCircle(cx, cy, radius, _ring);
+        canvas.DrawCircle(cx, cy, Radius, _ring);
 
         if (!DrawLabels || _text.Get(marker.Label, SceneDefaults.MarkerLabelSize) is not { } shaped)
         {
@@ -233,13 +229,13 @@ public sealed class MarkerLayer : ISceneLayer
     // A translucent wedge in the team colour, from the disc's edge out to the cone length.
     private void DrawCone(SKCanvas canvas, float cx, float cy, float yawDegrees, SKColor team)
     {
-        const float reach = SceneDefaults.MarkerRadius + SceneDefaults.MarkerConeLength;
+        const float Reach = SceneDefaults.MarkerRadius + SceneDefaults.MarkerConeLength;
         SKPath wedge = _wedge;
         wedge.Rewind();
         wedge.MoveTo(cx, cy);
 
         // Screen Y is inverted, so a world yaw of a turns the screen arc by -a.
-        wedge.ArcTo(new SKRect(cx - reach, cy - reach, cx + reach, cy + reach),
+        wedge.ArcTo(new SKRect(cx - Reach, cy - Reach, cx + Reach, cy + Reach),
             -yawDegrees - SceneDefaults.MarkerConeHalfAngle, 2 * SceneDefaults.MarkerConeHalfAngle, false);
         wedge.Close();
         _cone.Color = team.WithAlpha(56);

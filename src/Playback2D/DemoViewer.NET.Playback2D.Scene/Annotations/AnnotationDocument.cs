@@ -218,9 +218,9 @@ public sealed class AnnotationDocument
         List<GestureStep> entry = _redo[^1];
         _redo.RemoveAt(_redo.Count - 1);
 
-        for (int i = 0; i < entry.Count; i++)
+        foreach (GestureStep step in entry)
         {
-            TryApply(entry[i].Applied, out DocDelta? _);
+            TryApply(step.Applied, out DocDelta? _);
         }
 
         _undo.Add(entry);
@@ -245,7 +245,7 @@ public sealed class AnnotationDocument
 
     /// <summary>The element's position in <see cref="Elements" />, or -1.</summary>
     /// <param name="id">The element's identity.</param>
-    public int IndexOf(Guid id) => _index.TryGetValue(id, out int at) ? at : -1;
+    public int IndexOf(Guid id) => _index.GetValueOrDefault(id, -1);
 
     /// <summary>
     ///     Rewrites every <see cref="SpaceRef.World" /> anchor whose <c>LevelMinZ</c> appears in
@@ -485,9 +485,9 @@ public sealed class AnnotationDocument
         IReadOnlyDictionary<double, double> zMinMap)
     {
         bool changed = false;
-        for (int i = 0; i < stacks.Count; i++)
+        foreach (List<GestureStep> stack in stacks)
         {
-            changed |= RemapSteps(stacks[i], zMinMap);
+            changed |= RemapSteps(stack, zMinMap);
         }
 
         return changed;
@@ -558,7 +558,7 @@ public sealed class AnnotationDocument
     private static AnnotationElement RemapElement(AnnotationElement element,
         IReadOnlyDictionary<double, double> zMinMap)
     {
-        if (element?.Space is not SpaceRef.World world
+        if (element.Space is not SpaceRef.World world
             || !zMinMap.TryGetValue(world.LevelMinZ, out double target)
             || target.Equals(world.LevelMinZ))
         {

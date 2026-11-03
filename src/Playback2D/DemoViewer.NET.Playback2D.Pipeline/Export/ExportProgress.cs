@@ -43,8 +43,4 @@ public readonly record struct ExportProgress(
     double FramesPerSecond,
     TimeSpan Elapsed,
     TimeSpan? Eta,
-    string? Detail)
-{
-    /// <summary>Completion in [0,1]; 0 when the total is unknown.</summary>
-    public double Fraction => FramesTotal > 0 ? Math.Clamp(FramesDone / (double)FramesTotal, 0, 1) : 0;
-}
+    string? Detail);

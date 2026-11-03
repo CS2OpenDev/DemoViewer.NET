@@ -19,7 +19,7 @@ namespace DemoViewer.NET.Extensions.Updates;
 /// </summary>
 public static class ExtensionFeedMerge
 {
-    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _writeOptions = new() { WriteIndented = true };
 
     /// <summary>
     ///     Merges <paramref name="entryJson" /> (one feed entry: version, manifest, url, sha256, size,
@@ -103,7 +103,7 @@ public static class ExtensionFeedMerge
             entries.Add(node);
         }
 
-        string merged = feed.ToJsonString(WriteOptions);
+        string merged = feed.ToJsonString(_writeOptions);
         try
         {
             ExtensionFeed.Parse(merged);

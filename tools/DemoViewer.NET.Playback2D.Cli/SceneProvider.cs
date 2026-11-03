@@ -118,7 +118,7 @@ internal sealed class FixtureSceneProvider : SceneProvider
 
     /// <inheritdoc />
     public override SKSizeI DefaultSize =>
-        Fixture.Size.Width > 0 && Fixture.Size.Height > 0 ? Fixture.Size : new SKSizeI(1920, 1080);
+        Fixture.Size is { Width: > 0, Height: > 0 } ? Fixture.Size : new SKSizeI(1920, 1080);
 
     /// <inheritdoc />
     public override string? MapName => string.IsNullOrEmpty(Fixture.MapName) ? null : Fixture.MapName;
@@ -130,7 +130,7 @@ internal sealed class FixtureSceneProvider : SceneProvider
     public override string? SourceDemoId => Fixture.SourceDemoId;
 
     /// <summary>The loaded fixture, for commands that need more than the frame.</summary>
-    public SceneFixture Fixture { get; }
+    private SceneFixture Fixture { get; }
 
     /// <summary>Reads a fixture from disk.</summary>
     /// <param name="path">Path to the <c>.scene.json</c>.</param>
@@ -186,16 +186,13 @@ internal sealed class DemoSceneProvider : SceneProvider
     public override string Name { get; }
 
     /// <summary>The demo frame index output frame 0 sits on.</summary>
-    public int DemoFrameIndex { get; }
-
-    /// <summary>The server tick at <see cref="DemoFrameIndex" />.</summary>
-    public int Tick => _demo.Frames[DemoFrameIndex].ServerTick;
+    private int DemoFrameIndex { get; }
 
     /// <inheritdoc />
     public override double ParseMs { get; }
 
     /// <inheritdoc />
-    public override string? SourceDemoId => Name;
+    public override string SourceDemoId => Name;
 
     /// <inheritdoc />
     public override string? MapName => string.IsNullOrEmpty(_demo.MapName) ? null : _demo.MapName;

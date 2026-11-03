@@ -349,9 +349,9 @@ internal static class ZoneOverlayApplier
         public int AreaCount(int placeId)
         {
             int count = 0;
-            for (int i = 0; i < AreaPlace.Length; i++)
+            foreach (int place in AreaPlace)
             {
-                if (AreaPlace[i] == placeId)
+                if (place == placeId)
                 {
                     count++;
                 }

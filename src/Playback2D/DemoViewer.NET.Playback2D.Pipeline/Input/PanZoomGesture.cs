@@ -31,18 +31,7 @@ public sealed class PanZoomGesture
     public bool IsDragging => DragPane is not null;
 
     /// <summary>The pane the current drag began on, or null.</summary>
-    public LevelPane? DragPane { get; private set; }
-
-    /// <summary>Begins a drag on the pane under the point.</summary>
-    /// <param name="panes">The arranged panes.</param>
-    /// <param name="x">Host X.</param>
-    /// <param name="y">Host Y.</param>
-    /// <returns>True when a pane was captured.</returns>
-    public bool Press(PaneSet panes, float x, float y)
-    {
-        ArgumentNullException.ThrowIfNull(panes);
-        return Press(panes.PaneAt(x, y), x, y);
-    }
+    private LevelPane? DragPane { get; set; }
 
     /// <summary>
     ///     Begins a drag on a pane the caller has already hit-tested. <c>PanZoomTool</c> takes this
@@ -82,27 +71,6 @@ public sealed class PanZoomGesture
 
     /// <summary>Ends the drag. Safe to call when none is in progress.</summary>
     public void Release() => DragPane = null;
-
-    /// <summary>
-    ///     Zooms the pane under the cursor about the <b>pane-local</b> cursor position: the band's
-    ///     transform has the band's height as its viewport, so using host coordinates would zoom about
-    ///     the wrong point on every band but the top one (viewport line 451).
-    /// </summary>
-    /// <param name="panes">The arranged panes.</param>
-    /// <param name="x">Host X.</param>
-    /// <param name="y">Host Y.</param>
-    /// <param name="delta">Wheel delta; positive zooms in.</param>
-    /// <returns>True when the camera changed.</returns>
-    [SuppressMessage("Performance", "CA1822:Mark members as static",
-        Justification = "Instance by contract: PanZoomTool wraps this gesture as an IPointerTool, whose wheel " +
-                        "member is an instance method on the tool. Making it static here would force " +
-                        "the wrapper to reach through the type name and would break the day the zoom " +
-                        "anchor becomes stateful.")]
-    public bool Wheel(PaneSet panes, float x, float y, double delta)
-    {
-        ArgumentNullException.ThrowIfNull(panes);
-        return Wheel(panes.PaneAt(x, y), x, y, delta);
-    }
 
     /// <summary>
     ///     Zooms a pane the caller has already hit-tested, about the host-space cursor position. The

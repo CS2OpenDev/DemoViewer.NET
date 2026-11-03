@@ -116,10 +116,7 @@ public static class StressTestGraphs
 
         SampleNode sink = new("Sink", isActive: true, displayValue: "converged");
 
-        List<IGraphNode> nodes = new();
-        nodes.AddRange(sources);
-        nodes.AddRange(intermediates);
-        nodes.Add(sink);
+        List<IGraphNode> nodes = [.. sources, .. intermediates, sink];
 
         List<IGraphEdge> edges = new();
         for (int i = 0; i < sources.Count; i++)
@@ -255,9 +252,7 @@ public static class StressTestGraphs
                 i.ToString(CultureInfo.InvariantCulture)));
         }
 
-        List<IGraphNode> nodes = new();
-        nodes.AddRange(sources);
-        nodes.Add(sink);
+        List<IGraphNode> nodes = [.. sources, sink];
 
         List<IGraphEdge> edges = new();
         foreach (SampleNode src in sources)
@@ -283,8 +278,7 @@ public static class StressTestGraphs
                 displayValue: i.ToString(CultureInfo.InvariantCulture)));
         }
 
-        List<IGraphNode> nodes = new() { root };
-        nodes.AddRange(children);
+        List<IGraphNode> nodes = [root, .. children];
 
         List<IGraphEdge> edges = new();
         foreach (SampleNode child in children)
@@ -314,8 +308,7 @@ public static class StressTestGraphs
                 displayValue: i.ToString(CultureInfo.InvariantCulture)));
         }
 
-        List<IGraphNode> nodes = new() { hub };
-        nodes.AddRange(spokes);
+        List<IGraphNode> nodes = [hub, .. spokes];
 
         List<IGraphEdge> edges = new();
         for (int i = 0; i < spokes.Count; i++)

@@ -35,19 +35,19 @@ namespace HelloExtension;
 public sealed class HelloExtension : IExtension
 {
     public const string ExtensionId = "dev.example.hello";
-    public const string MasterSwitch = "pack.hello";
+    private const string MasterSwitch = "pack.hello";
     public const string TabFeature = "tab.hello";
 
     /// <summary>Settings keys; the host stores them in the extension's own settings file.</summary>
     public const string ShowFramesKey = "tab.showFrames";
 
-    public const string GreetingKey = "greeting";
+    private const string GreetingKey = "greeting";
 
     /// <summary>The keymap action that runs the toolbar button. Prefixed with the extension id, as every command id must be.</summary>
     public const string WhereAction = ExtensionId + ".where";
 
     /// <summary>The id the greeting's notification is posted under.</summary>
-    public const string GreetedNotification = "hello.greeted";
+    private const string GreetedNotification = "hello.greeted";
 
     /// <summary>The hub tab's id, which its sections name as their host.</summary>
     public const string HubId = ExtensionId + ".hub";
@@ -150,7 +150,6 @@ public sealed class HelloTabViewModel : IWorkspaceTabViewModel
 {
     private readonly IExtensionContext _context;
     private volatile string? _openDemo;
-    private string? _greeted;
     private int? _kills;
 
     public HelloTabViewModel(IExtensionContext context)
@@ -188,10 +187,10 @@ public sealed class HelloTabViewModel : IWorkspaceTabViewModel
 
     public string? Greeted
     {
-        get => _greeted;
+        get;
         set
         {
-            _greeted = value;
+            field = value;
             Changed?.Invoke();
         }
     }
@@ -219,8 +218,14 @@ public sealed class HelloTabViewModel : IWorkspaceTabViewModel
         ? id
         : null;
 
-    /// <summary>Opens the user's active account in the host's Player Overview. False when the host could not.</summary>
-    public bool OpenYou() => You is { } you && _context.Shell.OpenPlayerOverview(you);
+    /// <summary>Opens the user's active account in the host's Player Overview.</summary>
+    public void OpenYou()
+    {
+        if (You is { } you)
+        {
+            _context.Shell.OpenPlayerOverview(you);
+        }
+    }
 
     // The table is a file read, so it runs as a job; the status check before it reads only the index.
     private void ReadKills()
@@ -254,7 +259,7 @@ public sealed class HelloTabViewModel : IWorkspaceTabViewModel
             || _context.Library.Find(open)?.Locations.Contains(path, StringComparer.OrdinalIgnoreCase) == true);
 
     // The stamp comes from the store's index, so this opens no file and is safe on the UI thread.
-    public bool HasFrameCount(string path) => FrameCountPass.Count(_context.Data, path) is not null;
+    private bool HasFrameCount(string path) => FrameCountPass.Count(_context.Data, path) is not null;
 
     public event Action? Changed;
 
@@ -588,7 +593,7 @@ public sealed class HelloChip : IStatusChipSource
 
     public bool IsHollow => false;
 
-    public string? Tooltip => "The last demo the Hello extension greeted";
+    public string Tooltip => "The last demo the Hello extension greeted";
 
     public ICommand? PrimaryAction => null;
 
@@ -698,7 +703,7 @@ internal sealed class HelloSpanTrack : ITimelineTrack
     {
         // The span came off the lane, so it is already in frame indices, but the demo opened after it may be
         // the shorter one. Argb 0 leaves the colour to the host.
-        if (data is null || _span is not { } span || data.TotalFrames == 0)
+        if (_span is not { } span || data.TotalFrames == 0)
         {
             return [];
         }

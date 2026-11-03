@@ -33,7 +33,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Export;
 internal sealed class ChannelVideoFrameSource : IEnumerable<IVideoFrame>, IEnumerator<IVideoFrame>
 {
     /// <summary>Frames in flight between the renderer and ffmpeg. Four is a frame of slack, not a queue.</summary>
-    public const int DefaultCapacity = 4;
+    private const int DefaultCapacity = 4;
 
     private readonly Channel<PooledRgbaFrame> _channel;
     private readonly ConcurrentBag<PooledRgbaFrame> _spare = [];
@@ -49,7 +49,7 @@ internal sealed class ChannelVideoFrameSource : IEnumerable<IVideoFrame>, IEnume
         });
 
     /// <summary>Frames the reader has pulled. Diagnostics and tests.</summary>
-    public int FramesRead { get; private set; }
+    private int FramesRead { get; set; }
 
     /// <inheritdoc />
     public IEnumerator<IVideoFrame> GetEnumerator()

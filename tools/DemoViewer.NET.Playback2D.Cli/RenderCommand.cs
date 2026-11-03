@@ -137,7 +137,7 @@ internal static class RenderCommand
     ///     Documented rather than hidden, because it is also the first thing to ask for in support
     ///     triage.
     /// </summary>
-    public static void DumpLoadedAssemblies()
+    private static void DumpLoadedAssemblies()
     {
         JsonArray names = [];
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
@@ -157,7 +157,7 @@ internal static class RenderCommand
 
     /// <summary>Lower-case hex SHA-256. The determinism assertions compare these.</summary>
     /// <param name="bytes">The payload to hash.</param>
-    public static string Sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+    private static string Sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
     /// <summary>Copies a string list into a JSON array.</summary>
     /// <param name="values">The values.</param>

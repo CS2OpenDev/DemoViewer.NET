@@ -62,20 +62,20 @@ public sealed class SceneExportSession
     }
 
     /// <summary>Resolved colours for the export. Defaults to the dark palette.</summary>
-    public ScenePalette Palette { get; set; } = ScenePalette.Dark;
+    public ScenePalette Palette { get; init; } = ScenePalette.Dark;
 
     /// <summary>How levels are laid out. Defaults to the stacked bands the window shows.</summary>
-    public LevelDisplayMode DisplayMode { get; set; } = LevelDisplayMode.Stacked;
+    public LevelDisplayMode DisplayMode { get; init; } = LevelDisplayMode.Stacked;
 
     /// <summary>
     ///     The map bundle's nav-derived floor bands, when there is one. Bound exactly as
     ///     <c>Scene2DHost</c> and <c>dv2d</c> bind them: without it the export derives its levels from the
     ///     Z histogram alone, and a two-floor Nuke video would not have the bands the window shows.
     /// </summary>
-    public IReadOnlyList<FloorSlice>? AuthoritativeFloors { get; set; }
+    public IReadOnlyList<FloorSlice>? AuthoritativeFloors { get; init; }
 
     /// <summary>The binder that gives each floor band its radar image, or null with no bundle.</summary>
-    public ILevelRadarBinder? RadarBinder { get; set; }
+    public ILevelRadarBinder? RadarBinder { get; init; }
 
     /// <summary>
     ///     Whether the radar image is resampled once and blitted thereafter, rather than re-resampled per
@@ -84,7 +84,7 @@ public sealed class SceneExportSession
     ///     (a sub-pixel difference against the pre-v2 parity reference, which is why the flag is off
     ///     everywhere else). Turn it off to render an export through exactly the window's draw path.
     /// </summary>
-    public bool CacheRadarResample { get; set; } = true;
+    private bool CacheRadarResample { get; } = true;
 
     /// <summary>
     ///     Optional per-stage / per-layer capture. Null, the default, leaves the loop byte-for-byte what
@@ -99,7 +99,7 @@ public sealed class SceneExportSession
     ///         answer.
     ///     </para>
     /// </summary>
-    internal ScenePerfRecorder? Perf { get; set; }
+    internal ScenePerfRecorder? Perf { get; init; }
 
     /// <summary>
     ///     The layers that are off unless <see cref="ExportRequest.LayerIds" /> names them explicitly.
@@ -184,7 +184,7 @@ public sealed class SceneExportSession
         {
             Report(progress, ExportPhase.Preparing, 0, total, clock, null);
 
-            if (src is IPreparableFrameSource preparable && preparable.NeedsPreparation)
+            if (src is IPreparableFrameSource { NeedsPreparation: true } preparable)
             {
                 // One from-zero replay to reach StartFrame, surfaced as its own phase because on
                 // a full demo it is seconds long and a frozen 0/1800 would look like a hang.
@@ -195,27 +195,25 @@ public sealed class SceneExportSession
             ct.ThrowIfCancellationRequested();
 
             CameraScriptResolver resolver = new(req.Camera);
-            using HeadlessSceneRenderer renderer = new(surfaces, _compositor)
-            {
-                Size = req.Size,
-                Palette = Palette,
-                DisplayMode = DisplayMode,
-                Purpose = RenderPurpose.Export,
-                CameraPolicy = resolver,
+            using HeadlessSceneRenderer renderer = new(surfaces, _compositor);
+            renderer.Size = req.Size;
+            renderer.Palette = Palette;
+            renderer.DisplayMode = DisplayMode;
+            renderer.Purpose = RenderPurpose.Export;
+            renderer.CameraPolicy = resolver;
 
-                // The offscreen twin of the host's one-shot fit. An export's panes are born fitted to
-                // WorldBounds.Default (±3000) because Reconcile runs before any frame has been read, and
-                // with AdvanceCameras off and, in both front ends, an empty default camera script,
-                // NOTHING re-framed them afterwards. Every export was framed by a placeholder.
-                //
-                // The policy still has the last word: a user who pinned a camera or asked for "mirror
-                // the live view" gets theirs applied after this, on the same frame.
-                AutoFitOnFirstMapBounds = true,
+            // The offscreen twin of the host's one-shot fit. An export's panes are born fitted to
+            // WorldBounds.Default (±3000) because Reconcile runs before any frame has been read, and
+            // with AdvanceCameras off and, in both front ends, an empty default camera script,
+            // NOTHING re-framed them afterwards. Every export was framed by a placeholder.
+            //
+            // The policy still has the last word: a user who pinned a camera or asked for "mirror
+            // the live view" gets theirs applied after this, on the same frame.
+            renderer.AutoFitOnFirstMapBounds = true;
 
-                // The script owns the cameras outright; letting the rigs step them as well would be two
-                // hands on the same wheel.
-                AdvanceCameras = false
-            };
+            // The script owns the cameras outright; letting the rigs step them as well would be two
+            // hands on the same wheel.
+            renderer.AdvanceCameras = false;
 
             renderer.Levels.SetAuthoritativeFloors(AuthoritativeFloors);
             renderer.Levels.RadarBinder = RadarBinder;

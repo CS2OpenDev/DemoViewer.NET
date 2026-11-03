@@ -358,8 +358,6 @@ public sealed class AnnotationSession
     /// </summary>
     public const int DefaultTicksPerSecond = 64;
 
-    private int _ticksPerSecond = DefaultTicksPerSecond;
-
     /// <summary>Creates a session over a document.</summary>
     /// <param name="document">The document this session edits.</param>
     public AnnotationSession(AnnotationDocument document)
@@ -387,9 +385,9 @@ public sealed class AnnotationSession
     /// </summary>
     public int TicksPerSecond
     {
-        get => _ticksPerSecond;
-        set => _ticksPerSecond = value > 0 ? value : DefaultTicksPerSecond;
-    }
+        get;
+        set => field = value > 0 ? value : DefaultTicksPerSecond;
+    } = DefaultTicksPerSecond;
 
     /// <summary>
     ///     Answers "which round encloses this DV tick", in ticks, for <see cref="EnvelopeMode.Round" />.

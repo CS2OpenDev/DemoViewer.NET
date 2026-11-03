@@ -27,14 +27,7 @@ namespace AnalysisBench;
 /// </summary>
 internal static class RulesCheckCommand
 {
-    // Demo-less v2 resolution: the parser's 64/s default and a
-    // default source profile. The resolution diagnostics (bad refs, type errors, cycles) are
-    // rate- and profile-independent; folding + param binding (which the hash depends on) only
-    // matter at the per-demo build, so a demo-less check surfaces every reference/type error.
-    private const double DemoLessTickRate = 64.0;
-    private const string DemoLessProfileId = "Cs2GotvProfile";
-
-    internal static int Run(string[] positional, Dictionary<string, string> namedArgs, HashSet<string> flags)
+    internal static int Run(string[] positional, Dictionary<string, string> namedArgs)
     {
         string rulesDir = positional.Length > 0
             ? positional[0]

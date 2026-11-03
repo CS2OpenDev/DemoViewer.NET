@@ -25,8 +25,6 @@ public sealed record LibraryDemo(
     DateTime Modified,
     long FileSizeBytes)
 {
-    private readonly IReadOnlyList<string>? _locations;
-
     /// <summary>
     ///     Lowercase hex SHA-256 of the file: the demo's identity, the key the library and
     ///     <see cref="IExtensionDemoData" /> keep its data under. Null until the library has read the file at
@@ -43,8 +41,8 @@ public sealed record LibraryDemo(
     /// </summary>
     public IReadOnlyList<string> Locations
     {
-        get => _locations ?? [FilePath];
-        init => _locations = value is { Count: > 0 } ? value : null;
+        get => field ?? [FilePath];
+        init => field = value is { Count: > 0 } ? value : null;
     }
 
     /// <summary>The server name from the demo's header, or null.</summary>

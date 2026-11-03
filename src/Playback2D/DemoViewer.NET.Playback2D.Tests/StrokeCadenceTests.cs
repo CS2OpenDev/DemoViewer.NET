@@ -380,15 +380,15 @@ public class StrokeCadenceTests
             Tool = new DrawTool();
         }
 
-        public LevelPane Pane { get; }
+        private LevelPane Pane { get; }
 
-        public AnnotationDocument Document { get; }
+        private AnnotationDocument Document { get; }
 
-        public AnnotationSession Session { get; }
+        private AnnotationSession Session { get; }
 
         public FakeToolServices Services { get; }
 
-        public DrawTool Tool { get; }
+        private DrawTool Tool { get; }
 
         public AnnotationElement Committed => Document.Elements[0];
 

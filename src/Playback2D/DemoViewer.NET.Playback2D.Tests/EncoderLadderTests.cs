@@ -496,7 +496,7 @@ public class FfmpegEncoderProbeTests
         FfmpegEncoderProbe probe = new();
 
         using CancellationTokenSource cancelled = new();
-        cancelled.Cancel();
+        await cancelled.CancelAsync();
 
         // A cancelled walk says so. It does NOT come back with an empty listing, which is
         // indistinguishable from "this build carries no encoders". EncoderProbeCache refuses to cache a

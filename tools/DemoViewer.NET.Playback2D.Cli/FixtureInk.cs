@@ -15,9 +15,6 @@ namespace DemoViewer.NET.Playback2D.Cli;
 /// </summary>
 internal static class FixtureInk
 {
-    /// <summary>The corpus subdirectory holding sidecars, beside <c>scenes/</c> and <c>goldens/</c>.</summary>
-    public const string CorpusDirectoryName = CorpusSidecars.AnnotationsDirectory;
-
     /// <summary>
     ///     The session for a sidecar, or null when the file is absent, empty, or holds nothing this build
     ///     can parse. Null is the same answer <c>ExportCommand</c> gives, and for the same reason: a

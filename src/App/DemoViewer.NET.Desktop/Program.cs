@@ -20,7 +20,7 @@ using Velopack;
 
 namespace DemoViewer.NET.Desktop;
 
-internal sealed class Program
+internal static class Program
 {
     // Avalonia configuration, don't remove; also used by visual designer.
     /// <summary>Build avalonia app.</summary>

@@ -39,9 +39,6 @@ public sealed record ExportRequest(
 {
     /// <summary>Frames this request will produce.</summary>
     public int FrameCount => EndFrame - StartFrame + 1;
-
-    /// <summary>The fixed timestep every frame is advanced by, in seconds.</summary>
-    public double DeltaSeconds => Speed / Fps;
 }
 
 /// <summary>

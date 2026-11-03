@@ -72,7 +72,7 @@ public sealed class HeadlessSceneRenderer : IDisposable
     public MapSpaceFactory Levels { get; } = new();
 
     /// <summary>The layer stack being drawn. Not owned.</summary>
-    internal SceneCompositor Compositor { get; }
+    private SceneCompositor Compositor { get; }
 
     /// <summary>The backend the underlying provider hands out.</summary>
     public RenderBackend Backend => _surfaces.Backend;
@@ -306,7 +306,7 @@ public sealed class HeadlessSceneRenderer : IDisposable
     /// <summary>Advances, renders and snapshots in one call. The caller owns the returned image.</summary>
     /// <param name="frame">The frame to render.</param>
     /// <param name="time">The injected clock.</param>
-    public SKImage RenderFrame(Scene2DFrame frame, in SceneTime time)
+    private SKImage RenderFrame(Scene2DFrame frame, in SceneTime time)
     {
         Advance(frame, in time);
         Render();

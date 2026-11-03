@@ -106,7 +106,8 @@ public class QueryCanvasTests
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = new();
         compositor.Add(new QueryTokenLayer(document));
-        using HeadlessSceneRenderer renderer = new(provider, compositor) { Size = new SKSizeI(400, 400) };
+        using HeadlessSceneRenderer renderer = new(provider, compositor);
+        renderer.Size = new SKSizeI(400, 400);
         renderer.Levels.SetAuthoritativeFloors([new FloorSlice(-1000, -300), new FloorSlice(-300, 500)]);
 
         WorldBounds bounds = new(-2000, -2000, 2000, 2000);
@@ -166,13 +167,13 @@ public class QueryCanvasTests
             .Because("a fixture round-trips byte for byte");
         await Assert.That(System.Text.Encoding.UTF8.GetString(first.ToArray())).DoesNotContain("\r\n");
 
-        const string partial = """
+        const string Partial = """
                                {"schemaVersion":"dvquery/1","map":"de_nuke","tokens":[
                                  {"side":"ct","slot":1,"worldX":1,"worldY":2,"levelMinZ":0,"place":"Ramp"},
                                  {"side":"spectator","slot":0,"worldX":0,"worldY":0,"levelMinZ":0},
                                  {"side":"t","slot":9,"worldX":0,"worldY":0,"levelMinZ":0}]}
                                """;
-        using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(partial));
+        using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(Partial));
         QueryCanvasDocument tolerant = QueryFixtureStore.Read(stream);
         await Assert.That(tolerant.PlacedCount).IsEqualTo(1)
             .Because("an unknown side and a slot out of range are dropped, not fatal");

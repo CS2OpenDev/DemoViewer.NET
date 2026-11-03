@@ -55,10 +55,10 @@ public sealed class SceneFrameBuilder
     // The grenade-projectile classes whose flight paths get a trail (all derive from CBaseCSGrenadeProjectile,
     // all carry CBodyComponent cell coords). Built once (static) so the per-frame scan allocates no strings.
     private static readonly string[] _grenadeProjectileClasses =
-    {
+    [
         "CHEGrenadeProjectile", "CFlashbangProjectile", "CSmokeGrenadeProjectile", "CMolotovProjectile",
         "CDecoyProjectile"
-    };
+    ];
 
     // Last-known world position per slot. When a pawn orphans on death (no live position) a gray marker
     // is held here until respawn. Cleared with the ring cache on backward seek / reset.
@@ -648,7 +648,7 @@ public sealed class SceneFrameBuilder
             _hudDefuseSeconds = defuseRemain;
             _hudDefuseTime = defuseRemain > 0 ? FormatClock(defuseRemain) : "0:00";
             // m_flDefuseLength is 5 with a kit, 10 without. Surface that as a label.
-            _hudDefuseKitNote = defuseLen > 0 && defuseLen <= 6 ? "with kit" : "no kit";
+            _hudDefuseKitNote = defuseLen is > 0 and <= 6 ? "with kit" : "no kit";
 
             beingDefused = true;
             defuseFraction = defuseLen > 0 ? Math.Clamp(defuseRemain / defuseLen, 0, 1) : 0;

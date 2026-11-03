@@ -44,7 +44,7 @@ public class FixtureCommandTests
     public async Task Verify_MalformedScene_ExitsFour()
     {
         using CorpusCopy copy = new();
-        File.WriteAllText(Path.Combine(copy.Path, "scenes", "synthetic-empty.scene.json"), "{ not json");
+        await File.WriteAllTextAsync(Path.Combine(copy.Path, "scenes", "synthetic-empty.scene.json"), "{ not json");
 
         CliRun run = Dv2d.InProcess("fixture", "verify", "--corpus", copy.Path, "--json");
 

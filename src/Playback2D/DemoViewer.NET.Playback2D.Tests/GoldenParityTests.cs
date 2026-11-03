@@ -46,7 +46,7 @@ public class GoldenParityTests
     // numbers is a second thing to keep in step. Judge through Evaluate for the same reason: sharing
     // the numbers but re-deciding the pass locally leaves two gates to keep in step instead of two
     // constants.
-    private static readonly GoldenDistribution Gate = GoldenDistribution.PreV2Capture;
+    private static readonly GoldenDistribution _gate = GoldenDistribution.PreV2Capture;
 
     /// <summary>
     ///     The palette the corpus was captured under. The headless app resolves the <b>Light</b> theme
@@ -80,7 +80,7 @@ public class GoldenParityTests
         await WriteArtifacts(name, expected, actual);
 
         await Assert.That(profile.Width).IsEqualTo(fixture.Size.Width);
-        await Assert.That(Gate.Evaluate(profile)).IsNull();
+        await Assert.That(_gate.Evaluate(profile)).IsNull();
     }
 
     /// <summary>

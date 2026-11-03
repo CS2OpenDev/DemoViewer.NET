@@ -23,7 +23,7 @@ namespace DemoViewer.NET.Playback2DTests;
 /// </summary>
 public class OverlayViewTests
 {
-    private static readonly WorldBounds Bounds = new(-2000, -2000, 2000, 2000);
+    private static readonly WorldBounds _bounds = new(-2000, -2000, 2000, 2000);
 
     [Test]
     public async Task TheDocument_IsReplacedWhole_AndBumpsOnEveryChange()
@@ -169,17 +169,17 @@ public class OverlayViewTests
         await Assert.That(text).Contains("    [620, -420, -416]")
             .Because("one point per line, the shape a diff can read");
 
-        const string partial = """
+        const string Partial = """
                                {"schemaVersion":"dvoverlay/1","map":"de_nuke","states":3,
                                 "ct":[[1,2,3],[4,5]],"t":[[7,8,9,10]]}
                                """;
-        using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(partial));
+        using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(Partial));
         OverlayDocument tolerant = OverlayFixtureStore.Read(stream);
         await Assert.That(tolerant.Count).IsEqualTo(2).Because("a tuple short of three numbers is dropped, not fatal");
         await Assert.That(tolerant.Points[1]).IsEqualTo(new OverlayPoint(7, 8, 9, QuerySide.T));
 
         using MemoryStream empty =
-            new(System.Text.Encoding.UTF8.GetBytes("""{"schemaVersion":"dvoverlay/1","map":"de_nuke","states":0}"""));
+            new("""{"schemaVersion":"dvoverlay/1","map":"de_nuke","states":0}"""u8.ToArray());
         await Assert.That(OverlayFixtureStore.Read(empty).IsEmpty).IsTrue();
     }
 
@@ -237,7 +237,7 @@ public class OverlayViewTests
 
     private static Scene2DFrame Frame() => new()
     {
-        Map = new SceneMapInfo { MapName = "synthetic", NetworkedBounds = Bounds, ObservedBounds = Bounds }
+        Map = new SceneMapInfo { MapName = "synthetic", NetworkedBounds = _bounds, ObservedBounds = _bounds }
     };
 
     private static SKColor Probe(SKBitmap bitmap, LevelPaneSnapshot pane, float worldX, float worldY)

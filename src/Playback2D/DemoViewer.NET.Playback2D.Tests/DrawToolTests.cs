@@ -318,7 +318,7 @@ public class DrawToolTests
             Tool = new DrawTool();
         }
 
-        public LevelPane Pane { get; }
+        private LevelPane Pane { get; }
 
         public AnnotationDocument Document { get; }
 

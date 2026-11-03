@@ -145,7 +145,7 @@ public class ZoneSetReaderTests
             throw new SkipTestException("no de_nuke bundle with zones.json in this checkout");
         }
 
-        ZoneVolume site = resolver.Zones.Volumes.First(v => v.Kind == ZoneVolumeKind.Bombsite && v.Site == Bombsite.A);
+        ZoneVolume site = resolver.Zones.Volumes.First(v => v is { Kind: ZoneVolumeKind.Bombsite, Site: Bombsite.A });
         Vector3 centre = (site.Min + site.Max) / 2;
 
         PlaceHit hit = resolver.Resolve(centre);
@@ -158,7 +158,7 @@ public class ZoneSetReaderTests
         await Assert.That(resolver.Adjacent(hit.PlaceId).Count).IsGreaterThan(0);
     }
 
-    internal sealed class TempDir : IDisposable
+    private sealed class TempDir : IDisposable
     {
         public TempDir()
         {

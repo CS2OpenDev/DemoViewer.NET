@@ -34,7 +34,7 @@ internal static class PerfOutput
     ///     resolved by <see cref="Profiling.Enabled" />; honouring both means neither spelling silently
     ///     does nothing.
     /// </summary>
-    public const string LegacyEnvironmentVariable = "DEMOVIEWER_PROFILE";
+    private const string LegacyEnvironmentVariable = "DEMOVIEWER_PROFILE";
 
     /// <summary>How many rows the "slowest operations" ranking prints.</summary>
     private const int RankedRows = 6;

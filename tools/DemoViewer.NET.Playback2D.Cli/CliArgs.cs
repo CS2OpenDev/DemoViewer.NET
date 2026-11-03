@@ -206,9 +206,7 @@ internal sealed class CliArgs
     public IReadOnlyList<string>? List(string name)
     {
         string? raw = String(name);
-        return raw is null
-            ? null
-            : raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return raw?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     /// <summary>Marks a positional token consumed for the purpose of unknown-option detection.</summary>

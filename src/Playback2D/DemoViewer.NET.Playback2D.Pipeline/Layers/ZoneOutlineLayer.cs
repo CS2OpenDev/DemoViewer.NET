@@ -172,7 +172,7 @@ public sealed class ZoneOutlineLayer : ISceneLayer
     // quantized exactly as the baker keyed the areas, so the two agree by construction.
     private static double[] FloorsFor(in SceneRenderContext ctx, PlaceResolver resolver)
     {
-        if (!ctx.IsSingleLevel && ctx.Pane.Level is { } level)
+        if (ctx is { IsSingleLevel: false, Pane.Level: { } level })
         {
             return [MapSpace.QuantizeZ(level.ZMin)];
         }

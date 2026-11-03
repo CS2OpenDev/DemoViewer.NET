@@ -47,7 +47,7 @@ public sealed class ClockLayer : ISceneLayer
     private readonly bool _ownsText;
     private readonly SKPaint _paint;
     private readonly Dictionary<int, string> _rounds = new(64);
-    private readonly string[] _scores = new string[128];
+    private readonly string?[] _scores = new string?[128];
     private readonly HudStyle _style;
     private readonly TextBlobCache _text;
 
@@ -244,7 +244,7 @@ public sealed class ClockLayer : ISceneLayer
     // A score is a small non-negative integer, so the whole domain is an array: no dictionary, no
     // formatting past the first time a number is reached. Anything outside overtime's plausible range
     // formats every frame, which is the correct trade for an input that cannot happen in a real demo.
-    private string Score(int score) => score is >= 0 && score < 128
+    private string Score(int score) => score is >= 0 and < 128
         ? _scores[score] ??= score.ToString(CultureInfo.InvariantCulture)
         : score.ToString(CultureInfo.InvariantCulture);
 

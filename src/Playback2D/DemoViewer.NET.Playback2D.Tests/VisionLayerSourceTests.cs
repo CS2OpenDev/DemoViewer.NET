@@ -159,11 +159,9 @@ public class VisionLayerSourceTests
     }
 
     // Enough of an IVisionSolver to say "I produced N cones" or "I produced nothing".
-    private sealed class StubSolver : IVisionSolver
+    private sealed class StubSolver(int cones) : IVisionSolver
     {
-        private readonly int _cones;
-
-        public StubSolver(int cones) => _cones = cones;
+        private readonly int _cones = cones;
 
         public bool IsReady => _cones > 0;
 

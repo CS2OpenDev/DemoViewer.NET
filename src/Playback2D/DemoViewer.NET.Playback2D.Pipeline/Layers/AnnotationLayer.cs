@@ -44,7 +44,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Layers;
 public sealed class AnnotationLayer : ISceneLayer
 {
     /// <summary>The stable, persisted layer id. An export toggles annotations by this string.</summary>
-    public static readonly string LayerId = SceneLayerIds.Annotations;
+    private static readonly string _layerId = SceneLayerIds.Annotations;
 
     // How many alpha steps a real-time stroke's fading tail is drawn in.
     //
@@ -56,7 +56,7 @@ public sealed class AnnotationLayer : ISceneLayer
 
     // Generous world-space cull for the dry recordings, the same bound the compositor uses for its own
     // Static pictures. CS2 maps live well inside ±32768 world units.
-    private static readonly SKRect WorldCull = new(-32768, -32768, 32768, 32768);
+    private static readonly SKRect _worldCull = new(-32768, -32768, 32768, 32768);
 
     // Keyed by the anchor's STORED level ZMin, not by a level id. The id an anchor belongs to is a
     // question only MapSpace can answer (MapSpace.IdForAnchor), and there is no space in Advance, so the
@@ -123,7 +123,7 @@ public sealed class AnnotationLayer : ISceneLayer
     public int PreparedCount => _prepared.Count;
 
     /// <inheritdoc />
-    public string Id => LayerId;
+    public string Id => _layerId;
 
     /// <inheritdoc />
     public LayerSlot Slot => LayerSlot.Overlay;
@@ -253,7 +253,7 @@ public sealed class AnnotationLayer : ISceneLayer
     private void RecordLevel(AnnotationDocument document, double levelMinZ)
     {
         using SKPictureRecorder recorder = new();
-        SKCanvas recording = recorder.BeginRecording(WorldCull);
+        SKCanvas recording = recorder.BeginRecording(_worldCull);
 
         IReadOnlyList<AnnotationElement> elements = document.Elements;
         for (int i = 0; i < elements.Count; i++)

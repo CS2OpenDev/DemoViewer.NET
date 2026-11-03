@@ -31,7 +31,6 @@ public sealed class LevelPane
     public SliceCamera Camera;
 
     private ViewportTransform _epochTransform;
-    private SKRect _viewportRect;
 
     /// <summary>Creates a pane for a level with a starting camera and rig.</summary>
     /// <param name="level">The level this pane shows.</param>
@@ -59,15 +58,15 @@ public sealed class LevelPane
     /// </summary>
     public SKRect ViewportRect
     {
-        get => _viewportRect;
+        get;
         set
         {
-            if (_viewportRect == value)
+            if (field == value)
             {
                 return;
             }
 
-            _viewportRect = value;
+            field = value;
             CameraEpoch++;
         }
     }

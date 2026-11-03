@@ -271,7 +271,7 @@ public static class YamlEdits
     ///     a plain boolean, while a label of <c>Kills</c> set to <c>true</c> is quoted, because the
     ///     author was writing a string there a moment ago.
     /// </param>
-    public static string Quote(string value, ScalarStyle style, bool inFlow = false,
+    private static string Quote(string value, ScalarStyle style, bool inFlow = false,
         bool wasNonString = false)
     {
         ArgumentNullException.ThrowIfNull(value);

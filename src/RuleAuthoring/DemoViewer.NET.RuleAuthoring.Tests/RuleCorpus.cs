@@ -24,7 +24,7 @@ internal static class RuleCorpus
     }
 
     /// <summary>The repository's <c>rules/</c> directory.</summary>
-    internal static string RulesDirectory()
+    private static string RulesDirectory()
     {
         DirectoryInfo? dir = new(AppContext.BaseDirectory);
         while (dir is not null)

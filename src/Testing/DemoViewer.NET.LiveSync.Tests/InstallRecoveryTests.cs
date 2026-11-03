@@ -116,8 +116,9 @@ public class InstallRecoveryTests
     {
         using FakeInstall install = new();
         install.LeaveCrashedSession(Original);
+        LiveSyncSettings settings = install.Settings;
 
-        await Assert.That(() => InstallRecovery.Restore(install.Settings, null, () => true))
+        await Assert.That(() => InstallRecovery.Restore(settings, null, () => true))
             .Throws<InvalidOperationException>().WithMessageContaining("CS2 is running");
         await Assert.That(await File.ReadAllTextAsync(install.GameInfo)).IsEqualTo(Patched);
         await Assert.That(Directory.Exists(install.PluginDir)).IsTrue();
@@ -140,8 +141,9 @@ public class InstallRecoveryTests
     {
         using FakeInstall install = new();
         install.LeaveCrashedSession(Original);
+        LiveSyncSettings settings = install.Settings;
 
-        await Assert.That(() => InstallRecovery.EnsureRestoredBeforeLaunch(install.Settings, null, () => true))
+        await Assert.That(() => InstallRecovery.EnsureRestoredBeforeLaunch(settings, null, () => true))
             .Throws<InvalidOperationException>().WithMessageContaining("so CS2 was not started");
     }
 
@@ -152,8 +154,9 @@ public class InstallRecoveryTests
     {
         using FakeInstall install = new();
         install.LeaveCrashedSession(Original.Replace("Game\tcore", "Game\tcore_old", StringComparison.Ordinal));
+        LiveSyncSettings settings = install.Settings;
 
-        await Assert.That(() => InstallRecovery.EnsureRestoredBeforeLaunch(install.Settings, null, () => false))
+        await Assert.That(() => InstallRecovery.EnsureRestoredBeforeLaunch(settings, null, () => false))
             .Throws<InvalidOperationException>().WithMessageContaining("Restore my CS2 install");
         await Assert.That(await File.ReadAllTextAsync(install.GameInfo)).IsEqualTo(Patched);
         await Assert.That(Directory.Exists(install.PluginDir)).IsTrue();
@@ -211,7 +214,8 @@ public class InstallRecoveryTests
             CancellationToken.None, () => true)).IsFalse();
 
         using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(100));
-        await Assert.That(async () => await InstallRecovery.WaitForCs2ExitAsync(TimeSpan.FromSeconds(30), cts.Token,
+        CancellationToken token = cts.Token;
+        await Assert.That(async () => await InstallRecovery.WaitForCs2ExitAsync(TimeSpan.FromSeconds(30), token,
             () => true)).Throws<OperationCanceledException>();
     }
 

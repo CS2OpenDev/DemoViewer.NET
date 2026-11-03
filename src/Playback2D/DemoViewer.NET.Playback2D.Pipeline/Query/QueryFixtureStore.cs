@@ -26,7 +26,7 @@ public static class QueryFixtureStore
     public const string SidecarExtension = ".dvquery.json";
 
     /// <summary>The schema stamp a writer puts in the file.</summary>
-    public const string SchemaVersion = "dvquery/1";
+    private const string SchemaVersion = "dvquery/1";
 
     /// <summary>Reads a document from a file.</summary>
     /// <param name="path">The <c>.dvquery.json</c> path.</param>
@@ -65,23 +65,6 @@ public static class QueryFixtureStore
         }
 
         return document;
-    }
-
-    /// <summary>Writes a document to a file, creating the directory if needed. Indented, LF on every platform.</summary>
-    /// <param name="document">The document.</param>
-    /// <param name="path">The <c>.dvquery.json</c> path.</param>
-    public static void WriteFile(QueryCanvasDocument document, string path)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-        ArgumentException.ThrowIfNullOrEmpty(path);
-
-        if (Path.GetDirectoryName(path) is { Length: > 0 } directory)
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        using FileStream stream = File.Create(path);
-        Write(document, stream);
     }
 
     /// <summary>Writes a document to a stream. Not closed.</summary>

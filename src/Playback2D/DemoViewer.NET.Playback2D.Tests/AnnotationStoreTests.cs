@@ -205,12 +205,12 @@ public class AnnotationStoreTests
         await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
 
         string path = store.ResolvePath(tree.DemoPath)!;
-        using JsonDocument json = JsonDocument.Parse(File.ReadAllText(path));
+        using JsonDocument json = JsonDocument.Parse(await File.ReadAllTextAsync(path));
         JsonElement first = json.RootElement.GetProperty("elements")[0];
 
         await Assert.That(first.TryGetProperty("timing", out JsonElement _)).IsFalse()
             .Because("a nullable DTO field plus WhenWritingNull is what keeps v1 documents unchanged");
-        await Assert.That(File.ReadAllText(path).Contains("timing", StringComparison.Ordinal)).IsFalse();
+        await Assert.That((await File.ReadAllTextAsync(path)).Contains("timing", StringComparison.Ordinal)).IsFalse();
     }
 
     /// <summary>A v1-shaped document, written before the field existed, loads with no cadence and no fuss.</summary>
@@ -226,7 +226,7 @@ public class AnnotationStoreTests
         // The document under test is one this build wrote for a cadence-less element, and the assertion
         // below is what makes that the same thing as a document written before the field existed.
         string path = store.ResolvePath(tree.DemoPath)!;
-        await Assert.That(File.ReadAllText(path).Contains("\"timing\"", StringComparison.Ordinal))
+        await Assert.That((await File.ReadAllTextAsync(path)).Contains("\"timing\"", StringComparison.Ordinal))
             .IsFalse();
 
         AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
@@ -263,13 +263,13 @@ public class AnnotationStoreTests
         string path = store.ResolvePath(tree.DemoPath)!;
 
         // The old build opens it, changes the ink colour, and saves.
-        V1Document? v1 = JsonSerializer.Deserialize<V1Document>(File.ReadAllText(path), _v1Json);
+        V1Document? v1 = JsonSerializer.Deserialize<V1Document>(await File.ReadAllTextAsync(path), _v1Json);
         await Assert.That(v1).IsNotNull();
         await Assert.That(v1!.Elements![0].Extra!.ContainsKey("timing")).IsTrue()
             .Because("a field with no property to bind to is exactly what the extension bag is for");
 
         v1.Elements[0].ColorArgb = 0xFF00FF00;
-        File.WriteAllText(path, JsonSerializer.Serialize(v1, _v1Json));
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(v1, _v1Json));
 
         AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
 
@@ -409,7 +409,7 @@ public class AnnotationStoreTests
 
         await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, loaded.Elements);
 
-        using JsonDocument json = JsonDocument.Parse(File.ReadAllText(path));
+        using JsonDocument json = JsonDocument.Parse(await File.ReadAllTextAsync(path));
         await Assert.That(json.RootElement.TryGetProperty("futureRootField", out JsonElement root)).IsTrue();
         await Assert.That(root.GetString()).IsEqualTo("kept");
 
@@ -501,8 +501,8 @@ public class AnnotationStoreTests
         await store.SaveAsync(tree.DemoPath, tree.Demo, tree.Clock, [AnnotationFakes.Stroke()]);
 
         string path = store.ResolvePath(tree.DemoPath)!;
-        string text = File.ReadAllText(path);
-        File.WriteAllText(path, text[..(text.Length / 2)]);
+        string text = await File.ReadAllTextAsync(path);
+        await File.WriteAllTextAsync(path, text[..(text.Length / 2)]);
 
         AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
 
@@ -536,13 +536,13 @@ public class AnnotationStoreTests
         DemoIdentity stranger = new(new string('a', 64), "other.dem", 1234);
         await store.SaveAsync(tree.DemoPath, stranger, tree.Clock, [AnnotationFakes.Stroke()]);
         string path = store.ResolvePath(tree.DemoPath)!;
-        string before = File.ReadAllText(path);
+        string before = await File.ReadAllTextAsync(path);
 
         AnnotationLoadResult loaded = await store.LoadAsync(tree.DemoPath, tree.Clock);
 
         await Assert.That(loaded.DemoMismatch).IsTrue();
         await Assert.That(loaded.Elements).IsEmpty();
-        await Assert.That(File.ReadAllText(path)).IsEqualTo(before)
+        await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(before)
             .Because("loading must never rewrite a file it decided not to trust");
     }
 
@@ -725,16 +725,16 @@ public class AnnotationStoreTests
     /// <summary>A document exactly as a build that predates <c>timing</c> models it: no such property.</summary>
     private sealed class V1Document
     {
-        public int SchemaVersion { get; set; }
+        public int SchemaVersion { get; init; }
 
-        public JsonElement Demo { get; set; }
+        public JsonElement Demo { get; init; }
 
-        public JsonElement Clock { get; set; }
+        public JsonElement Clock { get; init; }
 
-        public List<V1Element>? Elements { get; set; }
+        public List<V1Element>? Elements { get; init; }
 
         [JsonExtensionData]
-        public Dictionary<string, JsonElement>? Extra { get; set; }
+        public Dictionary<string, JsonElement>? Extra { get; init; }
     }
 
     /// <summary>The v1 element: every field that build knew, plus the bag everything else lands in.</summary>
@@ -789,7 +789,7 @@ public class AnnotationStoreTests
             Directory.CreateDirectory(AppData);
 
             DemoPath = Path.Combine(Root, "demos", "match.dem");
-            File.WriteAllBytes(DemoPath, [0x50, 0x42, 0x44, 0x45, 0x4D, 0x53, 0x32, 0x00]);
+            File.WriteAllBytes(DemoPath, "PBDEMS2\0"u8);
 
             Demo = AnnotationStore.IdentityFor(DemoPath);
             Clock = new ClockIdentity(ClockIdentity.DvFrameClock, 64, 12_345, 128, 49_500);

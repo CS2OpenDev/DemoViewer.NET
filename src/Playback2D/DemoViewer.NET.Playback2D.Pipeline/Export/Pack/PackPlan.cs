@@ -76,7 +76,7 @@ public sealed record PackClip(
     string? OutputPath) : PackSegment
 {
     /// <summary>The clip runs past its frame cap and is cut at it.</summary>
-    public bool Trimmed => MaxFrames is int cap && EstimatedFrames > cap;
+    public bool Trimmed => MaxFrames is { } cap && EstimatedFrames > cap;
 }
 
 /// <summary>A queued clip the pack leaves out, and why.</summary>
@@ -103,7 +103,7 @@ public sealed record PackPlan(
     public int EstimatedFrames => Segments.Sum(s => s switch
     {
         PackTitleCard card => card.Frames,
-        PackClip clip => clip.MaxFrames is int cap ? Math.Min(cap, clip.EstimatedFrames) : clip.EstimatedFrames,
+        PackClip clip => clip.MaxFrames is { } cap ? Math.Min(cap, clip.EstimatedFrames) : clip.EstimatedFrames,
         _ => 0
     });
 
@@ -328,7 +328,7 @@ public static class PackPlanner
         }
 
         int count = TrackerFrameSource.OutputFrameCount(frames, start, end, settings.Fps, 1.0, tickRate);
-        if (clip.MaxFrames is int cap)
+        if (clip.MaxFrames is { } cap)
         {
             count = Math.Min(count, cap);
         }

@@ -55,7 +55,7 @@ internal sealed class LayoutContext
     internal double TotalWidth { get; set; }
 
     /// <summary>Resolves a node's box height (per-node override or theme default).</summary>
-    internal double NodeHeight(IGraphNode n) => n.Style?.Height ?? Style.Node.Height;
+    private double NodeHeight(IGraphNode n) => n.Style?.Height ?? Style.Node.Height;
 
     /// <summary>Axis-aligned box for a placed node, in logical coordinates.</summary>
     internal Rect NodeRect(IGraphNode n)
@@ -66,7 +66,7 @@ internal sealed class LayoutContext
     }
 
     /// <summary>Resolves a node's box width (per-node override or theme default).</summary>
-    internal double NodeWidth(IGraphNode n) => n.Style?.Width ?? Style.Node.Width;
+    private double NodeWidth(IGraphNode n) => n.Style?.Width ?? Style.Node.Width;
 
     internal LayoutResult ToResult() => new(
         NodePositions, EdgeRoutes, SelfLoopRoutes, GroupBounds, TableLayouts,

@@ -33,7 +33,7 @@ public static class FreehandOutline
     // degenerate edge.
     private const double RateOfPressureChange = 0.275;
 
-    private static readonly double FixedPi = Math.PI + 1e-4;
+    private const double FixedPi = Math.PI + 1e-4;
 
     [ThreadStatic]
     private static List<Vec>? _left;

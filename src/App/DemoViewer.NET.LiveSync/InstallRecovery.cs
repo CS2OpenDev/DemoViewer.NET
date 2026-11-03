@@ -45,7 +45,7 @@ internal static class InstallRecovery
     ///     Serializes every restore. The banner's unattended restore and the pre-launch guard run on different
     ///     threads and would otherwise both rewrite gameinfo.gi and delete the plugin directory at once.
     /// </summary>
-    private static readonly object RestoreGate = new();
+    private static readonly Lock _restoreGate = new();
 
     /// <summary>How long a launch waits for the CS2 it just stopped to exit before the guard runs.</summary>
     internal static readonly TimeSpan Cs2ExitTimeout = TimeSpan.FromSeconds(15);
@@ -111,7 +111,7 @@ internal static class InstallRecovery
             throw new InvalidOperationException("CS2 is running. Close it, then try again.");
         }
 
-        lock (RestoreGate)
+        lock (_restoreGate)
         {
             RestoreCore(settings, log);
         }
@@ -155,7 +155,7 @@ internal static class InstallRecovery
     public static void EnsureRestoredBeforeLaunch(LiveSyncSettings settings, Action<string>? log = null,
         Func<bool>? isCs2Running = null)
     {
-        lock (RestoreGate)
+        lock (_restoreGate)
         {
             LeftoverState? state = Detect(settings, isCs2Running);
             if (state?.Any != true)
@@ -218,7 +218,7 @@ internal static class InstallRecovery
     ///     then changes nothing but CSVG's own line, which is what makes an unattended restore safe: a
     ///     game update since the backup, or a doubled marker, fails the comparison.
     /// </summary>
-    internal static bool BackupUndoesOnlyThePatch(string gameInfoPath, string current)
+    private static bool BackupUndoesOnlyThePatch(string gameInfoPath, string current)
     {
         string backupPath = Cs2DirectoryUtil.GetBackupFilePath(gameInfoPath);
         return File.Exists(backupPath) && IsExactlyThePatch(current, File.ReadAllText(backupPath));

@@ -146,7 +146,7 @@ public static partial class Variants
             ["icon-fallback"] = IconFallbackGallery,
             ["navstrip-real"] = NavStripReal,
             ["navstrip-real-target"] = NavStripRealTarget,
-            ["navstrip-proposed"] = () => NavStripProposed(),
+            ["navstrip-proposed"] = NavStripProposed,
             ["navstrip-icon-probe"] = NavIconProbe,
             ["navstrip-redesign-a"] = () => NavStripRedesign(JumpVariant.IconOnly),
             ["navstrip-redesign-b"] = () => NavStripRedesign(JumpVariant.IconCaption),
@@ -159,7 +159,7 @@ public static partial class Variants
             ["toolbar-proposed"] = () => Toolbar(true),
             ["welcome-current"] = () => Welcome(false),
             ["welcome-proposed"] = () => Welcome(true),
-            ["breakpoints-map"] = () => BreakpointsMap(),
+            ["breakpoints-map"] = BreakpointsMap,
             ["settings"] = () => Settings(),
             // Concurrency seeded to 2 so the BACKGROUND PROCESSING section shows the RAM-risk warning (the
             // safety-critical element). The default state (1, no warning) is
@@ -311,7 +311,7 @@ public static partial class Variants
             ["player-overview-search"] = () => PlayerOverview(true, "zyw"),
             // A Me account with a dozen demos: the header with aliases, and a history mixing read stats, a demo
             // whose facet is not written ("stats pending"), an approximate time and a left-early row.
-            ["player-overview-populated"] = () => PlayerOverviewPopulated(),
+            ["player-overview-populated"] = PlayerOverviewPopulated,
             ["strat-editor"] = () => StratEditor(false, false),
             ["strat-editor-collapsed"] = () => StratEditor(true, true),
             ["strat-editor-bare"] = () => StratEditor(false, false, true),
@@ -379,7 +379,6 @@ public static partial class Variants
     // Region rects (overlay == backdrop coords, both fill the window from 0,0 at 1280x800).
     private static readonly Rect _tabNavRect = new(6, 4, 384, 36); // union of the tab headers
     private static readonly Rect _libraryTabRect = new(8, 5, 96, 34); // the "Library" tab header
-    private static readonly Rect _openDemoRect = new(1136, 6, 120, 32); // top-right "Open Demo" button
     private static readonly Rect _firstCardRect = new(24, 68, 231, 147); // the first Library demo card
     private static readonly Rect _transportRect = new(10, 758, 330, 34); // bottom transport strip
 
@@ -456,10 +455,12 @@ public static partial class Variants
             // it FALSE so the footer renders the real "Generate reel" primary the majority of users see.
             dryRunOnly: false,
             // Injected so the "demo moved" pre-flight is reachable without touching the filesystem.
-            fileExists: _ => demosExist);
-        // The reel defaults are unseeded in a headless host, so pin an output folder. Otherwise every
-        // capture shows the "choose an output folder" banner instead of the state under test.
-        vm.ReelConfig.OutputFolder = "/Users/you/Movies/Reels";
+            fileExists: _ => demosExist)
+        {
+            // The reel defaults are unseeded in a headless host, so pin an output folder. Otherwise every
+            // capture shows the "choose an output folder" banner instead of the state under test.
+            ReelConfig = { OutputFolder = "/Users/you/Movies/Reels" }
+        };
 
         if (populated)
         {
@@ -528,11 +529,12 @@ public static partial class Variants
 
         for (int d = 0; d < 8; d++)
         {
+            int demo = d;
             (string Name, string SteamId, int Team, int Slot)[] roster =
             [
                 .. Enumerable.Range(0, 5).Select(i =>
                 {
-                    int p = (d * 3 + i) % players.Length;
+                    int p = (demo * 3 + i) % players.Length;
                     return (players[p], "7656119800000" + p.ToString("D4",
                             CultureInfo.InvariantCulture),
                         i < 3 ? 2 : 3, i);
@@ -545,7 +547,7 @@ public static partial class Variants
                     .. Enumerable.Range(0, 30).Select(e =>
                     {
                         (string name, string steam, int _, int slot) = roster[e % roster.Length];
-                        string type = types[(d + e) % types.Length];
+                        string type = types[(demo + e) % types.Length];
                         int round = e + 1;
                         return (name, steam, slot, e, round, 6000 + e * 3700,
                             $"{name} — {type[(type.IndexOf('.') + 1)..].Replace('_', ' ')} (round {round})",
@@ -635,11 +637,11 @@ public static partial class Variants
 
         // Recents live in the Recents section of the single config file. Seed them through a
         // throwaway temp-dir SettingsService, then load via the store (mirrors the real DI wiring).
-        List<RecentFile> seeded = new()
-        {
+        List<RecentFile> seeded =
+        [
             new RecentFile("/demos/nuke_ecoround.dem", "de_nuke", DateTime.UtcNow.AddDays(-2)), // missing → dimmed
             new RecentFile(realDemo, "de_mirage", DateTime.UtcNow.AddDays(-6)) // exists
-        };
+        ];
         SettingsService recentsSettings = new(dir);
         recentsSettings.SaveRecents(seeded);
         RecentFilesStore recents = new(recentsSettings);
@@ -759,8 +761,8 @@ public static partial class Variants
     /// </summary>
     private static HarvestFrameListControl FrameList()
     {
-        List<HarvestFrameRowViewModel> rows = new()
-        {
+        List<HarvestFrameRowViewModel> rows =
+        [
             new HarvestFrameRowViewModel
             {
                 FrameNumber = 1, FrameType = "DEM_FileHeader", MessageCount = 0, ByteSize = 320
@@ -793,11 +795,13 @@ public static partial class Variants
             {
                 FrameNumber = 7, FrameType = "DEM_Packet", MessageCount = 19, ByteSize = 9600
             }
-        };
+        ];
 
         MainViewModel vm = new() { HasFile = true };
-        HarvestFrameListControl ctl = new() { DataContext = vm, Frames = rows };
-        ctl.SelectedItem = rows[2]; // exercise the selected-row fill token
+        HarvestFrameListControl ctl = new()
+        {
+            DataContext = vm, Frames = rows, SelectedItem = rows[2] // exercise the selected-row fill token
+        };
         return ctl;
     }
 
@@ -881,7 +885,7 @@ public static partial class Variants
         {
             Grid g = new() { ColumnDefinitions = new ColumnDefinitions("Auto,42,54,Auto,*"), ColumnSpacing = 8 };
 
-            void Cell(int col, string text, string? tok = null, Action<TextBlock>? mutate = null)
+            void LogCell(int col, string text, string? tok = null, Action<TextBlock>? mutate = null)
             {
                 TextBlock tb = new() { Text = text };
                 if (tok is not null)
@@ -894,8 +898,8 @@ public static partial class Variants
                 g.Children.Add(tb);
             }
 
-            Cell(0, row.Time, "TextDim");
-            Cell(1, row.LevelLabel, null, tb =>
+            LogCell(0, row.Time, "TextDim");
+            LogCell(1, row.LevelLabel, null, tb =>
             {
                 tb.FontWeight = FontWeight.SemiBold;
                 tb.Classes.Add("tlvl");
@@ -912,13 +916,13 @@ public static partial class Variants
                     tb.Classes.Add("tlvl-debug");
                 }
             });
-            Cell(2, row.Source, "TextDim");
-            Cell(3, row.Category, "TextDim", tb =>
+            LogCell(2, row.Source, "TextDim");
+            LogCell(3, row.Category, "TextDim", tb =>
             {
                 tb.MaxWidth = 200;
                 tb.TextTrimming = TextTrimming.CharacterEllipsis;
             });
-            Cell(4, row.Message, "TextValue", tb => tb.TextWrapping = TextWrapping.Wrap);
+            LogCell(4, row.Message, "TextValue", tb => tb.TextWrapping = TextWrapping.Wrap);
             list.Items.Add(g);
         }
 
@@ -1440,7 +1444,7 @@ public static partial class Variants
     // A capture-only installed build: Settings shows the update controls only when a service exists.
     private sealed class CaptureAppUpdateService : IUpdateService
     {
-        public string? CurrentVersion => "0.8.2";
+        public string CurrentVersion => "0.8.2";
 
         public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) =>
             Task.FromResult(UpdateCheckResult.UpToDate());
@@ -1546,7 +1550,7 @@ public static partial class Variants
         // `teamT`/`teamCt` (or neither = neutral), and the class STYLES (attached to the root below) resolve the
         // token. If the class selector silently fails, T/CT render neutral gray like the else-case. That's the
         // regression this catches (mirrors Playback2DView's Border.teamChip{,.teamT,.teamCt}).
-        static Border Chip(string label, string teamClass)
+        static Border TeamChip(string label, string teamClass)
         {
             Border b = new()
             {
@@ -1570,7 +1574,7 @@ public static partial class Variants
         }
 
         StackPanel info = new() { Spacing = 2 };
-        info.Children.Add(Row(Lbl("Teams"), Chip("T", "teamT"), Chip("CT", "teamCt"), Chip("—", "")));
+        info.Children.Add(Row(Lbl("Teams"), TeamChip("T", "teamT"), TeamChip("CT", "teamCt"), TeamChip("—", "")));
         info.Children.Add(Row(Lbl("Phase"), Val("LIVE", "Pb2dPositive")));
         info.Children.Add(Row(Lbl("Bomb"), Val("PLANTED A", "Pb2dBomb")));
         info.Children.Add(Row(Lbl("Defuse"), Val("6.7s", "Pb2dDefuseTime")));
@@ -1781,7 +1785,7 @@ public static partial class Variants
     /// </summary>
     private static Border Toolbar(bool proposed)
     {
-        static Button Chip(string content)
+        static Button ToolChip(string content)
         {
             return new Button
             {
@@ -1800,24 +1804,24 @@ public static partial class Variants
         if (!proposed)
         {
             row.Children.Add(new Button { Content = "Open Demo…", VerticalAlignment = VerticalAlignment.Center });
-            row.Children.Add(Chip("Parse Chain"));
+            row.Children.Add(ToolChip("Parse Chain"));
             row.Children.Add(new ToggleButton { Content = "Debugger", FontSize = 11, Padding = new Thickness(8, 3) });
             row.Children.Add(new ToggleButton
             {
                 Content = "Output", FontSize = 11, Padding = new Thickness(8, 3), IsChecked = true
             });
-            row.Children.Add(Chip("★ Bookmark"));
-            row.Children.Add(Chip("Bookmarks ▾"));
+            row.Children.Add(ToolChip("★ Bookmark"));
+            row.Children.Add(ToolChip("Bookmarks ▾"));
             row.VerticalAlignment = VerticalAlignment.Top;
             return new Border { Background = Tok("ShellBg"), Padding = new Thickness(6, 8), Child = row };
         }
 
         // proposed: compact primary + bookmarks, dev chrome behind a View overflow
         row.Children.Add(new Button { Content = "📂 Open Demo", VerticalAlignment = VerticalAlignment.Center });
-        row.Children.Add(Chip("★ Bookmark"));
-        row.Children.Add(Chip("Bookmarks ▾"));
+        row.Children.Add(ToolChip("★ Bookmark"));
+        row.Children.Add(ToolChip("Bookmarks ▾"));
 
-        Button viewBtn = Chip("View ▾");
+        Button viewBtn = ToolChip("View ▾");
         StackPanel overflow = new()
         {
             Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center
@@ -2161,10 +2165,14 @@ public static partial class Variants
         {
             Text = "DEBUGGER", Classes = { "sectionLabel" }, VerticalAlignment = VerticalAlignment.Center
         };
-        Border badge = new() { Classes = { "badge" }, HorizontalAlignment = HorizontalAlignment.Right };
-        badge.Child = new TextBlock
+        Border badge = new()
         {
-            Text = "3 bp", Classes = { "mono" }, FontSize = 10, Foreground = Tok("TextChainBadge")
+            Classes = { "badge" },
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Child = new TextBlock
+            {
+                Text = "3 bp", Classes = { "mono" }, FontSize = 10, Foreground = Tok("TextChainBadge")
+            }
         };
         Grid.SetColumn(hlabel, 0);
         Grid.SetColumn(badge, 2);
@@ -2190,10 +2198,13 @@ public static partial class Variants
 
         // Border.card: a raised content tile, with a Border.badge count pill in its header row.
         Border card = new() { Classes = { "card" }, Padding = new Thickness(14, 12) };
-        Border cardBadge = new() { Classes = { "badge" } };
-        cardBadge.Child = new TextBlock
+        Border cardBadge = new()
         {
-            Text = "12 events", Classes = { "mono" }, FontSize = 10, Foreground = Tok("TextChainBadge")
+            Classes = { "badge" },
+            Child = new TextBlock
+            {
+                Text = "12 events", Classes = { "mono" }, FontSize = 10, Foreground = Tok("TextChainBadge")
+            }
         };
         StackPanel cardHead = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
         cardHead.Children.Add(new TextBlock
@@ -2226,17 +2237,19 @@ public static partial class Variants
         // Border.card-flyout: a popup surface holding .ctx-action rows.
         Border flyout = new()
         {
-            Classes = { "card-flyout" }, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 200
-        };
-        flyout.Child = new StackPanel
-        {
-            Spacing = 2,
-            Children =
+            Classes = { "card-flyout" },
+            HorizontalAlignment = HorizontalAlignment.Left,
+            MinWidth = 200,
+            Child = new StackPanel
             {
-                Classed("Select all", "ctx-action"),
-                Classed("Deselect all", "ctx-action"),
-                new Rectangle { Height = 1, Classes = { "divider" }, Margin = new Thickness(0, 2) },
-                Classed("Jump to round start", "ctx-action")
+                Spacing = 2,
+                Children =
+                {
+                    Classed("Select all", "ctx-action"),
+                    Classed("Deselect all", "ctx-action"),
+                    new Rectangle { Height = 1, Classes = { "divider" }, Margin = new Thickness(0, 2) },
+                    Classed("Jump to round start", "ctx-action")
+                }
             }
         };
         body.Children.Add(
@@ -2366,7 +2379,7 @@ public static partial class Variants
             Application app = Application.Current!;
             foreach ((string key, string brushKey) in icons)
             {
-                IBrush? brush = app.TryGetResource(brushKey, app.ActualThemeVariant, out object? res) && res is IBrush b
+                IBrush brush = app.TryGetResource(brushKey, app.ActualThemeVariant, out object? res) && res is IBrush b
                     ? b
                     : Brushes.White;
                 strip.Children.Add(new GameIcon
@@ -2567,9 +2580,8 @@ public static partial class Variants
 
         // Set AnimatePulse BEFORE the DataContext so the code-behind's DataContextChanged handler applies
         // the correct (animated vs pinned) pulse state on first pass; then pin the static phase if asked.
-        TutorialView view = new() { AnimatePulse = pulsePhase is null };
-        view.DataContext = vm;
-        if (pulsePhase is double p)
+        TutorialView view = new() { AnimatePulse = pulsePhase is null, DataContext = vm };
+        if (pulsePhase is { } p)
         {
             view.SetStaticPulse(p);
         }
@@ -2614,7 +2626,7 @@ public static partial class Variants
         }
 
         // Right-docked "Open Demo" toolbar affordance: the target the open-demo gateway (Waiting) step
-        // spotlights (_openDemoRect). Present in every mock for a realistic toolbar.
+        // spotlights. Present in every mock for a realistic toolbar.
         Button openDemo = new()
         {
             Classes = { "primary" },
@@ -3226,7 +3238,7 @@ public static partial class Variants
     private static Border Playback2DLiveSyncHud()
     {
         // One indicator chip: a Pb2dOverlayBg pill [dot][label], the dot filled/stroked with its Pb2d token.
-        static Border Chip(string dotTok, bool hollow, string label)
+        static Border HudChip(string dotTok, bool hollow, string label)
         {
             Ellipse dot = new() { Width = 9, Height = 9, VerticalAlignment = VerticalAlignment.Center };
             if (hollow)
@@ -3277,10 +3289,10 @@ public static partial class Variants
             col.Children.Add(cell);
         }
 
-        Add("Following — Good (Pb2dPositive)", Chip("Pb2dPositive", false, "CS2 · Following"));
-        Add("Paused (inferred) — HOLLOW RING, green", Chip("Pb2dPositive", true, "CS2 · Paused (inferred)"));
-        Add("Seek unconfirmed — Degraded (Pb2dTeamT)", Chip("Pb2dTeamT", false, "CS2 · Seek unconfirmed"));
-        Add("Connecting… — Working, neutral", Chip("Pb2dTextBright", false, "CS2 · Connecting…"));
+        Add("Following — Good (Pb2dPositive)", HudChip("Pb2dPositive", false, "CS2 · Following"));
+        Add("Paused (inferred) — HOLLOW RING, green", HudChip("Pb2dPositive", true, "CS2 · Paused (inferred)"));
+        Add("Seek unconfirmed — Degraded (Pb2dTeamT)", HudChip("Pb2dTeamT", false, "CS2 · Seek unconfirmed"));
+        Add("Connecting… — Working, neutral", HudChip("Pb2dTextBright", false, "CS2 · Connecting…"));
 
         // Backdrop = the real dark viewport island; the chips overlay top-right exactly as in the view.
         Grid root = new() { Width = 640, Height = 440 };
@@ -3306,15 +3318,15 @@ public static partial class Variants
     /// </summary>
     private static HighlightReelDialogView ReelDialog(bool dryRunOnly, bool moved)
     {
-        HighlightSelection[] selections = new[]
-        {
+        HighlightSelection[] selections =
+        [
             ReelSel("/demos/dust2_faze.dem", "de_dust2", "s1mple", "76561198000000010", 7, 54000,
                 "s1mple — 2 kills after the plant (round 7)"),
             ReelSel("/demos/dust2_faze.dem", "de_dust2", "s1mple", "76561198000000010", 7, 54400,
                 "s1mple — ace (round 7)"),
             ReelSel("/demos/nuke_moved.dem", "de_nuke", "ZywOo", "76561198000000020", 4, 30000,
                 "ZywOo — 3k retake (round 4)")
-        };
+        ];
         HighlightsSettings defaults = new()
         {
             ReelOutputDirectory = "/Users/pro/Movies/Reels", ClipLeadInSeconds = 15, ClipLeadOutSeconds = 5
@@ -3771,7 +3783,7 @@ public static partial class Variants
                         // Per-team round wins by side. The CT-ending team took 6 as CT + 7 as T = 13; the
                         // T-ending team 6 + 3 = 9. So the SIDE split (CT 12 / T 10) differs from the TEAM
                         // totals (13 / 9), exactly the half-swap case the page must not conflate.
-                        ["CTW"] = r.Team == 3 ? 6 : 6,
+                        ["CTW"] = 6,
                         ["TW"] = r.Team == 3 ? 7 : 3
                     }))
                 .ToList());
@@ -3780,7 +3792,7 @@ public static partial class Variants
     // The real Player Overview tab over an in-memory library of three demos, one with its player stats.
     private static Panel PlayerOverview(bool withMe, string? search = null)
     {
-        const string me = "76561198000000001";
+        const string Me = "76561198000000001";
         DemoCacheStore store = new(null);
         for (int i = 0; i < 3; i++)
         {
@@ -3792,7 +3804,7 @@ public static partial class Variants
                 Map = "de_nuke",
                 Players =
                 [
-                    new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = me, Team = 3 },
+                    new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = Me, Team = 3 },
                     new CachedPlayerInfo { Slot = 2, Name = "ZywOo", SteamId64 = "76561198000000002", Team = 2 },
                     new CachedPlayerInfo
                     {
@@ -3818,7 +3830,7 @@ public static partial class Variants
         IdentityService identity = new(new SettingsService(null), directory);
         if (withMe)
         {
-            identity.SetAccounts([new IdentityAccount(me, "main", DateTime.UtcNow)]);
+            identity.SetAccounts([new IdentityAccount(Me, "main", DateTime.UtcNow)]);
         }
 
         PlayerOverviewTabViewModel vm = new(
@@ -3835,7 +3847,7 @@ public static partial class Variants
 
     private static Panel PlayerOverviewPopulated()
     {
-        const string me = "76561198000000001";
+        const string Me = "76561198000000001";
         string[] maps = ["de_nuke", "de_inferno", "de_mirage", "de_ancient", "de_anubis", "de_dust2"];
         string stampId = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
         DemoCacheStore store = new(null);
@@ -3856,7 +3868,7 @@ public static partial class Variants
                     {
                         Slot = 1,
                         Name = i < 8 ? "s1mple" : "s1mple-old",
-                        SteamId64 = me,
+                        SteamId64 = Me,
                         Team = leftEarly ? 0 : i % 2 == 0 ? 3 : 2
                     },
                     new CachedPlayerInfo { Slot = 2, Name = "ZywOo", SteamId64 = "76561198000000002", Team = 2 }
@@ -3876,7 +3888,7 @@ public static partial class Variants
                         i % 3 == 0
                             ? new Services.MatchMeta.MatchRankRow
                             {
-                                SteamId64 = me,
+                                SteamId64 = Me,
                                 RankType = 12,
                                 RankOld = 11 + (i % 2),
                                 RankNew = 11 + ((i + 1) % 2),
@@ -3885,7 +3897,7 @@ public static partial class Variants
                             }
                             : new Services.MatchMeta.MatchRankRow
                             {
-                                SteamId64 = me,
+                                SteamId64 = Me,
                                 RankType = 11,
                                 RankOld = 15_100 - (i * 130),
                                 RankNew = 15_100 - (i * 130) + (i % 3 == 1 ? -110 : 240),
@@ -3900,7 +3912,7 @@ public static partial class Variants
                 Services.MatchMeta.MatchMetaEvaluator.Version) { ComputedAtTicks = 1 });
             if (leftEarly)
             {
-                r.FacetPlayers = [new FacetPlayer { SteamId64 = me, Names = ["s1mple"], Slots = [1] }];
+                r.FacetPlayers = [new FacetPlayer { SteamId64 = Me, Names = ["s1mple"], Slots = [1] }];
             }
 
             DemoCacheStore.StampHeader(r);
@@ -3940,17 +3952,17 @@ public static partial class Variants
                     new FactRow(
                         new Dictionary<string, FactValue>
                         {
-                            ["player_slot"] = FactValue.Of(1L), ["steam_id"] = FactValue.Of(me)
+                            ["player_slot"] = FactValue.Of(1L), ["steam_id"] = FactValue.Of(Me)
                         },
                         values)
                 ]);
         });
-        rows.LoadAsync(ulong.Parse(me, CultureInfo.InvariantCulture)).GetAwaiter().GetResult();
+        rows.LoadAsync(ulong.Parse(Me, CultureInfo.InvariantCulture)).GetAwaiter().GetResult();
         PlayerRankCache ranks = new(store, directory);
-        ranks.LoadAsync(ulong.Parse(me, CultureInfo.InvariantCulture)).GetAwaiter().GetResult();
+        ranks.LoadAsync(ulong.Parse(Me, CultureInfo.InvariantCulture)).GetAwaiter().GetResult();
 
         IdentityService identity = new(new SettingsService(null), directory);
-        identity.SetAccounts([new IdentityAccount(me, "main", DateTime.UtcNow)]);
+        identity.SetAccounts([new IdentityAccount(Me, "main", DateTime.UtcNow)]);
         PlayerOverviewTabViewModel vm = new(
             new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { },
                 Ranks: ranks),
@@ -4276,8 +4288,8 @@ public static partial class Variants
 
         // ── IModuleContext ──
         public bool HasDemo => true;
-        public string? DemoPath => "/demos/capture_dust2.dem";
-        public string? MapName => mapName;
+        public string DemoPath => "/demos/capture_dust2.dem";
+        public string MapName => mapName;
         public int TickRate => 64;
         public double CurtimeSeconds(int tick) => tick / 64.0;
         public int CurrentFrameIndex => FrameIndex;
@@ -4632,7 +4644,7 @@ public static partial class Variants
     }
 
     private static StackPanel EdgeRow(string label, Control sample) =>
-        new StackPanel
+        new()
         {
             Orientation = Orientation.Horizontal,
             Spacing = 10,

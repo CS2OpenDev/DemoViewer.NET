@@ -167,7 +167,7 @@ internal static class CliScenePlan
     /// <param name="zones">The place resolver actually loaded, or null.</param>
     /// <param name="query">The query fixture actually loaded, or null.</param>
     /// <param name="overlay">The overlay fixture actually loaded, or null.</param>
-    internal static void RequireFeedableOptIns(IReadOnlyList<string>? include,
+    private static void RequireFeedableOptIns(IReadOnlyList<string>? include,
         AnnotationSession? annotations, PlaceResolver? zones, QueryCanvasDocument? query,
         OverlayDocument? overlay)
     {

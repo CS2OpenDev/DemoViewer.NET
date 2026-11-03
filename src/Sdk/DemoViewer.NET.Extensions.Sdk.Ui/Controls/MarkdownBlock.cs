@@ -294,15 +294,15 @@ public sealed partial class MarkdownBlock : ContentControl
     [GeneratedRegex(@"(\*\*(?<b>.+?)\*\*)|(`(?<c>[^`]+)`)|(\[(?<lt>[^\]]+)\]\((?<lu>[^)\s]+)\))")]
     private static partial Regex InlineToken();
 
-    [GeneratedRegex(@"<!--.*?-->", RegexOptions.Singleline)]
+    [GeneratedRegex("<!--.*?-->", RegexOptions.Singleline)]
     private static partial Regex HtmlComment();
 
     [GeneratedRegex(@"!\[([^\]]*)\]\([^)]*\)")]
     private static partial Regex ImageSyntax();
 
-    [GeneratedRegex(@"</?details[^>]*>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex("</?details[^>]*>", RegexOptions.IgnoreCase)]
     private static partial Regex OuterDetailsTag();
 
-    [GeneratedRegex(@"<summary>(.*?)</summary>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex("<summary>(.*?)</summary>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex SummaryTag();
 }

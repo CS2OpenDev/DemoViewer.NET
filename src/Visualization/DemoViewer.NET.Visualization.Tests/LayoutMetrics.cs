@@ -41,14 +41,13 @@ public sealed record LayoutMetrics(
         LayoutResult layout = LayoutPipeline.ComputeFullLayout(nodes, edges, groups, tables, style);
         sw.Stop();
 
-        return Compute(nodes, edges, tables, style, layout, sw.Elapsed.TotalMilliseconds);
+        return Compute(nodes, edges, style, layout, sw.Elapsed.TotalMilliseconds);
     }
 
     /// <summary>Computes metrics over an already-computed layout (timing supplied separately).</summary>
-    internal static LayoutMetrics Compute(
+    private static LayoutMetrics Compute(
         IReadOnlyList<IGraphNode> nodes,
         IReadOnlyList<IGraphEdge> edges,
-        IReadOnlyList<INodeTable>? tables,
         GraphStyle style,
         LayoutResult layout,
         double layoutMs)
@@ -70,7 +69,7 @@ public sealed record LayoutMetrics(
             CountEdgeCrossings(edges, layout),
             SumEdgeLength(edges, layout),
             CountSharedPortEndpoints(edges, layout),
-            CountLabelOverlaps(edges, rects, layout, style),
+            CountLabelOverlaps(edges, rects, layout),
             CountOutOfBounds(rects, layout),
             CountSelfLoopOverlaps(edges, rects, layout),
             layout.TotalHeight > 0 ? layout.TotalWidth / layout.TotalHeight : 0,
@@ -172,8 +171,7 @@ public sealed record LayoutMetrics(
     // Uses the same coarse width estimate the v1 renderer uses (len*6) in logical
     // units; height ~14. Approximate but deterministic and comparable v1↔v2.
     private static int CountLabelOverlaps(
-        IReadOnlyList<IGraphEdge> edges, Dictionary<IGraphNode, Rect> rects, LayoutResult layout,
-        GraphStyle style)
+        IReadOnlyList<IGraphEdge> edges, Dictionary<IGraphNode, Rect> rects, LayoutResult layout)
     {
         List<Rect> labelRects = new();
         foreach (IGraphEdge edge in edges)

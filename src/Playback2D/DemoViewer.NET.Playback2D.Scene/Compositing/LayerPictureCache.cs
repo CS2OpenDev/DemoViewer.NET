@@ -38,10 +38,7 @@ internal sealed class LayerPictureCache : IDisposable
     }
 
     /// <summary>Maximum live pictures before the least recently used is evicted.</summary>
-    public int Capacity { get; }
-
-    /// <summary>Live picture count.</summary>
-    public int Count => _entries.Count;
+    private int Capacity { get; }
 
     /// <summary>Cumulative recordings, for <see cref="SceneCompositorStats" />.</summary>
     public int Recorded { get; private set; }

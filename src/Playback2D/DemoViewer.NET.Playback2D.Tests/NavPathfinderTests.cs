@@ -16,7 +16,7 @@ namespace DemoViewer.NET.Playback2DTests;
 /// </summary>
 public class NavPathfinderTests
 {
-    private static readonly string[] Maps =
+    private static readonly string[] _maps =
     [
         "de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass",
         "de_train", "de_vertigo"
@@ -26,7 +26,7 @@ public class NavPathfinderTests
     public async Task EveryShippedMap_Builds_AndRoutesBetweenItsPlaces()
     {
         int maps = 0;
-        foreach (string map in Maps)
+        foreach (string map in _maps)
         {
             if (Zones(map) is not { } zones)
             {
@@ -64,7 +64,7 @@ public class NavPathfinderTests
             throw new SkipTestException("no zones.json bakes in this checkout");
         }
 
-        await Assert.That(maps).IsEqualTo(Maps.Length);
+        await Assert.That(maps).IsEqualTo(_maps.Length);
     }
 
     [Test]
@@ -110,8 +110,11 @@ public class NavPathfinderTests
         (double X, double Y, int Area) outside = Anchor(zones, nav, "Outside");
         (double X, double Y, int Area) ramp = Anchor(zones, nav, "Ramp");
         (double X, double Y, int Area) site = Anchor(zones, nav, "BombsiteB");
-        List<NavWaypoint> path = [.. nav.FindPath(outside.X, outside.Y, outside.Area, ramp.X, ramp.Y, ramp.Area)!];
-        path.AddRange(nav.FindPath(ramp.X, ramp.Y, ramp.Area, site.X, site.Y, site.Area)!.Skip(1));
+        List<NavWaypoint> path =
+        [
+            .. nav.FindPath(outside.X, outside.Y, outside.Area, ramp.X, ramp.Y, ramp.Area)!,
+            .. nav.FindPath(ramp.X, ramp.Y, ramp.Area, site.X, site.Y, site.Area)!.Skip(1)
+        ];
 
         await Assert.That(path[0].FloorKey).IsEqualTo(nav.AreaAt(outside.Area).FloorKey);
         await Assert.That(path[^1].FloorKey).IsEqualTo(nav.AreaAt(site.Area).FloorKey);
@@ -268,14 +271,14 @@ public class NavPathfinderTests
             ? "none"
             : string.Join(";", path.Select(p => FormattableString.Invariant($"{p.X:F3},{p.Y:F3},{p.FloorKey}")));
 
-    internal static ZoneSet? Zones(string map)
+    private static ZoneSet? Zones(string map)
     {
         using LoadedMapAsset? asset = MapAssetPipeline.TryLoad(map);
         return asset is null ? null : ZoneAssetPipeline.TryReadBaked(asset.BakedDir);
     }
 
     // The place's area-weighted centroid, snapped into one of its own areas.
-    internal static (double X, double Y, int Area) Anchor(ZoneSet zones, NavPathfinder nav, string place)
+    private static (double X, double Y, int Area) Anchor(ZoneSet zones, NavPathfinder nav, string place)
     {
         int id = zones.Places.First(p => p.Name == place).Id;
         List<ZoneArea> mine = [.. zones.Areas.Where(a => a.PlaceId == id)];
@@ -287,7 +290,7 @@ public class NavPathfinderTests
     }
 
     // Share of points, every 8 units along the line, more than 8 units from any nav area on any floor.
-    internal static double OffMesh(NavPathfinder nav, IReadOnlyList<NavWaypoint> line)
+    private static double OffMesh(NavPathfinder nav, IReadOnlyList<NavWaypoint> line)
     {
         int total = 0, off = 0;
         for (int i = 1; i < line.Count; i++)

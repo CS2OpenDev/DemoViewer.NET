@@ -150,7 +150,8 @@ public class ExportInitialFitTests
         compositor.Add(probe);
 
         using CpuSurfaceProvider surfaces = new();
-        using HeadlessSceneRenderer renderer = new(surfaces, compositor) { Size = new SKSizeI(320, 180) };
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor);
+        renderer.Size = new SKSizeI(320, 180);
         renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
 
         await Assert.That(renderer.AutoFitOnFirstMapBounds).IsFalse().Because("off is the default");
@@ -186,7 +187,8 @@ public class ExportInitialFitTests
         compositor.Add(probe);
 
         using CpuSurfaceProvider surfaces = new();
-        using HeadlessSceneRenderer renderer = new(surfaces, compositor) { Size = new SKSizeI(320, 180) };
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor);
+        renderer.Size = new SKSizeI(320, 180);
         renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
 
         Advance(renderer, real);
@@ -216,10 +218,10 @@ public class ExportInitialFitTests
         compositor.Add(probe);
 
         using CpuSurfaceProvider surfaces = new();
-        using HeadlessSceneRenderer renderer = new(surfaces, compositor)
-        {
-            Size = new SKSizeI(320, 180), AutoFitOnFirstMapBounds = true, Camera = pinned
-        };
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor);
+        renderer.Size = new SKSizeI(320, 180);
+        renderer.AutoFitOnFirstMapBounds = true;
+        renderer.Camera = pinned;
         renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
 
         Advance(renderer, real);

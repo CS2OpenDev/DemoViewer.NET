@@ -51,7 +51,7 @@ public abstract record CameraScript
     ///     The live view's framing, <b>captured once</b> when the user pressed Start and never re-read.
     ///     Panning the real window during the export changes nothing.
     ///     <para>
-    ///         Behaviourally identical to <see cref="Fixed" /> once captured; it stays a distinct case so
+    ///         Behaviourally identical to <see cref="CameraScript.Fixed" /> once captured; it stays a distinct case so
     ///         the dialog can label it and so a serialized headless request can refuse it with
     ///         "mirror-live-view has no meaning without a running window" instead of quietly rendering
     ///         some default camera.

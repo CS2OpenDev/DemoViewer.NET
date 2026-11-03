@@ -15,7 +15,7 @@ namespace DemoViewer.NET.DemoTrimmer;
 internal static class DemoInspector
 {
     /// <summary>Round-lifecycle events worth listing before picking a cut point.</summary>
-    private static readonly string[] RoundEventNames =
+    private static readonly string[] _roundEventNames =
     [
         "begin_new_match", "round_announce_match_start", "round_start", "round_freeze_end", "round_end",
         "round_officially_ended"
@@ -64,7 +64,7 @@ internal static class DemoInspector
 
         Console.WriteLine();
         Console.WriteLine("-- round-lifecycle events --");
-        foreach (string name in RoundEventNames)
+        foreach (string name in _roundEventNames)
         {
             List<GameEvent> events = demo.AllGameEvents
                 .Where(e => string.Equals(e.Name, name, StringComparison.Ordinal)).ToList();

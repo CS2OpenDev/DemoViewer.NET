@@ -165,7 +165,7 @@ public partial class ParseLinkChip : UserControl
             || change.Property == LocalPathProperty
             || change.Property == WebFallbackProperty)
         {
-            RaisePropertyChanged(IsClickableProperty, default, IsClickable);
+            RaisePropertyChanged(IsClickableProperty, false, IsClickable);
         }
     }
 

@@ -43,7 +43,7 @@ string[] positional = args.Where(a => !a.StartsWith("--", StringComparison.Ordin
 // dispatches before every bench path. See RulesCheckCommand.
 if (positional is ["rules", "check", ..])
 {
-    return RulesCheckCommand.Run(positional.Skip(2).ToArray(), namedArgs, flags);
+    return RulesCheckCommand.Run(positional.Skip(2).ToArray(), namedArgs);
 }
 
 // `bg-run --list=<file>`: sequential background parses under the process's own GC environment.
@@ -132,7 +132,7 @@ if (suiteMode)
             continue;
         }
 
-        Console.WriteLine($"\n{"═══"} {tc.Id} {"═".PadRight(70 - tc.Id.Length, '═')}");
+        Console.WriteLine($"\n═══ {tc.Id} {"═".PadRight(70 - tc.Id.Length, '═')}");
         string reportFile = Path.Combine(suiteReportDir, $"{tc.Id}_{timestamp}.json");
         try
         {
@@ -154,7 +154,7 @@ if (suiteMode)
         }
     }
 
-    Console.WriteLine($"\n{"═══"} Suite Complete {"═".PadRight(58, '═')}");
+    Console.WriteLine($"\n═══ Suite Complete {"═".PadRight(58, '═')}");
     Console.WriteLine($"  Passed: {passed}  Skipped: {skipped}  Failed: {failed}");
     Console.WriteLine($"  Reports: {Path.GetFullPath(suiteReportDir)}/");
     // An EMPTY suite is a failure, not a pass. demos/**/*.dem is gitignored, so a fresh checkout or
@@ -891,10 +891,7 @@ static void RunRoundDebug(ParsedDemo demo)
                 string attacker = demo.Players.TryGetValue(hurt.Attacker, out PlayerInfo? ai)
                     ? ai.Name
                     : $"slot{hurt.Attacker}";
-                if (!dmgByPlayer.ContainsKey(attacker))
-                {
-                    dmgByPlayer[attacker] = 0;
-                }
+                dmgByPlayer.TryAdd(attacker, 0);
 
                 int preHp = victimHpTracker.GetValueOrDefault(hurt.UserId, 100);
                 int capped = hurt.Health > 0 ? hurt.DmgHealth : Math.Min(hurt.DmgHealth, preHp);
@@ -1610,7 +1607,7 @@ internal sealed class StatValueConverter : JsonConverter<object?>
     public override bool CanConvert(Type typeToConvert) => typeToConvert == typeof(object);
 
     /// <inheritdoc />
-    public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+    public override object Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
         throw new NotSupportedException();
 
     /// <inheritdoc />
@@ -1668,7 +1665,6 @@ internal sealed class MeterCollector : IDisposable
     public void Dispose()
     {
         _listener.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>Prints accumulated counter totals + the frame-duration histogram summary.</summary>
@@ -1700,7 +1696,7 @@ internal sealed class PhaseTimeline : IDisposable
         _listener = new ActivityListener
         {
             ShouldListenTo = src => src.Name == AnalysisDiagnostics.SourceName,
-            Sample = static (ref options) => ActivitySamplingResult.AllData,
+            Sample = static (ref _) => ActivitySamplingResult.AllData,
             ActivityStopped = OnStopped
         };
         ActivitySource.AddActivityListener(_listener);
@@ -1713,7 +1709,6 @@ internal sealed class PhaseTimeline : IDisposable
     public void Dispose()
     {
         _listener.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>Prints the captured spans in start order, indented by nesting depth.</summary>

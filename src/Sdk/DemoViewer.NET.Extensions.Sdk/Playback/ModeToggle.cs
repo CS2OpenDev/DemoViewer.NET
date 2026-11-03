@@ -11,9 +11,6 @@ namespace DemoViewer.NET.Extensions.Sdk.Playback;
 [PublicAPI]
 public sealed class ModeToggle : INotifyPropertyChanged
 {
-    private bool _isAvailable = true;
-    private bool _isOn;
-
     /// <summary>Creates the toggle.</summary>
     /// <param name="id">Unique within the tab.</param>
     /// <param name="label">The toolbar text.</param>
@@ -49,15 +46,15 @@ public sealed class ModeToggle : INotifyPropertyChanged
     /// <summary>Whether the mode is on. Setting it raises <see cref="Changed" /> on a flip.</summary>
     public bool IsOn
     {
-        get => _isOn;
+        get;
         set
         {
-            if (_isOn == value)
+            if (field == value)
             {
                 return;
             }
 
-            _isOn = value;
+            field = value;
             Raise();
             Changed?.Invoke();
         }
@@ -66,18 +63,18 @@ public sealed class ModeToggle : INotifyPropertyChanged
     /// <summary>False hides the toggle; its action can then only turn the mode off.</summary>
     public bool IsAvailable
     {
-        get => _isAvailable;
+        get;
         set
         {
-            if (_isAvailable == value)
+            if (field == value)
             {
                 return;
             }
 
-            _isAvailable = value;
+            field = value;
             Raise();
         }
-    }
+    } = true;
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;

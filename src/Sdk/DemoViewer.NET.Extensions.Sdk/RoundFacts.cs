@@ -610,17 +610,17 @@ public static class RoundPhases
             return RoundPhase.Freeze;
         }
 
-        if (round.EndTick is int end && tick >= end)
+        if (round.EndTick is { } end && tick >= end)
         {
             return RoundPhase.PostRound;
         }
 
-        if (round.PlantTick is int plant && tick >= plant)
+        if (round.PlantTick is { } plant && tick >= plant)
         {
             return side == 3 ? RoundPhase.Retake : RoundPhase.PostPlant;
         }
 
-        if (round.OpeningKillTick is int opening && tick >= opening)
+        if (round.OpeningKillTick is { } opening && tick >= opening)
         {
             return RoundPhase.MidRound;
         }
@@ -739,7 +739,7 @@ public static class RoundFactsRules
         Optional(labels, "contact", "firstContactTick", round.FirstContactTick);
         Optional(labels, "contact", "openingKillTick", round.OpeningKillTick);
 
-        if (atTick is int tick)
+        if (atTick is { } tick)
         {
             (int ct, int t) = RoundPhases.AliveAt(round, tick);
             labels.Add(new FactLabel("phase", "phase", LowerCamel(RoundPhases.At(round, tick))));
@@ -893,14 +893,13 @@ public static class RoundFactsRules
         ArgumentNullException.ThrowIfNull(filter);
 
         int end = round.EndTick ?? int.MaxValue;
-        List<int> breakpoints = [round.FreezeEndTick];
-        breakpoints.AddRange(round.Kills.Select(k => k.Tick));
-        if (round.OpeningKillTick is int opening)
+        List<int> breakpoints = [round.FreezeEndTick, .. round.Kills.Select(k => k.Tick)];
+        if (round.OpeningKillTick is { } opening)
         {
             breakpoints.Add(opening);
         }
 
-        if (round.PlantTick is int plant)
+        if (round.PlantTick is { } plant)
         {
             breakpoints.Add(plant);
         }
@@ -939,7 +938,7 @@ public static class RoundFactsRules
 
     private static void Optional(List<FactLabel> labels, string group, string key, int? value)
     {
-        if (value is int v)
+        if (value is { } v)
         {
             labels.Add(new FactLabel(group, key, Text(v)));
         }

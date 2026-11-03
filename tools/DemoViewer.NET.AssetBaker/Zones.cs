@@ -44,14 +44,14 @@ namespace DemoViewer.NET.AssetBaker;
 /// </summary>
 public static class Zones
 {
-    public const int SchemaVersion = 1;
+    private const int SchemaVersion = 1;
 
     /// <summary>
     ///     <c>MapSpace.LevelQuantum</c>, restated so a reader without Core can key floors. An area's
     ///     <c>floor</c> is the quantized lower Z of the bundle band that contains it, the same value a
     ///     <c>SpaceRef.World</c> annotation anchor carries, never a floor index.
     /// </summary>
-    public const double FloorQuantum = 64.0;
+    private const double FloorQuantum = 64.0;
 
     // A point on a hull face counts as inside; the nav centroid of an area whose edge is a volume wall
     // sits exactly on that wall more often than chance suggests.
@@ -59,9 +59,9 @@ public static class Zones
 
     // An area is seeded when its centroid, or the centroid lifted by one of these, is inside a place
     // volume. The lifts catch volumes whose floor sits a little above the nav surface (stairs, ramps).
-    private static readonly float[] ProbeLifts = [0f, 8f, 32f];
+    private static readonly float[] _probeLifts = [0f, 8f, 32f];
 
-    private static readonly string[] VolumeClasses =
+    private static readonly string[] _volumeClasses =
         ["env_cs_place", "func_bomb_target", "func_buyzone", "func_hostage_rescue"];
 
     /// <summary>
@@ -119,7 +119,7 @@ public static class Zones
         // Sorted by name so the id a place gets is stable across re-bakes; consumers store the name,
         // never the id, but a stable id keeps the diff of a re-bake readable.
         List<string> places = volumes
-            .Where(v => v.Kind == "place" && v.PlaceName is not null)
+            .Where(v => v is { Kind: "place", PlaceName: not null })
             .Select(v => v.PlaceName!)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(p => p, StringComparer.Ordinal)
@@ -177,7 +177,7 @@ public static class Zones
             $"unreachable={coverage.Unreachable} multi={coverage.Multi} links={areaLinks.Count} " +
             $"adjacency={adjacency.Count}  version {zonesVersion}  {json.Length / 1024.0:F0} KiB";
 
-        return new Result(coverage, zonesVersion, notes, failures, adjacencyText, diagnostic);
+        return new Result(coverage, notes, failures, adjacencyText, diagnostic);
     }
 
     /// <summary>
@@ -308,7 +308,7 @@ public static class Zones
                     continue;
                 }
 
-                if (classname is null || Array.IndexOf(VolumeClasses, classname) < 0)
+                if (classname is null || Array.IndexOf(_volumeClasses, classname) < 0)
                 {
                     continue;
                 }
@@ -339,7 +339,7 @@ public static class Zones
                     continue;
                 }
 
-                if (volume.Kind == "bombsite" && volume.Site is null)
+                if (volume is { Kind: "bombsite", Site: null })
                 {
                     notes.Add(
                         $"  ! {label}: bomb_site_designation is {Str(entity, "bomb_site_designation") ?? "absent"}");
@@ -523,7 +523,7 @@ public static class Zones
     // flood never reaches are isolated islands and get no place.
     private static Assignment AssignAreas(NavMeshFile nav, List<Volume> volumes, Dictionary<string, int> placeIds)
     {
-        List<Volume> places = volumes.Where(v => v.Kind == "place" && v.PlaceName is not null).ToList();
+        List<Volume> places = volumes.Where(v => v is { Kind: "place", PlaceName: not null }).ToList();
         Dictionary<uint, int> place = new();
         HashSet<uint> seeds = new();
         int multi = 0;
@@ -542,7 +542,7 @@ public static class Zones
             foreach (Volume v in places)
             {
                 bool hit = false;
-                foreach (float lift in ProbeLifts)
+                foreach (float lift in _probeLifts)
                 {
                     if (v.Contains(centroid + new Vector3(0, 0, lift)))
                     {
@@ -703,7 +703,7 @@ public static class Zones
             NavMeshArea area = nav.Areas[id];
             Vector3[] corners = area.Corners ?? Array.Empty<Vector3>();
             double z = corners.Length == 0 ? 0 : Centroid(corners).Z;
-            int pid = assignment.Place.TryGetValue(id, out int p) ? p : -1;
+            int pid = assignment.Place.GetValueOrDefault(id, -1);
             bool seed = assignment.Seeds.Contains(id);
             string xy = string.Join(", ", corners.Select(c => $"{Num(c.X, 1)}, {Num(c.Y, 1)}"));
             areaLines.Add(
@@ -832,7 +832,6 @@ public static class Zones
     /// <summary>One bake's outcome: the coverage row, the stamp written, and what the diag mode prints.</summary>
     public sealed record Result(
         Coverage Coverage,
-        string ZonesVersion,
         IReadOnlyList<string> Notes,
         IReadOnlyList<string> Failures,
         string AdjacencyText,

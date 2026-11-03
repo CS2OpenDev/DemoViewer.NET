@@ -97,10 +97,7 @@ public sealed class TrackerFrameSource : ISceneFrameSource, IPreparableFrameSour
     }
 
     /// <summary>The demo frame index output frame 0 lands on.</summary>
-    public int StartFrame { get; }
-
-    /// <summary>True once <see cref="Prepare" /> has seeded the tracker.</summary>
-    public bool IsPrepared => _tracker is not null;
+    private int StartFrame { get; }
 
     /// <summary>
     ///     The round/score state of the frame <see cref="FrameAt" /> built most recently, or

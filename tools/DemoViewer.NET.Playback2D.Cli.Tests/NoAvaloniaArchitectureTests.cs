@@ -103,7 +103,7 @@ public class NoAvaloniaArchitectureTests
     {
         await Assert.That(File.Exists(path)).IsTrue();
 
-        JsonNode deps = JsonNode.Parse(File.ReadAllText(path))!;
+        JsonNode deps = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
 
         // "targets" is what would actually be loaded, and it is the only half that says WHAT a package
         // contributes. Classify there first, then use the verdict to read "libraries" (restore's flat

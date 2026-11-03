@@ -198,11 +198,11 @@ public class EraseToolTests
             Tool = new EraseTool();
         }
 
-        public LevelPane Pane { get; }
+        private LevelPane Pane { get; }
 
         public AnnotationDocument Document { get; }
 
-        public AnnotationSession Session { get; }
+        private AnnotationSession Session { get; }
 
         public FakeToolServices Services { get; }
 

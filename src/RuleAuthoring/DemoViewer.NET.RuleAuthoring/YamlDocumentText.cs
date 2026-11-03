@@ -32,7 +32,7 @@ public sealed class YamlDocumentText
     public string Text { get; }
 
     /// <summary>The root mapping, or <c>null</c> for an empty document or a non-mapping root.</summary>
-    public YamlMappingNode? Root { get; }
+    private YamlMappingNode? Root { get; }
 
     /// <summary>Parses <paramref name="text" />. Throws <c>YamlException</c> on malformed YAML.</summary>
     public static YamlDocumentText Parse(string text)

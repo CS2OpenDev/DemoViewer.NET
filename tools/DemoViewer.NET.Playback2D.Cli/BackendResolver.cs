@@ -28,7 +28,7 @@ internal static class BackendResolver
     private const string Grammar = "auto|cpu|gpu|angle|gl|force-gpu";
 
     /// <summary>The environment variable consulted when no backend flag is given.</summary>
-    public const string EnvironmentVariable = RenderBackendPreferenceParser.EnvironmentVariable;
+    private const string EnvironmentVariable = RenderBackendPreferenceParser.EnvironmentVariable;
 
     /// <summary>
     ///     Resolves the backend. Consumes <c>--cpu</c>, <c>--gpu</c>, <c>--backend</c> and
@@ -110,6 +110,6 @@ internal static class BackendResolver
 
     /// <summary>The token echoed back in JSON payloads as <c>backend_requested</c>.</summary>
     /// <param name="preference">The resolved preference.</param>
-    public static string Token(RenderBackendPreference preference) =>
+    private static string Token(RenderBackendPreference preference) =>
         RenderBackendResolver.Token(preference);
 }

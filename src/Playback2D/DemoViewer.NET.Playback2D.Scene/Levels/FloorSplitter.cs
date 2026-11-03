@@ -93,7 +93,7 @@ internal sealed class FloorSplitter
     }
 
     /// <summary>Histogram bucket width in world units (fixed, e.g. 64u).</summary>
-    public double BucketWidth { get; }
+    private double BucketWidth { get; }
 
     /// <summary>Minimum empty-Z gap (world units) that separates two floors (e.g. ~180u).</summary>
     public double GapThreshold { get; }
@@ -279,15 +279,6 @@ internal sealed class FloorSplitter
         }
 
         _dirty = true;
-    }
-
-    /// <summary>Folds a batch of observed Z values (one push of player positions).</summary>
-    public void Observe(IEnumerable<double> zs)
-    {
-        foreach (double z in zs)
-        {
-            Observe(z);
-        }
     }
 
     /// <summary>

@@ -41,9 +41,6 @@ internal sealed class SingleLayout : ILevelLayoutPolicy
         }
     }
 
-    /// <summary>The level index this policy last arranged, or -1. Diagnostics and tests.</summary>
-    public int ArrangedLevelIndex { get; private set; } = -1;
-
     /// <inheritdoc />
     public int Revision { get; private set; }
 
@@ -53,7 +50,6 @@ internal sealed class SingleLayout : ILevelLayoutPolicy
         ArgumentNullException.ThrowIfNull(space);
 
         _arranged.Clear();
-        ArrangedLevelIndex = -1;
 
         IReadOnlyList<MapLevel> levels = space.Levels;
         if (levels.Count == 0)
@@ -67,7 +63,6 @@ internal sealed class SingleLayout : ILevelLayoutPolicy
             index = levels.Count - 1; // top-most
         }
 
-        ArrangedLevelIndex = index;
         _arranged.Add(new LevelPane(levels[index], default, ManualRig.Instance)
         {
             LevelIndex = index, ViewportRect = new SKRect(0, 0, host.Width, host.Height)

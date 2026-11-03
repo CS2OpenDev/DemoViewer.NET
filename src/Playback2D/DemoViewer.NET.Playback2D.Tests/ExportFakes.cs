@@ -31,9 +31,6 @@ internal sealed class RecordingFrameSink : IFrameSink
     /// <summary>How many times <see cref="DisposeAsync" /> ran. Must be exactly 1 after a session.</summary>
     public int DisposeCount { get; private set; }
 
-    /// <summary>The first byte of every frame, for a cheap "did the pixels change" check.</summary>
-    public List<byte> FirstBytes { get; } = [];
-
     /// <inheritdoc />
     public ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
     {
@@ -45,7 +42,6 @@ internal sealed class RecordingFrameSink : IFrameSink
         }
 
         Frames.Add((rgba.Length, width, height));
-        FirstBytes.Add(rgba.Span.Length > 0 ? rgba.Span[0] : (byte)0);
         return ValueTask.CompletedTask;
     }
 

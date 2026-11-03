@@ -12,8 +12,6 @@ namespace ThirdPartyFake.ViewModels;
 /// <summary>The tab: a status chip, a key/value table and a nested detail resolved by naming.</summary>
 public sealed class FakeTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel
 {
-    private int _activations;
-
     public StatusChipViewModel Status { get; } = new()
     {
         DotState = StatusChipDotState.Good, Label = "Fake · ready", Tooltip = "The third-party fake's own chip"
@@ -28,10 +26,10 @@ public sealed class FakeTabViewModel : ExtensionViewModel, IWorkspaceTabViewMode
 
     public FakeDetailViewModel Detail { get; } = new();
 
-    public int Activations
+    private int Activations
     {
-        get => _activations;
-        private set => SetProperty(ref _activations, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
     public void OnActivated(IModuleContext context) => Activations++;

@@ -358,6 +358,7 @@ public sealed class AnnotationStore
     /// <param name="ct">Cancellation.</param>
     public Task<bool> DeleteAsync(string demoPath, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         string? path = ResolvePath(demoPath);
         if (path is null || !File.Exists(path))
         {
@@ -560,7 +561,7 @@ public sealed class AnnotationStore
         return new StrokeTiming(runs, dto.DurationTicks);
     }
 
-    private static AnnotationElement? ToElement(AnnotationElementDto dto)
+    private static AnnotationElement? ToElement(AnnotationElementDto? dto)
     {
         if (dto is null || !Guid.TryParse(dto.Id, out Guid id))
         {

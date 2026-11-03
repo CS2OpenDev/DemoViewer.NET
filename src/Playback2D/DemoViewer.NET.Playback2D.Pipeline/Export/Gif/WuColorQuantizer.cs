@@ -62,8 +62,8 @@ internal sealed class WuColorQuantizer
         {
             if (Cut(ref boxes[next], ref boxes[count]))
             {
-                variance[next] = boxes[next].Volume > 1 ? Variance(boxes[next]) : 0;
-                variance[count] = boxes[count].Volume > 1 ? Variance(boxes[count]) : 0;
+                variance[next] = boxes[next].CellCount > 1 ? Variance(boxes[next]) : 0;
+                variance[count] = boxes[count].CellCount > 1 ? Variance(boxes[count]) : 0;
                 count++;
             }
             else
@@ -311,6 +311,6 @@ internal sealed class WuColorQuantizer
         public int B0;
         public int B1;
 
-        public readonly int Volume => (R1 - R0) * (G1 - G0) * (B1 - B0);
+        public readonly int CellCount => (R1 - R0) * (G1 - G0) * (B1 - B0);
     }
 }

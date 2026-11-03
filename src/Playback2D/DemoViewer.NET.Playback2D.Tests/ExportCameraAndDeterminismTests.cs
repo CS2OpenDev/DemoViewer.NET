@@ -350,9 +350,9 @@ public class ExportAllocationTests
         using CpuSurfaceProvider surfaces = new();
         SceneExportSession session = new(compositor);
 
-        const int frames = 256;
-        FixtureFrameSource source = ExportFixtures.Source(frames);
-        ExportRequest request = ExportFixtures.Request(frames, size: new SKSizeI(64, 48));
+        const int Frames = 256;
+        FixtureFrameSource source = ExportFixtures.Source(Frames);
+        ExportRequest request = ExportFixtures.Request(Frames, size: new SKSizeI(64, 48));
 
         await session.RunAsync(request with { EndFrame = 63 }, source, new NullSink(), surfaces, null,
             CancellationToken.None);
@@ -361,7 +361,7 @@ public class ExportAllocationTests
         await session.RunAsync(request, source, new NullSink(), surfaces, null, CancellationToken.None);
         long after = GC.GetAllocatedBytesForCurrentThread();
 
-        double perFrame = (after - before) / (double)frames;
+        double perFrame = (after - before) / (double)Frames;
         Console.WriteLine($"[alloc] export without a bundle: {perFrame:F1} bytes/frame");
         await Assert.That(perFrame).IsGreaterThanOrEqualTo(0.0);
     }

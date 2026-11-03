@@ -56,7 +56,7 @@ public sealed class InputToolRouter
     }
 
     /// <summary>The selected tool. Not necessarily the one owning an in-flight gesture.</summary>
-    public IPointerTool Active => _tools.TryGetValue(ActiveToolId, out IPointerTool? tool) ? tool : _panZoom;
+    public IPointerTool Active => _tools.GetValueOrDefault(ActiveToolId, _panZoom);
 
     /// <summary>The selected tool's id, which is what selection and registration key on.</summary>
     public string ActiveToolId { get; private set; } = ToolIds.Of(ToolKind.PanZoom);
@@ -97,7 +97,7 @@ public sealed class InputToolRouter
     ///     Whether Ctrl+drag always pans. On by default, for the same reason as
     ///     <see cref="PanOnMiddleButton" />, and because a trackpad has no middle button.
     /// </summary>
-    public bool PanOnControlDrag { get; set; } = true;
+    private bool PanOnControlDrag { get; } = true;
 
     /// <summary>Whether a gesture is in flight.</summary>
     public bool IsGestureOpen => GestureTool is not null;
@@ -190,7 +190,7 @@ public sealed class InputToolRouter
     /// <param name="toolId">The tool's id. An unregistered id falls back to pan/zoom.</param>
     public void SetActive(string toolId)
     {
-        if (toolId is null || !_tools.ContainsKey(toolId))
+        if (!_tools.ContainsKey(toolId))
         {
             toolId = ToolIds.Of(ToolKind.PanZoom);
         }

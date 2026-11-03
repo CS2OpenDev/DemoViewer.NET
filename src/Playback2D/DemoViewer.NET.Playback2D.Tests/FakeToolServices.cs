@@ -84,9 +84,8 @@ internal sealed class FakeToolServices : IInkToolServices
 
         float best = worldRadius * worldRadius;
         bool found = false;
-        for (int i = 0; i < Markers.Count; i++)
+        foreach (PlayerMarker marker in Markers)
         {
-            PlayerMarker marker = Markers[i];
             if (!marker.IsAlive || marker.SteamId == 0)
             {
                 continue;
@@ -133,9 +132,8 @@ internal sealed class FakeToolServices : IInkToolServices
 
             case SpaceRef.Entity entity:
             {
-                for (int i = 0; i < Markers.Count; i++)
+                foreach (PlayerMarker marker in Markers)
                 {
-                    PlayerMarker marker = Markers[i];
                     if (marker.SteamId != entity.SteamId || entity.SteamId == 0)
                     {
                         continue;
@@ -166,11 +164,11 @@ internal sealed class FakeToolServices : IInkToolServices
     public void RequestTextEdit(Guid elementId) => TextEditRequests.Add(elementId);
 
     /// <summary>The token editor the token tool drives; null, as on the 2D Playback tab, until a test sets it.</summary>
-    public ITokenEditor? Tokens { get; set; }
+    public ITokenEditor? Tokens { get; }
 
     public void RequestRender() => RenderRequests++;
 
     /// <summary>Advances the authoring clock and returns the new reading.</summary>
     /// <param name="milliseconds">How far to advance.</param>
-    public long Advance(long milliseconds) => NowMilliseconds += milliseconds;
+    public void Advance(long milliseconds) => NowMilliseconds += milliseconds;
 }

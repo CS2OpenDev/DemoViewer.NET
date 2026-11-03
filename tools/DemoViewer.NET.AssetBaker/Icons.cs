@@ -37,10 +37,10 @@ public static class Icons
     ///     Bumped when the manifest shape changes, so a stale bake fails loudly instead of oddly.
     ///     <para>2 added <c>blank</c>: the keys CS2 ships deliberately empty artwork for.</para>
     /// </summary>
-    public const int SchemaVersion = 2;
+    private const int ManifestSchemaVersion = 2;
 
     /// <summary>The baked pixel heights. Width follows the source aspect and is not constrained.</summary>
-    public static readonly int[] Scales = [32, 96];
+    private static readonly int[] _scales = [32, 96];
 
     /// <summary>
     ///     Bakes the curated set into <paramref name="outDir" /> and writes <c>icons.json</c> beside it.
@@ -101,7 +101,7 @@ public static class Icons
             List<byte[]> encoded = [];
             bool empty = true;
             bool tintable = true;
-            foreach (int height in Scales)
+            foreach (int height in _scales)
             {
                 using SKBitmap bmp = Render(pic, box, height);
                 empty &= IsFullyTransparent(bmp);
@@ -120,9 +120,9 @@ public static class Icons
                 continue;
             }
 
-            for (int i = 0; i < Scales.Length; i++)
+            for (int i = 0; i < _scales.Length; i++)
             {
-                string dest = Path.Combine(outDir, PathFor(key, Scales[i]));
+                string dest = Path.Combine(outDir, PathFor(key, _scales[i]));
                 Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
                 File.WriteAllBytes(dest, encoded[i]);
             }
@@ -140,11 +140,11 @@ public static class Icons
         File.WriteAllText(
             Path.Combine(outDir, "icons.json"),
             JsonSerializer.Serialize(
-                new IconManifest(SchemaVersion, bakerVersion, version, Scales, manifest,
+                new IconManifest(ManifestSchemaVersion, bakerVersion, version, _scales, manifest,
                     [.. IconSet.PremierTiers.Select(t => new PremierTierEntry(t.Name, t.Hex, t.MinRating))],
                     IconSet.RankNames,
                     [.. blank]),
-                ManifestJson));
+                _manifestJson));
 
         StringBuilder log = new();
         foreach (string ns in new[] { "equipment", "modifier", "ui", "rank", "map" })
@@ -227,7 +227,7 @@ public static class Icons
 
             foreach ((string key, SKColor? wash) in variants)
             {
-                foreach (int height in Scales)
+                foreach (int height in _scales)
                 {
                     using SKBitmap plain = Render(pic, box, height);
                     using SKBitmap outBmp = wash is { } tint ? Modulate(plain, tint) : plain.Copy();
@@ -264,7 +264,8 @@ public static class Icons
         SKBitmap outBmp = new(src.Width, src.Height);
         using SKCanvas canvas = new(outBmp);
         canvas.Clear(SKColors.Transparent);
-        using SKPaint paint = new() { ColorFilter = SKColorFilter.CreateBlendMode(tint, SKBlendMode.Modulate) };
+        using SKPaint paint = new();
+        paint.ColorFilter = SKColorFilter.CreateBlendMode(tint, SKBlendMode.Modulate);
         canvas.DrawBitmap(src, 0, 0, paint);
         return outBmp;
     }
@@ -386,8 +387,8 @@ public static class Icons
 
     /// <summary>The manifest-relative path of one baked icon, e.g. <c>equipment/ak47@32.png</c>.</summary>
     /// <param name="key">The icon key, namespace included.</param>
-    /// <param name="scale">One of <see cref="Scales" />.</param>
-    public static string PathFor(string key, int scale) =>
+    /// <param name="scale">One of <see cref="_scales" />.</param>
+    private static string PathFor(string key, int scale) =>
         FormattableString.Invariant($"{key}@{scale}.png");
 
     // Which vpk entries the curation asks for, keyed by our name. Built by walking the archive's own
@@ -590,7 +591,7 @@ public static class Icons
     private static double Round(float v) => Math.Round(v, 3);
 
     // Matches Bundle.cs so the two baked manifests read the same way.
-    private static readonly JsonSerializerOptions ManifestJson = new()
+    private static readonly JsonSerializerOptions _manifestJson = new()
     {
         WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };

@@ -44,8 +44,9 @@ public class RenderCorrectnessTests
         // else, or a layer that happens to animate would mask it.
         using SceneCompositor compositor = new();
         using CpuSurfaceProvider provider = new();
-        using HeadlessSceneRenderer renderer = new(compositor, provider, new StackedLayout(),
-            ScenePalette.Dark) { Size = new SKSizeI(640, 360), AdvanceCameras = true };
+        using HeadlessSceneRenderer renderer = new(compositor, provider, new StackedLayout(), ScenePalette.Dark);
+        renderer.Size = new SKSizeI(640, 360);
+        renderer.AdvanceCameras = true;
 
         Scene2DFrame frame = PoisonedFrame();
         SceneTime time = new(1000, 0, 0, 1.0 / TickRate, false);
@@ -251,10 +252,9 @@ public class RenderCorrectnessTests
         // branch handing a freed SKImage to DrawImage: an access violation inside Skia, not an exception
         // the frame loop can catch. So this asserts on the cache's own state BEFORE it would draw again.
         using SKImage source = SolidImage(64, 64, SKColors.Magenta);
-        using RadarLayer layer = new()
-        {
-            CacheScaledImage = true, RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100)
-        };
+        using RadarLayer layer = new();
+        layer.CacheScaledImage = true;
+        layer.RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100);
 
         using CpuSurfaceProvider provider = new();
         using SKSurface surface = provider.CreateSurface(new SKSizeI(128, 128));
@@ -311,10 +311,9 @@ public class RenderCorrectnessTests
         // exactly two.
         const int Edge = 128;
         using SKImage source = CheckerImage(Edge, Edge);
-        using RadarLayer layer = new()
-        {
-            CacheScaledImage = true, RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100)
-        };
+        using RadarLayer layer = new();
+        layer.CacheScaledImage = true;
+        layer.RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100);
 
         using CpuSurfaceProvider provider = new();
         using SKSurface surface = provider.CreateSurface(new SKSizeI(Edge, Edge));
@@ -343,7 +342,9 @@ public class RenderCorrectnessTests
         using SKSurface surface = SKSurface.Create(new SKImageInfo(width, height,
             SKColorType.Rgba8888, SKAlphaType.Premul));
         surface.Canvas.Clear(SKColors.Black);
-        using SKPaint white = new() { Color = SKColors.White, IsAntialias = false };
+        using SKPaint white = new();
+        white.Color = SKColors.White;
+        white.IsAntialias = false;
         for (int y = 0; y < height; y += 2)
         {
             for (int x = (y / 2 % 2) * 2; x < width; x += 4)
@@ -816,7 +817,7 @@ public class RenderCorrectnessTests
     }
 
     // SceneFrameInput is a ref struct; an `in` parameter cannot bind a call's return value.
-    private static Scene2DFrame Build(SceneFrameBuilder builder, SceneFrameInput input) =>
+    private static void Build(SceneFrameBuilder builder, SceneFrameInput input) =>
         builder.Build(in input);
 
     private static SceneFrameInput Input(IReadOnlyList<IPlayerState> players, int frameIndex, int tick) =>

@@ -59,7 +59,7 @@ public static class InboundLogic
     public static TickSignal ClassifyTickAdvance(
         long cs2Tick, long? previousTick, bool ownSeekInFlight, bool demoStateEvents)
     {
-        if (previousTick is not long previous || previous == cs2Tick || ownSeekInFlight)
+        if (previousTick is not { } previous || previous == cs2Tick || ownSeekInFlight)
         {
             return TickSignal.None;
         }
@@ -118,7 +118,7 @@ public static class InboundLogic
             return new Decision(null, null, false);
         }
 
-        long? seekTo = state.DemoTick is int tick && dvTickError is > RemoteSeekDistance ? tick : null;
+        long? seekTo = state.DemoTick is { } tick && dvTickError is > RemoteSeekDistance ? tick : null;
 
         bool? isPaused = enginePauseDetection ? state.IsPaused : null;
         bool? setPlaying = isPaused switch

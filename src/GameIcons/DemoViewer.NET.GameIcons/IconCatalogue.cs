@@ -30,11 +30,11 @@ public static class IconCatalogue
 {
     private const string Prefix = "icons/";
 
-    private static readonly Assembly Owner = typeof(IconCatalogue).Assembly;
-    private static readonly FrozenDictionary<string, IconRef> Catalogue;
-    private static readonly FrozenDictionary<string, string> ResourceNames;
-    private static readonly FrozenSet<string> BlankKeys;
-    private static readonly ConcurrentDictionary<string, byte> Misses = new(StringComparer.Ordinal);
+    private static readonly Assembly _owner = typeof(IconCatalogue).Assembly;
+    private static readonly FrozenDictionary<string, IconRef> _catalogue;
+    private static readonly FrozenDictionary<string, string> _resourceNames;
+    private static readonly FrozenSet<string> _blankKeys;
+    private static readonly ConcurrentDictionary<string, byte> _misses = new(StringComparer.Ordinal);
 
     /// <summary>The CS2 build fingerprint the icons were baked from (CRC32 over the source artwork).</summary>
     public static string SourceHash { get; }
@@ -59,12 +59,12 @@ public static class IconCatalogue
     public const int MaxRank = 18;
 
     /// <summary>Every icon key, namespace included, in ordinal order.</summary>
-    public static IReadOnlyCollection<string> Keys => Catalogue.Keys;
+    public static IReadOnlyCollection<string> Keys => _catalogue.Keys;
 
     /// <summary>
     ///     Every key a drawing surface asked for and did not get. A snapshot; empty is the healthy state.
     /// </summary>
-    public static IReadOnlyCollection<string> MissingKeys => (IReadOnlyCollection<string>)Misses.Keys;
+    public static IReadOnlyCollection<string> MissingKeys => (IReadOnlyCollection<string>)_misses.Keys;
 
     /// <summary>
     ///     Called once per distinct key, the first time <see cref="Demand" /> cannot satisfy it. Set by
@@ -77,7 +77,7 @@ public static class IconCatalogue
     {
         // Resource names are fixed at build time; normalise separators so a Windows-built and a
         // Linux-built assembly resolve the same key.
-        ResourceNames = Owner.GetManifestResourceNames()
+        _resourceNames = _owner.GetManifestResourceNames()
             .Where(n => n.StartsWith(Prefix, StringComparison.Ordinal))
             .ToFrozenDictionary(n => n.Replace('\\', '/'), n => n, StringComparer.Ordinal);
 
@@ -101,7 +101,7 @@ public static class IconCatalogue
             catalogue[icon.Name] = new IconRef(icon.Name, w, h, tintable);
         }
 
-        Catalogue = catalogue.ToFrozenDictionary(StringComparer.Ordinal);
+        _catalogue = catalogue.ToFrozenDictionary(StringComparer.Ordinal);
 
         List<PremierTier> tiers = [];
         if (root.TryGetProperty("premierTiers", out JsonElement premier))
@@ -126,7 +126,7 @@ public static class IconCatalogue
         // Schema 2 carries the blank list. Seeded for an older bake so the distinction still works
         // against a manifest predating it: these three are CS2's environment deaths and have been
         // deliberately empty for as long as the artwork has existed.
-        BlankKeys = root.TryGetProperty("blank", out JsonElement blank)
+        _blankKeys = root.TryGetProperty("blank", out JsonElement blank)
             ? blank.EnumerateArray().Select(b => b.GetString() ?? "").ToFrozenSet(StringComparer.Ordinal)
             : FrozenSet.ToFrozenSet(
                 ["equipment/world", "equipment/worldent", "equipment/trigger_hurt"],
@@ -157,13 +157,13 @@ public static class IconCatalogue
             return null;
         }
 
-        if (Catalogue.TryGetValue(key, out IconRef? icon))
+        if (_catalogue.TryGetValue(key, out IconRef? icon))
         {
             availability = IconAvailability.Available;
             return icon;
         }
 
-        if (BlankKeys.Contains(key))
+        if (_blankKeys.Contains(key))
         {
             availability = IconAvailability.Blank;
             return null;
@@ -172,7 +172,7 @@ public static class IconCatalogue
         availability = IconAvailability.Missing;
 
         // One failed TryAdd per frame for a key already seen; the observer fires exactly once.
-        if (Misses.TryAdd(key, 0))
+        if (_misses.TryAdd(key, 0))
         {
             MissingKeyObserver?.Invoke(key);
         }
@@ -185,7 +185,7 @@ public static class IconCatalogue
     ///     fallback would be wrong.
     /// </summary>
     /// <param name="key">A namespace-qualified key.</param>
-    public static bool IsBlank(string? key) => key is not null && BlankKeys.Contains(key);
+    public static bool IsBlank(string? key) => key is not null && _blankKeys.Contains(key);
 
     /// <summary>
     ///     The Competitive Skill Group badge for a rank number, 0&#8211;18. Null when the number is
@@ -260,7 +260,7 @@ public static class IconCatalogue
     /// <summary>Looks up a fully-qualified key such as <c>equipment/ak47</c>; null when absent.</summary>
     /// <param name="key">Namespace-qualified icon key.</param>
     public static IconRef? Get(string key) =>
-        key is not null && Catalogue.TryGetValue(key, out IconRef? icon) ? icon : null;
+        key is not null && _catalogue.TryGetValue(key, out IconRef? icon) ? icon : null;
 
     /// <summary>
     ///     The icon for a demo weapon string, taken verbatim from <c>player_death.weapon</c>. Null when
@@ -307,7 +307,7 @@ public static class IconCatalogue
             }
         }
 
-        return Scales[Scales.Count - 1];
+        return Scales[^1];
     }
 
     private static string Name(KillModifier m) => m switch
@@ -325,8 +325,8 @@ public static class IconCatalogue
     };
 
     internal static Stream? OpenResource(string logicalName) =>
-        ResourceNames.TryGetValue(logicalName, out string? actual)
-            ? Owner.GetManifestResourceStream(actual)
+        _resourceNames.TryGetValue(logicalName, out string? actual)
+            ? _owner.GetManifestResourceStream(actual)
             : null;
 
     internal static string PathFor(string key, int scale) =>
