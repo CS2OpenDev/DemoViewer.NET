@@ -240,8 +240,7 @@ internal static class TrimVerifier
         // one-to-one (VerifyTeams owns the synthesized events).
         List<string> actual = trimmed.AllGameEvents
             .Where(e => !(result.SynthesizedTeams.Count > 0
-                          && e.Payload is PlayerTeamEvent { OldTeam: 0, Silent: true }
-                          && e.Name == "player_team"))
+                          && e is { Payload: PlayerTeamEvent { OldTeam: 0, Silent: true }, Name: "player_team" }))
             .Select(Signature).ToList();
 
         if (expected.Count != actual.Count)

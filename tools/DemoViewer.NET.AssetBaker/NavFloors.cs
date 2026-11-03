@@ -93,7 +93,7 @@ public static class NavFloors
 
         if (samples.Count == 0)
         {
-            return new Result(new List<FloorBand> { new(-OuterEdge, OuterEdge) }, 0, 0, 0, "(no nav areas)");
+            return new Result(new List<FloorBand> { new(-OuterEdge, OuterEdge) }, "(no nav areas)");
         }
 
         double minZ = samples.Min(s => s.Z);
@@ -126,7 +126,7 @@ public static class NavFloors
         List<FloorBand> floors = BandsFromBoundaries(boundaries);
 
         string diag = BuildDiagnostic(counts, lo, peakW, samples.Count, minZ, maxZ, boundaries, floors) + overlapDiag;
-        return new Result(floors, samples.Count, minZ, maxZ, diag);
+        return new Result(floors, diag);
     }
 
     // Density-valley clustering (mirrors the proven FloorSplitter, area-weighted). Returns interior boundary
@@ -307,30 +307,25 @@ public static class NavFloors
         double minZ, double maxZ, List<double> boundaries, List<FloorBand> floors)
     {
         StringBuilder sb = new();
-        sb.AppendLine($"  areas={areaCount}  Z[{minZ:F0}..{maxZ:F0}]  buckets={counts.Length}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"  areas={areaCount}  Z[{minZ:F0}..{maxZ:F0}]  buckets={counts.Length}");
         for (int b = 0; b < counts.Length; b++)
         {
             double z = (lo + b) * BucketWidth;
             int bars = peakW > 0 ? (int)Math.Round(counts[b] / peakW * 40) : 0;
             if (counts[b] > 0)
             {
-                sb.AppendLine($"    z {z,7:F0}  {new string('#', bars),-40}  {counts[b],10:F0}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"    z {z,7:F0}  {new string('#', bars),-40}  {counts[b],10:F0}");
             }
         }
 
-        sb.AppendLine(
+        sb.AppendLine(CultureInfo.InvariantCulture,
             $"  → boundaries: [{string.Join(", ", boundaries.Select(x => x.ToString("F0", CultureInfo.InvariantCulture)))}]");
         sb.AppendLine($"  → floors: {floors.Count}  " +
                       string.Join("  ", floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
         return sb.ToString();
     }
 
-    public sealed record Result(
-        IReadOnlyList<FloorBand> Floors,
-        int AreaCount,
-        double MinZ,
-        double MaxZ,
-        string Diagnostic);
+    public sealed record Result(IReadOnlyList<FloorBand> Floors, string Diagnostic);
 
     // One walkable nav area reduced to what the clusterer needs: a representative world Z, its walkable
     // weight, and its XY bounding box (for the footprint-overlap gate).

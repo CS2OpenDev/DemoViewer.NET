@@ -12,7 +12,7 @@ namespace AnalysisBench;
 /// </summary>
 internal static class BackgroundPlans
 {
-    public static DecodePlan Resolve(string name) => name switch
+    private static DecodePlan Resolve(string name) => name switch
     {
         "everything" => DecodePlan.Everything,
         "events" => DecodePlan.GameEventsOnly,

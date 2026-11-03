@@ -50,8 +50,7 @@ public class OutputLogBridgeTests
     public async Task FrameworkCategoriesGatedByFlag()
     {
         bool capture = false;
-        (OutputLogBridge bridge, List<(LogLevel Level, string Category, string Message)> sink) =
-            Build(() => LogLevel.Trace, () => capture);
+        (OutputLogBridge bridge, _) = Build(() => LogLevel.Trace, () => capture);
         ILogger csvg = bridge.CreateLogger("Cs2VideoGenerator.Core.Session");
         ILogger aspnet = bridge.CreateLogger("Microsoft.AspNetCore.Hosting.Diagnostics");
         ILogger grpc = bridge.CreateLogger("Grpc.AspNetCore.Server.ServerCallHandler");

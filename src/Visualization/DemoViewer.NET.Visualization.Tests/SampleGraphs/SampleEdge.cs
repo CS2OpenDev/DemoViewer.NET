@@ -1,7 +1,7 @@
 namespace DemoViewer.NET.Visualization.Tests.SampleGraphs;
 
 /// <summary>Sample edge data record.</summary>
-public record SampleEdge(
+public sealed record SampleEdge(
     IGraphNode Source,
     IGraphNode Destination,
     string Label,
@@ -9,7 +9,7 @@ public record SampleEdge(
     string? ConditionLabel = null) : IGraphEdge
 {
     /// <summary>Style.</summary>
-    public virtual EdgeStyle? Style => null;
+    public EdgeStyle? Style => null;
 }
 
 /// <summary>Sample group data record.</summary>

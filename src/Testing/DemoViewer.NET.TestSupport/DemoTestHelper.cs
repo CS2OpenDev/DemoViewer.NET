@@ -54,7 +54,7 @@ public static class DemoTestHelper
     ///     file. A pick that is not in the folder resolves to nothing rather than to the first file,
     ///     because a run pinned to one demo must not quietly swap to another.
     /// </summary>
-    public const string DemoPathPickEnvVar = "DEMO_PATH_PICK";
+    private const string DemoPathPickEnvVar = "DEMO_PATH_PICK";
 
     /// <summary>
     ///     The corpus root, replacing <c>&lt;repo-root&gt;/demos</c> everywhere this class looks.
@@ -101,7 +101,7 @@ public static class DemoTestHelper
     ///     under the repo, so every worktree on a machine shares one copy instead of holding its
     ///     own, and so no write path of this layer points into <c>demos/</c>.
     /// </summary>
-    public const string CorpusCacheEnvVar = "DEMO_CORPUS_CACHE";
+    private const string CorpusCacheEnvVar = "DEMO_CORPUS_CACHE";
 
     /// <summary>
     ///     Canonical "reference" demo for integration tests that need a
@@ -536,7 +536,7 @@ public static class DemoTestHelper
     ///     Throws <see cref="DemoCorpusConfigurationException" /> when <see cref="CorpusRootEnvVar" />
     ///     is set to something that is not a directory. Unset is fine: that is an unconfigured run.
     /// </summary>
-    public static void ThrowIfCorpusRootMisconfigured() =>
+    private static void ThrowIfCorpusRootMisconfigured() =>
         ThrowIfCorpusRootMisconfigured(Environment.GetEnvironmentVariable(CorpusRootEnvVar));
 
     /// <summary><see cref="ThrowIfCorpusRootMisconfigured()" /> with the value passed in.</summary>

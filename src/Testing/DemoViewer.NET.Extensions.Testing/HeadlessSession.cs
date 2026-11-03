@@ -43,7 +43,6 @@ public static class HeadlessSession
     // chance of recovery. StartNew is cheap (it only builds an AppBuilder on the session thread),
     // so retrying it costs nothing.
     private static readonly Lock _sessionGate = new();
-    private static HeadlessUnitTestSession? _session;
 
     // Set (with the culprit's description) when a dispatched body never completed: the session
     // thread is then wedged forever: Avalonia's DispatchCore does a BLOCKING
@@ -111,7 +110,7 @@ public static class HeadlessSession
         {
             lock (_sessionGate)
             {
-                return _session ??= HeadlessUnitTestSession.StartNew(EntryPoint(), RequestedIsolation());
+                return field ??= HeadlessUnitTestSession.StartNew(EntryPoint(), RequestedIsolation());
             }
         }
     }
@@ -133,7 +132,7 @@ public static class HeadlessSession
     {
         try
         {
-            await RunOnUi(() => Task.CompletedTask, "<assembly warm-up>", DefaultBudget);
+            await RunOnUi(() => Task.CompletedTask, "<assembly warm-up>", _defaultBudget);
             Volatile.Write(ref _warmUpBuiltAnApplication, true);
         }
         catch (Exception ex)
@@ -257,7 +256,7 @@ public static class HeadlessSession
     ///     </para>
     /// </remarks>
     public static Task RunOnUi(Func<Task> work) =>
-        RunOnUi(work, TestContext.Current?.Metadata.TestDetails.TestName ?? "unknown test", DefaultBudget);
+        RunOnUi(work, TestContext.Current?.Metadata.TestDetails.TestName ?? "unknown test", _defaultBudget);
 
     /// <summary>
     ///     <see cref="RunOnUi(Func{Task})" /> with a longer budget than four minutes, for a real-corpus body
@@ -266,7 +265,7 @@ public static class HeadlessSession
     public static Task RunOnUi(Func<Task> work, TimeSpan budget) =>
         RunOnUi(work, TestContext.Current?.Metadata.TestDetails.TestName ?? "unknown test", budget);
 
-    private static readonly TimeSpan DefaultBudget = TimeSpan.FromMinutes(4);
+    private static readonly TimeSpan _defaultBudget = TimeSpan.FromMinutes(4);
 
     private static async Task RunOnUi(Func<Task> work, string caller, TimeSpan budget)
     {

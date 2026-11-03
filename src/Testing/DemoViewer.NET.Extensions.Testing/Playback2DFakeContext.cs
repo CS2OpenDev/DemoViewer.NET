@@ -277,13 +277,18 @@ internal sealed class Playback2DFakeContext : IModuleContext
         public static LivePlayerState Alive(int slot, int team, float x, float y, float z, float yaw,
             string? place = null)
         {
-            FieldEntity pawn = new("CCSPlayerPawn");
-            pawn.Fields["m_iHealth"] = 100;
-            pawn.Fields["m_iShotsFired"] = 0;
-            pawn.Fields["m_lifeState"] = 0;
-            pawn.Fields["m_flFlashDuration"] = 0f;
-            pawn.Fields["m_angEyeAngles"] = new Vector3(0, yaw, 0);
-            pawn.Fields["m_ArmorValue"] = 100;
+            FieldEntity pawn = new("CCSPlayerPawn")
+            {
+                Fields =
+                {
+                    ["m_iHealth"] = 100,
+                    ["m_iShotsFired"] = 0,
+                    ["m_lifeState"] = 0,
+                    ["m_flFlashDuration"] = 0f,
+                    ["m_angEyeAngles"] = new Vector3(0, yaw, 0),
+                    ["m_ArmorValue"] = 100
+                }
+            };
             if (place is not null)
             {
                 pawn.Fields["m_szLastPlaceName"] = place;

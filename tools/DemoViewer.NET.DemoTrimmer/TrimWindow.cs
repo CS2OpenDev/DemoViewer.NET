@@ -99,7 +99,7 @@ internal static class WindowSelector
     ///     Entity state is delta-encoded, so this checkpoint (a complete state snapshot) is the only
     ///     legal mid-stream entry point.
     /// </summary>
-    public static int LastFullPacketAtOrBefore(IReadOnlyList<DemoFrame> frames, int frameIndex)
+    private static int LastFullPacketAtOrBefore(IReadOnlyList<DemoFrame> frames, int frameIndex)
     {
         for (int i = Math.Min(frameIndex, frames.Count - 1); i >= 0; i--)
         {

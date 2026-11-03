@@ -123,7 +123,7 @@ public static class CollisionMesh
         long len = new FileInfo(outPath).Length;
         string diag = $"  collision: parts={phys.Parts.Length} hulls={hullCount} meshes={meshCount} " +
                       $"tris={tris.Count:N0}  Z[{min.Z:F0}..{max.Z:F0}]  {len / 1024.0 / 1024.0:F1} MiB";
-        return new Result(tris.Count, min, max, len, diag);
+        return new Result(tris.Count, min, max, diag);
     }
 
     private static void WriteTris(string path, List<(Vector3 A, Vector3 B, Vector3 C)> tris)
@@ -167,5 +167,5 @@ public static class CollisionMesh
         return new FileInfo(gzPath).Length;
     }
 
-    public sealed record Result(int TriangleCount, Vector3 Min, Vector3 Max, long ByteLength, string Diagnostic);
+    public sealed record Result(int TriangleCount, Vector3 Min, Vector3 Max, string Diagnostic);
 }

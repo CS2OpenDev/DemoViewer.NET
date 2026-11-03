@@ -19,7 +19,7 @@ public sealed record NodeStyleConfig
     public Color ActiveBorder { get; init; } = Color.Parse("#3060A0");
 
     /// <summary>Active border thickness.</summary>
-    public double ActiveBorderThickness { get; init; } = 1.5;
+    public double ActiveBorderThickness { get; } = 1.5;
 
     /// <summary>Active foreground.</summary>
     public Color ActiveForeground { get; init; } = Color.Parse("#A0C8FF");
@@ -28,10 +28,10 @@ public sealed record NodeStyleConfig
     public Color ActiveSubForeground { get; init; } = Color.Parse("#4080C0");
 
     /// <summary>Corner radius.</summary>
-    public double CornerRadius { get; init; } = 6;
+    public double CornerRadius { get; } = 6;
 
     /// <summary>Height.</summary>
-    public double Height { get; init; } = 56;
+    public double Height { get; } = 56;
 
     /// <summary>Inactive background.</summary>
     public Color InactiveBackground { get; init; } = Color.Parse("#14143A");
@@ -40,7 +40,7 @@ public sealed record NodeStyleConfig
     public Color InactiveBorder { get; init; } = Color.Parse("#252545");
 
     /// <summary>Inactive border thickness.</summary>
-    public double InactiveBorderThickness { get; init; } = 1.0;
+    public double InactiveBorderThickness { get; } = 1.0;
 
     /// <summary>Inactive foreground.</summary>
     public Color InactiveForeground { get; init; } = Color.Parse("#606080");
@@ -49,7 +49,7 @@ public sealed record NodeStyleConfig
     public Color InactiveSubForeground { get; init; } = Color.Parse("#30304A");
 
     /// <summary>Name font size.</summary>
-    public double NameFontSize { get; init; } = 12;
+    public double NameFontSize { get; } = 12;
 
     /// <summary>Root background.</summary>
     public Color RootBackground { get; init; } = Color.Parse("#141428");
@@ -61,8 +61,8 @@ public sealed record NodeStyleConfig
     public Color RootForeground { get; init; } = Color.Parse("#505068");
 
     /// <summary>State font size.</summary>
-    public double StateFontSize { get; init; } = 10;
+    public double StateFontSize { get; } = 10;
 
     /// <summary>Width.</summary>
-    public double Width { get; init; } = 180;
+    public double Width { get; } = 180;
 }

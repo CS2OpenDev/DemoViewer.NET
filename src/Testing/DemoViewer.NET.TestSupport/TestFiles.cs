@@ -8,12 +8,12 @@ namespace DemoViewer.NET.TestSupport;
 /// </summary>
 public static class TestFiles
 {
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan _patience = TimeSpan.FromSeconds(3);
 
     /// <summary>Deletes <paramref name="path" />, waiting out a transient hold on Windows.</summary>
     public static void Delete(string path)
     {
-        DateTime deadline = DateTime.UtcNow + Patience;
+        DateTime deadline = DateTime.UtcNow + _patience;
         while (true)
         {
             try

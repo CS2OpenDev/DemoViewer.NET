@@ -186,7 +186,7 @@ public static class OverviewTxt
             Children[key] = value; // last-wins on dup keys (fine for our fields)
         }
 
-        public string GetString(string key) =>
+        private string GetString(string key) =>
             Children.TryGetValue(key, out object? v) && v is string s
                 ? s
                 : throw new InvalidDataException($"missing key '{key}'");

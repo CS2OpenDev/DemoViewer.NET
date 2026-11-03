@@ -73,10 +73,10 @@ public sealed class MemorySampler : IDisposable
     }
 
     /// <summary>The one interval every spine samples at, so peak figures compare across tools.</summary>
-    public static readonly TimeSpan DefaultInterval = TimeSpan.FromMilliseconds(20);
+    private static readonly TimeSpan _defaultInterval = TimeSpan.FromMilliseconds(20);
 
     /// <summary>Starts sampling immediately. Dispose to stop.</summary>
-    public static MemorySampler Start(TimeSpan? interval = null) => new(interval ?? DefaultInterval);
+    public static MemorySampler Start(TimeSpan? interval = null) => new(interval ?? _defaultInterval);
 
     private void Sample()
     {

@@ -16,7 +16,7 @@ public sealed record EdgeStyleConfig
     public Color ActivateColor { get; init; } = Color.Parse("#2E7D32");
 
     /// <summary>Arrow size.</summary>
-    public double ArrowSize { get; init; } = 11;
+    public double ArrowSize { get; } = 11;
 
     /// <summary>Conjunction color.</summary>
     public Color ConjunctionColor { get; init; } = Color.Parse("#7986CB");
@@ -28,25 +28,25 @@ public sealed record EdgeStyleConfig
     public Color DisjunctionColor { get; init; } = Color.Parse("#CE93D8");
 
     /// <summary>Label font size.</summary>
-    public double LabelFontSize { get; init; } = 10;
+    public double LabelFontSize { get; } = 10;
 
     /// <summary>Label foreground.</summary>
     public Color LabelForeground { get; init; } = Color.Parse("#9090B0");
 
     /// <summary>Loop height.</summary>
-    public double LoopHeight { get; init; } = 70;
+    public double LoopHeight { get; } = 70;
 
     /// <summary>
     ///     Extra height added per additional self-loop on the same node, so multiple loops stack and remain visually
     ///     distinct.
     /// </summary>
-    public double LoopStackOffset { get; init; } = 28;
+    public double LoopStackOffset { get; } = 28;
 
     /// <summary>Set value color.</summary>
     public Color SetValueColor { get; init; } = Color.Parse("#F9A825");
 
     /// <summary>Stroke thickness.</summary>
-    public double StrokeThickness { get; init; } = 1.5;
+    public double StrokeThickness { get; } = 1.5;
 
     /// <summary>Resolves the default color for a given edge effect.</summary>
     public Color ColorForEffect(VisualEdgeEffect effect) => effect switch

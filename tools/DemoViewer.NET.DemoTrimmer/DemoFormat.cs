@@ -48,18 +48,15 @@ internal static class DemoFormat
     }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Writes an unsigned LEB128 varint: the frame-header encoding for cmd / tick / size.</summary>
-    public static int WriteVarint(Stream stream, uint value)
+    private static void WriteVarint(Stream stream, uint value)
     {
-        int written = 0;
         while (value >= 0x80u)
         {
             stream.WriteByte((byte)(value | 0x80u));
             value >>= 7;
-            written++;
         }
 
         stream.WriteByte((byte)value);
-        return written + 1;
     }
 
     /// <summary>
@@ -67,13 +64,12 @@ internal static class DemoFormat
     ///     <paramref name="tick" /> is written as its unsigned two's-complement form, so the
     ///     pre-recording sentinel <c>-1</c> round-trips as the original's <c>ff ff ff ff 0f</c>.
     /// </summary>
-    public static int WriteFrame(Stream stream, int commandId, int tick, bool compressed, ReadOnlySpan<byte> payload)
+    public static void WriteFrame(Stream stream, int commandId, int tick, bool compressed, ReadOnlySpan<byte> payload)
     {
-        int n = WriteVarint(stream, (uint)commandId | (compressed ? CompressedFlag : 0u));
-        n += WriteVarint(stream, unchecked((uint)tick));
-        n += WriteVarint(stream, (uint)payload.Length);
+        WriteVarint(stream, (uint)commandId | (compressed ? CompressedFlag : 0u));
+        WriteVarint(stream, unchecked((uint)tick));
+        WriteVarint(stream, (uint)payload.Length);
         stream.Write(payload);
-        return n + payload.Length;
     }
 
     /// <summary>Writes the 16-byte file header with the two frame offsets (0 when the frame is absent).</summary>

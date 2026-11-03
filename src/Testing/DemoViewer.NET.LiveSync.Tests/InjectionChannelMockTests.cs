@@ -79,9 +79,9 @@ public class InjectionChannelMockTests
 
             string demoPath = Path.Combine(Path.GetTempPath(), $"livesync-inject-{Guid.NewGuid():N}.dem");
             string otherDemoPath = Path.Combine(Path.GetTempPath(), $"livesync-inject-other-{Guid.NewGuid():N}.dem");
-            await File.WriteAllBytesAsync(demoPath, [0x50, 0x42, 0x44, 0x45, 0x4D, 0x53, 0x32, 0x00],
+            await File.WriteAllBytesAsync(demoPath, "PBDEMS2\0"u8.ToArray(),
                 cancellationToken);
-            await File.WriteAllBytesAsync(otherDemoPath, [0x50, 0x42, 0x44, 0x45, 0x4D, 0x53, 0x32, 0x00],
+            await File.WriteAllBytesAsync(otherDemoPath, "PBDEMS2\0"u8.ToArray(),
                 cancellationToken);
             try
             {
@@ -110,7 +110,7 @@ public class InjectionChannelMockTests
                 //    maps to "play DV".
                 await injector.InjectAsync(MockUserActions.Resume, cancellationToken);
                 DemoState resumed = await NextMatchingAsync(states.Reader,
-                    s => s.Origin == DemoStateOrigin.User && s.IsPaused == false,
+                    s => s is { Origin: DemoStateOrigin.User, IsPaused: false },
                     "user-origin resumed DemoState", logs, cancellationToken);
                 InboundLogic.Decision resumeDecision = InboundLogic.Decide(
                     resumed, false, 0, true, demoPath);
@@ -119,7 +119,7 @@ public class InjectionChannelMockTests
                 // 2. In-game pause: user origin + paused truth; maps to "pause DV".
                 await injector.InjectAsync(MockUserActions.Pause, cancellationToken);
                 DemoState paused = await NextMatchingAsync(states.Reader,
-                    s => s.Origin == DemoStateOrigin.User && s.IsPaused == true,
+                    s => s is { Origin: DemoStateOrigin.User, IsPaused: true },
                     "user-origin paused DemoState", logs, cancellationToken);
                 InboundLogic.Decision pauseDecision = InboundLogic.Decide(
                     paused, true, 0, true, demoPath);
@@ -160,7 +160,7 @@ public class InjectionChannelMockTests
                 //    CS2 switched to in step 4, hence dvDemoPath=otherDemoPath.)
                 await injector.InjectAsync(MockUserActions.EndDemo, cancellationToken);
                 DemoState ended = await NextMatchingAsync(states.Reader,
-                    s => s.Origin == DemoStateOrigin.User && s.IsPlayingDemo == false,
+                    s => s is { Origin: DemoStateOrigin.User, IsPlayingDemo: false },
                     "user-origin demo-end DemoState", logs, cancellationToken);
                 InboundLogic.Decision endDecision = InboundLogic.Decide(
                     ended, true, null, true,

@@ -26,18 +26,18 @@ internal sealed record TrimVariant(
     FrozenSet<string> DroppedFrameCommands,
     FrozenSet<int> StrippedInnerTypeIds)
 {
-    private static readonly FrozenSet<string> NoFrames = FrozenSet<string>.Empty;
-    private static readonly FrozenSet<int> NoInner = FrozenSet<int>.Empty;
+    private static readonly FrozenSet<string> _noFrames = FrozenSet<string>.Empty;
+    private static readonly FrozenSet<int> _noInner = FrozenSet<int>.Empty;
 
     /// <summary>
     ///     Animation frames: pure client-side animation replay data. DemoViewer.NET reads none of it,
     ///     and it is ~12% of an AnimGraph2 pro demo. Header and data are dropped together. The header
     ///     only exists to interpret the data.
     /// </summary>
-    private static readonly FrozenSet<string> AnimationFrames =
+    private static readonly FrozenSet<string> _animationFrames =
         new[] { "DEM_AnimationData", "DEM_AnimationHeader" }.ToFrozenSet(StringComparer.Ordinal);
 
-    private static readonly FrozenSet<int> UserCmds = new[] { PacketRewriter.SvcUserCmdsTypeId }.ToFrozenSet();
+    private static readonly FrozenSet<int> _userCmds = new[] { PacketRewriter.SvcUserCmdsTypeId }.ToFrozenSet();
 
     /// <summary>
     ///     V0: no mid-stream entry. Everything from frame 0 through the end of round N, verbatim.
@@ -47,25 +47,25 @@ internal sealed record TrimVariant(
     public static readonly TrimVariant V0 = new(
         "v0-contiguous",
         "frame 0 → end of round N, verbatim (no mid-stream entry)",
-        false, NoFrames, NoInner);
+        false, _noFrames, _noInner);
 
     /// <summary>V1: setup frames + entry at the <c>DEM_FullPacket</c> before round 1, then verbatim.</summary>
     public static readonly TrimVariant V1 = new(
         "v1-verbatim",
         "setup + DEM_FullPacket entry → end of round N, verbatim",
-        true, NoFrames, NoInner);
+        true, _noFrames, _noInner);
 
     /// <summary>V2: V1 minus whole animation frames. Still no payload rewriting.</summary>
     public static readonly TrimVariant V2 = new(
         "v2-no-anim",
         "V1 minus DEM_AnimationData / DEM_AnimationHeader frames",
-        true, AnimationFrames, NoInner);
+        true, _animationFrames, _noInner);
 
     /// <summary>V3: V2 plus <c>svc_UserCmds</c> stripped from inside every packet. Expected to break CS2.</summary>
     public static readonly TrimVariant V3 = new(
         "v3-no-usercmds",
         "V2 plus svc_UserCmds stripped from inside every DEM_Packet / DEM_FullPacket",
-        true, AnimationFrames, UserCmds);
+        true, _animationFrames, _userCmds);
 
     /// <summary>
     ///     V2C: V2's message removal without the mid-stream entry.
@@ -80,13 +80,13 @@ internal sealed record TrimVariant(
     public static readonly TrimVariant V2C = new(
         "v2c-no-anim-contiguous",
         "V2's frame drops, but contiguous from frame 0 (no mid-stream entry)",
-        false, AnimationFrames, NoInner);
+        false, _animationFrames, _noInner);
 
     /// <summary>V3C: V3's <c>svc_UserCmds</c> strip without the mid-stream entry. The smallest readable candidate.</summary>
     public static readonly TrimVariant V3C = new(
         "v3c-no-usercmds-contiguous",
         "V3's svc_UserCmds strip, but contiguous from frame 0 (no mid-stream entry)",
-        false, AnimationFrames, UserCmds);
+        false, _animationFrames, _userCmds);
 
     /// <summary>True when this variant has to decode, edit and re-serialize packet payloads.</summary>
     public bool RewritesPayloads => StrippedInnerTypeIds.Count > 0;

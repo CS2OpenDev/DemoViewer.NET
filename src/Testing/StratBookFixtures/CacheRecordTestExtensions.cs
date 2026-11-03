@@ -62,7 +62,7 @@ internal static class CacheRecordTestExtensions
 
     // ── Round index ──────────────────────────────────────────────────────────
 
-    public static DemoDataStamp? RoundIndexStamp(this DemoCacheStore cache, string path) =>
+    private static DemoDataStamp? RoundIndexStamp(this DemoCacheStore cache, string path) =>
         cache.Data().Stamp(path, RoundIndexStore.Facet);
 
     /// <summary>
@@ -127,7 +127,7 @@ internal static class CacheRecordTestExtensions
 
     // ── Suggestions ──────────────────────────────────────────────────────────
 
-    public static DemoDataStamp? SuggestionsStamp(this DemoCacheStore cache, string path) =>
+    private static DemoDataStamp? SuggestionsStamp(this DemoCacheStore cache, string path) =>
         cache.Data().Stamp(path, ProposalStore.Facet);
 
     public static string? SuggestionsFingerprint(this DemoCacheStore cache, string path) =>
@@ -143,7 +143,7 @@ internal static class CacheRecordTestExtensions
 
     public static GrenadeStore Grenades(this DemoCacheStore cache) => new(cache.Data());
 
-    public static DemoDataStamp? GrenadesStamp(this DemoCacheStore cache, string path) =>
+    private static DemoDataStamp? GrenadesStamp(this DemoCacheStore cache, string path) =>
         cache.Data().Stamp(path, GrenadeStore.Facet);
 
     public static DemoDataState GrenadeState(this DemoCacheStore cache, string path) =>

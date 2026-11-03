@@ -16,11 +16,9 @@ namespace DemoViewer.NET.DemoTrimmer;
 ///         before any message is dropped.
 ///     </para>
 /// </summary>
-internal sealed class BitStreamWriter
+internal sealed class BitStreamWriter(int initialByteCapacity = 4096)
 {
-    private byte[] _buf;
-
-    public BitStreamWriter(int initialByteCapacity = 4096) => _buf = new byte[Math.Max(16, initialByteCapacity)];
+    private byte[] _buf = new byte[Math.Max(16, initialByteCapacity)];
 
     /// <summary>Total bits written so far.</summary>
     public int BitLength { get; private set; }
@@ -29,7 +27,7 @@ internal sealed class BitStreamWriter
     ///     Writes <paramref name="numBits" /> low bits of <paramref name="value" />, least-significant
     ///     bit first, matching <c>BitBuffer.ReadUBits</c>.
     /// </summary>
-    public void WriteUBits(uint value, int numBits)
+    private void WriteUBits(uint value, int numBits)
     {
         if (numBits is <= 0 or > 32)
         {
@@ -59,7 +57,7 @@ internal sealed class BitStreamWriter
     }
 
     /// <summary>Writes one byte as 8 bits (LSB-first), mirroring <c>BitBuffer.ReadByte</c>.</summary>
-    public void WriteByte(byte value) => WriteUBits(value, 8);
+    private void WriteByte(byte value) => WriteUBits(value, 8);
 
     /// <summary>
     ///     Writes a run of bytes, mirroring <c>BitBuffer.ReadBytes</c> (one byte at a time,
