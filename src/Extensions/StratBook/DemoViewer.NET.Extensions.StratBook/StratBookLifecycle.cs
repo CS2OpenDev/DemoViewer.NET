@@ -28,7 +28,7 @@ namespace DemoViewer.NET.Extensions.StratBook;
 internal sealed class StratBookLifecycle : IExtensionLifecycle
 {
     /// <summary>The serial the pack's loads, attach and release share.</summary>
-    internal const string Owner = StratBookPack.PackFeatureId;
+    private const string Owner = StratBookPack.PackFeatureId;
 
     /// <summary>The release item's title, pinned by a test.</summary>
     internal const string ReleaseTitle = "Strat Book: release memory";

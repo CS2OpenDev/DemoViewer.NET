@@ -103,83 +103,83 @@ internal static class StratBookCommands
 
     private static CommandDescriptor[] Build()
     {
-        const string always = "playback2d";
-        const string palette = StratBookActions.PaletteScope;
-        const string suggestion = StratBookActions.SuggestionScope;
+        const string Always = "playback2d";
+        const string Palette = StratBookActions.PaletteScope;
+        const string Suggestion = StratBookActions.SuggestionScope;
         return
         [
             Command(StratBookActions.FindRoundsLikeThis,
                 "Find rounds like this: snapshot the alive players onto the Situations query",
-                always, Key.F, KeyModifiers.Control),
+                Always, Key.F, KeyModifiers.Control),
 
             Command(StratBookActions.NextSituationResult,
                 "Next situation result: seek to the next card of the Situations search",
-                always, Key.J, KeyModifiers.None),
+                Always, Key.J, KeyModifiers.None),
             Command(StratBookActions.PrevSituationResult,
                 "Previous situation result: seek to the previous card of the Situations search",
-                always, Key.K, KeyModifiers.None),
+                Always, Key.K, KeyModifiers.None),
 
             Command(StratBookActions.FocusTagPalette,
                 "Tag palette: focus it so its hotkeys tag (press again to leave)",
-                always, Key.C, KeyModifiers.None),
+                Always, Key.C, KeyModifiers.None),
             Command(StratBookActions.TagPaletteBack,
                 "Tag palette: finish the tag and go back to the codes, or leave the palette",
-                palette, Key.Escape, KeyModifiers.None),
+                Palette, Key.Escape, KeyModifiers.None),
             Command(StratBookActions.TagNote,
                 "Tag palette: write a note on the tag just made",
-                palette, Key.M, KeyModifiers.Control),
+                Palette, Key.M, KeyModifiers.Control),
             Command(StratBookActions.TagClearSticky,
                 "Tag palette: clear the sticky labels",
-                palette, Key.Back, KeyModifiers.Control),
+                Palette, Key.Back, KeyModifiers.Control),
 
             Command(StratBookActions.TagLabelMode,
                 "Tag palette: label mode, adding labels to the tag under the playhead instead of making tags",
-                palette, Key.L, KeyModifiers.Control),
+                Palette, Key.L, KeyModifiers.Control),
             Command(StratBookActions.TagLabelGroupNext,
                 "Tag palette: in label mode, show the next label group",
-                palette, Key.G, KeyModifiers.Control),
+                Palette, Key.G, KeyModifiers.Control),
 
             Command(StratBookActions.SuggestionNext,
                 "Suggested tags: select the next pending proposal and seek to it",
-                suggestion, Key.J, KeyModifiers.None),
+                Suggestion, Key.J, KeyModifiers.None),
             Command(StratBookActions.SuggestionPrev,
                 "Suggested tags: select the previous pending proposal and seek to it",
-                suggestion, Key.K, KeyModifiers.None),
+                Suggestion, Key.K, KeyModifiers.None),
             Command(StratBookActions.SuggestionAccept,
                 "Suggested tags: accept the selected proposal as a tag and go to the next",
-                always, Key.Y, KeyModifiers.None),
+                Always, Key.Y, KeyModifiers.None),
             Command(StratBookActions.SuggestionReject,
                 "Suggested tags: reject the selected proposal and go to the next",
-                always, Key.N, KeyModifiers.None),
+                Always, Key.N, KeyModifiers.None),
             Command(StratBookActions.SuggestionEdit,
                 "Suggested tags: edit the selected proposal before accepting it",
-                always, Key.Enter, KeyModifiers.None),
+                Always, Key.Enter, KeyModifiers.None),
             Command(StratBookActions.SuggestionAcceptAll,
                 "Suggested tags: accept every pending proposal the queue's filter shows, after a confirm",
-                always, Key.Y, KeyModifiers.Control),
+                Always, Key.Y, KeyModifiers.Control),
 
             Command(StratBookActions.ToggleReviewMode,
                 "Review mode: show the tag palette, the suggestions and the tag lanes, or hide them",
-                always, Key.R, KeyModifiers.Shift),
+                Always, Key.R, KeyModifiers.Shift),
 
             Command(StratBookActions.ToolToken,
                 "Strat canvas: token tool (press again for pan)",
-                always, Key.V, KeyModifiers.None),
+                Always, Key.V, KeyModifiers.None),
             Command(StratBookActions.AddStep,
                 "Strat canvas: insert a step after the active one at the playhead's round-clock time",
-                always, Key.N, KeyModifiers.Shift),
+                Always, Key.N, KeyModifiers.Shift),
             Command(StratBookActions.DuplicateStep,
                 "Strat canvas: copy the active step's positions and strokes into a new step 5 s later",
-                always, Key.D, KeyModifiers.Control),
+                Always, Key.D, KeyModifiers.Control),
             Command(StratBookActions.DeleteStep,
                 "Strat canvas: delete the active step",
-                always, Key.Delete, KeyModifiers.Control),
+                Always, Key.Delete, KeyModifiers.Control),
             Command(StratBookActions.PrevStep,
                 "Strat canvas: seek to the previous step and make it active",
-                always, Key.OemOpenBrackets, KeyModifiers.None),
+                Always, Key.OemOpenBrackets, KeyModifiers.None),
             Command(StratBookActions.NextStep,
                 "Strat canvas: seek to the next step and make it active",
-                always, Key.OemCloseBrackets, KeyModifiers.None)
+                Always, Key.OemCloseBrackets, KeyModifiers.None)
         ];
     }
 

@@ -208,9 +208,9 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:CalloutAliasRow">
                                 <Grid ColumnDefinitions="80,*,Auto,Auto" ColumnSpacing="4" Margin="0 0 0 3">
-                                    <TextBox Grid.Column="0" FontSize="11" Watermark="alias"
+                                    <TextBox Grid.Column="0" FontSize="11" PlaceholderText="alias"
                                              Text="{Binding Alias, UpdateSourceTrigger=LostFocus}" />
-                                    <TextBox Grid.Column="1" FontSize="11" Watermark="place or callout"
+                                    <TextBox Grid.Column="1" FontSize="11" PlaceholderText="place or callout"
                                              Text="{Binding Place, UpdateSourceTrigger=LostFocus}" />
                                     <CheckBox Grid.Column="2" Content="primary" FontSize="10"
                                               IsChecked="{Binding Primary}"
@@ -222,8 +222,8 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <Grid ColumnDefinitions="80,*,Auto" ColumnSpacing="4">
-                        <TextBox Grid.Column="0" FontSize="11" Watermark="new alias" Text="{Binding NewAliasText}" />
-                        <TextBox Grid.Column="1" FontSize="11" Watermark="place or callout"
+                        <TextBox Grid.Column="0" FontSize="11" PlaceholderText="new alias" Text="{Binding NewAliasText}" />
+                        <TextBox Grid.Column="1" FontSize="11" PlaceholderText="place or callout"
                                  Text="{Binding NewPlaceText}" />
                         <Button Grid.Column="2" Content="Add" Classes="ghost" FontSize="11" Padding="8 3"
                                 Command="{Binding AddAliasCommand}" />
@@ -663,7 +663,7 @@
                                         <TextBlock Text="Rounds" Classes="col-label" FontSize="11"
                                                    Foreground="{DynamicResource TextCardHeader}" />
                                         <ItemsControl
-                                            ItemsSource="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.SelectedRow.Members}">
+                                            ItemsSource="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Detected.SelectedRow.Members, FallbackValue={x:Null}}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="vm:DetectedMemberRow">
                                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0 0 0 3">
@@ -795,11 +795,11 @@
                                             <TextBlock Grid.Column="0" Text="Tags" FontSize="12"
                                                        VerticalAlignment="Center"
                                                        Foreground="{DynamicResource TextValue}" />
-                                            <TextBox Grid.Column="1" FontSize="12" Watermark="comma separated"
+                                            <TextBox Grid.Column="1" FontSize="12" PlaceholderText="comma separated"
                                                      Text="{Binding TagsText, UpdateSourceTrigger=LostFocus}" />
                                         </Grid>
                                         <TextBox Text="{Binding Notes, UpdateSourceTrigger=LostFocus}" FontSize="12"
-                                                 Watermark="notes"
+                                                 PlaceholderText="notes"
                                                  AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" />
 
                                         <!-- Slots. -->
@@ -813,7 +813,7 @@
                                                         <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="12"
                                                                    VerticalAlignment="Center"
                                                                    Foreground="{DynamicResource TextValue}" />
-                                                        <TextBox Grid.Column="1" FontSize="12" Watermark="role"
+                                                        <TextBox Grid.Column="1" FontSize="12" PlaceholderText="role"
                                                                  MinWidth="0"
                                                                  Text="{Binding Role, UpdateSourceTrigger=LostFocus}" />
                                                         <TextBlock Grid.Column="2" Text="pin" FontSize="11"
@@ -1061,32 +1061,32 @@
                                                                                 Margin="0 -4 -4 0"
                                                                                 Classes.refusal="{Binding RowIssue.IsRefusal, FallbackValue=False}"
                                                                                 IsVisible="{Binding RowIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                Text="{Binding RowIssue.Glyph}"
-                                                                                ToolTip.Tip="{Binding RowIssue.Message}" />
+                                                                                Text="{Binding RowIssue.Glyph, FallbackValue=''}\"
+                                                                                ToolTip.Tip="{Binding RowIssue.Message, FallbackValue={x:Null}}" />
                                                                         <TextBlock Grid.Column="1" Classes="stratIssue"
                                                                                 HorizontalAlignment="Right"
                                                                                 VerticalAlignment="Top"
                                                                                 Margin="0 -9 -5 0"
                                                                                 Classes.refusal="{Binding TimeIssue.IsRefusal, FallbackValue=False}"
                                                                                 IsVisible="{Binding TimeIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                Text="{Binding TimeIssue.Glyph}"
-                                                                                ToolTip.Tip="{Binding TimeIssue.Message}" />
+                                                                                Text="{Binding TimeIssue.Glyph, FallbackValue=''}\"
+                                                                                ToolTip.Tip="{Binding TimeIssue.Message, FallbackValue={x:Null}}" />
                                                                         <TextBlock Grid.Column="2" Classes="stratIssue"
                                                                                 HorizontalAlignment="Right"
                                                                                 VerticalAlignment="Top"
                                                                                 Margin="0 -9 -5 0"
                                                                                 Classes.refusal="{Binding WhoIssue.IsRefusal, FallbackValue=False}"
                                                                                 IsVisible="{Binding WhoIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                Text="{Binding WhoIssue.Glyph}"
-                                                                                ToolTip.Tip="{Binding WhoIssue.Message}" />
+                                                                                Text="{Binding WhoIssue.Glyph, FallbackValue=''}\"
+                                                                                ToolTip.Tip="{Binding WhoIssue.Message, FallbackValue={x:Null}}" />
                                                                         <TextBlock Grid.Column="3" Classes="stratIssue"
                                                                                 HorizontalAlignment="Right"
                                                                                 VerticalAlignment="Top"
                                                                                 Margin="0 -9 -5 0"
                                                                                 Classes.refusal="{Binding VerbIssue.IsRefusal, FallbackValue=False}"
                                                                                 IsVisible="{Binding VerbIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                Text="{Binding VerbIssue.Glyph}"
-                                                                                ToolTip.Tip="{Binding VerbIssue.Message}" />
+                                                                                Text="{Binding VerbIssue.Glyph, FallbackValue=''}\"
+                                                                                ToolTip.Tip="{Binding VerbIssue.Message, FallbackValue={x:Null}}" />
                                                                         <StackPanel Grid.Column="5"
                                                                                 Orientation="Horizontal" Spacing="2">
                                                                             <!-- Move up and down stacked: the 1280 layout has no room for a fourth button in a line. -->
@@ -1129,8 +1129,8 @@
                                                                                     <TextBlock Classes="stratIssue"
                                                                                         Classes.refusal="{Binding GroupPlaceIssue.IsRefusal, FallbackValue=False}"
                                                                                         IsVisible="{Binding GroupPlaceIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                        Text="{Binding GroupPlaceIssue.Glyph}"
-                                                                                        ToolTip.Tip="{Binding GroupPlaceIssue.Message}" />
+                                                                                        Text="{Binding GroupPlaceIssue.Glyph, FallbackValue=''}\"
+                                                                                        ToolTip.Tip="{Binding GroupPlaceIssue.Message, FallbackValue={x:Null}}" />
                                                                                 </StackPanel>
                                                                                 <c:PlaceField Name="GroupPlaceField"
                                                                                     PlaceholderText="place or callout"
@@ -1142,7 +1142,7 @@
                                                                                     ArmedTarget="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Canvas.ArmedField, FallbackValue={x:Null}}"
                                                                                     ToolTip.Tip="Where they go; every player in the step" />
                                                                             </StackPanel>
-                                                                            <StackPanel
+                                                                            <StackPanel Grid.Row="0"
                                                                                 Grid.Column="{Binding GroupWatchColumn}"
                                                                                 Grid.ColumnSpan="{Binding GroupWatchSpan}"
                                                                                 IsVisible="{Binding ShowGroupWatch}">
@@ -1153,8 +1153,8 @@
                                                                                     <TextBlock Classes="stratIssue"
                                                                                         Classes.refusal="{Binding GroupWatchIssue.IsRefusal, FallbackValue=False}"
                                                                                         IsVisible="{Binding GroupWatchIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                        Text="{Binding GroupWatchIssue.Glyph}"
-                                                                                        ToolTip.Tip="{Binding GroupWatchIssue.Message}" />
+                                                                                        Text="{Binding GroupWatchIssue.Glyph, FallbackValue=''}\"
+                                                                                        ToolTip.Tip="{Binding GroupWatchIssue.Message, FallbackValue={x:Null}}" />
                                                                                 </StackPanel>
                                                                                 <c:PlaceField Name="GroupWatchField"
                                                                                     IsMulti="True"
@@ -1178,8 +1178,8 @@
                                                                                     <TextBlock Classes="stratIssue"
                                                                                         Classes.refusal="{Binding GroupViaIssue.IsRefusal, FallbackValue=False}"
                                                                                         IsVisible="{Binding GroupViaIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                        Text="{Binding GroupViaIssue.Glyph}"
-                                                                                        ToolTip.Tip="{Binding GroupViaIssue.Message}" />
+                                                                                        Text="{Binding GroupViaIssue.Glyph, FallbackValue=''}\"
+                                                                                        ToolTip.Tip="{Binding GroupViaIssue.Message, FallbackValue={x:Null}}" />
                                                                                 </StackPanel>
                                                                                 <c:PlaceField Name="GroupViaField"
                                                                                     IsMulti="True"
@@ -1192,7 +1192,7 @@
                                                                                     ArmedTarget="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Canvas.ArmedField, FallbackValue={x:Null}}"
                                                                                     ToolTip.Tip="Callouts to go through on the way, in order; empty takes the shortest route" />
                                                                             </StackPanel>
-                                                                            <StackPanel Grid.Column="2"
+                                                                            <StackPanel Grid.Row="0" Grid.Column="2"
                                                                                     Orientation="Horizontal"
                                                                                     Spacing="2"
                                                                                     VerticalAlignment="Bottom">
@@ -1247,7 +1247,7 @@
                                                                                                     ItemsSource="{Binding SlotOptions}"
                                                                                                     SelectedItem="{Binding Slot}"
                                                                                                     ToolTip.Tip="The player this line is for; picking a player who has a line swaps the two" />
-                                                                                                <TextBlock
+                                                                                                <TextBlock Grid.Row="0"
                                                                                                     Grid.Column="0"
                                                                                                     Text="{Binding Slot}"
                                                                                                     FontSize="12"
@@ -1256,7 +1256,7 @@
                                                                                                     Margin="6 0 0 0"
                                                                                                     IsVisible="{Binding IsImplicit}"
                                                                                                     Foreground="{DynamicResource TextValue}" />
-                                                                                                <c:PlaceField
+                                                                                                <c:PlaceField Grid.Row="0"
                                                                                                     Name="LinePlaceField"
                                                                                                     Grid.Column="1"
                                                                                                     IsVisible="{Binding ShowPlace}"
@@ -1268,7 +1268,7 @@
                                                                                                     PickCommandParameter="{Binding PlaceTarget}"
                                                                                                     ArmedTarget="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Canvas.ArmedField, FallbackValue={x:Null}}"
                                                                                                     ToolTip.Tip="This player's place" />
-                                                                                                <c:PlaceField
+                                                                                                <c:PlaceField Grid.Row="0"
                                                                                                     Name="LineWatchField"
                                                                                                     IsMulti="True"
                                                                                                     Grid.Column="2"
@@ -1311,9 +1311,9 @@
                                                                                                     Margin="0 -6 -5 0"
                                                                                                     Classes.refusal="{Binding ViaIssue.IsRefusal, FallbackValue=False}"
                                                                                                     IsVisible="{Binding ViaIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                                    Text="{Binding ViaIssue.Glyph}"
-                                                                                                    ToolTip.Tip="{Binding ViaIssue.Message}" />
-                                                                                                <StackPanel
+                                                                                                    Text="{Binding ViaIssue.Glyph, FallbackValue=''}\"
+                                                                                                    ToolTip.Tip="{Binding ViaIssue.Message, FallbackValue={x:Null}}" />
+                                                                                                <StackPanel Grid.Row="0"
                                                                                                     Grid.Column="3"
                                                                                                     Orientation="Horizontal"
                                                                                                     Spacing="2">
@@ -1332,7 +1332,7 @@
                                                                                                         Command="{Binding RemoveCommand}"
                                                                                                         ToolTip.Tip="Remove this player from the step" />
                                                                                                 </StackPanel>
-                                                                                                <TextBlock
+                                                                                                <TextBlock Grid.Row="0"
                                                                                                     Grid.Column="0"
                                                                                                     Classes="stratIssue"
                                                                                                     HorizontalAlignment="Right"
@@ -1340,9 +1340,9 @@
                                                                                                     Margin="0 -6 -5 0"
                                                                                                     Classes.refusal="{Binding SlotIssue.IsRefusal, FallbackValue=False}"
                                                                                                     IsVisible="{Binding SlotIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                                    Text="{Binding SlotIssue.Glyph}"
-                                                                                                    ToolTip.Tip="{Binding SlotIssue.Message}" />
-                                                                                                <TextBlock
+                                                                                                    Text="{Binding SlotIssue.Glyph, FallbackValue=''}\"
+                                                                                                    ToolTip.Tip="{Binding SlotIssue.Message, FallbackValue={x:Null}}" />
+                                                                                                <TextBlock Grid.Row="0"
                                                                                                     Grid.Column="1"
                                                                                                     Classes="stratIssue"
                                                                                                     HorizontalAlignment="Right"
@@ -1350,9 +1350,9 @@
                                                                                                     Margin="0 -6 -5 0"
                                                                                                     Classes.refusal="{Binding PlaceIssue.IsRefusal, FallbackValue=False}"
                                                                                                     IsVisible="{Binding PlaceIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                                    Text="{Binding PlaceIssue.Glyph}"
-                                                                                                    ToolTip.Tip="{Binding PlaceIssue.Message}" />
-                                                                                                <TextBlock
+                                                                                                    Text="{Binding PlaceIssue.Glyph, FallbackValue=''}\"
+                                                                                                    ToolTip.Tip="{Binding PlaceIssue.Message, FallbackValue={x:Null}}" />
+                                                                                                <TextBlock Grid.Row="0"
                                                                                                     Grid.Column="2"
                                                                                                     Classes="stratIssue"
                                                                                                     HorizontalAlignment="Right"
@@ -1360,8 +1360,8 @@
                                                                                                     Margin="0 -6 -5 0"
                                                                                                     Classes.refusal="{Binding WatchIssue.IsRefusal, FallbackValue=False}"
                                                                                                     IsVisible="{Binding WatchIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                                    Text="{Binding WatchIssue.Glyph}"
-                                                                                                    ToolTip.Tip="{Binding WatchIssue.Message}" />
+                                                                                                    Text="{Binding WatchIssue.Glyph, FallbackValue=''}\"
+                                                                                                    ToolTip.Tip="{Binding WatchIssue.Message, FallbackValue={x:Null}}" />
                                                                                             </Grid>
                                                                                         </Border>
                                                                                     </DataTemplate>
@@ -1396,8 +1396,8 @@
                                                                                 <TextBlock Classes="stratIssue"
                                                                                     Classes.refusal="{Binding FromIssue.IsRefusal, FallbackValue=False}"
                                                                                     IsVisible="{Binding FromIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                    Text="{Binding FromIssue.Glyph}"
-                                                                                    ToolTip.Tip="{Binding FromIssue.Message}" />
+                                                                                    Text="{Binding FromIssue.Glyph, FallbackValue=''}\"
+                                                                                    ToolTip.Tip="{Binding FromIssue.Message, FallbackValue={x:Null}}" />
                                                                             </StackPanel>
                                                                             <c:PlaceField Name="FromField" Width="150"
                                                                                     PlaceholderText="place or callout"
@@ -1418,8 +1418,8 @@
                                                                                 <TextBlock Classes="stratIssue"
                                                                                     Classes.refusal="{Binding ToIssue.IsRefusal, FallbackValue=False}"
                                                                                     IsVisible="{Binding ToIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                    Text="{Binding ToIssue.Glyph}"
-                                                                                    ToolTip.Tip="{Binding ToIssue.Message}" />
+                                                                                    Text="{Binding ToIssue.Glyph, FallbackValue=''}\"
+                                                                                    ToolTip.Tip="{Binding ToIssue.Message, FallbackValue={x:Null}}" />
                                                                             </StackPanel>
                                                                             <StackPanel Orientation="Horizontal"
                                                                                     Spacing="2">
@@ -1444,8 +1444,8 @@
                                                                                 <TextBlock Classes="stratIssue"
                                                                                     Classes.refusal="{Binding UtilityIssue.IsRefusal, FallbackValue=False}"
                                                                                     IsVisible="{Binding UtilityIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                    Text="{Binding UtilityIssue.Glyph}"
-                                                                                    ToolTip.Tip="{Binding UtilityIssue.Message}" />
+                                                                                    Text="{Binding UtilityIssue.Glyph, FallbackValue=''}\"
+                                                                                    ToolTip.Tip="{Binding UtilityIssue.Message, FallbackValue={x:Null}}" />
                                                                             </StackPanel>
                                                                             <ComboBox Width="96"
                                                                                     ItemsSource="{x:Static vm:StratEditorViewModel.UtilityKinds}"
@@ -1461,8 +1461,8 @@
                                                                                 <TextBlock Classes="stratIssue"
                                                                                     Classes.refusal="{Binding LineupIssue.IsRefusal, FallbackValue=False}"
                                                                                     IsVisible="{Binding LineupIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                    Text="{Binding LineupIssue.Glyph}"
-                                                                                    ToolTip.Tip="{Binding LineupIssue.Message}" />
+                                                                                    Text="{Binding LineupIssue.Glyph, FallbackValue=''}\"
+                                                                                    ToolTip.Tip="{Binding LineupIssue.Message, FallbackValue={x:Null}}" />
                                                                             </StackPanel>
                                                                             <ComboBox Width="160"
                                                                                     ItemsSource="{Binding LineupOptions}"
@@ -1478,8 +1478,8 @@
                                                                                 <TextBlock Classes="stratIssue"
                                                                                     Classes.refusal="{Binding TechniqueIssue.IsRefusal, FallbackValue=False}"
                                                                                     IsVisible="{Binding TechniqueIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                    Text="{Binding TechniqueIssue.Glyph}"
-                                                                                    ToolTip.Tip="{Binding TechniqueIssue.Message}" />
+                                                                                    Text="{Binding TechniqueIssue.Glyph, FallbackValue=''}\"
+                                                                                    ToolTip.Tip="{Binding TechniqueIssue.Message, FallbackValue={x:Null}}" />
                                                                             </StackPanel>
                                                                             <ComboBox Width="160"
                                                                                     ItemsSource="{Binding Techniques}"
@@ -1507,8 +1507,8 @@
                                                                                 <TextBlock Classes="stratIssue"
                                                                                     Classes.refusal="{Binding LandingIssue.IsRefusal, FallbackValue=False}"
                                                                                     IsVisible="{Binding LandingIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                    Text="{Binding LandingIssue.Glyph}"
-                                                                                    ToolTip.Tip="{Binding LandingIssue.Message}" />
+                                                                                    Text="{Binding LandingIssue.Glyph, FallbackValue=''}\"
+                                                                                    ToolTip.Tip="{Binding LandingIssue.Message, FallbackValue={x:Null}}" />
                                                                             </StackPanel>
                                                                             <c:PlaceField Name="LandingField"
                                                                                     Width="150"
@@ -1531,8 +1531,8 @@
                                                                                 <TextBlock Classes="stratIssue"
                                                                                     Classes.refusal="{Binding LurkAreasIssue.IsRefusal, FallbackValue=False}"
                                                                                     IsVisible="{Binding LurkAreasIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                    Text="{Binding LurkAreasIssue.Glyph}"
-                                                                                    ToolTip.Tip="{Binding LurkAreasIssue.Message}" />
+                                                                                    Text="{Binding LurkAreasIssue.Glyph, FallbackValue=''}\"
+                                                                                    ToolTip.Tip="{Binding LurkAreasIssue.Message, FallbackValue={x:Null}}" />
                                                                             </StackPanel>
                                                                             <c:PlaceField Name="LurkAreasField"
                                                                                     IsMulti="True" Width="200"
@@ -1554,11 +1554,11 @@
                                                                                 <TextBlock Classes="stratIssue"
                                                                                     Classes.refusal="{Binding RotateAtIssue.IsRefusal, FallbackValue=False}"
                                                                                     IsVisible="{Binding RotateAtIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                    Text="{Binding RotateAtIssue.Glyph}"
-                                                                                    ToolTip.Tip="{Binding RotateAtIssue.Message}" />
+                                                                                    Text="{Binding RotateAtIssue.Glyph, FallbackValue=''}\"
+                                                                                    ToolTip.Tip="{Binding RotateAtIssue.Message, FallbackValue={x:Null}}" />
                                                                             </StackPanel>
                                                                             <TextBox Name="RotateAtField" Width="56"
-                                                                                    Watermark="0:40"
+                                                                                    PlaceholderText="0:40"
                                                                                     Text="{Binding RotateAtText, UpdateSourceTrigger=LostFocus}"
                                                                                     ToolTip.Tip="The round clock time the lurk rotates at; later than the step" />
                                                                         </StackPanel>
@@ -1567,7 +1567,7 @@
                                                                             <TextBlock Text="or when"
                                                                                     Classes="stratFieldLabel" />
                                                                             <AutoCompleteBox Name="RotateWhenField"
-                                                                                    Width="128" Watermark="on the call"
+                                                                                    Width="128" PlaceholderText="on the call"
                                                                                     MinimumPrefixLength="0"
                                                                                     FilterMode="StartsWith"
                                                                                     ItemsSource="{x:Static vm:StratStepRow.RotateConditions}"
@@ -1583,8 +1583,8 @@
                                                                                 <TextBlock Classes="stratIssue"
                                                                                     Classes.refusal="{Binding RotateToIssue.IsRefusal, FallbackValue=False}"
                                                                                     IsVisible="{Binding RotateToIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                                    Text="{Binding RotateToIssue.Glyph}"
-                                                                                    ToolTip.Tip="{Binding RotateToIssue.Message}" />
+                                                                                    Text="{Binding RotateToIssue.Glyph, FallbackValue=''}\"
+                                                                                    ToolTip.Tip="{Binding RotateToIssue.Message, FallbackValue={x:Null}}" />
                                                                             </StackPanel>
                                                                             <c:PlaceField Name="RotateToField"
                                                                                     Width="150"
@@ -1711,7 +1711,7 @@
                                                                         <StackPanel Classes="stratField">
                                                                             <TextBlock Text="note"
                                                                                     Classes="stratFieldLabel" />
-                                                                            <TextBox Width="200" Watermark="note"
+                                                                            <TextBox Width="200" PlaceholderText="note"
                                                                                     Text="{Binding Note, UpdateSourceTrigger=LostFocus}" />
                                                                         </StackPanel>
                                                                     </WrapPanel>
@@ -1760,7 +1760,7 @@
                                                                    Foreground="{DynamicResource TextMid}"
                                                                    Margin="0 0 6 4" />
                                                         <TextBox FontSize="12" MinWidth="200" Margin="0 0 8 4"
-                                                                 Watermark="contact at Connector before 1:05"
+                                                                 PlaceholderText="contact at Connector before 1:05"
                                                                  Text="{Binding ConditionText, UpdateSourceTrigger=LostFocus}" />
                                                         <TextBlock Text="continue in" FontSize="11"
                                                                    VerticalAlignment="Center"
@@ -1788,7 +1788,7 @@
                                                             </ComboBox.ItemTemplate>
                                                         </ComboBox>
                                                         <TextBox FontSize="12" MinWidth="140" Margin="0 0 8 4"
-                                                                 Watermark="note"
+                                                                 PlaceholderText="note"
                                                                  Text="{Binding Note, UpdateSourceTrigger=LostFocus}" />
                                                         <Button Content="Remove" Classes="ghost" FontSize="11"
                                                                 Padding="8 3" Margin="0 0 0 4"

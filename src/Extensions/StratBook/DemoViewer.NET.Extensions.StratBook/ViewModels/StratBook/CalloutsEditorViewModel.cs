@@ -34,6 +34,7 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
     private StratOwnerOption? _copyFrom;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasIssue))]
     private string _issueLine = "";
 
     [ObservableProperty]
@@ -159,8 +160,6 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
     private bool CanCopy() => CopyFrom is not null;
 
     partial void OnCopyFromChanged(StratOwnerOption? value) => CopyAliasesCommand.NotifyCanExecuteChanged();
-
-    partial void OnIssueLineChanged(string value) => OnPropertyChanged(nameof(HasIssue));
 
     // A row's edit rewrites the whole table under its former alias key, so a rename reads as remove-then-add
     // in one write rather than two, and the validator sees the final shape only.

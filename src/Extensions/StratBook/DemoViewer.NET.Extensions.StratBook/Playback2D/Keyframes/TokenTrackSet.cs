@@ -103,9 +103,8 @@ public sealed class TokenTrackSet
         ArgumentNullException.ThrowIfNull(into);
 
         into.Clear();
-        for (int i = 0; i < _tracks.Count; i++)
+        foreach (TokenTrack track in _tracks)
         {
-            TokenTrack track = _tracks[i];
             if (!includeOpponents && track.IsOpponent)
             {
                 continue;

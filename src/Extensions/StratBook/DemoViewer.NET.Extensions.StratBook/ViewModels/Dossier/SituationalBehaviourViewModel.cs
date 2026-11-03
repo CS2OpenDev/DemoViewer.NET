@@ -57,7 +57,7 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
         Func<string, bool>? selectTab, Action<Action> post, Func<Action, Task>? run = null)
     {
         ArgumentNullException.ThrowIfNull(post);
-        _run = run ?? (work => Task.Run(work));
+        _run = run ?? Task.Run;
         _service = service;
         _review = review;
         _selectTab = selectTab;
@@ -104,7 +104,7 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
 
     /// <summary>The section line for a finished build.</summary>
     /// <param name="set">The build.</param>
-    public static string LineFor(SituationalBehaviourSet set)
+    private static string LineFor(SituationalBehaviourSet set)
     {
         ArgumentNullException.ThrowIfNull(set);
         if (set.Blocks.Count == 0)
@@ -212,7 +212,7 @@ public sealed class SituationalBlockViewModel
         SaveDiscipline = Links(block.SaveDiscipline, $"{prefix} · after a loss,");
     }
 
-    public SituationalBehaviourBlock Block { get; }
+    private SituationalBehaviourBlock Block { get; }
 
     public string Map => Block.Map;
 

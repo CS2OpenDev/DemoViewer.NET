@@ -107,7 +107,7 @@
             <!-- The note box: the one focusable control. Enter keeps the note and Esc drops the edit; the
                  tab's key handler stands aside while a text box has focus. -->
             <TextBox x:Name="NoteBox" Text="{Binding NoteDraft}" IsVisible="{Binding IsEditingNote}"
-                     Watermark="note for this tag: Enter keeps it, Esc drops the edit" AcceptsReturn="False"
+                     PlaceholderText="note for this tag: Enter keeps it, Esc drops the edit" AcceptsReturn="False"
                      TextWrapping="Wrap" FontSize="11" />
 
             <TextBlock Text="{Binding HintText}" TextWrapping="Wrap" FontSize="10"

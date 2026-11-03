@@ -92,7 +92,7 @@ public partial class StratBookTabView : UserControl
     // The Start row selects the start: the playhead goes to tick 0, where a drag writes a token's start.
     private void OnStartRowActivated(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is StratBookTabViewModel vm && !vm.Editor.Start.IsSelected)
+        if (DataContext is StratBookTabViewModel { Editor.Start.IsSelected: false } vm)
         {
             vm.StepSelection.SelectStart();
         }
@@ -244,7 +244,7 @@ public partial class StratBookTabView : UserControl
                 }
 
                 break;
-            case Key.Escape when e.KeyModifiers == KeyModifiers.None && e.Source is TextBox:
+            case Key.Escape when e is { KeyModifiers: KeyModifiers.None, Source: TextBox }:
                 container.Focus();
                 break;
             case Key.Up or Key.Down when e.KeyModifiers == KeyModifiers.Alt && (onRow || inLine):
@@ -328,7 +328,7 @@ public partial class StratBookTabView : UserControl
     }
 
     /// <summary>One entry per template group; a group with site variants opens a submenu of them.</summary>
-    internal static void FillTemplateMenu(FlyoutBase? flyout, IEnumerable<StratTemplate> templates, ICommand command,
+    private static void FillTemplateMenu(FlyoutBase? flyout, IEnumerable<StratTemplate> templates, ICommand command,
         bool blank)
     {
         if (flyout is not MenuFlyout menu)

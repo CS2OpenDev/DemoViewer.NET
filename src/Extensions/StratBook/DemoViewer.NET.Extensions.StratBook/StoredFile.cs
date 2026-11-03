@@ -76,7 +76,7 @@ public sealed class StoredFile
         // Strip a UTF-8 BOM. These files are user-editable and several editors write one, and the
         // JSON readers downstream take bytes: Utf8JsonReader treats a BOM as content and throws,
         // where the File.ReadAllText these paths used before silently removed it.
-        if (bytes is { Length: >= 3 } && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        if (bytes is [0xEF, 0xBB, 0xBF, ..])
         {
             return bytes[3..];
         }

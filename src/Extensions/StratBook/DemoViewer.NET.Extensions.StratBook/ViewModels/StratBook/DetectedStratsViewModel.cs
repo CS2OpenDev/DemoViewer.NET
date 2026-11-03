@@ -22,7 +22,7 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposable
 {
     /// <summary>Seconds a member round opens before the take, so the approach is on screen.</summary>
-    public const int ExecuteLeadSeconds = 10;
+    private const int ExecuteLeadSeconds = 10;
 
     private readonly StratCanvasServices? _canvasServices;
     private readonly LineupOriginSource? _lineupOrigins;
@@ -85,8 +85,6 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
 
         Refresh();
     }
-
-    public bool IsAvailable => _mining is not null;
 
     public bool IsMining => _mining?.IsMining ?? false;
 
@@ -223,9 +221,9 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
             PromoteResult result = _mining.Promote(preview.Pattern, built, book);
             if (result.PatternChanged)
             {
-                const string changed = "This pattern changed; review again.";
-                StatusLine = changed;
-                await Rebuild(changed);
+                const string Changed = "This pattern changed; review again.";
+                StatusLine = Changed;
+                await Rebuild(Changed);
                 return;
             }
 

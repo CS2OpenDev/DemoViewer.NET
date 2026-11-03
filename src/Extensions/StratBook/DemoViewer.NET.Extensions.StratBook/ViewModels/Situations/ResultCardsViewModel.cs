@@ -81,6 +81,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
 
     /// <summary>True while the overlay worker is reading and stacking; the button is disabled meanwhile.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanOverlay))]
+    [NotifyCanExecuteChangedFor(nameof(OverlayAllCommand))]
     private bool _isOverlayBuilding;
 
     /// <summary>"40 rounds · 312 states · 2,104 positions", or why there is no overlay; empty with none asked for.</summary>
@@ -125,7 +127,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         Func<string, Func<Action, Task>>? run = null,
         IRoundFacts? roundFacts = null)
     {
-        _run = run ?? (_ => work => Task.Run(work));
+        _run = run ?? (_ => Task.Run);
         _roundFacts = roundFacts;
         ArgumentNullException.ThrowIfNull(library);
         ArgumentNullException.ThrowIfNull(store);
@@ -358,7 +360,6 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         }
         catch (Exception ex)
         {
-            shown = false;
             WalkLine =
                 $"{SelectedIndex} of {Cards.Count} · could not open {Path.GetFileName(card.Hit.DemoPath)}: {ex.Message}";
             return;
@@ -406,7 +407,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// </summary>
     /// <param name="card">The card.</param>
     /// <param name="teamId">The search's single opponent, or null.</param>
-    public static ReviewClip ReviewClipFor(ResultCardViewModel card, Guid? teamId = null)
+    private static ReviewClip ReviewClipFor(ResultCardViewModel card, Guid? teamId = null)
     {
         ArgumentNullException.ThrowIfNull(card);
         SituationHit hit = card.Hit;
@@ -476,12 +477,6 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// <summary>Takes the heatmap off the canvas. The cards stay.</summary>
     [RelayCommand]
     private void ClearOverlay() => DropOverlay();
-
-    partial void OnIsOverlayBuildingChanged(bool value)
-    {
-        OnPropertyChanged(nameof(CanOverlay));
-        OverlayAllCommand.NotifyCanExecuteChanged();
-    }
 
     private void OnOverlayChanged() => OnPropertyChanged(nameof(IsOverlayShown));
 

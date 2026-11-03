@@ -170,9 +170,6 @@ public sealed partial class SituationsTabViewModel : ExtensionViewModel, IWorksp
     /// <summary>The Query Canvas below the strip.</summary>
     public QueryCanvasViewModel Canvas { get; }
 
-    /// <summary>The filter rail, owned by the canvas: the same draft the count and the search read.</summary>
-    public SearchFiltersViewModel Filters => Canvas.Filters;
-
     /// <summary>The Result Cards below the canvas: the last search's hits, and the walk over them.</summary>
     public ResultCardsViewModel Results { get; }
 
@@ -180,7 +177,7 @@ public sealed partial class SituationsTabViewModel : ExtensionViewModel, IWorksp
     public WatchedSituationsViewModel Watched { get; }
 
     /// <summary>The line the strip shows instead of counts on the browser host: the annotation panel's words.</summary>
-    public const string BrowserNote = "session only: no library index in the browser";
+    private const string BrowserNote = "session only: no library index in the browser";
 
     /// <summary>True until the startup load has finished; the strip says "indexing" rather than a count.</summary>
     public bool IsLoading => !_index.IsReady;
@@ -257,7 +254,7 @@ public sealed partial class SituationsTabViewModel : ExtensionViewModel, IWorksp
     private void OnCacheChanged(string? changedPath) => Refresh();
 
     /// <summary>Recomputes every count from the index rows and the loaded index.</summary>
-    public void Refresh()
+    private void Refresh()
     {
         IReadOnlyList<LibraryDemo> rows = _library.Demos;
         IReadOnlyList<string> pending = _evaluator?.PendingPaths() ?? [];

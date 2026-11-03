@@ -14,10 +14,10 @@ namespace DemoViewer.NET.Extensions.StratBook;
 /// </summary>
 internal static class AtomicFile
 {
-    private static readonly UTF8Encoding Utf8 = new(false);
+    private static readonly UTF8Encoding _utf8 = new(false);
 
     // Pauses between attempts to replace the target, about 0.4 s in all before the failure surfaces.
-    private static readonly int[] ReplaceRetryDelaysMs = [10, 25, 50, 100, 200];
+    private static readonly int[] _replaceRetryDelaysMs = [10, 25, 50, 100, 200];
 
     /// <summary>Replaces <paramref name="path" /> with <paramref name="content" />. Missing folders are created.</summary>
     public static void WriteAllBytes(string path, byte[] content)
@@ -30,11 +30,11 @@ internal static class AtomicFile
     public static void WriteAllText(string path, string content)
     {
         ArgumentNullException.ThrowIfNull(content);
-        WriteAllBytes(path, Utf8.GetBytes(content));
+        WriteAllBytes(path, _utf8.GetBytes(content));
     }
 
     /// <summary>Replaces <paramref name="path" /> with whatever <paramref name="write" /> puts in the stream. A throw leaves the previous file.</summary>
-    public static void Write(string path, Action<Stream> write)
+    private static void Write(string path, Action<Stream> write)
     {
         ArgumentNullException.ThrowIfNull(write);
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -84,10 +84,10 @@ internal static class AtomicFile
                 File.Move(temp, target, overwrite: true);
                 return;
             }
-            catch (Exception ex) when (attempt < ReplaceRetryDelaysMs.Length && OperatingSystem.IsWindows()
+            catch (Exception ex) when (attempt < _replaceRetryDelaysMs.Length && OperatingSystem.IsWindows()
                                                                              && IsTransientOnWindows(ex))
             {
-                Thread.Sleep(ReplaceRetryDelaysMs[attempt]);
+                Thread.Sleep(_replaceRetryDelaysMs[attempt]);
             }
         }
     }

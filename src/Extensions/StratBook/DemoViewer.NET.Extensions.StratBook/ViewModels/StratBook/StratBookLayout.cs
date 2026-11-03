@@ -28,10 +28,10 @@ public sealed partial class StratBookLayout : ObservableObject, IExtensionSessio
     private void ToggleList() => IsListCollapsed = !IsListCollapsed;
 
     /// <summary>The state the session file keeps.</summary>
-    public StratBookLayoutState Snapshot() => new(IsListCollapsed);
+    private StratBookLayoutState Snapshot() => new(IsListCollapsed);
 
     /// <summary>The pack session blob: <see cref="Snapshot" /> as a <c>JsonElement</c>, default STJ naming.</summary>
-    public JsonElement SnapshotSessionState() => JsonSerializer.SerializeToElement(Snapshot());
+    private JsonElement SnapshotSessionState() => JsonSerializer.SerializeToElement(Snapshot());
 
     /// <summary>
     ///     Applies a persisted pack session blob. A missing or wrong-typed member, or a non-object blob, leaves

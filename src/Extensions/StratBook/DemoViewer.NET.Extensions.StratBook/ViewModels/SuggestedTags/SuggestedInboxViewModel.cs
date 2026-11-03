@@ -32,7 +32,7 @@ public sealed class SuggestedInboxRow(SuggestedInboxItem item)
 
     public string DetectorText => Proposal.Detector;
 
-    public string ConfidenceText => Proposal.Confidence.ToString("0.00", CultureInfo.InvariantCulture);
+    private string ConfidenceText => Proposal.Confidence.ToString("0.00", CultureInfo.InvariantCulture);
 
     /// <summary>"0.60 · default", then " · dismissed" on a settled row.</summary>
     public string MetaText => $"{ConfidenceText} · {DetectorText}" + (StateText.Length > 0 ? $" · {StateText}" : "");
@@ -42,14 +42,14 @@ public sealed class SuggestedInboxRow(SuggestedInboxItem item)
         ? ""
         : string.Join("; ", Proposal.Evidence.Take(2).Select(e => e.Text));
 
-    public GeneratedState State => Item.Entry.State;
+    private GeneratedState State => Item.Entry.State;
 
     public bool IsNew => State == GeneratedState.New;
 
     public bool IsDismissed => State == GeneratedState.Dismissed;
 
     /// <summary>"accepted" or "dismissed" on a settled row.</summary>
-    public string StateText => State switch
+    private string StateText => State switch
     {
         GeneratedState.Accepted => "accepted",
         GeneratedState.Dismissed => "dismissed",
@@ -64,8 +64,8 @@ public sealed class SuggestedInboxRow(SuggestedInboxItem item)
 /// </summary>
 public sealed partial class SuggestedInboxViewModel : ObservableObject, IWorkspaceTabViewModel, IDisposable
 {
-    public const string AllMaps = "all maps";
-    public const string BothSides = "both sides";
+    private const string AllMaps = "all maps";
+    private const string BothSides = "both sides";
     public const string AllDetectors = "all detectors";
 
     private readonly SuggestedInboxService? _inbox;

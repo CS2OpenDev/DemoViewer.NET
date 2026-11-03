@@ -61,7 +61,6 @@ public partial class PlaceField : UserControl
     public static readonly DirectProperty<PlaceField, bool> IsDropDownOpenProperty =
         AvaloniaProperty.RegisterDirect<PlaceField, bool>(nameof(IsDropDownOpen), f => f.IsDropDownOpen);
 
-    private bool _isDropDownOpen;
     private TopLevel? _keysFrom;
 
     // The key the open list took, so the field's own handler does not act on it again once the list has closed.
@@ -160,8 +159,8 @@ public partial class PlaceField : UserControl
     /// <summary>Whether the callout list is showing.</summary>
     public bool IsDropDownOpen
     {
-        get => _isDropDownOpen;
-        private set => SetAndRaise(IsDropDownOpenProperty, ref _isDropDownOpen, value);
+        get;
+        private set => SetAndRaise(IsDropDownOpenProperty, ref field, value);
     }
 
     /// <summary>Which side the list opened on: true for above the field.</summary>
@@ -306,7 +305,7 @@ public partial class PlaceField : UserControl
             return;
         }
 
-        if (e.Key == Key.Down && !e.Handled)
+        if (e is { Key: Key.Down, Handled: false })
         {
             Model.Open(true);
             e.Handled = true;
@@ -424,7 +423,7 @@ public partial class PlaceField : UserControl
                 OptionList.ScrollIntoView(Model.Highlight);
             }
 
-            bool open = Model.IsOpen && Model.Items.Count > 0;
+            bool open = Model is { IsOpen: true, Items.Count: > 0 };
             if (open && !DropDown.IsOpen)
             {
                 PlaceList();

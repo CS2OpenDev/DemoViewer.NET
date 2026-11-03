@@ -64,6 +64,8 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     private bool _drawThrowArrows = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCreate))]
+    [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     private string _name;
 
     [ObservableProperty]
@@ -131,10 +133,7 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     /// <summary>The walk, for tests to await; completes after its result was posted.</summary>
     internal Task Walking { get; }
 
-    internal IProgress<double> Progress { get; }
-
-    /// <summary>The strat the review saved, after <see cref="CreateCommand" />.</summary>
-    public StratDocument? Created { get; private set; }
+    private IProgress<double> Progress { get; }
 
     /// <summary>The user closed the review, or a strat was created; the host drops the pane.</summary>
     public event Action? Closed;
@@ -169,7 +168,7 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     }
 
     /// <summary>The reviewed options: the chosen side, the slot rows as the token map, the round length, the arrows.</summary>
-    public StratCaptureOptions? Options()
+    private StratCaptureOptions? Options()
     {
         if (Capture is not { } capture || SideOf(SelectedSide) is not { } side)
         {
@@ -226,7 +225,6 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
         }
 
         SeedBookDefault(options);
-        Created = document;
         StratCreated?.Invoke(document.Id);
         Close();
     }
@@ -247,12 +245,6 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     }
 
     partial void OnDrawThrowArrowsChanged(bool value) => RebuildSteps();
-
-    partial void OnNameChanged(string value)
-    {
-        CreateCommand.NotifyCanExecuteChanged();
-        OnPropertyChanged(nameof(CanCreate));
-    }
 
     private void OnWalked(Task<RoundCapture> walked)
     {

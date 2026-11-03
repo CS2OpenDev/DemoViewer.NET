@@ -822,7 +822,7 @@
                                     </ItemsControl>
                                     <Grid ColumnDefinitions="120,90,Auto,*,Auto" ColumnSpacing="8">
                                         <TextBox Grid.Column="0" Text="{Binding NewVetoMap}" FontSize="12"
-                                                 Watermark="map" />
+                                                 PlaceholderText="map" />
                                         <ComboBox Grid.Column="1" FontSize="12"
                                                   ItemsSource="{x:Static vm:DossierTabViewModel.VetoActionOptions}"
                                                   SelectedItem="{Binding NewVetoAction}" />
@@ -874,7 +874,7 @@
                                         <TextBox Text="{Binding Summary, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                                  FontSize="12"
                                                  AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48"
-                                                 Watermark="summary: your own read, printed at the top of both forms" />
+                                                 PlaceholderText="summary: your own read, printed at the top of both forms" />
                                         <TextBlock Text="{Binding EmptyLine}" FontSize="11" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextMid}"
                                                    IsVisible="{Binding !HasFindings}" />
@@ -886,7 +886,7 @@
                                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                             <TextBox Grid.Column="0" Text="{Binding NewNoteText}" FontSize="12"
                                                      TextWrapping="Wrap"
-                                                     Watermark="add a finding of your own" />
+                                                     PlaceholderText="add a finding of your own" />
                                             <Button Grid.Column="1" Content="Add" Classes="ghost" FontSize="11"
                                                     Padding="10 5"
                                                     Command="{Binding AddNoteCommand}" />

@@ -82,6 +82,8 @@ public sealed partial class ResultCardViewModel : ObservableObject
 
     /// <summary>The demo's tick rate, 64 until the record says otherwise; the seek offset is measured in it.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ElapsedText))]
+    [NotifyPropertyChangedFor(nameof(SeekTick))]
     private int _tickRate = 64;
 
     /// <param name="owner">The result set this card belongs to.</param>
@@ -129,7 +131,7 @@ public sealed partial class ResultCardViewModel : ObservableObject
 
     /// <summary>The baked icon for an end reason, or null when the catalogue has nothing that means it.</summary>
     /// <param name="reason">The round's end reason.</param>
-    public static string? EndReasonIcon(RoundEndReason reason) => reason switch
+    private static string? EndReasonIcon(RoundEndReason reason) => reason switch
     {
         RoundEndReason.TargetBombed => "ui/bomb",
         RoundEndReason.BombDefused => "ui/defuse",
@@ -183,7 +185,7 @@ public sealed partial class ResultCardViewModel : ObservableObject
             EndReasonText = EndReasonLabel(round.EndReason);
             EndReasonIconKey = EndReasonIcon(round.EndReason);
             double elapsed = Math.Max(0, (Hit.FirstMatchTick - round.FreezeEndTick) / (double)TickRate);
-            RoundClockText = round.RoundTimeSeconds is int roundTime
+            RoundClockText = round.RoundTimeSeconds is { } roundTime
                 ? $"{Clock(Math.Max(0, roundTime - elapsed))} left"
                 : NoData;
         }
@@ -211,12 +213,6 @@ public sealed partial class ResultCardViewModel : ObservableObject
     /// <summary>Seeks 2D playback to <see cref="SeekTick" /> and makes this the walk's current card.</summary>
     [RelayCommand]
     private Task Open() => _owner.OpenAsync(this);
-
-    partial void OnTickRateChanged(int value)
-    {
-        OnPropertyChanged(nameof(ElapsedText));
-        OnPropertyChanged(nameof(SeekTick));
-    }
 
     private static string MatchLabelFor(SituationHit hit, LibraryDemo? entry)
     {

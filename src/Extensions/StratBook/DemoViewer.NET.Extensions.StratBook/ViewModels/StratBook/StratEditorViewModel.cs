@@ -137,8 +137,6 @@ public sealed partial class StratEditorViewModel : ObservableObject
 
     public static IReadOnlyList<string> Statuses { get; } = Enum.GetNames<StratStatus>();
 
-    public static IReadOnlyList<string> Actors { get; } = [StratVocabulary.ActorAll, .. StratVocabulary.Slots];
-
     public static IReadOnlyList<string> Verbs { get; } = StratVocabulary.Verbs;
 
     public static IReadOnlyList<string> UtilityKinds { get; } = [None, .. StratVocabulary.UtilityKinds];
@@ -274,7 +272,7 @@ public sealed partial class StratEditorViewModel : ObservableObject
 
     /// <summary>The entries an older file reads as carried copies, marked when the start block is first written.</summary>
     /// <param name="document">The strat.</param>
-    internal IReadOnlyList<StartSource> LegacyCarried(StratDocument document) =>
+    private IReadOnlyList<StartSource> LegacyCarried(StratDocument document) =>
         LegacyCarriedFor?.Invoke(document)
         ?? StratSceneProjection.LegacyCarriedEntries(document, _throwOrigins, Spawns?.Invoke());
 
@@ -359,11 +357,6 @@ public sealed partial class StratEditorViewModel : ObservableObject
     /// <param name="place">A stored place, or null.</param>
     public string DisplayPlace(string? place) =>
         string.IsNullOrEmpty(place) ? "" : Places.IsCanonical(place) ? Places.Display(place) : place;
-
-    /// <summary>The place to store for what was typed: canonical when it resolves, else the trimmed text, else null.</summary>
-    /// <param name="text">What the user typed.</param>
-    public string? ResolvePlace(string? text) =>
-        string.IsNullOrWhiteSpace(text) ? null : Places.Resolve(text) ?? text.Trim();
 
     /// <summary>
     ///     The lineup choices a step's row offers for its utility kind (Lineup On A Strat Step): "none" first,
@@ -573,22 +566,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
 
     /// <summary>
     ///     Who takes the step, as one undo entry through <see cref="StratLinePatches.SetWho" />. An empty set writes
-    ///     nothing: a step always names someone.
+    ///     nothing: a step always names someone. Nothing when the step is gone.
     /// </summary>
-    /// <param name="index">The step's index.</param>
-    /// <param name="slots">The slots that take part.</param>
-    /// <returns>Whether it wrote.</returns>
-    public bool SetWho(int index, IReadOnlyCollection<string> slots)
-    {
-        if (IsProjecting || _session.Document is not { } document || index < 0 || index >= document.Steps.Count)
-        {
-            return false;
-        }
-
-        return SetWho(document.Steps[index].Id, slots);
-    }
-
-    /// <summary><see cref="SetWho(int, IReadOnlyCollection{string})" /> by step id; nothing when the step is gone.</summary>
     /// <param name="stepId">The step.</param>
     /// <param name="slots">The slots that take part.</param>
     /// <returns>Whether it wrote.</returns>
@@ -1248,7 +1227,7 @@ public sealed partial class StratEditorViewModel : ObservableObject
             Replace(Issues, lines);
         }
 
-        List<StratIssue>[] byStep = new List<StratIssue>[document.Steps.Count];
+        List<StratIssue>?[] byStep = new List<StratIssue>?[document.Steps.Count];
         foreach (StratIssue issue in issues)
         {
             if (issue.Severity != StratIssueSeverity.Info && StepIndexOf(issue.Field) is { } i && i < byStep.Length)
@@ -1267,9 +1246,8 @@ public sealed partial class StratEditorViewModel : ObservableObject
     private static int? StepIndexOf(string pointer)
     {
         string[] parts = pointer.Split('/');
-        return parts.Length >= 3 && parts[1] == "steps"
-                                 && int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture,
-                                     out int index)
+        return parts is [_, "steps", var step, ..]
+               && int.TryParse(step, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
             ? index
             : null;
     }
@@ -1544,7 +1522,7 @@ public sealed partial class StratStepRow : ObservableObject
     // What each location field writes, and the map pick it arms. The compact place and watching write every line.
     public StratLocationField FromTarget => new(Id, null, StratLocationKind.From);
 
-    public StratLocationField ToTarget => new(Id, null, StratLocationKind.To);
+    private StratLocationField ToTarget => new(Id, null, StratLocationKind.To);
 
     public StratLocationField LandingTarget => new(Id, null, StratLocationKind.Landing);
 
@@ -1592,13 +1570,10 @@ public sealed partial class StratStepRow : ObservableObject
     public bool ShowGroupPlace => StratStepFields.Uses(Verb, StratStepField.To) || GroupPlaceText.Length > 0;
 
     /// <summary>The shared watching as it reads, for display; edits go through <see cref="GroupWatchValue" />.</summary>
-    public string GroupWatchText => Owner.DisplayLocations(GroupWatchValue ?? []);
+    private string GroupWatchText => Owner.DisplayLocations(GroupWatchValue ?? []);
 
     /// <summary>The shared via as it reads, for display; edits go through <see cref="GroupViaValue" />.</summary>
     public string GroupViaText => Owner.DisplayLocations(GroupViaValue ?? []);
-
-    /// <summary>The lurk areas as they read, for display; edits go through <see cref="LurkAreasValue" />.</summary>
-    public string LurkAreasText => Owner.DisplayLocations(LurkAreasValue ?? []);
 
     /// <summary>The compact watching shows when the verb uses it or the lines hold one.</summary>
     public bool ShowGroupWatch => StratStepFields.Uses(Verb, StratStepField.Watch) || GroupWatchText.Length > 0;
@@ -2394,7 +2369,7 @@ public sealed partial class StratLineRow : ObservableObject
     public string WatchText => Row.Owner.DisplayLocations(WatchValue ?? []);
 
     /// <summary>The via as it reads, for display; edits go through <see cref="ViaValue" />.</summary>
-    public string ViaText => Row.Owner.DisplayLocations(ViaValue ?? []);
+    private string ViaText => Row.Owner.DisplayLocations(ViaValue ?? []);
 
     /// <summary>The owner's words for the location fields' lists.</summary>
     public CalloutResolver Callouts => Row.Owner.Places;

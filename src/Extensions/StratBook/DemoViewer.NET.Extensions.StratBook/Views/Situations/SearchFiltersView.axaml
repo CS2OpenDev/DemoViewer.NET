@@ -100,12 +100,12 @@
 
             <StackPanel Classes="field">
                 <TextBlock Text="From" />
-                <CalendarDatePicker SelectedDate="{Binding From}" Watermark="any date" />
+                <CalendarDatePicker SelectedDate="{Binding From}" PlaceholderText="any date" />
             </StackPanel>
 
             <StackPanel Classes="field">
                 <TextBlock Text="To" />
-                <CalendarDatePicker SelectedDate="{Binding To}" Watermark="any date" />
+                <CalendarDatePicker SelectedDate="{Binding To}" PlaceholderText="any date" />
             </StackPanel>
 
             <StackPanel Classes="field" IsVisible="{Binding HasProvenance}">

@@ -19,28 +19,28 @@ public sealed class StratBookSettings
     public const string TokenSourceKey = "situations.tokenSource";
 
     /// <summary>Grenades: walk the whole library in the background.</summary>
-    public const string GrenadesBackgroundIndexKey = "grenades.backgroundIndex";
+    private const string GrenadesBackgroundIndexKey = "grenades.backgroundIndex";
 
     /// <summary>Grenades: keep every n-th moved sample of a flight.</summary>
-    public const string TrajectoryStrideKey = "grenades.trajectoryStride";
+    private const string TrajectoryStrideKey = "grenades.trajectoryStride";
 
     /// <summary>Grenades: render a clip of each repeated lineup.</summary>
-    public const string RenderLineupClipsKey = "grenades.renderLineupClips";
+    private const string RenderLineupClipsKey = "grenades.renderLineupClips";
 
     /// <summary>Grenades: the most the lineup clips may take on disk, in MB.</summary>
-    public const string LineupClipsMaxMegabytesKey = "grenades.lineupClipsMaxMegabytes";
+    private const string LineupClipsMaxMegabytesKey = "grenades.lineupClipsMaxMegabytes";
 
     /// <summary>The tag palette 2D Playback tags with.</summary>
-    public const string TagPaletteIdKey = "tagPalette.id";
+    private const string TagPaletteIdKey = "tagPalette.id";
 
     /// <summary>Whether 2D Playback is in Review mode.</summary>
-    public const string ReviewModeKey = "review.mode";
+    private const string ReviewModeKey = "review.mode";
 
     /// <summary>Suggested Tags: sweep the whole library in the background.</summary>
-    public const string SuggestedTagsBackgroundKey = "suggestedTags.background";
+    private const string SuggestedTagsBackgroundKey = "suggestedTags.background";
 
     /// <summary>The palette an unknown or missing id falls back to.</summary>
-    public const string DefaultTagPaletteId = "cs2-default";
+    private const string DefaultTagPaletteId = "cs2-default";
 
     private readonly IExtensionSettings _store;
 

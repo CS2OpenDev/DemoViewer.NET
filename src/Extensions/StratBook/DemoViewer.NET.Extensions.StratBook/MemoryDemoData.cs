@@ -9,14 +9,14 @@ namespace DemoViewer.NET.Extensions.StratBook;
 public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensionDemoData, IDisposable
 {
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IExtensionLibrary, MemoryDemoData>
-        Shared = new();
+        _shared = new();
 
     /// <summary>The one in-memory data of <paramref name="library" />, so every store over that library shares it.</summary>
     /// <param name="library">The library.</param>
     public static MemoryDemoData For(IExtensionLibrary library)
     {
         ArgumentNullException.ThrowIfNull(library);
-        return Shared.GetValue(library, static l => new MemoryDemoData(l));
+        return _shared.GetValue(library, static l => new MemoryDemoData(l));
     }
 
     private readonly Dictionary<(string Path, string Facet), Item> _items = new(Comparer.Instance);
@@ -86,7 +86,7 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
     }
 
     /// <inheritdoc />
-    public DemoDataStamp? Write(string demoPath, DemoDataWrite write)
+    public DemoDataStamp Write(string demoPath, DemoDataWrite write)
     {
         ArgumentNullException.ThrowIfNull(write);
         long now = DateTime.UtcNow.Ticks;

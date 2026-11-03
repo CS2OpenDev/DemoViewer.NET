@@ -44,7 +44,7 @@ public sealed class StratLineupCatalog(LineupOriginSource source) : IStratLineup
 {
     // "Molotov" in the strat vocabulary covers both the Grenade Index's Molotov and Incendiary kinds
     // (the Grenade Index tells them apart; the Strat Model's closed utility kind list does not).
-    private static readonly Dictionary<string, IReadOnlySet<GrenadeKind>> KindsByUtility = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, IReadOnlySet<GrenadeKind>> _kindsByUtility = new(StringComparer.Ordinal)
     {
         ["smoke"] = new HashSet<GrenadeKind> { GrenadeKind.Smoke },
         ["molotov"] = new HashSet<GrenadeKind> { GrenadeKind.Molotov, GrenadeKind.Incendiary },
@@ -56,7 +56,7 @@ public sealed class StratLineupCatalog(LineupOriginSource source) : IStratLineup
     /// <summary>The grenade kinds a strat utility kind stands for, or null for one outside the vocabulary.</summary>
     /// <param name="utilityKind">A strat utility kind.</param>
     public static IReadOnlySet<GrenadeKind>? GrenadeKindsFor(string utilityKind) =>
-        KindsByUtility.GetValueOrDefault(utilityKind);
+        _kindsByUtility.GetValueOrDefault(utilityKind);
 
     /// <summary>The strat utility kind a grenade kind is written as.</summary>
     /// <param name="kind">A grenade kind.</param>
@@ -71,7 +71,7 @@ public sealed class StratLineupCatalog(LineupOriginSource source) : IStratLineup
 
     /// <summary>A lineup's techniques as the editor offers them: label and throw count.</summary>
     /// <param name="lineup">The lineup.</param>
-    public static IReadOnlyList<StratTechniqueOption> TechniquesOf(GrenadeLineup lineup)
+    private static IReadOnlyList<StratTechniqueOption> TechniquesOf(GrenadeLineup lineup)
     {
         ArgumentNullException.ThrowIfNull(lineup);
         return

@@ -164,7 +164,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         _post = post ?? (action => Dispatcher.UIThread.Post(action));
         _decode = decode ?? DecodePng;
         IsBrowser = isBrowser ?? OperatingSystem.IsBrowser();
-        _runSection = runSection ?? (_ => work => Task.Run(work));
+        _runSection = runSection ?? (_ => Task.Run);
         Openings = new OpeningTendenciesSectionViewModel(openings, review, selectTab, _post, _runSection("openings"));
         PostPlant = new PostPlantSectionViewModel(postPlant, review, selectTab, _post, _runSection("post-plant"));
         Situational =
@@ -190,9 +190,6 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         Refresh();
     }
 
-    /// <summary>The line the panel shows on the browser host: nothing here outlives the tab.</summary>
-    public static string BrowserNote => TeamIdentityService.BrowserNote;
-
     public bool IsBrowser { get; }
 
     public ObservableCollection<DossierTeamRow> Teams { get; } = [];
@@ -202,7 +199,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     public ObservableCollection<VetoRowViewModel> Vetoes { get; } = [];
 
     /// <summary>A section starts open with this many findings or fewer, the Review queue's rule.</summary>
-    public const int OpenSectionLimit = 50;
+    private const int OpenSectionLimit = 50;
 
     // Open or closed per section key, for the session.
     private readonly Dictionary<string, bool> _expanded = new(StringComparer.OrdinalIgnoreCase);
@@ -300,10 +297,10 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
 
             OpenByDefault(section, findings.Count);
 
-            bool same(string m) => string.Equals(m, map, StringComparison.OrdinalIgnoreCase);
-            section.Set(Maps.FirstOrDefault(m => same(m.Map)), [.. Heatmaps.Where(h => same(h.Map))],
-                [.. Openings.Blocks.Where(b => same(b.Map))], [.. PostPlant.Blocks.Where(b => same(b.Map))],
-                [.. Situational.Blocks.Where(b => same(b.Map))], findings);
+            bool Same(string m) => string.Equals(m, map, StringComparison.OrdinalIgnoreCase);
+            section.Set(Maps.FirstOrDefault(m => Same(m.Map)), [.. Heatmaps.Where(h => Same(h.Map))],
+                [.. Openings.Blocks.Where(b => Same(b.Map))], [.. PostPlant.Blocks.Where(b => Same(b.Map))],
+                [.. Situational.Blocks.Where(b => Same(b.Map))], findings);
             wanted.Add(section);
         }
 
@@ -684,7 +681,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     /// <param name="heatmap">The heatmap.</param>
     /// <param name="round">One of its rounds.</param>
     /// <param name="teamId">The dossier's team.</param>
-    public static ReviewClip ReviewClipFor(SetupHeatmap heatmap, SetupHeatmapRound round, Guid? teamId = null)
+    private static ReviewClip ReviewClipFor(SetupHeatmap heatmap, SetupHeatmapRound round, Guid? teamId = null)
     {
         ArgumentNullException.ThrowIfNull(heatmap);
         ArgumentNullException.ThrowIfNull(round);
@@ -1003,7 +1000,7 @@ public sealed class VetoRowViewModel(VetoEntry entry)
 public sealed partial class SetupHeatmapViewModel : ObservableObject
 {
     /// <summary>The note in place of a picture when no round of the heatmap had a sampled setup.</summary>
-    public const string NoPositionsNote = "no positions in the setup window; rebuild the index";
+    private const string NoPositionsNote = "no positions in the setup window; rebuild the index";
 
     [ObservableProperty]
     private Bitmap? _image;

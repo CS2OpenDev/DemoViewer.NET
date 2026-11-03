@@ -43,7 +43,7 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
     public const string AllMaps = "all maps";
 
     /// <summary>The side filter's "no filter" entry.</summary>
-    public const string AllSides = "all sides";
+    private const string AllSides = "all sides";
 
     private readonly CalloutResolverSource _calloutResolvers;
     private readonly GrenadeIndex? _grenades;

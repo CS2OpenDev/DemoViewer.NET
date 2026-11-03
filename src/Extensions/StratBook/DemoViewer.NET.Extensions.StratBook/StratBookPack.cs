@@ -45,7 +45,7 @@ public sealed class StratBookPack : IExtension
     public const string PackFeatureId = "pack.stratbook";
 
     /// <summary>The id the "new strats detected" notification is posted under, so a later mine replaces it.</summary>
-    public const string MiningNotificationId = "stratbook.mining.found";
+    private const string MiningNotificationId = "stratbook.mining.found";
 
     /// <summary>The pack id. A persisted key (<c>DemoCacheRecord.Packs</c>, <c>SessionPayload.Packs</c>).</summary>
     public const string PackId = "net.demoviewer.pack.stratbook";
@@ -236,8 +236,10 @@ public sealed class StratBookPack : IExtension
                 // demo. Resolved per call: the service is not built while its feature is off.
                 wantedDownstream: path => features.IsEnabled(SuggestedTagsService.FeatureId)
                                           && sp.GetRequiredService<SuggestedTagsService>().Interest(path)
-                                          != DemoInterest.No);
-            built.Passes = Host(sp).Passes;
+                                          != DemoInterest.No)
+            {
+                Passes = Host(sp).Passes
+            };
             return built;
         });
         services.AddSingleton(sp => new SituationIndex(
@@ -368,7 +370,7 @@ public sealed class StratBookPack : IExtension
                 Library(sp),
                 sp.GetRequiredService<RoundIndexPlaceSources>(),
                 () => settings.TokenSource,
-                playback: () => sp.GetService<ISituationPlayback>(),
+                playback: sp.GetService<ISituationPlayback>,
                 sidecars: sp.GetRequiredService<RoundIndexStore>(),
                 // The filter rail's opponent and our-side fields join through Team Identity; its source
                 // field through Demo Provenance Labels.
@@ -396,7 +398,7 @@ public sealed class StratBookPack : IExtension
             TeamIdentityService teams = sp.GetRequiredService<TeamIdentityService>();
             return new ReviewQueueTabViewModel(
                 Host(sp).Review,
-                () => sp.GetService<ISituationPlayback>(),
+                sp.GetService<ISituationPlayback>,
                 packExport: Host(sp).PackExport,
                 mapOf: clip => (clip.Sha256 is { } sha ? library.FindBySha256(sha) : null)?.MapName
                                ?? library.Find(clip.DemoPath)?.MapName,
@@ -412,7 +414,7 @@ public sealed class StratBookPack : IExtension
             post: Host(sp).Post));
         services.AddSingleton(sp => new SuggestedInboxViewModel(
             sp.GetService<SuggestedInboxService>(),
-            () => sp.GetService<ISituationPlayback>()));
+            sp.GetService<ISituationPlayback>));
 
         // Watched Situations: the saved queries in watched-situations.json beside teams.json, re-run
         // over one demo on the index's Indexed hook and over the library at the watermark on every
@@ -562,7 +564,7 @@ public sealed class StratBookPack : IExtension
                 selectTab: tabId => Host(sp).Shell.SelectTab(tabId),
                 grenades: sp.GetRequiredService<GrenadeIndex>(),
                 mining: sp.GetRequiredService<StratMiningService>(),
-                playback: () => sp.GetService<ISituationPlayback>(),
+                playback: sp.GetService<ISituationPlayback>,
                 spawns: new StratSpawnSource(),
                 layout: sp.GetRequiredService<StratBookLayout>(),
                 lineupMap: map => UtilityBookFor(sp, map),
@@ -897,13 +899,13 @@ public sealed class StratBookPack : IExtension
         // Suggested Tags after the index it queries, Grenades after the library write (it reads nothing
         // the others write), and Lineup Clips after the grenades it renders. The registry resolves this only while the pack is on, so these factories are
         // never invoked, and these services never constructed, with the pack off.
-        contributions.Pass(RoundIndexEvaluator.EvaluatorId, () => sp.GetRequiredService<RoundIndexEvaluator>(),
+        contributions.Pass(RoundIndexEvaluator.EvaluatorId, sp.GetRequiredService<RoundIndexEvaluator>,
             HostIds.RoundFactsPass);
         contributions.Ruleset(new RulesetContribution(RoundIndexTable.RulesetName, RoundIndexTable.OpenYaml)
         {
             ReadBy = RoundIndexEvaluator.EvaluatorId
         });
-        contributions.Pass(GrenadeIndexEvaluator.EvaluatorId, () => sp.GetRequiredService<GrenadeIndexEvaluator>(),
+        contributions.Pass(GrenadeIndexEvaluator.EvaluatorId, sp.GetRequiredService<GrenadeIndexEvaluator>,
             HostIds.LibraryPass);
         // The grenade rows fold three tables off the run; the projectile ruleset reads the thrower's commands.
         foreach (string ruleset in GrenadeTables.Rulesets)
@@ -917,7 +919,7 @@ public sealed class StratBookPack : IExtension
 
         contributions.Collector(GrenadeTrajectoryCollector.Contribution(() =>
             sp.GetRequiredService<StratBookSettings>().TrajectoryStride));
-        contributions.Pass(SuggestedTagsService.EvaluatorId, () => sp.GetRequiredService<SuggestedTagsService>(),
+        contributions.Pass(SuggestedTagsService.EvaluatorId, sp.GetRequiredService<SuggestedTagsService>,
             RoundIndexEvaluator.EvaluatorId);
         contributions.Collector(ThrowerCollector.Contribution);
         contributions.Collector(RoundIndexRosterCollector.Contribution);
@@ -926,7 +928,7 @@ public sealed class StratBookPack : IExtension
             () => sp.GetRequiredService<SuggestedTagsService>().RecordPass,
             DemoDataKey.RoundFacts, new DemoDataKey(PackId, RoundIndexStore.Facet),
             new DemoDataKey(PackId, DetonationStore.Facet));
-        contributions.Pass(LineupClipPass.PassId, () => sp.GetRequiredService<LineupClipPass>(),
+        contributions.Pass(LineupClipPass.PassId, sp.GetRequiredService<LineupClipPass>,
             GrenadeIndexEvaluator.EvaluatorId);
 
 

@@ -78,10 +78,13 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
 
     /// <summary>True while a count is pending or running; the button reads plain "Search" meanwhile.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CoverageLine))]
     private bool _isCounting;
 
     /// <summary>The count of the draft as it stands, or null while none is known (no map, index loading, a count in flight).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SearchLabel))]
+    [NotifyPropertyChangedFor(nameof(CoverageLine))]
     private int? _liveCount;
 
     /// <summary>The map the canvas shows and the query runs over; null before one is picked.</summary>
@@ -182,7 +185,7 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
     internal SituationLiveCount Counter { get; }
 
     /// <summary>"Search, 12 rounds" once the count is known; "Search" while it is not.</summary>
-    public string SearchLabel => LiveCount is int count ? $"Search, {Rounds(count)}" : "Search";
+    public string SearchLabel => LiveCount is { } count ? $"Search, {Rounds(count)}" : "Search";
 
     /// <summary>"over 240 of 277 demos" beside the count, "counting" while one is in flight, empty with no map.</summary>
     public string CoverageLine => LiveCount is not null
@@ -567,14 +570,6 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         LiveCount = count;
     }
 
-    partial void OnLiveCountChanged(int? value)
-    {
-        OnPropertyChanged(nameof(SearchLabel));
-        OnPropertyChanged(nameof(CoverageLine));
-    }
-
-    partial void OnIsCountingChanged(bool value) => OnPropertyChanged(nameof(CoverageLine));
-
     // The rail's outputs live on the draft, the one object the search and the count both read.
     private void OnFiltersChanged()
     {
@@ -646,12 +641,12 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         ? $"resolved to {DisplayPlace(hit.Place)} ({hit.Source})"
         : "no place near that drop; the token is on the map but not in the query";
 
-    private void OnLibraryChanged(LibraryChange change) => OnCacheChanged(change.Path);
+    private void OnLibraryChanged(LibraryChange change) => OnCacheChanged();
 
 
     // A row that arrived or left moves the coverage and, with a demo-level filter set, the demo set;
     // the count is re-asked either way, debounced, so a library scan does not run one per row.
-    private void OnCacheChanged(string? changedPath)
+    private void OnCacheChanged()
     {
         RefreshMaps();
         if (Filters.HasDemoFilter)

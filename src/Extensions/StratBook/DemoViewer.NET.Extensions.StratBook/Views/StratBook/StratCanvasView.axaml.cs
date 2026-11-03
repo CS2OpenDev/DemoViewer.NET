@@ -240,7 +240,7 @@ public partial class StratCanvasView : UserControl
     }
 
     private bool IsTextInputFocused() =>
-        TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox or AutoCompleteBox;
+        TopLevel.GetTopLevel(this)?.FocusManager.GetFocusedElement() is TextBox or AutoCompleteBox;
 
     private bool IsInsideTextEditor(object? source) =>
         _textEditor is not null && source is Visual visual

@@ -24,7 +24,7 @@ public sealed record PlaceOption(string Place, string Display, IReadOnlyList<str
 /// </summary>
 public sealed class PlaceFieldOptions
 {
-    private static readonly ConditionalWeakTable<CalloutResolver, PlaceFieldOptions> Cache = new();
+    private static readonly ConditionalWeakTable<CalloutResolver, PlaceFieldOptions> _cache = new();
 
     private PlaceFieldOptions(CalloutResolver resolver)
     {
@@ -63,7 +63,7 @@ public sealed class PlaceFieldOptions
     public static PlaceFieldOptions For(CalloutResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
-        return Cache.GetValue(resolver, r => new PlaceFieldOptions(r));
+        return _cache.GetValue(resolver, r => new PlaceFieldOptions(r));
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ public sealed class PlaceFieldModel
     /// <param name="isMulti">A list of locations (watching, via, lurk areas) rather than one.</param>
     public PlaceFieldModel(bool isMulti = false) => IsMulti = isMulti;
 
-    public bool IsMulti { get; }
+    private bool IsMulti { get; }
 
     /// <summary>The map's callouts; null offers no list and stores typed text as written.</summary>
     public PlaceFieldOptions? Options { get; set; }
@@ -235,20 +235,19 @@ public sealed class PlaceFieldModel
         }
     }
 
-    /// <summary>Moves the highlight, stopping at either end. True when the list is open, so the key is consumed.</summary>
+    /// <summary>Moves the highlight, stopping at either end. Does nothing while the list is closed or empty.</summary>
     /// <param name="delta">-1 for up, 1 for down.</param>
-    public bool Move(int delta)
+    public void Move(int delta)
     {
         if (!IsOpen || Items.Count == 0)
         {
-            return IsOpen;
+            return;
         }
 
         _moved = true;
         Highlight = Math.Clamp(Highlight < 0 ? (delta > 0 ? 0 : Items.Count - 1) : Highlight + delta, 0,
             Items.Count - 1);
         Raise();
-        return true;
     }
 
     /// <summary>
@@ -365,19 +364,19 @@ public sealed class PlaceFieldModel
     }
 
     // "(1234, -560)", "1234, -560", "1234 -560": two numbers, optional parentheses, a comma or spaces between.
-    private static readonly Regex PointPattern = new(
+    private static readonly Regex _pointPattern = new(
         @"^\(?\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*|\s+)(-?\d+(?:\.\d+)?)\s*\)?$", RegexOptions.CultureInvariant);
 
-    private static readonly Regex NumberOnly = new(@"^[\s()\-+.,\d]+$", RegexOptions.CultureInvariant);
+    private static readonly Regex _numberOnly = new(@"^[\s()\-+.,\d]+$", RegexOptions.CultureInvariant);
 
     /// <summary>Typed text as a world point: two numbers, with optional parentheses and a comma or spaces between.</summary>
     /// <param name="text">The text.</param>
     /// <param name="x">World X.</param>
     /// <param name="y">World Y.</param>
-    public static bool TryParsePoint(string text, out double x, out double y)
+    private static bool TryParsePoint(string text, out double x, out double y)
     {
         ArgumentNullException.ThrowIfNull(text);
-        Match match = PointPattern.Match(text.Trim());
+        Match match = _pointPattern.Match(text.Trim());
         x = y = 0;
         return match.Success
                && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out x)
@@ -422,7 +421,7 @@ public sealed class PlaceFieldModel
         }
 
         // Numbers that are not a point are never a place.
-        return !NumberOnly.IsMatch(part) && StratLocations.Typed(stored, callouts?.Resolve(part) ?? part) is { } typed
+        return !_numberOnly.IsMatch(part) && StratLocations.Typed(stored, callouts?.Resolve(part) ?? part) is { } typed
             ? [typed]
             : [];
     }
@@ -450,7 +449,7 @@ public sealed class PlaceFieldModel
             };
         }
 
-        return part.Length == 0 || NumberOnly.IsMatch(part)
+        return part.Length == 0 || _numberOnly.IsMatch(part)
             ? null
             : new PlaceRef { Place = callouts?.Resolve(part) ?? part };
     }

@@ -80,13 +80,13 @@ public sealed class DossierMapSectionViewModel : DossierSectionViewModel
 
     public MapPoolRowViewModel? Record { get; private set; }
 
-    public IReadOnlyList<SetupHeatmapViewModel> Heatmaps { get; private set; } = [];
+    private IReadOnlyList<SetupHeatmapViewModel> Heatmaps { get; set; } = [];
 
-    public IReadOnlyList<OpeningBlockViewModel> Openings { get; private set; } = [];
+    private IReadOnlyList<OpeningBlockViewModel> Openings { get; set; } = [];
 
-    public IReadOnlyList<PostPlantBlockViewModel> PostPlant { get; private set; } = [];
+    private IReadOnlyList<PostPlantBlockViewModel> PostPlant { get; set; } = [];
 
-    public IReadOnlyList<SituationalBlockViewModel> Situational { get; private set; } = [];
+    private IReadOnlyList<SituationalBlockViewModel> Situational { get; set; } = [];
 
     public IReadOnlyList<DossierFindingViewModel> Findings { get; private set; } = [];
 

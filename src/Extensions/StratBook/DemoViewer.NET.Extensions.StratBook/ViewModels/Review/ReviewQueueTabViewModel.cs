@@ -49,7 +49,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
     public const string BrowserNote = "session only: this browser tab forgets the queue when it reloads";
 
     /// <summary>How far either side of the playhead a manual pick reaches.</summary>
-    public const int PickSeconds = 5;
+    private const int PickSeconds = 5;
 
     /// <summary>A section with more clips than this starts collapsed.</summary>
     public const int CollapseAbove = 50;
@@ -105,6 +105,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
     /// <summary>Where the pack goes; for GIF, the folder is this path without its extension.</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ExportPackCommand))]
+    [NotifyPropertyChangedFor(nameof(PackSummary))]
     private string _packOutputPath;
 
     /// <summary>What the pack export is doing, did, or why it did not start.</summary>
@@ -237,11 +238,11 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
     /// <summary>"review-pack-20260926-1412.mp4".</summary>
     /// <param name="now">The moment the name stamps.</param>
     /// <param name="formatId">The format, for the extension.</param>
-    public static string DefaultPackName(DateTime now, string formatId) =>
+    private static string DefaultPackName(DateTime now, string formatId) =>
         string.Create(CultureInfo.InvariantCulture, $"review-pack-{now:yyyyMMdd-HHmm}.{formatId}");
 
     /// <summary>The pack the queue plans to right now, at the tab's format and path; null with no exporter.</summary>
-    public ReviewPackPlan? PlanPack() => _packExport?.Plan(PackOutputPath, SelectedPackFormat);
+    private ReviewPackPlan? PlanPack() => _packExport?.Plan(PackOutputPath, SelectedPackFormat);
 
     /// <summary>Why the queue file was not read, or null; while set the file is left alone.</summary>
     public string? FileProblem => _queue.FileProblem;
@@ -450,8 +451,6 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
 
         OnPropertyChanged(nameof(PackSummary));
     }
-
-    partial void OnPackOutputPathChanged(string value) => OnPropertyChanged(nameof(PackSummary));
 
     /// <summary>A new title card at the end.</summary>
     [RelayCommand]
@@ -792,7 +791,7 @@ public sealed partial class ReviewRowViewModel : ObservableObject
         {
             string range = $"{ReviewQueueTabViewModel.Clock(Entry.FromTick, Entry.TickRate)} to "
                            + ReviewQueueTabViewModel.Clock(Entry.ToTick, Entry.TickRate);
-            return Entry.Seconds is double seconds
+            return Entry.Seconds is { } seconds
                 ? string.Create(CultureInfo.InvariantCulture, $"{range} · {Math.Round(seconds)} s")
                 : range;
         }

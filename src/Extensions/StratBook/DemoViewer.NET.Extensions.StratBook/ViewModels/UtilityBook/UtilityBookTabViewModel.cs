@@ -38,7 +38,7 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     public const int WatchLeadTicks = 128;
 
     /// <summary>The place picker's "no filter" entry.</summary>
-    public const string AnyPlace = "any place";
+    private const string AnyPlace = "any place";
 
     /// <summary>A lineup is a position thrown from at least this many times.</summary>
     public const int LineupMinThrows = 2;
@@ -66,6 +66,7 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     private bool _cardOnLeft;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDetail))]
     private LineupDetail? _detail;
 
     [ObservableProperty]
@@ -378,8 +379,7 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     }
 
     private static bool NeedsSingles(IReadOnlyList<GrenadeCluster> clusters, Guid lineupId) =>
-        Named([.. clusters.SelectMany(c => c.Lineups)], lineupId) is { } lineup
-        && lineup.Throws.Count < LineupMinThrows;
+        Named([.. clusters.SelectMany(c => c.Lineups)], lineupId) is { Throws.Count: < LineupMinThrows };
 
     // The lineup whose own id this is, else one that absorbed it: LineupOriginSource.ByAnyId's precedence.
     private static GrenadeLineup? Named(IReadOnlyList<GrenadeLineup> lineups, Guid id) =>
@@ -488,8 +488,6 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
     partial void OnSelectedSideChanged(UtilityBookOption<int>? value) => RefreshForUser();
 
     partial void OnShowSingleThrowsChanged(bool value) => RefreshForUser();
-
-    partial void OnDetailChanged(LineupDetail? value) => OnPropertyChanged(nameof(HasDetail));
 
     // Every index change lands here, so the same map must not reload its bundle. A map with no art is
     // retried, since a bundle baked later should appear.
@@ -745,7 +743,7 @@ public sealed class LandingGroup
         Id = string.Create(CultureInfo.InvariantCulture, $"{cluster.Kind}:{cluster.Lineups[0].Id:N}");
     }
 
-    public GrenadeCluster Cluster { get; }
+    private GrenadeCluster Cluster { get; }
 
     public IReadOnlyList<GrenadeLineup> Lineups { get; }
 

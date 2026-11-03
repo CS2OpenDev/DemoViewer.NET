@@ -292,18 +292,17 @@ public sealed partial class StratRecordPanelViewModel : ObservableObject, IDispo
     /// <param name="scope">What the number is, for the section title ("total · All runs", "provenance · scrim").</param>
     /// <param name="label">Which count within the scope ("won", "aborted", the failure name).</param>
     /// <param name="runs">The runs behind it.</param>
-    /// <returns>How many clips were added.</returns>
-    internal int Open(string scope, string label, IReadOnlyList<StratRun> runs)
+    internal void Open(string scope, string label, IReadOnlyList<StratRun> runs)
     {
         if (runs.Count == 0)
         {
-            return 0;
+            return;
         }
 
         if (_review is null)
         {
             StatusLine = "no Review Queue on this host";
-            return 0;
+            return;
         }
 
         List<ReviewClip> clips = [];
@@ -324,13 +323,12 @@ public sealed partial class StratRecordPanelViewModel : ObservableObject, IDispo
         if (clips.Count == 0)
         {
             StatusLine = $"nothing queued: {(missing == 1 ? "the demo is" : "the demos are")} not in the library";
-            return 0;
+            return;
         }
 
         int added = _review.Add(clips, $"Strat record · {scope}", $"{Plural(runs.Count, "run")} · {label}");
         StatusLine = (added == 0 ? "already in Review" : $"{Plural(added, "clip")} sent to Review") + notInLibrary;
         _selectTab?.Invoke(ReviewQueueModule.TabId);
-        return added;
     }
 
     private static string Plural(int count, string noun) =>
@@ -390,11 +388,11 @@ public sealed partial class StratRecordCountCell : ObservableObject
         Runs = runs;
     }
 
-    public string Scope { get; }
+    private string Scope { get; }
 
-    public string Label { get; }
+    private string Label { get; }
 
-    public IReadOnlyList<StratRun> Runs { get; }
+    private IReadOnlyList<StratRun> Runs { get; }
 
     public int Count => Runs.Count;
 

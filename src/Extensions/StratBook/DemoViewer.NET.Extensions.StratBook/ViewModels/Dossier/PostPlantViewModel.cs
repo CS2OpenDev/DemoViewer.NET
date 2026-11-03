@@ -57,7 +57,7 @@ public sealed partial class PostPlantSectionViewModel : ObservableObject, IDispo
         Func<string, bool>? selectTab, Action<Action> post, Func<Action, Task>? run = null)
     {
         ArgumentNullException.ThrowIfNull(post);
-        _run = run ?? (work => Task.Run(work));
+        _run = run ?? Task.Run;
         _service = service;
         _review = review;
         _selectTab = selectTab;
@@ -221,7 +221,7 @@ public sealed class PostPlantBlockViewModel
                 : $"positions over {OpeningTendenciesSectionViewModel.Plural(block.PositionRounds, "round")}";
     }
 
-    public PostPlantBlock Block { get; }
+    private PostPlantBlock Block { get; }
 
     public string Map => Block.Map;
 
@@ -254,7 +254,7 @@ public sealed class PostPlantBlockViewModel
 
     public bool HasPlants => Block.Planted.Count > 0;
 
-    public bool IsT => Block.Side == 2;
+    private bool IsT => Block.Side == 2;
 
     public bool ShowsHolds => IsT && HasPlants;
 

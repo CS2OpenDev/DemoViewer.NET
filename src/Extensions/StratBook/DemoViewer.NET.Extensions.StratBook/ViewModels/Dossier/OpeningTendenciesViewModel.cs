@@ -58,7 +58,7 @@ public sealed partial class OpeningTendenciesSectionViewModel : ObservableObject
         Func<string, bool>? selectTab, Action<Action> post, Func<Action, Task>? run = null)
     {
         ArgumentNullException.ThrowIfNull(post);
-        _run = run ?? (work => Task.Run(work));
+        _run = run ?? Task.Run;
         _service = service;
         _review = review;
         _selectTab = selectTab;

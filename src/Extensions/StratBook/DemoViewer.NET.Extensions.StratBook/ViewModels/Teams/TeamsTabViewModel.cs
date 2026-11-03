@@ -36,7 +36,7 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
 
     /// <summary>What the tab is waiting on: the teams being read, or a change being applied; empty when idle.</summary>
     [ObservableProperty]
-    private string _busyLine = "";
+    private string _busyLine;
 
     /// <summary>True while a change the user asked for is still being applied.</summary>
     [ObservableProperty]
@@ -460,12 +460,11 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
             long ticks = entry?.Modified.Ticks ?? 0;
             Demos.Add(new DemoRow(demo.Path, side, ticks)
             {
-                FileName = Path.GetFileName(demo.Path),
                 Map = entry?.MapName ?? "",
                 Date = ticks > 0 ? new DateTime(ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "",
                 Opponent = opponent,
                 // Surfaced at tier 1 only: "with a stand-in" has no referent until a five exists.
-                StandIn = mine.StandIn && mine.Tier == 1,
+                StandIn = mine is { StandIn: true, Tier: 1 },
                 Detail = mine.Tier switch
                 {
                     1 => $"{mine.Overlap} of the five",
@@ -532,7 +531,7 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
     /// <summary>The Me card's line: the host's accounts, the active one marked, and where to change them.</summary>
     /// <param name="accounts">The user's accounts.</param>
     /// <param name="active">The active one, or null.</param>
-    public static string AccountsLine(IReadOnlyList<string> accounts, string? active) =>
+    private static string AccountsLine(IReadOnlyList<string> accounts, string? active) =>
         accounts.Count == 0
             ? "No accounts yet. Open Settings > Identity to add yours."
             : "Your accounts: "
@@ -581,7 +580,7 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
                 $"{unclusterable} demo{(unclusterable == 1 ? "" : "s")} could not be clustered (team split needs a re-index)");
         }
 
-        if (_teams.DemoCount > 0 && !_teams.HasRecurringOpponent)
+        if (_teams is { DemoCount: > 0, HasRecurringOpponent: false })
         {
             parts.Add("every opponent is unaffiliated: the Dossier has no recurring opponent to describe");
         }
@@ -591,18 +590,9 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
 }
 
 /// <summary>One team in the list.</summary>
-public sealed class TeamRow
+public sealed class TeamRow(Team team, int demoCount, long lastSeenTicks)
 {
-    public TeamRow(Team team, int demoCount, long lastSeenTicks)
-    {
-        Team = team;
-        DemoCount = demoCount;
-        LastSeen = lastSeenTicks > 0
-            ? new DateTime(lastSeenTicks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-            : "never";
-    }
-
-    public Team Team { get; }
+    public Team Team { get; } = team;
 
     public Guid Id => Team.Id;
 
@@ -614,9 +604,11 @@ public sealed class TeamRow
 
     public int RosterCount => Team.Rosters.Count;
 
-    public int DemoCount { get; }
+    public int DemoCount { get; } = demoCount;
 
-    public string LastSeen { get; }
+    private string LastSeen { get; } = lastSeenTicks > 0
+        ? new DateTime(lastSeenTicks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+        : "never";
 
     public string Summary =>
         $"{RosterCount} roster{(RosterCount == 1 ? "" : "s")} · {(DemoCount == 0 ? "no demos" : $"{DemoCount} demo{(DemoCount == 1 ? "" : "s")}")} · last {LastSeen}";
@@ -671,8 +663,6 @@ public sealed class RosterRow
 /// <summary>One member of a roster.</summary>
 public sealed class MemberRow(string steamId, TeamIndexMember member)
 {
-    public string SteamId { get; } = steamId;
-
     /// <summary>The member's SteamID64, or null when the id is not a decimal one.</summary>
     public ulong? SteamId64 { get; } =
         ulong.TryParse(steamId, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) && id != 0 ? id : null;
@@ -709,9 +699,9 @@ public sealed partial class SquadCandidateRow(string steamId, string name, int g
 
     public string SteamId { get; } = steamId;
 
-    public string Name { get; } = name;
+    private string Name { get; } = name;
 
-    public int Games { get; } = games;
+    private int Games { get; } = games;
 
     public string Label => $"{Name} ({Games} with you)";
 }
@@ -730,8 +720,6 @@ public sealed partial class DemoRow(string path, int side, long orderTicks) : Ob
     public long OrderTicks { get; } = orderTicks;
 
     public string SideLabel => Side == 3 ? "CT" : "T";
-
-    public string FileName { get; init; } = "";
 
     public string Map { get; init; } = "";
 

@@ -48,9 +48,9 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 {
     public const string MapPoolSection = "Map Pool Record";
     public const string HeatmapSection = "Setup Heatmaps By Buy";
-    public const string OpeningsSection = "Opening Tendencies";
-    public const string PostPlantSection = "Post-Plant And Retake";
-    public const string SituationalSection = "Situational Behaviour";
+    private const string OpeningsSection = "Opening Tendencies";
+    private const string PostPlantSection = "Post-Plant And Retake";
+    private const string SituationalSection = "Situational Behaviour";
     public const string PeriodDiffSection = "Period Diff";
     public const string VetoSection = "Veto history";
     public const string NotesSection = "Notes";
@@ -70,10 +70,13 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 
     /// <summary>The form Export writes. The short form, the one-pager, is the default.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExportLabel))]
+    [NotifyPropertyChangedFor(nameof(SelectedFormOption))]
     private DossierForm _exportForm = DossierForm.OnePager;
 
     /// <summary>The file Export writes: HTML by default, the LAN Print route.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedFormatOption))]
     private DossierFormat _exportFormat = DossierFormat.Html;
 
     [ObservableProperty]
@@ -146,7 +149,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 
     public bool HasFindings => Findings.Count > 0;
 
-    public int StarredCount => _rows.Count(r => r.IsStarred && !r.IsHidden);
+    public int StarredCount => _rows.Count(r => r is { IsStarred: true, IsHidden: false });
 
     public int HiddenCount => _rows.Count(r => r.IsHidden);
 
@@ -261,14 +264,6 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     }
 
     partial void OnShowStarredOnlyChanged(bool value) => Project();
-
-    partial void OnExportFormChanged(DossierForm value)
-    {
-        OnPropertyChanged(nameof(ExportLabel));
-        OnPropertyChanged(nameof(SelectedFormOption));
-    }
-
-    partial void OnExportFormatChanged(DossierFormat value) => OnPropertyChanged(nameof(SelectedFormatOption));
 
     [RelayCommand(CanExecute = nameof(CanExport))]
     private void Export()

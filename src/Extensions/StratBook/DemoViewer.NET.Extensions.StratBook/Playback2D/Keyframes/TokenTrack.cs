@@ -164,7 +164,7 @@ public sealed class TokenTrack
     /// <param name="from">Starting yaw, degrees.</param>
     /// <param name="to">Ending yaw, degrees.</param>
     /// <param name="u">0 at <paramref name="from" />, 1 at <paramref name="to" />.</param>
-    internal static float LerpYaw(float from, float to, double u)
+    private static float LerpYaw(float from, float to, double u)
     {
         double delta = (((to - (double)from) % 360) + 540) % 360 - 180;
         return (float)(from + delta * u);

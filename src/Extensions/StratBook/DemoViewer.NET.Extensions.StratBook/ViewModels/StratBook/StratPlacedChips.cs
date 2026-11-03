@@ -80,7 +80,7 @@ public sealed partial class StratPlacedChip
 {
     private readonly StratStepRow _row;
 
-    internal StratPlacedChip(StratStepRow row, string text, IReadOnlyList<StratPlacedEntry> entries, bool isGroup)
+    private StratPlacedChip(StratStepRow row, string text, IReadOnlyList<StratPlacedEntry> entries, bool isGroup)
     {
         _row = row;
         Text = text;

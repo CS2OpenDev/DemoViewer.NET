@@ -123,7 +123,7 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
         Func<Action, Task>? run = null)
     {
         ArgumentNullException.ThrowIfNull(store);
-        _run = run ?? (work => Task.Run(work));
+        _run = run ?? Task.Run;
         _store = store;
         _review = review;
         _indexBySha = indexBySha ?? (_ => null);
@@ -310,19 +310,18 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
     ///     link; the status line counts it instead.
     /// </summary>
     /// <param name="cell">The cell clicked.</param>
-    /// <returns>How many clips were added.</returns>
-    public int Open(TagMatrixCellViewModel cell)
+    public void Open(TagMatrixCellViewModel cell)
     {
         ArgumentNullException.ThrowIfNull(cell);
         if (cell.Count == 0)
         {
-            return 0;
+            return;
         }
 
         if (_review is null)
         {
             StatusLine = "no Review Queue on this host";
-            return 0;
+            return;
         }
 
         List<ReviewClip> clips = [];
@@ -344,13 +343,12 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
         if (clips.Count == 0)
         {
             StatusLine = $"nothing queued: {(missing == 1 ? "the demo is" : "the demos are")} not in the library";
-            return 0;
+            return;
         }
 
         int added = _review.Add(clips, $"Matrix · {cell.RowDisplay} × {cell.ColumnDisplay}", Title);
         StatusLine = (added == 0 ? "already in Review" : $"{Plural(added, "clip")} sent to Review") + notInLibrary;
         _selectTab?.Invoke(ReviewQueueModule.TabId);
-        return added;
     }
 
     /// <summary>Exchanges the row and column axes: the same pivot, transposed.</summary>
@@ -561,7 +559,7 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
             StringComparer.Ordinal);
 
         // Newest first either way, so "last N" is a Take.
-        List<(string Sha, string? Path)> scope = inputs.Team is Guid team && _teams is not null
+        List<(string Sha, string? Path)> scope = inputs.Team is { } team && _teams is not null
             ?
             [
                 .. _teams.DemosOf(team).Where(d => d.Sha256 is { } sha && tagged.Contains(sha))
@@ -585,7 +583,7 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
             scope = [.. scope.Where(d => string.Equals(_indexBySha(d.Sha)?.MapName, map, StringComparison.Ordinal))];
         }
 
-        if (inputs.Last is int last)
+        if (inputs.Last is { } last)
         {
             scope = [.. scope.Take(last)];
         }
@@ -594,13 +592,13 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
         List<TagDocument> docs = _store.LoadDocuments(e => demos.Contains(e.Sha256));
         IReadOnlyList<TagMatrixAxis> axes = TagMatrix.AxesOf(docs);
 
-        if (inputs.Team is Guid sided && inputs.Side is int side && _teams is not null)
+        if (inputs is { Team: { } sided, Side: { } side } && _teams is not null)
         {
             Dictionary<string, string?> paths = scope.ToDictionary(d => d.Sha, d => d.Path, StringComparer.Ordinal);
             Dictionary<(string, int), int?> sides = [];
             docs = TagMatrix.Narrow(docs, (d, i) =>
             {
-                if (i.Round is not int round || paths.GetValueOrDefault(d.Demo.Sha256) is not { } path)
+                if (i.Round is not { } round || paths.GetValueOrDefault(d.Demo.Sha256) is not { } path)
                 {
                     return false;
                 }
@@ -776,7 +774,7 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
             parts.Add(map);
         }
 
-        if (inputs.Side is int side)
+        if (inputs.Side is { } side)
         {
             parts.Add(side == 2 ? "T side" : "CT side");
         }
