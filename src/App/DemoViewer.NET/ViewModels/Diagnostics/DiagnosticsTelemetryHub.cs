@@ -68,11 +68,11 @@ public sealed class DiagnosticsTelemetryHub
     public void AppendOnUiThread(TelemetryLogRow row)
     {
         AppendCore(row);
-        RowsAppended?.Invoke(new[] { row });
+        RowsAppended?.Invoke([row]);
     }
 
     /// <summary>Drains the pending queue into <see cref="Logs" /> on the UI thread (one batch event).</summary>
-    public void Drain()
+    private void Drain()
     {
         Interlocked.Exchange(ref _drainScheduled, 0);
         List<TelemetryLogRow>? batch = null;

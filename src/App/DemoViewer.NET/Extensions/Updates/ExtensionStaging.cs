@@ -21,7 +21,7 @@ public static class ExtensionStaging
     public const string StagingDirectoryName = ".staging";
 
     /// <summary>A zip with more entries than this is refused.</summary>
-    public const int MaxEntries = 4096;
+    private const int MaxEntries = 4096;
 
     /// <summary>A zip whose entries would unpack to more than this, or whose download is larger, is refused.</summary>
     public const long MaxBytes = 512L * 1024 * 1024;

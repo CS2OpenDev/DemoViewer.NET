@@ -24,11 +24,11 @@ internal static class LegacyPackFields
     public const string PackId = "net.demoviewer.pack.stratbook";
 
     /// <summary>The stamp ids, which are the evaluators' ids.</summary>
-    public const string RoundFactsId = "roundfacts";
+    private const string RoundFactsId = "roundfacts";
 
-    public const string RoundIndexId = "roundindex";
-    public const string SuggestionsId = "suggestedtags";
-    public const string GrenadesId = "grenades";
+    private const string RoundIndexId = "roundindex";
+    private const string SuggestionsId = "suggestedtags";
+    private const string GrenadesId = "grenades";
 
     // Payload member names, as the pack's payload type spells them.
     private const string RoundFactsMember = "RoundFacts";

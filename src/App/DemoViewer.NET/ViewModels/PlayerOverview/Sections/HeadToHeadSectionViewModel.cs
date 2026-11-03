@@ -20,7 +20,7 @@ namespace DemoViewer.NET.ViewModels.PlayerOverview.Sections;
 public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
 {
     private const string None = "–";
-    private static readonly string EventStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
+    private static readonly string _eventStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
 
     private readonly PlayerOverviewServices _services;
     private PlayerOverviewContext? _context;
@@ -138,7 +138,7 @@ public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
     private void Refresh()
     {
         int load = ++_load;
-        if (_context is not { Player: { } player } context || SelectedOpponent is not { } opponent)
+        if (_context is not { Player: { } player } || SelectedOpponent is not { } opponent)
         {
             return;
         }
@@ -164,7 +164,7 @@ public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
     }
 
     private bool IsRead(PlayerMatch match) =>
-        _readStamps.TryGetValue(match.Row.ContentId(), out PackStamp? stamp) && stamp == match.Row.Stamp(EventStamp);
+        _readStamps.TryGetValue(match.Row.ContentId(), out PackStamp? stamp) && stamp == match.Row.Stamp(_eventStamp);
 
     private async Task LoadAsync(ulong subject, ulong opponent, IReadOnlyList<PlayerMatch> against, PlayerRows? stats,
         int load)
@@ -174,7 +174,7 @@ public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
         Dictionary<string, PackStamp?> stamps = new(StringComparer.Ordinal);
         foreach (PlayerMatch match in against)
         {
-            stamps.TryAdd(match.Row.ContentId(), match.Row.Stamp(EventStamp));
+            stamps.TryAdd(match.Row.ContentId(), match.Row.Stamp(_eventStamp));
         }
 
         try

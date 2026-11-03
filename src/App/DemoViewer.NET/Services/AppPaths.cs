@@ -45,7 +45,7 @@ public static class AppPaths
     // one-time per file rather than re-stat-ing the old location on every path access. File.Exists(target)
     // already makes the move idempotent; this set is purely the re-stat optimization on top of that.
     private static readonly HashSet<string> _migrationAttempted = new(StringComparer.Ordinal);
-    private static readonly object _migrationLock = new();
+    private static readonly Lock _migrationLock = new();
 
     /// <summary>
     ///     The app-data root, or <c>null</c> on WASM (no filesystem). The <see cref="ConfigDirEnvVar" />

@@ -196,7 +196,7 @@ public sealed class SettingsService
         // Section absent → import a legacy session.json (once), persisting it into the merged file and
         // renaming the old file to .bak. Guarded so a re-import can't happen (after import the section is
         // non-null; the .bak rename also removes the source).
-        return MigrateLegacySection<SessionPayload>("session.json", imported => SaveSession(imported));
+        return MigrateLegacySection<SessionPayload>("session.json", SaveSession);
     }
 
     /// <summary>
@@ -239,7 +239,7 @@ public sealed class SettingsService
             return current ?? [];
         }
 
-        return MigrateLegacySection<List<RecentFile>>("recent-files.json", imported => SaveRecents(imported)) ?? [];
+        return MigrateLegacySection<List<RecentFile>>("recent-files.json", SaveRecents) ?? [];
     }
 
     /// <summary>
@@ -444,8 +444,8 @@ public sealed class SettingsService
     // service's invariants hold over the in-memory store as they do over the file.
     private void WriteInMemory(AppSettings settings)
     {
-        List<KeyValuePair<string, string?>> data = new()
-        {
+        List<KeyValuePair<string, string?>> data =
+        [
             new KeyValuePair<string, string?>("Theme", settings.Theme),
             new KeyValuePair<string, string?>("UserCategory", settings.UserCategory.ToString()),
             new KeyValuePair<string, string?>("FirstRunCompleted", settings.FirstRunCompleted ? "true" : "false"),
@@ -530,7 +530,7 @@ public sealed class SettingsService
                 settings.Playback2D.ExportEncoder),
             new KeyValuePair<string, string?>("Playback2D:ExportQuality",
                 settings.Playback2D.ExportQuality)
-        };
+        ];
 
         for (int i = 0; i < settings.Playback2D.AnnotationRecentColors.Length; i++)
         {

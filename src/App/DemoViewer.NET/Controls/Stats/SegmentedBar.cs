@@ -231,7 +231,7 @@ public class SegmentedBar : TemplatedControl
         } ?? FillBrush;
 
     /// <summary>Sum of the finite, positive slice values. Zero means there is nothing to draw.</summary>
-    public double Total
+    private double Total
     {
         get
         {

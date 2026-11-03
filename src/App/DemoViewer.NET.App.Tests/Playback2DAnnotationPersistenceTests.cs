@@ -44,8 +44,10 @@ public class Playback2DAnnotationPersistenceTests
     public async Task Controller_AttachingToADemoWithNoAnnotations_WritesNothing()
     {
         using TempDemo demo = new();
-        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
-        controller.AutoSaveDelay = TimeSpan.FromMilliseconds(20);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromMilliseconds(20)
+        };
 
         await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
         await Task.Delay(200);
@@ -63,8 +65,10 @@ public class Playback2DAnnotationPersistenceTests
     public async Task Controller_ErasingTheLastStroke_StillClearsAnExistingSidecar()
     {
         using TempDemo demo = new();
-        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
-        controller.AutoSaveDelay = TimeSpan.FromMilliseconds(20);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromMilliseconds(20)
+        };
 
         await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
         AnnotationElement stroke = Stroke();
@@ -84,8 +88,10 @@ public class Playback2DAnnotationPersistenceTests
     public async Task Controller_AutosavesAfterDebounce()
     {
         using TempDemo demo = new();
-        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
-        controller.AutoSaveDelay = TimeSpan.FromMilliseconds(30);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromMilliseconds(30)
+        };
 
         await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
         controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
@@ -107,8 +113,10 @@ public class Playback2DAnnotationPersistenceTests
     public async Task Controller_CoalescesABurstIntoOneSave()
     {
         using TempDemo demo = new();
-        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
-        controller.AutoSaveDelay = TimeSpan.FromMilliseconds(120);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromMilliseconds(120)
+        };
 
         await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
         for (int i = 0; i < 25; i++)
@@ -126,9 +134,11 @@ public class Playback2DAnnotationPersistenceTests
     public async Task Controller_FlushesOnDeactivate()
     {
         using TempDemo demo = new();
-        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
-        // Long enough that the debounce would NOT have fired on its own.
-        controller.AutoSaveDelay = TimeSpan.FromSeconds(30);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            // Long enough that the debounce would NOT have fired on its own.
+            AutoSaveDelay = TimeSpan.FromSeconds(30)
+        };
 
         await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
         controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
@@ -150,8 +160,10 @@ public class Playback2DAnnotationPersistenceTests
         FakeModuleFeatureGate gate = new();
         gate.SetEnabled(AnnotationSessionController.FeatureId, false);
 
-        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
-        controller.AutoSaveDelay = TimeSpan.FromMilliseconds(20);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromMilliseconds(20)
+        };
         controller.SetFeatures(gate);
 
         await Assert.That(controller.IsEnabled).IsFalse();
@@ -169,8 +181,10 @@ public class Playback2DAnnotationPersistenceTests
     public async Task Controller_ReattachToTheSameDemo_KeepsTheInMemoryDocument()
     {
         using TempDemo demo = new();
-        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null);
-        controller.AutoSaveDelay = TimeSpan.FromSeconds(30);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), null)
+        {
+            AutoSaveDelay = TimeSpan.FromSeconds(30)
+        };
 
         await controller.AttachDemoAsync(demo.DemoPath, demo.Clock);
         controller.Document.Apply(new DocDelta.Add(Stroke(), 0));
@@ -252,8 +266,10 @@ public class Playback2DAnnotationPersistenceTests
         SettingsService settings = new(demo.SettingsDir);
         settings.Write(s => s.Playback2D.AnnotationAutoSave = false);
 
-        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), settings);
-        controller.AutoSaveDelay = TimeSpan.FromMilliseconds(20);
+        using AnnotationSessionController controller = new(new AnnotationStore(demo.AppData), settings)
+        {
+            AutoSaveDelay = TimeSpan.FromMilliseconds(20)
+        };
 
         await Assert.That(controller.AutoSave).IsFalse()
             .Because("ApplySettings seeds it, so the persisted key reaches the live controller");

@@ -108,7 +108,7 @@ public sealed partial class DemoQueueRowViewModel : ViewModelBase, IDisposable
     public double ProgressValue => Item.Progress ?? 0;
 
     /// <summary>A running item that reports progress shows the bar.</summary>
-    public bool HasProgress => Item.State == DemoQueueItemState.Running && Item.Progress is not null;
+    public bool HasProgress => Item is { State: DemoQueueItemState.Running, Progress: not null };
 
     /// <summary>The running job's latest detail ("48 of 366 demos").</summary>
     public string Detail => Item.Detail ?? "";

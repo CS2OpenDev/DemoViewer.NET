@@ -87,12 +87,10 @@ public enum StageOutcome
 /// <param name="Outcome">What happened.</param>
 /// <param name="Directory">The installed version directory for the two installed outcomes; null otherwise.</param>
 /// <param name="Detail">Why it was refused, in user terms, carrying at most a bare file name; null otherwise.</param>
-/// <param name="LogDetail">The exception message behind <paramref name="Detail" />, for the log only.</param>
 public sealed record StageResult(
     StageOutcome Outcome,
     string? Directory,
-    string? Detail = null,
-    string? LogDetail = null);
+    string? Detail = null);
 
 /// <summary>Download progress for the Settings row and the queue item.</summary>
 /// <param name="BytesReceived">Bytes written so far.</param>

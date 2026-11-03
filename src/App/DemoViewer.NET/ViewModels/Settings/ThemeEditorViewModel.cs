@@ -37,7 +37,7 @@ public sealed partial class ThemeEditorListItem(Theme theme, int missingCount) :
 
     public bool IsBuiltIn => Theme.IsBuiltIn;
 
-    public int MissingCount { get; } = missingCount;
+    private int MissingCount { get; } = missingCount;
 
     public bool HasMissing => MissingCount > 0;
 
@@ -109,7 +109,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
         _missingOnly = missingOnly;
         RebuildList();
         string? id = themeId ?? host.ActiveThemeId();
-        ThemeEditorListItem? start =
+        ThemeEditorListItem start =
             Themes.FirstOrDefault(t => string.Equals(t.Theme.Id, id, StringComparison.OrdinalIgnoreCase))
             ?? Themes.FirstOrDefault(t => t.Theme.Id == ThemeBaseIdForSystem())
             ?? Themes[0];

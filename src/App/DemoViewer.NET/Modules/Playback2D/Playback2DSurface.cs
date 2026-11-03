@@ -123,7 +123,7 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
     public bool HasShownPanels => Panels.Any(p => p.IsShown);
 
     /// <summary>A shown panel holds the keyboard: the contributions' action handlers see every action first.</summary>
-    public bool HasKeyboard => Panels.Any(p => p.IsShown && p.HasKeyboard);
+    public bool HasKeyboard => Panels.Any(p => p is { IsShown: true, HasKeyboard: true });
 
     /// <inheritdoc />
     public IReadOnlyList<MapLevel> MapLevels => _levels() ?? [];
@@ -266,7 +266,7 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
         // _layerChoices outlives every registration, so re-adding an id, or a gate cycle that disposes
         // and re-attaches the whole contribution, keeps what the user picked this session.
         ContributedLayerToggle toggle =
-            new(layerId, displayName, _layerChoices.TryGetValue(layerId, out bool chosen) ? chosen : enabled);
+            new(layerId, displayName, _layerChoices.GetValueOrDefault(layerId, enabled));
         toggle.PropertyChanged += OnContributedLayerToggled;
         ContributedLayers.Add(toggle);
         OnPropertyChanged(nameof(HasContributedLayers));
@@ -276,8 +276,10 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
         LayersChanged?.Invoke();
         return new Removal(() =>
         {
-            if (_layers.Remove(entry))
+            int at = _layers.FindIndex(l => ReferenceEquals(l.Value, entry.Value));
+            if (at >= 0)
             {
+                _layers.RemoveAt(at);
                 // Inside the branch, and by instance: two owners can compose the same filed id
                 // ("a.b" + "c" and "a" + "b.c"), and the loser must not delete the winner's row.
                 DropRow(toggle);
@@ -417,7 +419,7 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
     /// <summary>The tab's resolved keymap changed.</summary>
     internal void SetKeymap(Playback2DKeymapProfile keymap)
     {
-        Keymap = keymap ?? Playback2DKeymapProfile.Default;
+        Keymap = keymap;
         KeymapChanged?.Invoke();
     }
 
@@ -574,7 +576,6 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
 {
     private readonly Playback2DSurface _owner;
     private readonly Func<Control>? _view;
-    private bool _hasKeyboard;
 
     internal Playback2DPanel(Playback2DSurface owner, int order, Func<object> factory, Func<Control>? view,
         string? featureId,
@@ -631,15 +632,15 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
     /// <inheritdoc />
     public bool HasKeyboard
     {
-        get => _hasKeyboard;
+        get;
         set
         {
-            if (_hasKeyboard == value)
+            if (field == value)
             {
                 return;
             }
 
-            _hasKeyboard = value;
+            field = value;
             OnPropertyChanged();
             _owner.OnPanelKeyboardChanged();
         }

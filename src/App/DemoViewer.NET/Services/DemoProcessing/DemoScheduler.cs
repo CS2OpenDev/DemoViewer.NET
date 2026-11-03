@@ -28,7 +28,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     private const string PlanTitle = "Checking demos for work";
     private const string PlanKey = "scheduler.plan";
 
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     // Keyed by demo key, holding the path to plan and its level.
     private readonly Dictionary<string, (string Path, PassLevel Level)> _dirty = new(StringComparer.OrdinalIgnoreCase);
@@ -92,7 +92,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     ///     Told when a pass throws from any call made into it, with the demo when there is one. The
     ///     composition root counts it against the extension that contributed the pass.
     /// </summary>
-    public Action<string, string?, Exception>? Faulted { get; set; }
+    public Action<string, string?, Exception>? Faulted { get; init; }
 
     /// <summary>The record passes, re-checked with every <see cref="RecheckAll" />. Null runs none.</summary>
     public RecordPassRunner? Records { get; set; }

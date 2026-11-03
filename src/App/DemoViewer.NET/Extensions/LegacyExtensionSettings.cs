@@ -19,14 +19,14 @@ internal static class LegacyExtensionSettings
 {
     // Imported values whose file could not be written, by settings file path. The next write of settings.json
     // drops them from there, so the extension's store takes them over and saves them itself.
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, JsonObject> Unsaved =
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, JsonObject> _unsaved =
         new(StringComparer.Ordinal);
 
     /// <summary>The Strat Book's id.</summary>
     public const string StratBookId = "net.demoviewer.pack.stratbook";
 
     // Extension key, then the settings.json path it was kept under. The keys are the Strat Book's own.
-    private static readonly IReadOnlyDictionary<string, (string Key, string LegacyPath)[]> Maps =
+    private static readonly IReadOnlyDictionary<string, (string Key, string LegacyPath)[]> _maps =
         new Dictionary<string, (string, string)[]>(StringComparer.Ordinal)
         {
             [StratBookId] =
@@ -58,7 +58,7 @@ internal static class LegacyExtensionSettings
         }
 
         int written = 0;
-        foreach ((string extensionId, (string Key, string LegacyPath)[] map) in Maps)
+        foreach ((string extensionId, (string Key, string LegacyPath)[] map) in _maps)
         {
             string path = ExtensionSettingsStore.PathFor(configRoot, extensionId);
             if (File.Exists(path))
@@ -87,7 +87,7 @@ internal static class LegacyExtensionSettings
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                Unsaved[path] = values;
+                _unsaved[path] = values;
             }
         }
 
@@ -96,7 +96,7 @@ internal static class LegacyExtensionSettings
 
     /// <summary>The imported values for the settings file at <paramref name="path" /> that could not be written, once.</summary>
     public static JsonObject? TakeUnsaved(string path) =>
-        Unsaved.TryRemove(path, out JsonObject? values) ? values : null;
+        _unsaved.TryRemove(path, out JsonObject? values) ? values : null;
 
     // A hand-edited settings.json may carry "true" or "4" as strings, which the configuration binder accepted.
     private static JsonNode? Normalize(JsonNode? node)

@@ -173,7 +173,7 @@ public class ThemeModelTests
     {
         foreach (ThemePalette palette in BuiltInThemes.All)
         {
-            ThemeParseResult parsed = ThemeJson.Parse(ThemeExport.ToJson(palette), palette.Id);
+            ThemeParseResult parsed = ThemeJson.Parse(ThemeExport.ToJson(palette));
             await Assert.That(parsed.Definition).IsNotNull().Because(parsed.Error ?? palette.Id);
             await Assert.That(parsed.BadValues).IsEmpty();
             ThemePalette back = ThemePalette.Resolve(parsed.Definition!);
@@ -246,7 +246,7 @@ public class ThemeModelTests
             """
             // a comment
             { "ID": "future", "Tokens": { "ShellBg": "#010203", "ShinyNewToken": "#445566", "Odd": { "x": [1, 2] }, "Num": 4, }, "extra": true }
-            """, "test");
+            """);
         ThemeDefinition def = parsed.Definition!;
 
         await Assert.That(def.Id).IsEqualTo("future");
@@ -254,7 +254,7 @@ public class ThemeModelTests
         await Assert.That(def.UnknownTokens.Keys).IsEquivalentTo(["ShinyNewToken", "Odd", "Num"]);
 
         string json = ThemeExport.ToJson(ThemePalette.Resolve(def), includeInherited: false);
-        ThemeDefinition again = ThemeJson.TryParse(json, "again")!;
+        ThemeDefinition again = ThemeJson.TryParse(json)!;
         await Assert.That(again.UnknownTokens["ShinyNewToken"]).IsEqualTo("\"#445566\"");
         await Assert.That(again.UnknownTokens["Odd"]).IsEqualTo("""{ "x": [1, 2] }""");
         await Assert.That(again.Tokens.Keys).IsEquivalentTo(["ShellBg"])

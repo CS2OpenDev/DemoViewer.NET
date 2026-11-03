@@ -371,8 +371,6 @@ public interface IDemoProcessingQueue
     /// <summary>Queued plus running items of one kind.</summary>
     int ActiveCount(QueueJobKind kind);
 
-    /// <summary>Queued plus running items of one extension-declared kind.</summary>
-    int ActiveCount(string extensionKind) => 0;
     // ── Foreground (awaitable, highest priority) ──────────────────────────────
 
     /// <summary>

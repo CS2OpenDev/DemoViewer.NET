@@ -63,11 +63,11 @@ public sealed class VisibilityEngineCache
     ///     entries actually retain is on the type's remarks and it moved a long way when de_inferno
     ///     landed; two is still the call, because the second shape is the one the cap exists for.
     /// </summary>
-    public const int DefaultCapacity = 2;
+    private const int DefaultCapacity = 2;
 
     private readonly Dictionary<BakeKey, Entry> _entries = [];
     private readonly Func<string, VisibilityEngine> _loader;
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
     private long _builds;
     private long _clock;
     private long _hits;
@@ -89,7 +89,7 @@ public sealed class VisibilityEngineCache
     public static VisibilityEngineCache Shared { get; } = new();
 
     /// <summary>Built entries this cache will hold at most once every build in flight has landed.</summary>
-    public int Capacity { get; }
+    private int Capacity { get; }
 
     /// <summary>Entries currently held, built or building.</summary>
     public int Count
@@ -153,15 +153,6 @@ public sealed class VisibilityEngineCache
         return GetOrLoadAsync(trisPath).GetAwaiter().GetResult();
     }
 
-    /// <summary>Drops every entry. In-flight builds complete for their waiters and are then discarded.</summary>
-    public void Clear()
-    {
-        lock (_sync)
-        {
-            _entries.Clear();
-        }
-    }
-
     private Task<VisibilityEngine> Acquire(BakeKey key, string trisPath)
     {
         lock (_sync)
@@ -175,8 +166,7 @@ public sealed class VisibilityEngineCache
 
             // Registered before the build starts so a build that faults at once finds its own entry
             // to forget rather than a hole, whatever the thread pool does with timing.
-            Entry entry = new(key);
-            entry.LastUse = ++_clock;
+            Entry entry = new(key) { LastUse = ++_clock };
             _entries[key] = entry;
             entry.Build = BuildAsync(entry, trisPath);
             Interlocked.Increment(ref _builds);
@@ -263,12 +253,12 @@ public sealed class VisibilityEngineCache
     /// </summary>
     private readonly struct BakeKey(string fullPath, long length, DateTime lastWriteUtc) : IEquatable<BakeKey>
     {
-        private static readonly StringComparer PathComparer =
+        private static readonly StringComparer _pathComparer =
             OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
-        public string FullPath { get; } = fullPath;
-        public long Length { get; } = length;
-        public DateTime LastWriteUtc { get; } = lastWriteUtc;
+        private string FullPath { get; } = fullPath;
+        private long Length { get; } = length;
+        private DateTime LastWriteUtc { get; } = lastWriteUtc;
 
         public static BakeKey For(string trisPath)
         {
@@ -285,7 +275,7 @@ public sealed class VisibilityEngineCache
         {
             return Length == other.Length
                    && LastWriteUtc == other.LastWriteUtc
-                   && PathComparer.Equals(FullPath, other.FullPath);
+                   && _pathComparer.Equals(FullPath, other.FullPath);
         }
 
         public override bool Equals(object? obj)
@@ -295,7 +285,7 @@ public sealed class VisibilityEngineCache
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(PathComparer.GetHashCode(FullPath ?? string.Empty), Length, LastWriteUtc);
+            return HashCode.Combine(_pathComparer.GetHashCode(FullPath ?? string.Empty), Length, LastWriteUtc);
         }
     }
 

@@ -199,7 +199,7 @@ public abstract class StatPresenter : TemplatedControl
     }
 
     /// <summary>The scale actually in force: an explicit <see cref="Scale" />, else the loose properties.</summary>
-    public StatScale EffectiveScale =>
+    protected StatScale EffectiveScale =>
         Scale ?? new StatScale(Minimum, Maximum, Polarity, NeutralLow, NeutralHigh);
 
     /// <summary>
@@ -207,7 +207,7 @@ public abstract class StatPresenter : TemplatedControl
     ///     Negative zero is folded to positive zero first: a differential column that lands exactly on
     ///     nothing would otherwise print "-0", which reads as a real negative.
     /// </summary>
-    public string DisplayText =>
+    protected string DisplayText =>
         Text ?? (Value is { } v
             ? (v == 0 ? 0.0 : v).ToString(Format, CultureInfo.InvariantCulture)
             : string.Empty);

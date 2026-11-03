@@ -137,7 +137,7 @@ public static class ErrorReportSnapshotBuilder
                         {
                             r.Title(), r.CatalogVersion is { Length: > 0 } cv ? "catalog " + cv : null,
                             r.Hash is { Length: > 0 } h ? h : null, r.Origin
-                        }.Where(x => !string.IsNullOrEmpty(x))!)))
+                        }.Where(x => !string.IsNullOrEmpty(x)))))
             ]));
         }
 
@@ -269,6 +269,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -319,6 +320,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
 
         if (tickRate is { } rate)
@@ -396,6 +398,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -451,6 +454,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -470,6 +474,7 @@ public static class ErrorReportSnapshotBuilder
             }
             catch (Exception)
             {
+                // Best effort: a section that fails stays empty.
             }
         }
     }
@@ -488,6 +493,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -502,6 +508,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
 
         try
@@ -514,6 +521,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -533,5 +541,5 @@ public sealed record ErrorReportDiagnosticsGroup(string Title, IReadOnlyList<Kvp
 internal static class RulesetRowExtensions
 {
     internal static string? Title(this DemoErrorReportRuleset row) =>
-        string.IsNullOrEmpty(row?.Name) ? null : row.Name;
+        string.IsNullOrEmpty(row.Name) ? null : row.Name;
 }

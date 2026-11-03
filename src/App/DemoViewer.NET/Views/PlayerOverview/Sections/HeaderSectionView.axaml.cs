@@ -20,15 +20,13 @@ public partial class HeaderSectionView : UserControl
     // The clipboard needs the visual tree, so the copy lives here; the id stays selectable as the fallback.
     private async void OnCopySteamIdClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not HeaderSectionViewModel { SteamId64.Length: > 0 } vm
-            || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
-        {
-            return;
-        }
-
         try
         {
-            await clipboard.SetTextAsync(vm.SteamId64);
+            if (DataContext is HeaderSectionViewModel { SteamId64.Length: > 0 } vm
+                && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(vm.SteamId64);
+            }
         }
         catch (Exception)
         {

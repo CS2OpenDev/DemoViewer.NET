@@ -45,7 +45,7 @@ public static class FirstPartySceneExport
     public static string? ManagedFfmpegDirectory => FfmpegDependency.ManagedDirectory;
 
     /// <summary>The scene palette for the app's current theme. Off the UI thread the theme is unreadable: dark.</summary>
-    public static ScenePalette ThemePalette() =>
+    private static ScenePalette ThemePalette() =>
         Dispatcher.UIThread.CheckAccess()
             ? ScenePaletteFactory.Build(Application.Current?.ActualThemeVariant)
             : ScenePalette.Dark;

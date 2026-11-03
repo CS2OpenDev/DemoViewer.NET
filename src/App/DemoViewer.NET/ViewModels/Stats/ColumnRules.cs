@@ -31,7 +31,7 @@ public abstract record ColumnRule
 
     private static double Total(IReadOnlyList<IReadOnlyDictionary<string, double>> rows,
         IReadOnlyList<string> columns) =>
-        rows.Sum(r => columns.Sum(c => r.GetValueOrDefault(c)));
+        rows.Sum(r => columns.Sum(r.GetValueOrDefault));
 
     /// <summary>A count or a sum: the pool is the total.</summary>
     public sealed record Sum(string Column) : ColumnRule

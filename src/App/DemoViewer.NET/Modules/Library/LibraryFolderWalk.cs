@@ -94,22 +94,15 @@ internal sealed class FileSystemLibraryFolderReader : ILibraryFolderReader
 ///     <see cref="Execute" /> makes it and touches no walk state, and <see cref="Complete" /> applies its
 ///     answer, so a caller may make the call on another thread and give up on it.
 /// </summary>
-internal sealed class LibraryRootWalk
+internal sealed class LibraryRootWalk(string folder, ILibraryFolderReader reader)
 {
     private readonly List<(string Path, long Size, DateTime Modified)> _demos = [];
     private readonly Stack<string> _pending = new();
-    private readonly ILibraryFolderReader _reader;
     private readonly List<(string Directory, string Reason)> _unreachedDirectories = [];
     private readonly Stopwatch _clock = new();
 
-    public LibraryRootWalk(string folder, ILibraryFolderReader reader)
-    {
-        Folder = folder;
-        _reader = reader;
-    }
-
     /// <summary>The folder as registered.</summary>
-    public string Folder { get; }
+    public string Folder { get; } = folder;
 
     /// <summary>The folder's real path, once resolved.</summary>
     public string? Root { get; private set; }
@@ -163,8 +156,8 @@ internal sealed class LibraryRootWalk
         try
         {
             return read.ResolvesRoot
-                ? new Answer(_reader.ResolveRoot(read.Directory), null, null)
-                : new Answer(null, _reader.Read(read.Directory), null);
+                ? new Answer(reader.ResolveRoot(read.Directory), null, null)
+                : new Answer(null, reader.Read(read.Directory), null);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

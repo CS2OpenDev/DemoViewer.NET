@@ -110,7 +110,7 @@ public sealed class TeammateRowItem
     }
 
     /// <summary>The teammate and the matches they shared.</summary>
-    public PlayerTeammate Teammate { get; }
+    private PlayerTeammate Teammate { get; }
 
     /// <summary>The teammate's account.</summary>
     public ulong SteamId64 => Teammate.SteamId64;

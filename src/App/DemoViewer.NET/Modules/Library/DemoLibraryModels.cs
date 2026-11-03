@@ -35,12 +35,16 @@ public partial class DemoEntry : ObservableObject
     private static readonly string[] _mapPrefixes = ["de_", "cs_", "ar_", "dz_", "gd_", "coop_"];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasClans))]
+    [NotifyPropertyChangedFor(nameof(SubtitleDisplay))]
     private string? _ctClan;
 
     // Final scoreboard: CCSTeam.m_iScore per side at match end (CT = team 3, T = team 2), entity-replayed
     // in tier 2 AFTER players/duration (so those show first). Null until computed / when the demo has no
     // clean final score. Clans are populated on pro/HLTV demos (empty on matchmaking).
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasScore))]
+    [NotifyPropertyChangedFor(nameof(NeedsScoreRepair))]
     private int? _ctScore;
 
     [ObservableProperty]
@@ -53,17 +57,23 @@ public partial class DemoEntry : ObservableObject
     // not processed separately (processed once). Empty when the demo is unique. Wider than the SDK's
     // LibraryDemo.Locations on purpose: the user sees every copy found, an extension only paths a full read proved.
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDuplicates))]
+    [NotifyPropertyChangedFor(nameof(DuplicateHint))]
+    [NotifyPropertyChangedFor(nameof(DuplicateTooltip))]
     private IReadOnlyList<string> _duplicateFolders = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DurationDisplay))]
     private double _durationSeconds;
 
     // ── Tier 1 (cheap header) ──
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MapDisplay))]
     private string? _mapName;
 
     // ── Tier 2 (full parse) ──
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PlayersDisplay))]
     private IReadOnlyList<string> _players = [];
 
     // ── Badge (a pack's card-badge contribution) ──
@@ -87,18 +97,28 @@ public partial class DemoEntry : ObservableObject
     ///     drives <see cref="NeedsScoreRepair" />. Nothing on disk is modified.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NeedsScoreRepair))]
     private bool _scoreRepairPending;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubtitleDisplay))]
     private string? _serverName;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PlayersDisplay))]
+    [NotifyPropertyChangedFor(nameof(IsIndexing))]
+    [NotifyPropertyChangedFor(nameof(IsFailed))]
     private DemoIndexState _state = DemoIndexState.Pending;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasClans))]
+    [NotifyPropertyChangedFor(nameof(SubtitleDisplay))]
     private string? _tClan;
 
+    // NeedsScoreRepair reads the score as well as the flag, so both scores notify it too.
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasScore))]
+    [NotifyPropertyChangedFor(nameof(NeedsScoreRepair))]
     private int? _tScore;
 
     /// <summary>Absolute path to the .dem file (identity).</summary>
@@ -153,7 +173,7 @@ public partial class DemoEntry : ObservableObject
         : "";
 
     /// <summary>True once a clean final score is known (both sides present and the match wasn't warmup-only).</summary>
-    public bool HasScore => CtScore is int c && TScore is int t && c + t > 0;
+    public bool HasScore => CtScore is { } c && TScore is { } t && c + t > 0;
 
     /// <summary>
     ///     Show the "score needs re-deriving" badge: the cache row holds a stale half-score, it was withheld
@@ -200,64 +220,13 @@ public partial class DemoEntry : ObservableObject
     {
         0 => "",
         1 => "＋1 copy",
-        int n => $"＋{n} copies"
+        _ => $"＋{DuplicateFolders.Count} copies"
     };
 
     /// <summary>Tooltip body listing the other folders that hold a byte-identical copy of this demo.</summary>
     public string DuplicateTooltip => DuplicateFolders.Count == 0
         ? ""
         : "Also in:\n" + string.Join("\n", DuplicateFolders);
-
-    // Keep the computed display strings in sync with their backing observable fields.
-    partial void OnMapNameChanged(string? value) => OnPropertyChanged(nameof(MapDisplay));
-    partial void OnPlayersChanged(IReadOnlyList<string> value) => OnPropertyChanged(nameof(PlayersDisplay));
-
-    partial void OnStateChanged(DemoIndexState value)
-    {
-        OnPropertyChanged(nameof(PlayersDisplay));
-        OnPropertyChanged(nameof(IsIndexing));
-        OnPropertyChanged(nameof(IsFailed));
-    }
-
-    partial void OnDurationSecondsChanged(double value) => OnPropertyChanged(nameof(DurationDisplay));
-
-    // NeedsScoreRepair is derived from BOTH the flag and the score, so both sides have to notify. Raising it
-    // only from the flag leaves the badge correct on first render and stale the moment a repair completes:
-    // the card would keep saying "needs re-deriving" over a score it had just written.
-    partial void OnCtScoreChanged(int? value)
-    {
-        OnPropertyChanged(nameof(HasScore));
-        OnPropertyChanged(nameof(NeedsScoreRepair));
-    }
-
-    partial void OnTScoreChanged(int? value)
-    {
-        OnPropertyChanged(nameof(HasScore));
-        OnPropertyChanged(nameof(NeedsScoreRepair));
-    }
-
-    partial void OnScoreRepairPendingChanged(bool value) => OnPropertyChanged(nameof(NeedsScoreRepair));
-
-    partial void OnServerNameChanged(string? value) => OnPropertyChanged(nameof(SubtitleDisplay));
-
-    partial void OnDuplicateFoldersChanged(IReadOnlyList<string> value)
-    {
-        OnPropertyChanged(nameof(HasDuplicates));
-        OnPropertyChanged(nameof(DuplicateHint));
-        OnPropertyChanged(nameof(DuplicateTooltip));
-    }
-
-    partial void OnCtClanChanged(string? value)
-    {
-        OnPropertyChanged(nameof(HasClans));
-        OnPropertyChanged(nameof(SubtitleDisplay));
-    }
-
-    partial void OnTClanChanged(string? value)
-    {
-        OnPropertyChanged(nameof(HasClans));
-        OnPropertyChanged(nameof(SubtitleDisplay));
-    }
 
     /// <summary>Strips the <c>de_/cs_/ar_/dz_</c> prefix and title-cases: <c>de_dust2 → "Dust2"</c>.</summary>
     public static string PrettifyMap(string? map)
@@ -342,13 +311,13 @@ public partial class DemoEntry : ObservableObject
 public sealed class DemoLibraryData
 {
     /// <summary>Cache schema version: bump to invalidate stale rows when fields change.</summary>
-    public int SchemaVersion { get; set; } = DemoLibraryCacheEntry.CurrentSchema;
+    public int SchemaVersion { get; init; } = DemoLibraryCacheEntry.CurrentSchema;
 
     /// <summary>User-configured root folders to scan (recursively) for demos.</summary>
-    public List<string> Folders { get; set; } = [];
+    public List<string> Folders { get; init; } = [];
 
     /// <summary>Cached per-file metadata, keyed by path (validated against size + mtime on load).</summary>
-    public List<DemoLibraryCacheEntry> Cache { get; set; } = [];
+    public List<DemoLibraryCacheEntry> Cache { get; init; } = [];
 }
 
 /// <summary>
@@ -375,9 +344,9 @@ public sealed class DemoLibraryCacheEntry
         return copy;
     }
 
-    public string Path { get; set; } = "";
-    public long Size { get; set; }
-    public long ModifiedTicks { get; set; }
+    public string Path { get; init; } = "";
+    public long Size { get; init; }
+    public long ModifiedTicks { get; init; }
 
     // Tier 1
     public string? Map { get; set; }

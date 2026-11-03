@@ -249,5 +249,5 @@ public sealed class OutputRow(int seekFrameIndex, string tickLabel, string level
     public string Tick => TickLabel;
 
     /// <summary>Tick label.</summary>
-    public string TickLabel { get; } = tickLabel;
+    private string TickLabel { get; } = tickLabel;
 }

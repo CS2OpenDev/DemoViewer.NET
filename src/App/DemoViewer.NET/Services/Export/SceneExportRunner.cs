@@ -153,7 +153,7 @@ public sealed class SceneExportRunner : IExportRunner
         try
         {
             int last = Math.Max(0, source.FrameCount - 1);
-            if (maxFrames is int cap)
+            if (maxFrames is { } cap)
             {
                 last = Math.Min(last, Math.Max(0, cap - 1));
             }

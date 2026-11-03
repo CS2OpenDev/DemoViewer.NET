@@ -31,7 +31,7 @@ public static class BuiltInThemes
 
     private static readonly Lazy<(ThemePalette Dark, ThemePalette Light)> _bases = new(LoadBases);
 
-    private static readonly Lazy<IReadOnlyList<ThemeDefinition>> _customDefs = new(() => LoadCustomDefinitions());
+    private static readonly Lazy<IReadOnlyList<ThemeDefinition>> _customDefs = new(LoadCustomDefinitions);
 
     private static readonly Lazy<IReadOnlyList<ThemePalette>> _all = new(() =>
         [Dark, Light, .. _customDefs.Value.Select(ThemePalette.Resolve)]);
@@ -119,7 +119,7 @@ public static class BuiltInThemes
                 }
 
                 using StreamReader reader = new(stream);
-                if (ThemeJson.TryParse(reader.ReadToEnd(), resource) is { } def)
+                if (ThemeJson.TryParse(reader.ReadToEnd()) is { } def)
                 {
                     defs.Add(def);
                 }

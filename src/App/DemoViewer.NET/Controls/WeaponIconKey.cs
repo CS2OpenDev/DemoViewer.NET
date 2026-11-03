@@ -38,7 +38,7 @@ public sealed class WeaponIconKey : IValueConverter
     // Where stripping "C"/"CWeapon" and lower-casing does not land on the catalogue's spelling. Small
     // and explicit on purpose: a table that tried to list every weapon would rot against CS2 updates,
     // whereas the prefix rule keeps working and only the genuine irregulars need naming.
-    private static readonly Dictionary<string, string> ClassAliases = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> _classAliases = new(StringComparer.Ordinal)
     {
         ["uspsilencer"] = "usp_silencer",
         ["m4a1silencer"] = "m4a1_silencer",
@@ -62,7 +62,7 @@ public sealed class WeaponIconKey : IValueConverter
             return ForEntityClass(value as string)?.Key;
         }
 
-        return value is string weapon && weapon.Length > 0 ? "equipment/" + weapon : null;
+        return value is string { Length: > 0 } weapon ? "equipment/" + weapon : null;
     }
 
     /// <summary>
@@ -89,7 +89,7 @@ public sealed class WeaponIconKey : IValueConverter
         }
 
         bare = bare.ToLowerInvariant();
-        return IconCatalogue.Weapon(ClassAliases.GetValueOrDefault(bare, bare));
+        return IconCatalogue.Weapon(_classAliases.GetValueOrDefault(bare, bare));
     }
 
     /// <inheritdoc />

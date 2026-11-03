@@ -56,7 +56,7 @@ public sealed class RulesRoundFactsRulesetIdentity : IRoundFactsRulesetIdentity
 {
     private static ILogger? _diagLog;
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private bool _reportedFailure;
 
     /// <summary>An identity over its own read of the shipped-plus-user rules.</summary>
@@ -110,16 +110,6 @@ public sealed class RulesRoundFactsRulesetIdentity : IRoundFactsRulesetIdentity
 
             RoundFactsLog.CompositionFailed(Log, ex);
             return null;
-        }
-    }
-
-    /// <summary>Drops the cached rule config so the next fingerprint re-reads the rules directories.</summary>
-    public void Invalidate()
-    {
-        Rules.Invalidate();
-        lock (_gate)
-        {
-            _reportedFailure = false;
         }
     }
 }

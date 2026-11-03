@@ -25,13 +25,13 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     public static HttpExtensionFeedClient Shared { get; } = new();
 
     /// <summary>How long the response headers may take; 30 s by default.</summary>
-    public static TimeSpan HeaderTimeout => TimeSpan.FromSeconds(30);
+    private static TimeSpan HeaderTimeout => TimeSpan.FromSeconds(30);
 
     /// <summary>How long one body read may make no progress before the transfer counts as stalled; 60 s by default.</summary>
-    public static TimeSpan StallTimeout => TimeSpan.FromSeconds(60);
+    private static TimeSpan StallTimeout => TimeSpan.FromSeconds(60);
 
     /// <summary>The default budgets over the default handler.</summary>
-    public HttpExtensionFeedClient() : this(null)
+    private HttpExtensionFeedClient() : this(null)
     {
     }
 
@@ -65,7 +65,7 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
             StringBuilder text = new();
             while (true)
             {
-                int read = await ReadWithStallTimeout(() => reader.ReadAsync(buffer, ct).AsTask(), ct)
+                int read = await ReadWithStallTimeout(reader.ReadAsync(buffer, ct).AsTask(), ct)
                     .ConfigureAwait(false);
                 if (read == 0)
                 {
@@ -105,7 +105,7 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
             long total = 0;
             while (true)
             {
-                int read = await ReadWithStallTimeout(() => stream.ReadAsync(buffer, ct).AsTask(), ct)
+                int read = await ReadWithStallTimeout(stream.ReadAsync(buffer, ct).AsTask(), ct)
                     .ConfigureAwait(false);
                 if (read == 0)
                 {
@@ -161,10 +161,9 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     }
 
     // A read that makes no progress for the stall budget is a stalled transfer, not a cancellation.
-    private async Task<int> ReadWithStallTimeout(Func<Task<int>> read, CancellationToken ct)
+    private async Task<int> ReadWithStallTimeout(Task<int> pending, CancellationToken ct)
     {
         using CancellationTokenSource delay = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        Task<int> pending = read();
         Task finished = await Task.WhenAny(pending, Task.Delay(_stallTimeout, _time, delay.Token))
             .ConfigureAwait(false);
         if (finished != pending)

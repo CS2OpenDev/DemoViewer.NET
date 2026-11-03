@@ -30,7 +30,7 @@ internal sealed class ExtensionSettingsStore : IExtensionSettings
     };
 
     private readonly string _extensionId;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly string? _path;
     private readonly Action<Action> _post;
     private Action<string>? _changed;
@@ -89,7 +89,7 @@ internal sealed class ExtensionSettingsStore : IExtensionSettings
 
         try
         {
-            return node.Deserialize<T>(JsonOptions) is { } value ? value : fallback;
+            return node.Deserialize<T>(JsonOptions) ?? fallback;
         }
         catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException
                                        or FormatException)

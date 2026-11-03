@@ -141,7 +141,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     ///     <c>AppSettings.ProcessingQueue.BackgroundProcessingEnabled</c>. Opening a demo always runs regardless.
     /// </summary>
     [ObservableProperty]
-    private bool _backgroundProcessingEnabled = true;
+    private bool _backgroundProcessingEnabled;
 
     /// <summary>
     ///     The row currently waiting for a keypress, or null. At most one at a time: two armed rows would
@@ -156,37 +156,34 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>Rolled log files retained → <c>AppSettings.Diagnostics.FileMaxCount</c> (next launch).</summary>
     [ObservableProperty]
-    private int _diagnosticsFileMaxCount = 5;
+    private int _diagnosticsFileMaxCount;
 
     /// <summary>Rolling-file size cap in KB → <c>AppSettings.Diagnostics.FileMaxSizeKilobytes</c> (next launch).</summary>
     [ObservableProperty]
-    private int _diagnosticsFileMaxSizeKb = 4096;
+    private int _diagnosticsFileMaxSizeKb;
 
     /// <summary>Minimum severity for the internal log stream → <c>AppSettings.Diagnostics.MinimumLogLevel</c>. Live.</summary>
     [ObservableProperty]
-    private LiveSyncLogLevel _diagnosticsLogLevel = LiveSyncLogLevel.Information;
+    private LiveSyncLogLevel _diagnosticsLogLevel;
 
     // ── Diagnostics logging (the unified internal ILogger pillar) ─────────────
 
     /// <summary>Master switch for internal diagnostics logging → <c>AppSettings.Diagnostics.EnableInternalLogging</c>. Live.</summary>
     [ObservableProperty]
-    private bool _diagnosticsLoggingEnabled = true;
+    private bool _diagnosticsLoggingEnabled;
 
     /// <summary>Max rows in the in-app log window → <c>AppSettings.Diagnostics.MaxLogRows</c>. Live (v0.6.0).</summary>
     [ObservableProperty]
-    private int _diagnosticsMaxLogRows = 5000;
+    private int _diagnosticsMaxLogRows;
 
     /// <summary>
     ///     Mirror internal logs to a rolling file → <c>AppSettings.Diagnostics.WriteLogFile</c> (takes effect next
     ///     launch).
     /// </summary>
     [ObservableProperty]
-    private bool _diagnosticsWriteLogFile = true;
+    private bool _diagnosticsWriteLogFile;
 
     private bool _disposed;
-
-    // Lazy: most sessions never hit the best-effort catch this backs.
-    private ILogger? _diagLog;
 
     /// <summary>Advanced (developer): force an incompatible plugin → <c>AppSettings.LiveSync.ForceIncompatiblePlugin</c>.</summary>
     [ObservableProperty]
@@ -207,24 +204,24 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     ///     launch check, the What's New fetch, and the extension check on open; the buttons still work.
     /// </summary>
     [ObservableProperty]
-    private bool _checkForUpdatesAutomatically = true;
+    private bool _checkForUpdatesAutomatically;
 
     // ── Idle mode: desktop only; suppressed on WASM like Background processing. ──
 
     /// <summary>Master enable for idle mode → <c>AppSettings.Idle.Enabled</c> (default ON). Live.</summary>
     [ObservableProperty]
-    private bool _idleEnabled = true;
+    private bool _idleEnabled;
 
     /// <summary>Keep background processing running while idle → <c>AppSettings.Idle.KeepBackgroundProcessing</c>.</summary>
     [ObservableProperty]
-    private bool _idleKeepBackgroundProcessing = true;
+    private bool _idleKeepBackgroundProcessing;
 
     /// <summary>
     ///     Idle wait in MINUTES (editable via a numeric spinner; decimals allowed for finer control, e.g. 0.5 =
     ///     30 s). Maps to the model's <see cref="TimeSpan" /> <c>AppSettings.Idle.IdleTimeoutWait</c> on persist.
     /// </summary>
     [ObservableProperty]
-    private double _idleTimeoutMinutes = 15;
+    private double _idleTimeoutMinutes;
 
     [ObservableProperty]
     private bool _isGroupDiagnosticsExpanded = true;
@@ -252,6 +249,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     ///     only write valid rows, so a non-empty note here always means the file was edited by hand.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasKeybindRejections))]
     private string _keybindRejectionNote = "";
 
     /// <summary>Also surface framework (ASP.NET/gRPC) log lines → <c>AppSettings.LiveSync.CaptureFrameworkLogs</c>.</summary>
@@ -270,18 +268,18 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>CS2 game window height → <c>AppSettings.LiveSync.GameWindowHeight</c>.</summary>
     [ObservableProperty]
-    private int _liveSyncGameWindowHeight = 800;
+    private int _liveSyncGameWindowHeight;
 
     /// <summary>CS2 game window width → <c>AppSettings.LiveSync.GameWindowWidth</c> (v0.6.0 UI).</summary>
     [ObservableProperty]
-    private int _liveSyncGameWindowWidth = 1280;
+    private int _liveSyncGameWindowWidth;
 
     /// <summary>
     ///     Minimum severity for the CSVG log surface → <c>AppSettings.LiveSync.MinimumLogLevel</c>.
     ///     Live: lowering it surfaces more detail on a running session with no reconnect.
     /// </summary>
     [ObservableProperty]
-    private LiveSyncLogLevel _liveSyncLogLevel = LiveSyncLogLevel.Information;
+    private LiveSyncLogLevel _liveSyncLogLevel;
 
     /// <summary>Mock-mode toggle (developer) → <c>AppSettings.LiveSync.MockMode</c>.</summary>
     [ObservableProperty]
@@ -300,11 +298,11 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     ///     16 GB OOM-safety invariant; &gt; 1 is advanced and clamped to [1, <see cref="ConcurrencyMax" />].
     /// </summary>
     [ObservableProperty]
-    private int _maxConcurrency = 1;
+    private int _maxConcurrency;
 
     /// <summary>Max background-tier items held in the queue → <c>AppSettings.ProcessingQueue.MaxQueueSize</c>.</summary>
     [ObservableProperty]
-    private int _maxQueueSize = 200;
+    private int _maxQueueSize;
 
     /// <summary>Reel bitrate kbps (0 = unset) → <c>AppSettings.Highlights.ReelBitrateKbps</c> when in bitrate mode.</summary>
     [ObservableProperty]
@@ -312,31 +310,31 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>Capture game audio in reels → <c>AppSettings.Highlights.ReelCaptureAudio</c>.</summary>
     [ObservableProperty]
-    private bool _reelCaptureAudio = true;
+    private bool _reelCaptureAudio;
 
     /// <summary>Concatenate the reel's clips into one video → <c>AppSettings.Highlights.ReelConcatenate</c>.</summary>
     [ObservableProperty]
-    private bool _reelConcatenate = true;
+    private bool _reelConcatenate;
 
     /// <summary>Reel container format → <c>AppSettings.Highlights.ReelContainerFormat</c>.</summary>
     [ObservableProperty]
-    private string _reelContainerFormat = "mp4";
+    private string _reelContainerFormat;
 
     /// <summary>Reel CRF quality → <c>AppSettings.Highlights.ReelCrf</c> (lower = better).</summary>
     [ObservableProperty]
-    private int _reelCrf = 20;
+    private int _reelCrf;
 
     /// <summary>Reel capture frame rate → <c>AppSettings.Highlights.ReelFps</c>.</summary>
     [ObservableProperty]
-    private int _reelFps = 60;
+    private int _reelFps;
 
     /// <summary>Reel default lead-in seconds → <c>AppSettings.Highlights.ClipLeadInSeconds</c>.</summary>
     [ObservableProperty]
-    private double _reelLeadInSeconds = 15;
+    private double _reelLeadInSeconds;
 
     /// <summary>Reel default lead-out seconds → <c>AppSettings.Highlights.ClipLeadOutSeconds</c>.</summary>
     [ObservableProperty]
-    private double _reelLeadOutSeconds = 5;
+    private double _reelLeadOutSeconds;
 
     /// <summary>Reel output folder → <c>AppSettings.Highlights.ReelOutputDirectory</c>.</summary>
     [ObservableProperty]
@@ -344,7 +342,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>Encoding mode radio: CRF (quality) when true, else bitrate. Persisted via the CRF ⊕ bitrate write.</summary>
     [ObservableProperty]
-    private bool _reelUseCrf = true;
+    private bool _reelUseCrf;
 
     /// <summary>The selected category card (bound to the ListBox SelectedItem). Persisted on change.</summary>
     [ObservableProperty]
@@ -1053,9 +1051,6 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    partial void OnKeybindRejectionNoteChanged(string value) =>
-        OnPropertyChanged(nameof(HasKeybindRejections));
-
     // One row per SHIPPED binding, reserved rows included: a reserved gesture that is simply absent from
     // the list reads as free, which is the opposite of what the reservation means. A row whose action a
     // pack owns carries that pack's label and gate id, so IsVisible and the label chip can read it.
@@ -1064,7 +1059,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         IReadOnlyDictionary<string, PackCommand> packOwners = CommandRegistry.Default.PackOwnerByAction;
         foreach (Playback2DBinding binding in Playback2DKeymapProfile.Default.Bindings)
         {
-            PackCommand? owner = packOwners.TryGetValue(binding.ActionId, out PackCommand? found) ? found : null;
+            PackCommand? owner = packOwners.GetValueOrDefault(binding.ActionId);
             Playback2DKeybindRows.Add(new KeybindRow(this, binding, owner?.PackLabel, owner?.PackFeatureId));
         }
     }
@@ -1125,7 +1120,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Disarms whatever row is capturing. Idempotent.</summary>
-    internal void CancelKeybindCapture()
+    private void CancelKeybindCapture()
     {
         if (CapturingKeybind is { } row)
         {
@@ -2136,7 +2131,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
         foreach (FeatureDescriptor descriptor in FeatureCatalog.All)
         {
-            if (descriptor.Scope == FeatureScope.Chrome && descriptor.OwnerPackId is null)
+            if (descriptor is { Scope: FeatureScope.Chrome, OwnerPackId: null })
             {
                 AddFeatureRow(ChromeFeatureRows, descriptor, 0);
             }
@@ -2402,7 +2397,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ResetButtonText));
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.Settings");
+    // Lazy: most sessions never hit the best-effort catch this backs.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.Settings");
 
     // Resolves the re-index count off the UI thread (PendingPaths over a large library is not free) and
     // writes the final notice, UNLESS a later toggle already changed the generation: dropping a stale

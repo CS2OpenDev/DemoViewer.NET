@@ -71,7 +71,7 @@ public sealed partial class ThemeWarningViewModel : ObservableObject
     }
 
     /// <summary>The theme id and a hash of exactly which tokens are missing.</summary>
-    internal static string Signature(Theme theme)
+    private static string Signature(Theme theme)
     {
         byte[] hash =
             SHA256.HashData(

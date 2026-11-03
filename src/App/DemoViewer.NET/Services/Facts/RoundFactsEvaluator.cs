@@ -51,7 +51,7 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
     // tried again. Nothing is written (an empty payload would read as current), so without this the scheduler
     // re-parses them forever.
     private readonly HashSet<string> _noRows = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object _noRowsGate = new();
+    private readonly Lock _noRowsGate = new();
 
     /// <param name="demoCache">The unified demo cache the rows ride.</param>
     /// <param name="rows">The engine seam that evaluates the ruleset on a held parse.</param>
@@ -125,20 +125,6 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
     public void EvaluateForward(string path, ForwardDemoResult pass) =>
         Refresh(path, pass.Demo.TickRate, () => _rows.Rows(pass), () => pass.Rounds,
             () => FrameClock.IdentityFor(pass));
-
-    /// <summary>
-    ///     Rewrites a demo's index row from its record: for a row whose stamp claims rows the record does not
-    ///     hold, so the stamp goes and the demo is wanted again. Nothing happens for a demo with no record.
-    /// </summary>
-    /// <param name="path">The demo's path.</param>
-    public void ReprojectRow(string path)
-    {
-        if (_demoCache.TryLoadRecord(path) is { } record)
-        {
-            _demoCache.Upsert(record);
-            _demoCache.SaveIndex();
-        }
-    }
 
     /// <summary>
     ///     The demos whose rows are missing or stale under the current fingerprint, for the pending counts: one

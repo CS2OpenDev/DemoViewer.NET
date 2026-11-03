@@ -25,37 +25,42 @@ public sealed partial class CategoriesSectionViewModel : PlayerOverviewSection
     public const string SightNote =
         "Aim quality (accuracy, crosshair placement, time to damage and the rest) has a section of its own.";
 
-    private static readonly Rate PerRound = new([ColumnRules.Rounds], 1, "0.00", "per round");
-    private static readonly Rate PerMatch = new([], 1, "0.00", "per match");
-    private static readonly Rate OfKills = new(["TotalK"], 100, "0", "% of kills");
-    private static readonly Rate OfDeaths = new(["TotalD"], 100, "0", "% of deaths");
-    private static readonly Rate OfRounds = new([ColumnRules.Rounds], 100, "0", "% of rounds");
-    private static readonly Rate PerFlash = new(["Flash"], 1, "0.00", "per flash");
+    private static readonly Rate _perRound = new([ColumnRules.Rounds], 1, "0.00", "per round");
+    private static readonly Rate _perMatch = new([], 1, "0.00", "per match");
+    private static readonly Rate _ofKills = new(["TotalK"], 100, "0", "% of kills");
+    private static readonly Rate _ofDeaths = new(["TotalD"], 100, "0", "% of deaths");
+    private static readonly Rate _ofRounds = new([ColumnRules.Rounds], 100, "0", "% of rounds");
+    private static readonly Rate _perFlash = new(["Flash"], 1, "0.00", "per flash");
 
     /// <summary>Every category, top to bottom: its title, the catalogue group it mirrors, and its columns.</summary>
     internal static readonly IReadOnlyList<Category> All =
     [
         new("Opening duels", [StatGroup.OpeningDuels],
         [
-            new("TotalFK", "0", PerRound), new("TotalFD", "0", PerRound), new("FK±", "+0;-0;0"), new("Duel%", "0'%'"),
+            new("TotalFK", "0", _perRound), new("TotalFD", "0", _perRound), new("FK±", "+0;-0;0"),
+            new("Duel%", "0'%'"),
             new("CTFK", "0"), new("CTFD", "0"), new("TFK", "0"), new("TFD", "0")
         ]),
-        new("Trades", [], [new("TrdK", "0", PerRound), new("TradedD", "0", OfDeaths)]),
-        new("Clutches", [], [new("Clutch", "0", PerMatch)]),
+        new("Trades", [], [new("TrdK", "0", _perRound), new("TradedD", "0", _ofDeaths)]),
+        new("Clutches", [], [new("Clutch", "0", _perMatch)]),
         new("Utility", [StatGroup.Utility],
         [
-            new("Flash", "0", PerRound), new("EFlash", "0", PerFlash), new("AvgBlind", "0.00"),
-            new("FlashAst", "0", PerRound),
-            new("HE", "0", PerRound), new("Smokes", "0", PerRound), new("Molly", "0", PerRound)
+            new("Flash", "0", _perRound), new("EFlash", "0", _perFlash), new("AvgBlind", "0.00"),
+            new("FlashAst", "0", _perRound),
+            new("HE", "0", _perRound), new("Smokes", "0", _perRound), new("Molly", "0", _perRound)
         ]),
         new("Weapons", [StatGroup.Weapons],
         [
-            new("Rifle", "0", OfKills), new("AWP", "0", OfKills), new("Pistol", "0", OfKills), new("SMG", "0", OfKills),
-            new("Knife", "0", OfKills), new("DeagleHSRnds", "0", PerMatch)
+            new("Rifle", "0", _ofKills), new("AWP", "0", _ofKills), new("Pistol", "0", _ofKills),
+            new("SMG", "0", _ofKills),
+            new("Knife", "0", _ofKills), new("DeagleHSRnds", "0", _perMatch)
         ]),
         new("Multi-kill", [StatGroup.MultiKill],
-            [new("2K", "0", PerMatch), new("3K", "0", PerMatch), new("4K", "0", PerMatch), new("5K", "0", PerMatch)]),
-        new("Economy", [StatGroup.Economy], [new("Equip", "'$'#,0"), new("Armor", "0", OfRounds)])
+            [
+                new("2K", "0", _perMatch), new("3K", "0", _perMatch), new("4K", "0", _perMatch),
+                new("5K", "0", _perMatch)
+            ]),
+        new("Economy", [StatGroup.Economy], [new("Equip", "'$'#,0"), new("Armor", "0", _ofRounds)])
     ];
 
     [ObservableProperty]
@@ -125,7 +130,7 @@ public sealed partial class CategoriesSectionViewModel : PlayerOverviewSection
         // A rate over a zero denominator pools to 0, as the engine divides; it measured nothing, so it takes no colour.
         private bool OverNothing(IReadOnlyList<IReadOnlyDictionary<string, double>> rows) =>
             ColumnRules.For(Key) is ColumnRule.RatioOfSums ratio
-            && rows.Sum(r => ratio.Denominator.Sum(c => r.GetValueOrDefault(c))) == 0;
+            && rows.Sum(r => ratio.Denominator.Sum(r.GetValueOrDefault)) == 0;
 
         private string Text(double? value) => value is { } v ? v.ToString(Format, CultureInfo.InvariantCulture) : None;
     }
@@ -138,7 +143,7 @@ public sealed partial class CategoriesSectionViewModel : PlayerOverviewSection
     {
         public double? Of(double value, IReadOnlyList<IReadOnlyDictionary<string, double>> rows)
         {
-            double over = Over.Count == 0 ? rows.Count : rows.Sum(r => Over.Sum(c => r.GetValueOrDefault(c)));
+            double over = Over.Count == 0 ? rows.Count : rows.Sum(r => Over.Sum(r.GetValueOrDefault));
             return over == 0 ? null : value / over * Scale;
         }
 

@@ -241,32 +241,33 @@
                         Padding="10 6">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                         <Ellipse Grid.Column="0" Classes="dot" Width="10" Height="10" VerticalAlignment="Center"
-                                 Classes.stateOff="{Binding JobStatus.Chip.IsStateOff}"
-                                 Classes.stateWorking="{Binding JobStatus.Chip.IsStateWorking}"
-                                 Classes.stateGood="{Binding JobStatus.Chip.IsStateGood}"
-                                 Classes.stateError="{Binding JobStatus.Chip.IsStateError}"
-                                 Classes.pulsing="{Binding JobStatus.IsRunning}" />
-                        <TextBlock Grid.Column="1" Text="{Binding JobStatus.Headline}"
+                                 Classes.stateOff="{Binding JobStatus.Chip.IsStateOff, FallbackValue=False}"
+                                 Classes.stateWorking="{Binding JobStatus.Chip.IsStateWorking, FallbackValue=False}"
+                                 Classes.stateGood="{Binding JobStatus.Chip.IsStateGood, FallbackValue=False}"
+                                 Classes.stateError="{Binding JobStatus.Chip.IsStateError, FallbackValue=False}"
+                                 Classes.pulsing="{Binding JobStatus.IsRunning, FallbackValue=False}" />
+                        <TextBlock Grid.Column="1" Text="{Binding JobStatus.Headline, FallbackValue={x:Null}}"
                                    Foreground="{DynamicResource TextValue}" FontSize="12"
                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                             <Button Classes="ghost" Content="Open folder" FontSize="11" Padding="10 3"
-                                    IsVisible="{Binding JobStatus.CanOpenFolder}"
-                                    Command="{Binding JobStatus.OpenFolderCommand}" />
+                                    IsVisible="{Binding JobStatus.CanOpenFolder, FallbackValue=False}"
+                                    Command="{Binding JobStatus.OpenFolderCommand, FallbackValue={x:Null}}" />
                             <!-- The inline strip shows only the generic headline; Copy error surfaces the full
                              diagnostic (same block the flyout copies) so the fault is reportable from here too. -->
                             <Button Classes="ghost" Content="Copy error" FontSize="11" Padding="10 3"
-                                    IsVisible="{Binding JobStatus.HasError}" Click="OnCopyReelErrorClick"
+                                    IsVisible="{Binding JobStatus.HasError, FallbackValue=False}"
+                                    Click="OnCopyReelErrorClick"
                                     ToolTip.Tip="Copy the full reel diagnostic (phase, clips, error) to the clipboard." />
                             <Button Classes="ghost" Content="Retry remaining" FontSize="11" Padding="10 3"
-                                    IsVisible="{Binding JobStatus.CanRetry}"
-                                    Command="{Binding JobStatus.RetryCommand}" />
+                                    IsVisible="{Binding JobStatus.CanRetry, FallbackValue=False}"
+                                    Command="{Binding JobStatus.RetryCommand, FallbackValue={x:Null}}" />
                             <Button Classes="ghost" Content="Cancel" FontSize="11" Padding="10 3"
-                                    IsVisible="{Binding JobStatus.IsRunning}"
-                                    Command="{Binding JobStatus.CancelCommand}" />
+                                    IsVisible="{Binding JobStatus.IsRunning, FallbackValue=False}"
+                                    Command="{Binding JobStatus.CancelCommand, FallbackValue={x:Null}}" />
                             <Button Classes="ghost" Content="Dismiss" FontSize="11" Padding="10 3"
                                     IsVisible="{Binding !JobStatus.IsRunning}"
-                                    Command="{Binding JobStatus.DismissCommand}" />
+                                    Command="{Binding JobStatus.DismissCommand, FallbackValue={x:Null}}" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -277,12 +278,12 @@
                         BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="6"
                         Padding="10 6" IsVisible="{Binding ShowBacklogNotice}">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                        <TextBlock Grid.Column="0" Text="{Binding Backlog.Notice}"
+                        <TextBlock Grid.Column="0" Text="{Binding Backlog.Notice, FallbackValue={x:Null}}"
                                    Foreground="{DynamicResource TextValue}" FontSize="12"
                                    VerticalAlignment="Center" TextWrapping="Wrap" />
                         <Button Grid.Column="1" Classes="ghost" Content="Retry failed" FontSize="11" Padding="10 3"
                                 VerticalAlignment="Center" IsVisible="{Binding Backlog.HasFailed, FallbackValue=False}"
-                                Command="{Binding Backlog.RetryAllFailedCommand}" />
+                                Command="{Binding Backlog.RetryAllFailedCommand, FallbackValue={x:Null}}" />
                     </Grid>
                 </Border>
 

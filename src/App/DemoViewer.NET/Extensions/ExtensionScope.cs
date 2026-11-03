@@ -43,7 +43,7 @@ public sealed class ExtensionScope
     public string FeatureId { get; }
 
     /// <summary>Every feature id the extension declares, its master switch included.</summary>
-    public IReadOnlySet<string> FeatureIds { get; }
+    private HashSet<string> FeatureIds { get; }
 
     /// <summary>Its display name.</summary>
     public string Name { get; }

@@ -36,7 +36,7 @@
                     <Flyout>
                         <StackPanel Spacing="6" MinWidth="240">
                             <TextBlock Text="Save as a new user ruleset" FontWeight="SemiBold" />
-                            <TextBox Text="{Binding SaveAsName}" Watermark="new-name (.rules.yaml)" />
+                            <TextBox Text="{Binding SaveAsName}" PlaceholderText="new-name (.rules.yaml)" />
                             <Button Content="Save" HorizontalAlignment="Right"
                                     Command="{Binding SaveAsCommand}" />
                         </StackPanel>

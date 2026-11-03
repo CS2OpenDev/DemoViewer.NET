@@ -10,7 +10,6 @@ namespace DemoViewer.NET.ViewModels;
 /// <remarks>Initializes a new <see cref="HarvestHexCell" /> instance.</remarks>
 public sealed class HarvestHexCell(
     string hexText,
-    char asciiChar,
     IBrush? highlightBrush,
     bool isValid,
     int absoluteOffset)
@@ -21,9 +20,6 @@ public sealed class HarvestHexCell(
     ///     the Frame Details view resolves the encompassing payload tree node.
     /// </summary>
     public int AbsoluteOffset { get; } = absoluteOffset;
-
-    /// <summary>Ascii char.</summary>
-    public char AsciiChar { get; } = asciiChar;
 
     /// <summary>Hex text.</summary>
     public string HexText { get; } = hexText;

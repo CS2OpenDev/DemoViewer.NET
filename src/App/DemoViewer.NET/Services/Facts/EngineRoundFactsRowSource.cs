@@ -33,7 +33,7 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
 
     // A tick column of a thing that did not happen that round reads 0 on the engine's side. Tick 0 is
     // before any freeze end, so it can never be a real one; the record says "did not happen" with null.
-    private static readonly HashSet<string> TickColumns = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _tickColumns = new(StringComparer.Ordinal)
     {
         RoundFactsColumns.FreezeEndTick,
         RoundFactsColumns.EndTick,
@@ -46,7 +46,7 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
     };
 
     // Dimensions every configured table carries that say nothing about the round; kept out of Extra.
-    private static readonly HashSet<string> DemoDimensions = new(StringComparer.Ordinal) { "match_id", "map" };
+    private static readonly HashSet<string> _demoDimensions = new(StringComparer.Ordinal) { "match_id", "map" };
 
     private readonly RulesRoundFactsRulesetIdentity _rules;
 
@@ -158,7 +158,7 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
             Dictionary<string, object?> cell = new(StringComparer.Ordinal);
             foreach ((string key, object? value) in row.Dimensions)
             {
-                if (!DemoDimensions.Contains(key))
+                if (!_demoDimensions.Contains(key))
                 {
                     cell[key] = value;
                 }
@@ -212,7 +212,7 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
             int? freezeEnd = pair
                 .Select(c => RoundFactsValues.ToInt(c.GetValueOrDefault(RoundFactsColumns.FreezeEndTick)))
                 .FirstOrDefault(t => t is not null);
-            if (freezeEnd is int tick)
+            if (freezeEnd is { } tick)
             {
                 if (!clipByFreezeEnd.TryGetValue(tick, out int number))
                 {
@@ -240,7 +240,7 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
 
     private static void NullWhatDidNotHappen(Dictionary<string, object?> cell)
     {
-        foreach (string column in TickColumns)
+        foreach (string column in _tickColumns)
         {
             if (cell.TryGetValue(column, out object? value) && RoundFactsValues.ToInt(value) is 0)
             {
@@ -325,7 +325,7 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
             int? winner = pair
                 .Select(c => RoundFactsValues.ToInt(c.GetValueOrDefault(RoundFactsColumns.WinnerSide)))
                 .FirstOrDefault(w => w is SideT or SideCt);
-            if (winner is int side)
+            if (winner is { } side)
             {
                 if ((side == SideCt) == aOnCt)
                 {

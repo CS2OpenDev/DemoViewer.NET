@@ -29,7 +29,7 @@ public sealed class TutorialAnchor
         AvaloniaProperty.RegisterAttached<TutorialAnchor, Control, TutorialTarget>("Target");
 
     // The currently-attached anchor control per target (weak, so it never keeps a torn-down view alive).
-    private static readonly Dictionary<TutorialTarget, WeakReference<Control>> Registry = new();
+    private static readonly Dictionary<TutorialTarget, WeakReference<Control>> _registry = new();
 
     static TutorialAnchor()
     {
@@ -72,7 +72,7 @@ public sealed class TutorialAnchor
     {
         control = null!;
         if (target != TutorialTarget.None
-            && Registry.TryGetValue(target, out WeakReference<Control>? weak)
+            && _registry.TryGetValue(target, out WeakReference<Control>? weak)
             && weak.TryGetTarget(out Control? live)
             && TopLevel.GetTopLevel(live) is not null)
         {
@@ -103,7 +103,7 @@ public sealed class TutorialAnchor
     {
         if (target != TutorialTarget.None)
         {
-            Registry[target] = new WeakReference<Control>(control);
+            _registry[target] = new WeakReference<Control>(control);
         }
     }
 
@@ -111,11 +111,11 @@ public sealed class TutorialAnchor
     {
         // Only clear if THIS control is the registered one (a fast tab flip could register the new before the
         // old detaches; last-writer-wins on register, and this guard avoids the old detach clearing the new).
-        if (Registry.TryGetValue(target, out WeakReference<Control>? weak)
+        if (_registry.TryGetValue(target, out WeakReference<Control>? weak)
             && weak.TryGetTarget(out Control? cur)
             && ReferenceEquals(cur, control))
         {
-            Registry.Remove(target);
+            _registry.Remove(target);
         }
     }
 }

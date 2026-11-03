@@ -14,7 +14,7 @@ namespace DemoViewer.NET.Services.DemoProcessing;
 /// </summary>
 public sealed class PassRegistry
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly List<string> _declaredOrder = [];
     private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
     private Action? _populatePacks;
@@ -251,7 +251,7 @@ public sealed class PassRegistry
 
         bool[] emitted = new bool[_declaredOrder.Count];
         List<string> ordered = new(_declaredOrder.Count);
-        for (int pass = 0; pass < _declaredOrder.Count; pass++)
+        foreach (string _ in _declaredOrder)
         {
             int pick = -1;
             for (int i = 0; i < _declaredOrder.Count; i++)

@@ -66,7 +66,7 @@ public class ThemeRegistryTests
         {
             using Stream stream = asm.GetManifestResourceStream(resource)!;
             using StreamReader reader = new(stream);
-            if (ThemeJson.TryParse(reader.ReadToEnd(), resource) is { } def)
+            if (ThemeJson.TryParse(reader.ReadToEnd()) is { } def)
             {
                 found.Add((resource, def.Tokens));
             }

@@ -53,10 +53,6 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _demoBindingText = "";
 
-    // Diagnostics-pillar logger (v0.6.0, the restore-failure surface shows clean text, this
-    // carries the real exception). Lazy: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
-
     private bool _disposed;
 
     /// <summary>The launch-notice strip's "don't show again" box.</summary>
@@ -199,7 +195,9 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.LiveSync");
+    // Diagnostics-pillar logger (v0.6.0, the restore-failure surface shows clean text, this
+    // carries the real exception). Lazy: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.LiveSync");
 
     /// <summary>The status-strip chip this VM drives (added to <c>MainViewModel.Chips</c> when gated on).</summary>
     public StatusChipViewModel Chip { get; }

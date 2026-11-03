@@ -49,6 +49,7 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
 
     /// <summary>The active sub-section; persists across player switches.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOverview), nameof(IsRounds), nameof(IsVision))]
     private DetailSection _section = DetailSection.Overview;
 
     /// <summary>The highlighted round (form-card deep-link target); 0 = none.</summary>
@@ -198,13 +199,6 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
         }
     }
 
-    partial void OnSectionChanged(DetailSection value)
-    {
-        OnPropertyChanged(nameof(IsOverview));
-        OnPropertyChanged(nameof(IsRounds));
-        OnPropertyChanged(nameof(IsVision));
-    }
-
     /// <summary>Activates the Overview sub-section.</summary>
     [RelayCommand]
     private void ShowOverview() => Section = DetailSection.Overview;
@@ -262,7 +256,7 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
     ///     Re-targets every panel to <paramref name="slot" />, keeping section / selected round /
     ///     weapon-metric toggle (state retention).
     /// </summary>
-    public void SetSlot(int slot)
+    private void SetSlot(int slot)
     {
         PlayerSlot = slot;
         _syncingPlayer = true;
@@ -634,7 +628,7 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
 public sealed class FormTimelineViewModel
 {
     /// <summary>Horizontal pixels per round: shared by all four strips so columns align.</summary>
-    public const double SlotWidth = 14;
+    private const double SlotWidth = 14;
 
     /// <summary>Builds geometry from this player's round rows (already round-ordered).</summary>
     public FormTimelineViewModel(IReadOnlyList<MetricRow> roundRows, IReadOnlyList<string> valueColumns)
@@ -678,10 +672,9 @@ public sealed class FormTimelineViewModel
         List<int> roundNumbers = new(rounds.Count);
         List<string> tooltips = new(rounds.Count);
         List<FormTick> ticks = new(rounds.Count);
-        for (int i = 0; i < rounds.Count; i++)
+        foreach ((int round, double kills, double deaths, double assists, double damage, bool kast,
+                     bool fk, bool fd) in rounds)
         {
-            (int round, double kills, double deaths, double assists, double damage, bool kast,
-                bool fk, bool fd) = rounds[i];
             string tooltip = string.Create(CultureInfo.InvariantCulture,
                                  $"r{round}: {kills:0.##}K {assists:0.##}A {deaths:0.##}D · {damage:0.##} dmg")
                              + (HasKast ? $" · KAST {(kast ? "✓" : "✗")}" : "");
@@ -691,7 +684,7 @@ public sealed class FormTimelineViewModel
             kastValues.Add(kast ? 1 : 0);
             roundNumbers.Add(round);
             tooltips.Add(tooltip);
-            ticks.Add(new FormTick(round, fk ? "▲" : fd ? "▼" : "·", fk, !fk && fd, tooltip));
+            ticks.Add(new FormTick(fk ? "▲" : fd ? "▼" : "·", fk, !fk && fd, tooltip));
         }
 
         KillValues = killValues;
@@ -884,7 +877,7 @@ public sealed class VisionViewModel : ObservableObject
         MetricRow? row = _parent.VisibilityPlayersTable?.Rows
             .FirstOrDefault(r => StatsTabViewModel.RowSlot(r) == slot);
         HasData = _parent.HasVisibilityStats && row is not null;
-        ShowCta = !_parent.HasVisibilityStats && _parent.CanComputeVisibility;
+        ShowCta = _parent is { HasVisibilityStats: false, CanComputeVisibility: true };
         ShowUnavailable = !HasData && !ShowCta;
         UnavailableMessage = _parent.HasVisibilityStats
             ? "Visibility replay sampled no data for this player."
@@ -1008,7 +1001,7 @@ public sealed record HistBarItem(string Label, int Count, double Height, bool Po
 }
 
 /// <summary>One opening-duel tick in the form strip (▲ up / ▼ down / · neither).</summary>
-public sealed record FormTick(int Round, string Glyph, bool Up, bool Down, string Tooltip);
+public sealed record FormTick(string Glyph, bool Up, bool Down, string Tooltip);
 
 /// <summary>One rounds-table column header (engine key + display metadata).</summary>
 public sealed record DetailRoundColumn(string Key, string Display, double Width, string Tooltip);

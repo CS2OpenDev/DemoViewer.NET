@@ -36,7 +36,7 @@ public static class ExtensionTabs
     ///     A copy of <paramref name="tab" /> whose factories run under <paramref name="guard" />. The copy follows
     ///     the original's <see cref="WorkspaceTabDescriptor.Badge" />, which the module keeps setting.
     /// </summary>
-    public static WorkspaceTabDescriptor Guarded(WorkspaceTabDescriptor tab, ExtensionGuard guard)
+    private static WorkspaceTabDescriptor Guarded(WorkspaceTabDescriptor tab, ExtensionGuard guard)
     {
         ArgumentNullException.ThrowIfNull(tab);
         ArgumentNullException.ThrowIfNull(guard);
@@ -63,7 +63,7 @@ public static class ExtensionTabs
                 : () =>
                 {
                     IWorkspaceTabViewModel? built =
-                        guard.Run("tab view model", () => viewModel(), null);
+                        guard.Run("tab view model", viewModel, null);
                     viewModelFailed = built is null;
                     return built!;
                 },

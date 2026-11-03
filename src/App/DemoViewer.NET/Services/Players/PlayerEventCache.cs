@@ -18,10 +18,10 @@ public readonly record struct PlayerEventsProgress(int Done, int Total);
 /// </summary>
 public sealed class PlayerEventCache
 {
-    private static readonly string FacetStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
+    private static readonly string _facetStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
 
     private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Func<string, FactKey, FactTable?> _read;
 
     /// <param name="read">Reads one of a demo's tables by path and key, current or stale; null when none is written.</param>
@@ -33,7 +33,7 @@ public sealed class PlayerEventCache
     /// <summary>True when the demo's facet is written: its stamp is indexed.</summary>
     /// <param name="row">The demo's index row.</param>
     public static bool IsWritten(DemoCacheIndexEntry row) =>
-        row?.Stamp(FacetStamp) is { State: DemoAnalysisState.Indexed };
+        row.Stamp(_facetStamp) is { State: DemoAnalysisState.Indexed };
 
     /// <summary>
     ///     The kills of each demo whose facet is written, by content id, reading off the calling thread every one
@@ -62,7 +62,7 @@ public sealed class PlayerEventCache
             foreach (DemoCacheIndexEntry row in rows)
             {
                 string id = row.ContentId();
-                if (row.Stamp(FacetStamp) is not { State: DemoAnalysisState.Indexed } stamp || !seen.Add(id))
+                if (row.Stamp(_facetStamp) is not { State: DemoAnalysisState.Indexed } stamp || !seen.Add(id))
                 {
                     continue;
                 }

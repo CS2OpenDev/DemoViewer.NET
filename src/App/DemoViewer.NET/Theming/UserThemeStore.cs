@@ -194,7 +194,7 @@ public sealed class UserThemeStore(ThemeRegistry registry)
                 continue;
             }
 
-            if (ThemeJson.Parse(json, file).Definition is { } def
+            if (ThemeJson.Parse(json).Definition is { } def
                 && string.Equals(def.Id, id, StringComparison.OrdinalIgnoreCase))
             {
                 files.Add(file);

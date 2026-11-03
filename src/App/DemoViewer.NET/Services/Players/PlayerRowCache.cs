@@ -47,12 +47,12 @@ public sealed class PlayerRowCache
     private const int Capacity = 4;
 
     private readonly PlayerDirectory _directory;
-    private readonly object _gate = new();
-    private static readonly string MatchStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
-    private static readonly string RoundStamp = StampedFacts.StampId(PlayerRoundFacet.RulesetId);
+    private readonly Lock _gate = new();
+    private static readonly string _matchStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _roundStamp = StampedFacts.StampId(PlayerRoundFacet.RulesetId);
 
     private readonly ConcurrentDictionary<Stamps, Lazy<Held>> _held = new();
-    private readonly object _libraryGate = new();
+    private readonly Lock _libraryGate = new();
     private readonly Func<string, FactTable?> _read;
     private readonly Func<string, FactTable?>? _readRounds;
     private readonly LinkedList<Subject> _subjects = [];
@@ -428,7 +428,7 @@ public sealed class PlayerRowCache
     }
 
     private static Stamps StampsOf(DemoCacheIndexEntry row) =>
-        new(row.ContentId(), row.Stamp(MatchStamp), row.Stamp(RoundStamp));
+        new(row.ContentId(), row.Stamp(_matchStamp), row.Stamp(_roundStamp));
 
     // A demo's content id and the stamps of the two facets a read of it holds.
     private readonly record struct Stamps(string Id, PackStamp? Match, PackStamp? Rounds);

@@ -65,7 +65,7 @@
                              cast (this scope's DataContext is Analysis); the inner StackPanel keeps its
                              HasGraphBreakpoints rule, so the two nest into (gate AND has-breakpoints). -->
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                    IsVisible="{Binding ((shell:MainViewModel)DataContext).IsAnalysisBreakpointsEnabled, ElementName=AnalysisRoot}">
+                                    IsVisible="{Binding ((shell:MainViewModel)DataContext).IsAnalysisBreakpointsEnabled, ElementName=AnalysisRoot, FallbackValue=False}">
                             <StackPanel Orientation="Horizontal" Spacing="8"
                                         VerticalAlignment="Center"
                                         IsVisible="{Binding HasGraphBreakpoints}">
@@ -241,7 +241,7 @@
                                    Margin="0 4 0 0" />
                         <TextBox x:Name="ConditionTextBox"
                                  Text="{Binding EditingConditionText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Watermark="{Binding EditingConditionWatermark}"
+                                 PlaceholderText="{Binding EditingConditionWatermark}"
                                  AcceptsReturn="False"
                                  FontFamily="Consolas,Menlo,monospace"
                                  FontSize="12" />
@@ -306,7 +306,7 @@
                                                           Margin="0 0 4 0" HorizontalAlignment="Stretch" />
                                                 <TextBox Grid.Column="3"
                                                          Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                         Watermark="value"
+                                                         PlaceholderText="value"
                                                          FontFamily="Consolas,Menlo,monospace" FontSize="11"
                                                          Margin="0 0 4 0" />
                                                 <Button Grid.Column="4" Content="✕"

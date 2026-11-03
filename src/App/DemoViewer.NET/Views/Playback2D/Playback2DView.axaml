@@ -712,9 +712,9 @@
                                 <!-- The strip: one line per player, the same selection surface as the card. -->
                                 <Border Margin="0,0,0,2" Padding="6,2" CornerRadius="3"
                                         Background="{DynamicResource Pb2dCardBg}"
-                                        Classes="playerCard playerStrip" Classes.followed="{Binding IsFollowed}"
+                                        Classes="playerCard" Classes.followed="{Binding IsFollowed}"
                                         Opacity="{Binding RowOpacity}"
-                                        IsVisible="{Binding $parent[ListBox].((vm:Playback2DTabViewModel)DataContext).IsCardStrip}">
+                                        IsVisible="{Binding $parent[ListBox].((vm:Playback2DTabViewModel)DataContext).IsCardStrip, FallbackValue=False}">
                                     <DockPanel>
                                         <Border DockPanel.Dock="Left" CornerRadius="3" Padding="4,0" Margin="0,0,6,0"
                                                 Classes="teamChip" Classes.teamT="{Binding IsT}"

@@ -20,21 +20,13 @@ public sealed partial class MountedSettingsPage : ObservableObject
     internal MountedSettingsPage(SettingsPageContribution contribution)
     {
         _contribution = contribution;
-        Id = contribution.Id;
         Header = contribution.Header;
-        Order = contribution.Order;
         Keywords = contribution.Keywords;
         FeatureId = contribution.FeatureId;
     }
 
-    /// <summary>The contribution's own id. A lookup key for tests, never shown.</summary>
-    public string Id { get; }
-
     /// <summary>The section header text.</summary>
     public string Header { get; }
-
-    /// <summary>Sort key among a pack's own contributed pages.</summary>
-    public int Order { get; }
 
     /// <summary>Fed into the settings search alongside the built-in section keywords.</summary>
     public string Keywords { get; }

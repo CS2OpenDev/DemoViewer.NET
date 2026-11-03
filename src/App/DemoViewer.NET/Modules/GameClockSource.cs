@@ -20,7 +20,7 @@ internal sealed class GameClockSource
     private readonly int _frame;
     private readonly int _serverTick;
     private readonly int _tickRate;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private IReadOnlyList<DemoFrame>? _frames;
     private double _clockBase;
     private bool _settled;

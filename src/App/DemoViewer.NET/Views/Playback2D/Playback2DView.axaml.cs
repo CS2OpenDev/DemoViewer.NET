@@ -160,12 +160,12 @@ public partial class Playback2DView : UserControl
         {
             int players = _boundViewModel.Attributes.Count(a => a.InMatch);
             double height = Math.Min(StripMaxHeight, 12 + Math.Max(1, players) * StripRowHeight);
-            column.RowDefinitions = new RowDefinitions
-            {
+            column.RowDefinitions =
+            [
                 new RowDefinition(GridLength.Auto),
                 new RowDefinition(height, GridUnitType.Pixel),
                 new RowDefinition(1, GridUnitType.Star)
-            };
+            ];
         }
         else
         {
@@ -390,7 +390,7 @@ public partial class Playback2DView : UserControl
 
         // A drawing tool being active is what makes the keymap's tool-scoped rows shadow the always-scoped
         // ones: the mechanism by which Space and Esc change meaning without a second table.
-        bool toolActive = vm.IsAnnotationsEnabled && vm.Annotations.IsDrawingToolActive;
+        bool toolActive = vm is { IsAnnotationsEnabled: true, Annotations.IsDrawingToolActive: true };
 
         // The VM's RESOLVED profile, not the shipped static table: the table is the default this composes
         // over, and routing through it directly would ignore every user override.
@@ -456,7 +456,7 @@ public partial class Playback2DView : UserControl
 
     private bool IsTextInputFocused()
     {
-        object? focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+        object? focused = TopLevel.GetTopLevel(this)?.FocusManager.GetFocusedElement();
         return focused is TextBox or AutoCompleteBox;
     }
 

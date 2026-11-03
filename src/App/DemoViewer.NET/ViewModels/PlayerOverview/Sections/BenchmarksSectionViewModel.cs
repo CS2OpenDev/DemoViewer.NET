@@ -21,9 +21,9 @@ namespace DemoViewer.NET.ViewModels.PlayerOverview.Sections;
 public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
 {
     /// <summary>Fewer players than this give no percentiles: a rank among three says nothing.</summary>
-    public const int MinimumPopulation = 5;
+    private const int MinimumPopulation = 5;
 
-    private static readonly (string Key, string Label, string Format)[] Keys =
+    private static readonly (string Key, string Label, string Format)[] _keys =
     [
         (PlayerBenchmark.WinRate, "Win rate", "0'%'"),
         ("HLTV", "Rating", "0.00"),
@@ -234,7 +234,7 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
             }
         }
 
-        return new Result(PlayerBenchmark.Of(request.SubjectPool, population, [.. Keys.Select(k => k.Key)]));
+        return new Result(PlayerBenchmark.Of(request.SubjectPool, population, [.. _keys.Select(k => k.Key)]));
     }
 
     private void Show(Request request, Result? result)
@@ -267,7 +267,7 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
             Dictionary<string, BenchmarkStat> byKey = benchmark.Stats.ToDictionary(s => s.Key, StringComparer.Ordinal);
             Rows =
             [
-                .. Keys.Where(k => byKey.ContainsKey(k.Key)).Select(k =>
+                .. _keys.Where(k => byKey.ContainsKey(k.Key)).Select(k =>
                     new BenchmarkRowItem(byKey[k.Key], k.Label, k.Format, benchmark.Population))
             ];
             NoteText = "";
@@ -275,7 +275,7 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
     }
 
     /// <summary>"vs 214 players in your library · 5+ matches each · Premier 15,000-19,999 · same filter".</summary>
-    internal static string Describe(int population, int minimum, RankBand? band, bool filtered)
+    private static string Describe(int population, int minimum, RankBand? band, bool filtered)
     {
         string text = population == 1
             ? "vs 1 player in your library"
@@ -295,7 +295,7 @@ public sealed partial class BenchmarksSectionViewModel : PlayerOverviewSection
         Describe(population, request.Minimum, request.Band, request.IsFiltered);
 
     /// <summary>The subject's latest CS Rating's tier, from their newest rated Premier demo; null when there is none.</summary>
-    internal static RankBand? SubjectBand(PlayerRanks? ranks)
+    private static RankBand? SubjectBand(PlayerRanks? ranks)
     {
         foreach (PlayerRank demo in ranks?.Demos ?? [])
         {

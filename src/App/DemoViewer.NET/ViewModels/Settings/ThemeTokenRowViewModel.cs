@@ -79,11 +79,9 @@ public sealed partial class ThemeTokenRowViewModel : ObservableObject
 
     /// <summary>The gradient's stops, labelled for the picker. Empty for a solid token.</summary>
     public IReadOnlyList<ThemeGradientStopItem> Stops =>
-        _stops ??= Value.Gradient is { } g
+        field ??= Value.Gradient is { } g
             ? [.. g.Stops.Select((s, i) => new ThemeGradientStopItem(i, $"Stop {i + 1}, at {s.Offset:P0}"))]
             : [];
-
-    private IReadOnlyList<ThemeGradientStopItem>? _stops;
 
     /// <summary>True when the value differs from the base's.</summary>
     public bool CanReset => !Value.Equals(BaseValue);
@@ -194,7 +192,7 @@ public readonly record struct ThemeTokenValue(Color Color, ThemeGradient? Gradie
             : Of(palette.Colors.GetValueOrDefault(token));
 
     public bool Equals(ThemeTokenValue other) =>
-        Gradient is null ? other.Gradient is null && Color == other.Color : Gradient.Equals(other.Gradient);
+        Gradient?.Equals(other.Gradient) ?? (other.Gradient is null && Color == other.Color);
 
     public override int GetHashCode() => Gradient?.GetHashCode() ?? Color.GetHashCode();
 }

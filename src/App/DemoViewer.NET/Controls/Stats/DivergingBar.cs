@@ -117,7 +117,7 @@ public class DivergingBar : TemplatedControl
     }
 
     /// <summary>The count that fills an arm: the shared <see cref="Extent" />, else this bar's own peak.</summary>
-    public double EffectiveExtent =>
+    private double EffectiveExtent =>
         Extent > 0 ? Extent : Math.Max(Math.Abs(Negative), Math.Abs(Positive));
 
     /// <inheritdoc />

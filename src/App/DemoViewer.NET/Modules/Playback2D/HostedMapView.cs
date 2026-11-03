@@ -54,23 +54,18 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     private readonly MapSpaceFactory _levels = new();
     private readonly PaneSet _panes = new(new StackedLayout());
     private readonly List<LevelPaneSnapshot> _snapshots = new(4);
-    private readonly Lock _submissionLock = new();
-    private readonly HostToolServices _toolServices;
 
     private MapBundleLease? _boundAsset;
     private string _boundMap = "";
     private SceneCompositor _compositor;
     private WriteableBitmap? _fallbackBitmap;
     private Scene2DFrame _frame = Scene2DFrame.Empty;
-    private SceneSubmission? _lastSubmission;
     private ScenePalette _palette = ScenePalette.Dark;
     private bool _panFallback;
     private RadarLayer _radarLayer;
     private bool _released;
     private long _submissionId;
     private TextBlobCache _text;
-
-    private readonly ExtensionFaults? _faults;
 
     /// <summary>Creates the host and its base layer stack.</summary>
     /// <param name="faults">
@@ -79,28 +74,27 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     /// </param>
     public HostedMapView(ExtensionFaults? faults = null)
     {
-        _faults = faults;
+        Faults = faults;
         Focusable = true;
         ClipToBounds = true;
 
-        _toolServices = new HostToolServices(this);
-        Router = new InputToolRouter(_toolServices, new PanZoomTool());
+        Router = new InputToolRouter(new HostToolServices(this), new PanZoomTool());
 
         BuildScene();
     }
 
     /// <summary>The pointer router: pan and zoom, plus whatever tool a derived host registers.</summary>
-    internal InputToolRouter Router { get; }
+    private InputToolRouter Router { get; }
 
     /// <summary>True once the platform refused a Skia lease; every later frame takes the CPU path.</summary>
-    internal bool LeaseUnavailable { get; private set; }
+    private bool LeaseUnavailable { get; set; }
 
     // The tool a plain left press goes to.
     private ToolKind PrimaryKind => _primary is null ? ToolKind.PanZoom : ToolKind.Map;
 
     // Read per add, not cached: the desktop head installs the process's tracker before the first view is
     // built, but a host built in a test or a designer may outlive one being installed.
-    private ExtensionFaults? Faults => _faults ?? ExtensionFaults.Current;
+    private ExtensionFaults? Faults { get => field ?? ExtensionFaults.Current; }
 
     /// <inheritdoc />
     public Control View => this;
@@ -143,16 +137,15 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     public void Dispose()
     {
         ReleaseResources();
-        GC.SuppressFinalize(this);
     }
 
-    /// <inheritdoc />
     // The two layers this view builds for itself in Compose. A contributed layer may not take either id.
-    private static readonly HashSet<string> OwnLayerIds = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _ownLayerIds = new(StringComparer.Ordinal)
     {
         SceneLayerIds.Radar, SceneLayerIds.FloorLabel
     };
 
+    /// <inheritdoc />
     public string AddLayer(string id, Func<ISceneLayer> layer)
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
@@ -163,7 +156,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
         // On the FILED id, not the local one: an owner's layer is composed to ext.<owner>.<local> and can
         // never collide, so only an unowned caller can reach these two. The SDK side used to refuse the
         // local id instead, which made both names reserved words for every extension.
-        if (OwnLayerIds.Contains(filed))
+        if (_ownLayerIds.Contains(filed))
         {
             throw new ArgumentException($"'{filed}' is one of this view's own layers.", nameof(id));
         }
@@ -256,7 +249,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     public void Invalidate() => InvalidateVisual();
 
     /// <summary>Repaint request from a pointer tool.</summary>
-    internal void RequestToolRender() => InvalidateVisual();
+    private void RequestToolRender() => InvalidateVisual();
 
     /// <inheritdoc />
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -477,11 +470,6 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
             new SKRect(0, 0, (float)bounds.Width, (float)bounds.Height),
             (float)(TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0),
             _levels.Space);
-
-        lock (_submissionLock)
-        {
-            _lastSubmission = submission;
-        }
 
         return submission;
     }

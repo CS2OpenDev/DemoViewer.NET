@@ -13,28 +13,22 @@ namespace DemoViewer.NET.Modules;
 ///     defaults (read-only + Playback.Observe + UI.Contribute) are applied by the composition root
 ///     when runtime loading lands.
 /// </summary>
-public sealed class ModuleHost : IModuleHost
+public sealed class ModuleHost(
+    IModuleContext context,
+    IEnumerable<string> capabilities,
+    Action<ModuleLogLevel, string> log) : IModuleHost
 {
-    private readonly HashSet<string> _capabilities;
-    private readonly Action<ModuleLogLevel, string> _log;
-
-    public ModuleHost(IModuleContext context, IEnumerable<string> capabilities,
-        Action<ModuleLogLevel, string> log)
-    {
-        Context = context;
-        _capabilities = new HashSet<string>(capabilities, StringComparer.Ordinal);
-        _log = log;
-    }
+    private readonly HashSet<string> _capabilities = new(capabilities, StringComparer.Ordinal);
 
     /// <summary>The capability set granted to first-party modules (all of them).</summary>
-    public static IReadOnlyList<string> FirstPartyCapabilities { get; } = new[]
-    {
+    public static IReadOnlyList<string> FirstPartyCapabilities { get; } =
+    [
         "Demo.Read", "Entities.Read", "Analysis.Read", "Playback.Observe", "Playback.Control", "UI.Contribute"
-    };
+    ];
 
-    public IModuleContext Context { get; }
+    public IModuleContext Context { get; } = context;
 
     public bool HasCapability(string capability) => _capabilities.Contains(capability);
 
-    public void Log(ModuleLogLevel level, string message) => _log(level, message);
+    public void Log(ModuleLogLevel level, string message) => log(level, message);
 }

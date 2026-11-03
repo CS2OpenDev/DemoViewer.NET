@@ -98,7 +98,7 @@ public sealed class Playback2DKeymapProfile
     ///     trimmed, when it names no action.
     /// </summary>
     /// <param name="name">The id as written.</param>
-    public static string CanonicalActionId(string name)
+    private static string CanonicalActionId(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
         string trimmed = name.Trim();
@@ -214,8 +214,10 @@ public sealed class Playback2DKeymapProfile
         // Compared by current id, so an old-id row for the same action is replaced too.
         string action = ActionIdOfRow(candidate);
         List<string> rows =
-            [.. existing.Where(r => !string.Equals(ActionIdOfRow(r), action, StringComparison.OrdinalIgnoreCase))];
-        rows.Add(candidate);
+        [
+            .. existing.Where(r => !string.Equals(ActionIdOfRow(r), action, StringComparison.OrdinalIgnoreCase)),
+            candidate
+        ];
 
         _ = FromOverrides(rows, out IReadOnlyList<string> rejected, isBrowser);
 
@@ -305,16 +307,8 @@ public sealed class Playback2DKeymapProfile
     /// <param name="e">The key event.</param>
     /// <param name="toolActive">Whether a pointer tool is selected.</param>
     /// <param name="actionId">The resolved action's id.</param>
-    public bool TryResolve(KeyEventArgs e, bool toolActive, [NotNullWhen(true)] out string? actionId)
-    {
-        if (e is null)
-        {
-            actionId = null;
-            return false;
-        }
-
-        return TryResolve(e.Key, e.KeyModifiers, toolActive, out actionId);
-    }
+    public bool TryResolve(KeyEventArgs e, bool toolActive, [NotNullWhen(true)] out string? actionId) =>
+        TryResolve(e.Key, e.KeyModifiers, toolActive, out actionId);
 
     /// <summary>
     ///     This profile's binding for <paramref name="actionId" />, or null when unbound. The view's KeyUp

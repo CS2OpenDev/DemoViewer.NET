@@ -88,12 +88,6 @@ public sealed record LiveSyncState(
         or LiveSyncStateKind.SyncedFollowing
         or LiveSyncStateKind.SyncedSeekPending;
 
-    /// <summary>True while a session is being brought up or a demo pushed (pulsing-dot states).</summary>
-    public bool IsWorking => Kind is LiveSyncStateKind.HostStarting
-        or LiveSyncStateKind.LaunchingCs2
-        or LiveSyncStateKind.Connecting
-        or LiveSyncStateKind.LoadingDemo;
-
     /// <summary>
     ///     True whenever a session (and thus a CS2/mock process and a patched install in real mode)
     ///     may exist: everything except Disconnected and Faulted. NOTE: Faulted is session-inactive

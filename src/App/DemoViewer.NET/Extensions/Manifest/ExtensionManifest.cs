@@ -37,7 +37,7 @@ public sealed partial record ExtensionManifest(
     ///     The rulesets the extension contributes, by its own names (<see cref="RulesetContribution.Id" />). Read
     ///     without loading the extension, so its rulesets stay apart from the highlights in safe mode too.
     /// </summary>
-    public IReadOnlyList<string> Rulesets { get; init; } = [];
+    public IReadOnlyList<string> Rulesets { get; private init; } = [];
 
     /// <summary>Equal when every member is, <see cref="Rulesets" /> compared item by item.</summary>
     public bool Equals(ExtensionManifest? other) =>
@@ -82,7 +82,7 @@ public sealed partial record ExtensionManifest(
 
     /// <summary>Parses manifest JSON from <paramref name="stream" />.</summary>
     /// <exception cref="ExtensionManifestException">Malformed JSON, a missing required member, or a bad value.</exception>
-    public static ExtensionManifest Parse(Stream stream)
+    private static ExtensionManifest Parse(Stream stream)
     {
         ArgumentNullException.ThrowIfNull(stream);
         using StreamReader reader = new(stream);
@@ -174,39 +174,35 @@ public sealed partial record ExtensionManifest(
     private sealed class Dto
     {
         [JsonRequired]
-        public string? Id { get; set; }
+        public string? Id { get; init; }
 
         [JsonRequired]
-        public string? Name { get; set; }
+        public string? Name { get; init; }
 
         [JsonRequired]
-        public string? Version { get; set; }
+        public string? Version { get; init; }
 
         [JsonRequired]
-        public string? Assembly { get; set; }
+        public string? Assembly { get; init; }
 
         [JsonRequired]
-        public string? EntryType { get; set; }
+        public string? EntryType { get; init; }
 
         [JsonRequired]
-        public string? RequiresHost { get; set; }
+        public string? RequiresHost { get; init; }
 
         [JsonRequired]
-        public string? RequiresCs2DemoKit { get; set; }
+        public string? RequiresCs2DemoKit { get; init; }
 
-        public string? MinAppVersion { get; set; }
+        public string? MinAppVersion { get; init; }
 
-        public List<string?>? Rulesets { get; set; }
+        public List<string?>? Rulesets { get; init; }
     }
 }
 
 /// <summary>A manifest that could not be read or did not validate.</summary>
 public sealed class ExtensionManifestException : Exception
 {
-    public ExtensionManifestException()
-    {
-    }
-
     public ExtensionManifestException(string message) : base(message)
     {
     }

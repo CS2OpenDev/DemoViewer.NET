@@ -268,8 +268,8 @@ public class ErrorReportStoreTests
 
         string? afterUpdate = DemoErrorReportStore.TryLoad(store, demo)?.Notes;
 
-        // The reprojection shape: RoundFactsEvaluator.ReprojectRow and RoundFactsSource.TryGet both load the
-        // record and hand that same instance back to Upsert.
+        // The reprojection shape: RoundFactsSource.TryGet loads the record and hands that same instance back
+        // to Upsert.
         store.Upsert(store.TryLoadRecord(demo)!);
 
         using (Assert.Multiple())

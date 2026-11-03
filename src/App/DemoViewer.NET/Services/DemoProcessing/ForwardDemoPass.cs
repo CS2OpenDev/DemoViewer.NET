@@ -90,7 +90,7 @@ public static class ForwardDemoPass
 
     private const string FreezeEndEvent = "round_freeze_end";
 
-    private static readonly IReadOnlySet<int> ConVarsOnly =
+    private static readonly IReadOnlySet<int> _conVarsOnly =
         new HashSet<int> { (int)NET_Messages.NetSetConVar, ServerRankCapture.MessageType };
 
     private const int CheckEveryFrames = 1024;
@@ -149,16 +149,16 @@ public static class ForwardDemoPass
     /// </summary>
     internal static DecodePlan PlanFor(BuildResult? build, ForwardNeeds needs, IReadOnlyList<string> collectorEvents)
     {
-        const MessageCategories headerAndTables =
+        const MessageCategories HeaderAndTables =
             MessageCategories.Header | MessageCategories.StringTables | MessageCategories.GameEvents;
         DecodePlan plan = build is not null
             ? DemoAnalysis.PlanDecode(build)
             : new DecodePlan
             {
-                Categories = headerAndTables, GameEventNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                Categories = HeaderAndTables, GameEventNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             };
 
-        MessageCategories categories = plan.Categories | headerAndTables;
+        MessageCategories categories = plan.Categories | HeaderAndTables;
         if (TapReplays(needs, build))
         {
             categories |= MessageCategories.Schema | MessageCategories.Entities;
@@ -185,7 +185,7 @@ public static class ForwardDemoPass
         // rank update is one message at the end of a matchmaking demo.
         IReadOnlySet<int> include = plan.IncludeMessageTypes is { } types
             ? new HashSet<int>(types) { (int)NET_Messages.NetSetConVar, ServerRankCapture.MessageType }
-            : ConVarsOnly;
+            : _conVarsOnly;
         return plan with { Categories = categories, GameEventNames = events, IncludeMessageTypes = include };
     }
 
@@ -249,8 +249,7 @@ public static class ForwardDemoPass
         CollectorObserver? observer = null;
         if (build is not null)
         {
-            AnalysisOptions options;
-            (options, observer) = collectors.Declare(new AnalysisOptions
+            (AnalysisOptions options, observer) = collectors.Declare(new AnalysisOptions
             {
                 CaptureSnapshots = false, CancellationToken = cancellationToken, VisibilityEngine = visibility
             });
@@ -346,7 +345,7 @@ public static class ForwardDemoPass
             if (++Frames % CheckEveryFrames == 0)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (inner.Progress is double fraction)
+                if (inner.Progress is { } fraction)
                 {
                     progress?.Invoke(fraction);
                 }

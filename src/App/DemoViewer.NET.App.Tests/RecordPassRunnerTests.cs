@@ -106,8 +106,10 @@ public class RecordPassRunnerTests
         Recording thrower = new("thrower", _ => true) { Throws = true };
         Recording other = new("other", _ => true);
         ConcurrentBag<string> faults = [];
-        using RecordPassRunner runner = new(() => [thrower, other], store, queue);
-        runner.Faulted = (pass, path, _) => faults.Add(pass.Id + "@" + path);
+        using RecordPassRunner runner = new(() => [thrower, other], store, queue)
+        {
+            Faulted = (pass, path, _) => faults.Add(pass.Id + "@" + path)
+        };
 
         store.Upsert(HostLibraryTests.Parsed("/d/one.dem"));
         await WaitFor(() => other.Runs.Count == 1, "the other pass");
@@ -127,8 +129,10 @@ public class RecordPassRunnerTests
         StampThrower thrower = new();
         Recording other = new("other", _ => true);
         ConcurrentBag<string> faults = [];
-        using RecordPassRunner runner = new(() => [thrower, other], store, queue);
-        runner.Faulted = (pass, path, _) => faults.Add(pass.Id + "@" + path);
+        using RecordPassRunner runner = new(() => [thrower, other], store, queue)
+        {
+            Faulted = (pass, path, _) => faults.Add(pass.Id + "@" + path)
+        };
 
         store.Upsert(HostLibraryTests.Parsed("/d/one.dem"));
         store.Upsert(HostLibraryTests.Parsed("/d/two.dem", sha: new string('b', 64)));

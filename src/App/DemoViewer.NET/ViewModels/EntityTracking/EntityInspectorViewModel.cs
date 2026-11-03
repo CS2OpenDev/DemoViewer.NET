@@ -158,7 +158,7 @@ public sealed partial class EntityInspectorViewModel : ObservableObject
 
         // Capture for the lazy expand: build the target entity's tree with this index added to the
         // ancestor set so a back-reference doesn't recurse forever.
-        HashSet<int> childAncestors = new(ancestors) { idx };
+        HashSet<int> childAncestors = [.. ancestors, idx];
         EntityState capturedTarget = target;
         return new EntityInspectorNode(leafName, summary, typeText, EntityInspectorNodeKind.EntityRef,
             () => BuildEntityFields(tracker, capturedTarget, childAncestors));

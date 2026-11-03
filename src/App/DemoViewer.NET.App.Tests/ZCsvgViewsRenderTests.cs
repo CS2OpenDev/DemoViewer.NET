@@ -220,10 +220,6 @@ public class ZCsvgViewsRenderTests
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) =>
             throw new NotSupportedException("render smoke never parses");
-
-        public void InvalidateRules()
-        {
-        }
     }
 
     private sealed class FakeLiveSync : ILiveSyncService

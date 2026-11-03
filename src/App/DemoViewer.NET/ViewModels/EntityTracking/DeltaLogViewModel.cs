@@ -45,7 +45,7 @@ public sealed partial class DeltaLogViewModel : ObservableObject
         for (int i = 0; i < count; i++)
         {
             (string field, string prev, string curr) = changes[i];
-            Entries.Add(new DeltaLogEntry { Tick = tick, Field = field, Prev = prev, Curr = curr });
+            Entries.Add(new DeltaLogEntry { Field = field, Prev = prev, Curr = curr });
         }
 
         HeaderText = changes.Count > 0
@@ -55,7 +55,7 @@ public sealed partial class DeltaLogViewModel : ObservableObject
     }
 }
 
-/// <summary>One field-delta row: "field: prev → curr" at a tick.</summary>
+/// <summary>One field-delta row: "field: prev → curr".</summary>
 public sealed class DeltaLogEntry
 {
     /// <summary>Curr.</summary>
@@ -69,7 +69,4 @@ public sealed class DeltaLogEntry
 
     /// <summary>Summary.</summary>
     public string Summary => $"{Field}: {Prev} → {Curr}";
-
-    /// <summary>Tick.</summary>
-    public int Tick { get; init; }
 }

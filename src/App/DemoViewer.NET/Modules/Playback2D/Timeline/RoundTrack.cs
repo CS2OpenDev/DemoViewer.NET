@@ -23,7 +23,7 @@ public sealed class RoundTrack : ITimelineTrack
     ///     The event carrying the winning team, used only for the band tint when no round facts are
     ///     loaded. A Valve matchmaking demo never carries it, which is why <see cref="Facts" /> exists.
     /// </summary>
-    public const string RoundEndEvent = "round_end";
+    private const string RoundEndEvent = "round_end";
 
     private IReadOnlyList<RoundFacts>? _facts;
 
@@ -57,16 +57,11 @@ public sealed class RoundTrack : ITimelineTrack
     public string DisplayName => "Rounds";
 
     /// <inheritdoc />
-    public bool IsAvailable(ITimelineData data) => data is not null && data.HasEvent(FreezeEndEvent);
+    public bool IsAvailable(ITimelineData data) => data.HasEvent(FreezeEndEvent);
 
     /// <inheritdoc />
     public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data)
     {
-        if (data is null)
-        {
-            return Array.Empty<TimelineBand>();
-        }
-
         int total = data.TotalFrames;
         IReadOnlyList<int> freeze = data.FramesForEvent(FreezeEndEvent);
         if (total <= 0 || freeze.Count == 0)

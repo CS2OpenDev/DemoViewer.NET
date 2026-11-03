@@ -194,7 +194,7 @@ internal sealed class ExtensionStores : IExtensionStores
 /// </summary>
 internal sealed class ExtensionFolder : IExtensionFolder
 {
-    private static readonly UTF8Encoding Utf8 = new(false);
+    private static readonly UTF8Encoding _utf8 = new(false);
 
     /// <param name="root">The folder, absolute.</param>
     public ExtensionFolder(string root)
@@ -272,7 +272,7 @@ internal sealed class ExtensionFolder : IExtensionFolder
         // Opened for append and never rewritten. A log whose last line was torn by a crash gets a
         // newline first, so the torn line stays alone and is skipped rather than swallowing this one.
         using FileStream stream = new(path, FileMode.Append, FileAccess.Write, FileShare.Read);
-        byte[] bytes = Utf8.GetBytes((EndsTorn(path, stream.Position) ? "\n" : "") + line + "\n");
+        byte[] bytes = _utf8.GetBytes((EndsTorn(path, stream.Position) ? "\n" : "") + line + "\n");
         stream.Write(bytes);
         stream.Flush(true);
     }

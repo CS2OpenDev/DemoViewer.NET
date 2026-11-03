@@ -59,7 +59,7 @@
             </DockPanel>
 
             <TextBox x:Name="CompareSearchBox" Text="{Binding SearchText}"
-                     Watermark="Search a player to compare by name, SteamID or profile URL"
+                     PlaceholderText="Search a player to compare by name, SteamID or profile URL"
                      AutomationProperties.Name="Search a player to compare">
                 <TextBox.KeyBindings>
                     <KeyBinding Gesture="Enter" Command="{Binding SubmitSearchCommand}" />

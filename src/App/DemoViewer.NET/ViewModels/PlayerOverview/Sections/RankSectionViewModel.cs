@@ -50,7 +50,7 @@ public sealed partial class RankSectionViewModel : PlayerOverviewSection
     /// <summary>One chart per rank system of <paramref name="matches" />: Premier, then Competitive, then Wingman.</summary>
     /// <param name="matches">The demos to chart, newest match first.</param>
     /// <param name="ranks">The subject's rank rows.</param>
-    internal static IReadOnlyList<RankChartItem> Build(IReadOnlyList<PlayerMatch> matches, PlayerRanks ranks)
+    private static IReadOnlyList<RankChartItem> Build(IReadOnlyList<PlayerMatch> matches, PlayerRanks ranks)
     {
         Dictionary<int, List<(PlayerMatch Match, MatchRankRow Rank)>> systems = [];
         foreach (PlayerMatch match in matches)
@@ -141,7 +141,6 @@ public sealed class RankChartItem
     /// <param name="rows">The system's demos, newest match first.</param>
     internal RankChartItem(int rankType, IReadOnlyList<(PlayerMatch Match, MatchRankRow Rank)> rows)
     {
-        RankType = rankType;
         Title = RankDisplay.SystemName(rankType);
 
         List<double> values = [];
@@ -192,9 +191,6 @@ public sealed class RankChartItem
         SummaryText = $"{count} · latest {latest} · peak {peak}{net}";
     }
 
-    /// <summary>The rank system: 11 Premier, 12 Competitive, 7 Wingman.</summary>
-    public int RankType { get; }
-
     /// <summary>"Premier", "Competitive" or "Wingman".</summary>
     public string Title { get; }
 
@@ -225,7 +221,7 @@ public sealed class RankCardItem
     internal RankCardItem(PlayerMatch match, MatchRankRow rank)
     {
         int? value = RankDisplay.After(rank);
-        RankType = rank.RankType;
+
         Title = RankDisplay.SystemName(rank.RankType).ToUpperInvariant();
         BadgeKey = RankDisplay.BadgeKey(rank.RankType, value, rank.Wins);
         ValueText = value is { } v ? RankDisplay.Value(rank.RankType, v) : "Unranked";
@@ -235,9 +231,6 @@ public sealed class RankCardItem
         Tooltip =
             $"{RankDisplay.Describe(rank)} · {RankDisplay.DateOf(match)} · {DemoEntry.PrettifyMap(match.Row.Map)}";
     }
-
-    /// <summary>The rank system.</summary>
-    public int RankType { get; }
 
     /// <summary>"PREMIER" or "COMPETITIVE".</summary>
     public string Title { get; }
@@ -282,14 +275,12 @@ public sealed class MapRankItem
 /// <summary>How the Player Overview words a rank: numbers for Premier, Skill Group names for the rest.</summary>
 internal static class RankDisplay
 {
-    public const int Wingman = 7;
+    private const int Wingman = 7;
     public const int Premier = 11;
     public const int Competitive = 12;
 
     // Placement: an account owes this many wins before CS2 shows a Skill Group.
     private const int PlacementWins = 10;
-
-    public static bool IsPerMap(int rankType) => rankType != Premier;
 
     public static string SystemName(int rankType) => rankType switch
     {

@@ -732,8 +732,7 @@ public class PlayerOverviewTabTests
     {
         using IdentityService identity = Identity(Me);
         IReadOnlyList<PlayerOverviewSection> sections = PlayerOverviewSections.Create(
-            Services(new PlayerDirectory(new DemoCacheStore(null)), identity),
-            new PlayerOverviewFilterViewModel());
+            Services(new PlayerDirectory(new DemoCacheStore(null)), identity));
         await Assert.That(sections.Select(s => s.Id).Distinct().Count()).IsEqualTo(sections.Count);
         foreach (PlayerOverviewSection section in sections)
         {

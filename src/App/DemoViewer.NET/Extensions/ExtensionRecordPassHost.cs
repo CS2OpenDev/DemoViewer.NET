@@ -26,7 +26,7 @@ internal sealed class ExtensionRecordPassHost(
     private readonly Dictionary<string, DemoDataKey> _dataInputs = DataInputs(dependsOn ?? []);
 
     /// <summary>The extension's pass.</summary>
-    public IExtensionRecordPass Inner { get; } = inner ?? throw new ArgumentNullException(nameof(inner));
+    private IExtensionRecordPass Inner { get; } = inner ?? throw new ArgumentNullException(nameof(inner));
 
     /// <summary>The extension's guard, which faults are reported to.</summary>
     public ExtensionGuard Guard { get; } = guard ?? throw new ArgumentNullException(nameof(guard));
@@ -36,7 +36,7 @@ internal sealed class ExtensionRecordPassHost(
     public string Owner => Guard.Scope.Id;
 
     /// <summary>The inputs the pass named when it registered.</summary>
-    public IReadOnlyList<RecordInput> DependsOn { get; } = dependsOn ?? [];
+    private IReadOnlyList<RecordInput> DependsOn { get; } = dependsOn ?? [];
 
     // Facts stamps are per ruleset: every output of one ruleset is written under one stamp.
     public IReadOnlyList<string> InputStamps { get; } =
@@ -98,7 +98,7 @@ internal sealed class ExtensionRecordPassHost(
     /// <param name="declared">The outputs the host runs now.</param>
     /// <param name="isOff">True for a ruleset that is known but off now; its keys wait instead of refusing.</param>
     /// <param name="unknownData">Facets the pass named whose owner the host does not know.</param>
-    public static string? RefusalOf(IReadOnlyList<FactKey> dependsOn, IReadOnlyList<FactKey> declared,
+    private static string? RefusalOf(IReadOnlyList<FactKey> dependsOn, IReadOnlyList<FactKey> declared,
         Func<string, bool> isOff,
         IReadOnlyList<string>? unknownData = null)
     {

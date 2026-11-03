@@ -38,14 +38,8 @@ public enum CategoryLayout
 /// <summary>What every non-table board row carries, so one section type can hold any of them.</summary>
 public interface IBoardRow
 {
-    /// <summary>Player display name.</summary>
-    string PlayerName { get; }
-
     /// <summary>CS2 wire team value: 2 = T, 3 = CT.</summary>
     int Team { get; }
-
-    /// <summary>Side-colour hook.</summary>
-    bool IsCt { get; }
 }
 
 /// <summary>One player's composition bar: the mix, the volume, and the lobby's largest volume.</summary>
@@ -287,7 +281,7 @@ public static class CategoryBoard
         {
             List<StatSegment> segments = [];
             double total = 0;
-            foreach ((string column, string label, int slot) in present)
+            foreach ((string column, _, int slot) in present)
             {
                 double v = Num(row, column);
                 total += v;

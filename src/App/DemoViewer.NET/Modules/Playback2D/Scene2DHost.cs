@@ -117,7 +117,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     // The ids this host already manages itself (BuildScene's fixed set, plus BindAnnotations' and
     // BindZones' dynamic ones). AddLayer refuses these outright rather than let a collision surface
     // later as an obscure duplicate-id failure out of SceneCompositor.Add.
-    private static readonly HashSet<string> OwnLayerIds = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _ownLayerIds = new(StringComparer.Ordinal)
     {
         SceneLayerIds.Radar,
         SceneLayerIds.Trails,
@@ -137,7 +137,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         ClipToBounds = true;
 
         _panes = new PaneSet(_stackedLayout);
-        _smoother.LevelCrossings = CrossingsForTest;
+        _smoother.LevelCrossings = _crossings;
 
         _levelSelection = new LevelSelection(_levels.Space);
         _levelSelection.ActiveLevelChanged += OnActiveLevelChanged;
@@ -168,11 +168,11 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     /// </summary>
     public ISceneFrameHost? FrameHost { get; private set; }
 
-    /// <summary>The annotation layer, once a session has been bound. Test hook.</summary>
-    internal AnnotationLayer? AnnotationLayerForTest { get; private set; }
+    // The annotation layer, once a session has been bound.
+    private AnnotationLayer? _annotationLayer;
 
-    /// <summary>The zone outline layer, once the toggle is on and the map has zones. Test hook.</summary>
-    internal ZoneOutlineLayer? ZoneLayerForTest { get; private set; }
+    // The zone outline layer, once the toggle is on and the map has zones.
+    private ZoneOutlineLayer? _zoneLayer;
 
     /// <summary>The layer stack other scene layers register themselves on.</summary>
     internal SceneCompositor Compositor => _compositor;
@@ -197,7 +197,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     ///     Registers a scene layer on this host only, built fresh by <paramref name="layer" /> now and
     ///     again every time a release rebuilds the compositor. <paramref name="id" /> must match
     ///     <see cref="ISceneLayer.Id" />. Refuses an id this host already manages itself
-    ///     (<see cref="OwnLayerIds" />), one it already holds a layer under, and one a bound frame host has
+    ///     (<see cref="_ownLayerIds" />), one it already holds a layer under, and one a bound frame host has
     ///     contributed.
     ///     <para>
     ///         The parameter is named as the published <c>SceneView.AddLayer</c> names it, because this
@@ -216,7 +216,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         ArgumentNullException.ThrowIfNull(id);
         ArgumentNullException.ThrowIfNull(layer);
 
-        if (OwnLayerIds.Contains(id))
+        if (_ownLayerIds.Contains(id))
         {
             throw new ArgumentException($"'{id}' is one of this host's own layers.", nameof(id));
         }
@@ -266,18 +266,11 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         InvalidateVisual();
     }
 
-    /// <summary>The layout policy. <c>SingleLayout</c> can replace it here.</summary>
-    public ILevelLayoutPolicy LayoutPolicy
-    {
-        get => _panes.Policy;
-        set => _panes.Policy = value;
-    }
-
     /// <summary>
     ///     Follow-camera deadzone half-extent in world units, the one deliberate behaviour change from
     ///     pre-v2; 0 reproduces the pre-v2 feel exactly.
     /// </summary>
-    public double FollowDeadzoneHalfWorld { get; set; } = 180;
+    private const double FollowDeadzoneHalfWorld = 180;
 
     /// <summary>Test hook: the rendered transform of the lowest pane. Same name as the pre-v2 control's.</summary>
     internal ViewportTransform PrimaryCameraTransform =>
@@ -290,15 +283,12 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     internal MapLevelId PrimaryPaneLevelForTest =>
         _panes.Panes.Count > 0 ? _panes.Panes[0].LevelId : MapLevelId.None;
 
-    /// <summary>Test hook: which entities changed floor on the last advanced frame.</summary>
-    internal LevelCrossingTracker CrossingsForTest { get; } = new();
+    // Which entities changed floor on the last advanced frame.
+    private readonly LevelCrossingTracker _crossings = new();
 
     /// <summary>Test hook: whether the lowest pane is in manual override.</summary>
     internal bool PrimaryCameraManual =>
         _panes.Panes.Count > 0 && _panes.Panes[0].Camera.ManualOverride;
-
-    /// <summary>Test hook: could-see segments solved for the last advance.</summary>
-    internal int SightlineCount => _visionLayer.SightlineCount;
 
     /// <summary>Test hook: true once the Skia lease failed and the CPU fallback took over.</summary>
     internal bool LeaseUnavailable { get; private set; }
@@ -575,9 +565,9 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         // The map bundle and the annotation session are re-pulled on the next SyncFromViewModel, so the
         // fresh layers are bound.
         _boundAsset = null;
-        AnnotationLayerForTest = null;
+        _annotationLayer = null;
         _boundSession = null;
-        ZoneLayerForTest = null;
+        _zoneLayer = null;
         _released = false;
     }
 
@@ -603,9 +593,8 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         ImmutableArray<PaneCameraSnapshot>.Builder builder =
             ImmutableArray.CreateBuilder<PaneCameraSnapshot>(panes.Count);
 
-        for (int i = 0; i < panes.Count; i++)
+        foreach (LevelPane pane in panes)
         {
-            LevelPane pane = panes[i];
             builder.Add(new PaneCameraSnapshot(pane.LevelId, pane.Camera.Current,
                 pane.Camera.ManualOverride));
         }
@@ -647,12 +636,6 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     /// <summary>Test hook: the smoothed draw position for a slot. Same name as the pre-v2 control's.</summary>
     /// <param name="slot">Roster slot.</param>
     internal (float X, float Y)? SmoothedMarkerPosition(int slot) => _smoother.Position(slot);
-
-    /// <summary>Test hook: drives the marker smoothing with a known dt.</summary>
-    /// <param name="markers">The markers to chase.</param>
-    /// <param name="dt">Seconds since the previous frame.</param>
-    internal bool AdvanceMarkers(IReadOnlyList<PlayerMarker> markers, double dt) =>
-        _smoother.Advance(markers, dt);
 
     /// <inheritdoc />
     protected override void OnDataContextChanged(EventArgs e)
@@ -926,7 +909,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
 
         foreach ((string id, Func<ISceneLayer> factory) in layers)
         {
-            if (OwnLayerIds.Contains(id) || _extraLayers.ContainsKey(id) || _contributedLayerIds.Contains(id))
+            if (_ownLayerIds.Contains(id) || _extraLayers.ContainsKey(id) || _contributedLayerIds.Contains(id))
             {
                 continue;
             }
@@ -963,25 +946,22 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         _coalesced.Clear();
         if (includeIntermediate && pane is not null)
         {
-            IReadOnlyList<PointerPoint>? points = e.GetIntermediatePoints(this);
-            if (points is not null)
+            IReadOnlyList<PointerPoint> points = e.GetIntermediatePoints(this);
+            // Avalonia (11.3.12) returns the sub-frame history OLDEST-FIRST and appends THIS
+            // event's own point LAST: GetIntermediatePoints is literally
+            // "previous raw points ++ GetCurrentPoint". The ink wants oldest-first and the tool
+            // appends the primary point itself, so the list is walked forwards and the TRAILING
+            // entry is dropped. Walking it backwards folds every fast drag back on itself and
+            // duplicates the primary sample; pinned by
+            // Playback2DAnnotationHostTests.CoalescedSamples_ReachTheInk_OldestFirst_AndOnlyOnce.
+            for (int i = 0; i < points.Count - 1; i++)
             {
-                // Avalonia (11.3.12) returns the sub-frame history OLDEST-FIRST and appends THIS
-                // event's own point LAST: GetIntermediatePoints is literally
-                // "previous raw points ++ GetCurrentPoint". The ink wants oldest-first and the tool
-                // appends the primary point itself, so the list is walked forwards and the TRAILING
-                // entry is dropped. Walking it backwards folds every fast drag back on itself and
-                // duplicates the primary sample; pinned by
-                // Playback2DAnnotationHostTests.CoalescedSamples_ReachTheInk_OldestFirst_AndOnlyOnce.
-                for (int i = 0; i < points.Count - 1; i++)
-                {
-                    PointerPoint point = points[i];
-                    (double wx, double wy) = pane.Camera.Current.ScreenToWorld(
-                        point.Position.X - pane.ViewportRect.Left,
-                        point.Position.Y - pane.ViewportRect.Top);
-                    float p = point.Properties.Pressure > 0 ? point.Properties.Pressure : pressure;
-                    _coalesced.Add(new InkPoint((float)wx, (float)wy, p));
-                }
+                PointerPoint point = points[i];
+                (double wx, double wy) = pane.Camera.Current.ScreenToWorld(
+                    point.Position.X - pane.ViewportRect.Left,
+                    point.Position.Y - pane.ViewportRect.Top);
+                float p = point.Properties.Pressure > 0 ? point.Properties.Pressure : pressure;
+                _coalesced.Add(new InkPoint((float)wx, (float)wy, p));
             }
         }
 
@@ -1110,7 +1090,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         if (discontinuity)
         {
             ResetDeadzones();
-            CrossingsForTest.Reset();
+            _crossings.Reset();
         }
 
         SKSize host = new((float)bounds.Width, (float)bounds.Height);
@@ -1121,8 +1101,8 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
             // picture is keyed on a level id that may now describe a different Z range. The ink layer
             // holds its own per-level pictures, outside the compositor's cache, so it is told too.
             _compositor.InvalidateCaches();
-            AnnotationLayerForTest?.InvalidateLevels();
-            CrossingsForTest.Reset();
+            _annotationLayer?.InvalidateLevels();
+            _crossings.Reset();
             _panes.RetainUnarranged(_levels.Space.LastChange);
         }
 
@@ -1156,7 +1136,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         keepArmed |= _compositor.Advance(in time, frame);
 
         // A crossing is true for exactly one frame, and everything that cares has now advanced.
-        CrossingsForTest.EndFrame();
+        _crossings.EndFrame();
 
         if (keepArmed)
         {
@@ -1287,7 +1267,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         // A new view-model (or a detach) must not glide markers from a previous demo's positions, and
         // its level split belongs to a different map.
         _smoother.Clear();
-        CrossingsForTest.Reset();
+        _crossings.Reset();
         _levels.Reset();
         _panes.Clear();
         _initialFitApplied = false;
@@ -1339,7 +1319,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         // Only asked for when shown: vm.Zones is the lazy read that parses the file, and a map whose
         // outlines nobody turned on must not pay for them on every sync.
         BindZones(vm.ShowZones ? vm.Zones : null);
-        _compositor.SetEnabled(SceneLayerIds.Zones, vm.ShowZones && ZoneLayerForTest is not null);
+        _compositor.SetEnabled(SceneLayerIds.Zones, vm.ShowZones && _zoneLayer is not null);
 
         IMapAsset? asset = vm.MapAsset;
         if (!ReferenceEquals(asset, _boundAsset))
@@ -1368,16 +1348,16 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
 
         using (_gate.Enter())
         {
-            if (AnnotationLayerForTest is not null)
+            if (_annotationLayer is not null)
             {
                 _compositor.Remove(SceneLayerIds.Annotations);
-                AnnotationLayerForTest = null;
+                _annotationLayer = null;
             }
 
             if (session is not null)
             {
-                AnnotationLayerForTest = new AnnotationLayer(session);
-                _compositor.Add(AnnotationLayerForTest);
+                _annotationLayer = new AnnotationLayer(session);
+                _compositor.Add(_annotationLayer);
             }
         }
 
@@ -1404,7 +1384,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     {
         if (resolver is null)
         {
-            if (ZoneLayerForTest is null)
+            if (_zoneLayer is null)
             {
                 return;
             }
@@ -1412,28 +1392,28 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
             using (_gate.Enter())
             {
                 _compositor.Remove(SceneLayerIds.Zones);
-                ZoneLayerForTest = null;
+                _zoneLayer = null;
             }
 
             return;
         }
 
-        if (ZoneLayerForTest is null)
+        if (_zoneLayer is null)
         {
             using (_gate.Enter())
             {
-                ZoneLayerForTest = new ZoneOutlineLayer(resolver, _text);
-                _compositor.Add(ZoneLayerForTest);
+                _zoneLayer = new ZoneOutlineLayer(resolver, _text);
+                _compositor.Add(_zoneLayer);
             }
 
             return;
         }
 
-        if (!ReferenceEquals(ZoneLayerForTest.Resolver, resolver))
+        if (!ReferenceEquals(_zoneLayer.Resolver, resolver))
         {
             using (_gate.Enter())
             {
-                ZoneLayerForTest.Resolver = resolver;
+                _zoneLayer.Resolver = resolver;
             }
         }
     }
@@ -1488,9 +1468,9 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     private void ResetDeadzones()
     {
         IReadOnlyList<LevelPane> panes = _panes.Panes;
-        for (int i = 0; i < panes.Count; i++)
+        foreach (LevelPane pane in panes)
         {
-            if (panes[i].Rig is FollowPlayerRig follow)
+            if (pane.Rig is FollowPlayerRig follow)
             {
                 follow.ResetDeadzone();
             }
@@ -1510,7 +1490,7 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
         IReadOnlyList<PlayerMarker> markers = frame.Markers;
         for (int i = 0; i < markers.Count; i++)
         {
-            CrossingsForTest.Update(markers[i].Slot, markers[i].WorldZ, space);
+            _crossings.Update(markers[i].Slot, markers[i].WorldZ, space);
         }
     }
 

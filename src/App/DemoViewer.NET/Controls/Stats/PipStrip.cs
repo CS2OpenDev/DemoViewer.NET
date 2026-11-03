@@ -110,7 +110,7 @@ public class PipStrip : TemplatedControl
     ///     DECLARED cap only; the arranged width can force the same fallback at a lower count, which
     ///     <see cref="Render" /> decides once it knows how much room it actually got.
     /// </summary>
-    public bool IsOverflowing => Count > MaxPips;
+    private bool IsOverflowing => Count > MaxPips;
 
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)

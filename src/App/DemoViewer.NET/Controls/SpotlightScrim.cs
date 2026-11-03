@@ -214,13 +214,13 @@ public sealed class SpotlightScrim : Control, ICustomHitTest
             // Color to fade alpha, so only for a solid brush; otherwise just the crisp frame below.
             if (HoleBorderBrush is ISolidColorBrush)
             {
-                const int layers = 4;
-                const double glowPeak = 0.42; // halo alpha at the brightest phase (inner-most ring)
-                for (int i = layers; i >= 1; i--)
+                const int Layers = 4;
+                const double GlowPeak = 0.42; // halo alpha at the brightest phase (inner-most ring)
+                for (int i = Layers; i >= 1; i--)
                 {
                     double spread = i * (HoleBorderThickness + 2.0);
-                    double falloff = 1.0 - (i - 1) / (double)layers; // inner rings brighter than outer
-                    double alpha = glowPeak * pulse * falloff;
+                    double falloff = 1.0 - (i - 1) / (double)Layers; // inner rings brighter than outer
+                    double alpha = GlowPeak * pulse * falloff;
                     if (alpha <= 0.004 || SolidBorderAt(alpha) is not { } ring)
                     {
                         continue;

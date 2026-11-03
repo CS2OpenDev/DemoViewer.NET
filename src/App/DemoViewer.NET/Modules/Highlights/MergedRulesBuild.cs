@@ -55,7 +55,7 @@ public sealed class MergedRulesBuild
         _identities = [];
 
     private readonly HashSet<string> _reportedExclusions = new(StringComparer.Ordinal);
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Func<RuleConfigLoadResult> _load;
     private readonly Lazy<IReadOnlyList<StampedRuleset>> _stamped;
     private RuleConfigLoadResult? _rules;
@@ -64,11 +64,6 @@ public sealed class MergedRulesBuild
 
     /// <summary>The shipped rules with the user's overlay and no stamped rulesets.</summary>
     public MergedRulesBuild() : this(LoadShippedWithUserOverlay)
-    {
-    }
-
-    /// <summary>The shipped rules with the user's overlay and the <paramref name="stamped" /> rulesets.</summary>
-    public MergedRulesBuild(Func<IReadOnlyList<StampedRuleset>> stamped) : this(LoadShippedWithUserOverlay, stamped)
     {
     }
 
@@ -208,8 +203,8 @@ public sealed class MergedRulesBuild
         ArgumentNullException.ThrowIfNull(run);
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(rulesets);
-        if (!rulesets.Any(id =>
-                EnabledDoc(id)?.Show?.Tables.Any(t => string.Equals(t.Name, table, StringComparison.Ordinal)) == true))
+        if (rulesets.All(id =>
+                EnabledDoc(id)?.Show?.Tables.Any(t => string.Equals(t.Name, table, StringComparison.Ordinal)) != true))
         {
             throw new InvalidOperationException(
                 $"table {table} is not declared by an enabled ruleset of the pass ({string.Join(", ", rulesets)})");

@@ -61,10 +61,12 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
 
     /// <summary>The scheduler's check of the library for work, or empty when there is no scheduler.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCheckLine))]
     private string _checkLine = "";
 
     /// <summary>Light work running now that is not a row ("Also: saving the library"), or empty.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAlsoLine))]
     private string _alsoLine = "";
 
     /// <summary>True when the persisted master switch is off (background fully disabled in Settings).</summary>
@@ -89,6 +91,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
 
     /// <summary>True while background processing is transiently paused (the Pause/Resume toggle state).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PauseResumeLabel))]
     private bool _isPaused;
 
     /// <summary>Demos waiting for a worker slot.</summary>
@@ -174,10 +177,6 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
     /// <summary>Whether the strip shows the chip: a counted item is active, or background work is paused.</summary>
     public bool IsActive => RunningCount > 0 || QueuedCount > 0 || IsPaused;
 
-    partial void OnCheckLineChanged(string value) => OnPropertyChanged(nameof(HasCheckLine));
-
-    partial void OnAlsoLineChanged(string value) => OnPropertyChanged(nameof(HasAlsoLine));
-
     /// <summary>Whether the flyout's "Background processing settings" link is shown (an opener was supplied).</summary>
     public bool CanOpenSettings => _openSettings is not null;
 
@@ -213,8 +212,6 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
         OnPropertyChanged(nameof(IsQueueView));
         OnPropertyChanged(nameof(IsRecentView));
     }
-
-    partial void OnIsPausedChanged(bool value) => OnPropertyChanged(nameof(PauseResumeLabel));
 
     /// <summary>
     ///     Transiently pauses or resumes background processing (NOT persisted; the app starts
@@ -280,7 +277,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
     ///     Re-reads the queue's counts / pause / background state and maps them onto the chip + header.
     ///     Called at construction, on every posted <c>Changed</c>, and eagerly after a Pause/Resume click.
     /// </summary>
-    public void Refresh()
+    private void Refresh()
     {
         if (_disposed)
         {
@@ -288,7 +285,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
         }
 
         SyncRows();
-        RunningCount = Rows.Count(r => r.IsRunning && !r.Item.RidesRead);
+        RunningCount = Rows.Count(r => r is { IsRunning: true, Item.RidesRead: false });
         QueuedCount = Rows.Count(r => r.IsQueued);
         IsPaused = _queue.IsPaused;
         IsBackgroundDisabled = !_queue.BackgroundEnabled;
@@ -305,7 +302,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
         List<string> running =
         [
             .. _queue.Items
-                .Where(i => i.Light && i.State == DemoQueueItemState.Running && i.Kind != QueueJobKind.Scheduling)
+                .Where(i => i is { Light: true, State: DemoQueueItemState.Running, Kind: not QueueJobKind.Scheduling })
                 .Select(i => !string.IsNullOrEmpty(i.DisplayName) ? i.DisplayName! : i.Kind.ToString())
         ];
         return running.Count switch

@@ -29,16 +29,11 @@ public sealed partial class SummarySectionViewModel : PlayerOverviewSection
     private PlayerAggregate? _inWindow;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNote))]
     private string _note = "";
 
     [ObservableProperty]
     private IReadOnlyList<SummaryTileItem> _tiles = [];
-
-    /// <param name="filter">The tab's filter bar, shown above the inner tabs.</param>
-    public SummarySectionViewModel(PlayerOverviewFilterViewModel filter)
-    {
-        Filter = filter ?? throw new ArgumentNullException(nameof(filter));
-    }
 
     /// <inheritdoc />
     public override string Id => "summary";
@@ -46,13 +41,8 @@ public sealed partial class SummarySectionViewModel : PlayerOverviewSection
     /// <inheritdoc />
     public override SectionSlot Slot => SectionSlot.Top;
 
-    /// <summary>The tab's filter bar.</summary>
-    public PlayerOverviewFilterViewModel Filter { get; }
-
     /// <summary>True when there is a line under the tiles.</summary>
     public bool HasNote => Note.Length > 0;
-
-    partial void OnNoteChanged(string value) => OnPropertyChanged(nameof(HasNote));
 
     /// <inheritdoc />
     public override void Update(PlayerOverviewContext context)
@@ -135,7 +125,7 @@ public sealed partial class SummarySectionViewModel : PlayerOverviewSection
             return null;
         }
 
-        return spec.ColourMin is { } min && spec.ColourMax is { } max
+        return spec is { ColourMin: { } min, ColourMax: { } max }
             ? StatScale.Absolute(min, max, spec.NeutralLow, spec.NeutralHigh, spec.Polarity)
             : spec.Polarity == StatPolarity.Neutral && key.EndsWith('%')
                 ? StatScale.Absolute(0, 100, polarity: StatPolarity.Neutral)

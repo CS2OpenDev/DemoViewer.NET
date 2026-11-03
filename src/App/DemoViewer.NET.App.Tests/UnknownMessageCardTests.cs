@@ -128,7 +128,7 @@ public class UnknownMessageCardTests
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private static ParserTabViewModel NewParserTab(DemoCensus c) => new(new FrameNavigationViewModel())
+    private static ParserTabViewModel NewParserTab(DemoCensus c) => new()
     {
         DemoBytesSource = () => c.DemoBytes,
         UnknownByFrame = c.Census,

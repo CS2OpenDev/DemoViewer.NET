@@ -64,7 +64,7 @@ public sealed class RecordPassRunner : IDisposable
     private const string RunKey = "records.run";
     private const string RunTitle = "Reading cached demos";
 
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly HashSet<string> _dirty = new(StringComparer.OrdinalIgnoreCase);
 
     // Keyed by the store's demo key, so every path of one demo shares them. A fault is also held under the
@@ -98,7 +98,7 @@ public sealed class RecordPassRunner : IDisposable
     }
 
     /// <summary>Told when a pass throws, with its owner and the demo when there is one.</summary>
-    public Action<IRecordPass, string?, Exception>? Faulted { get; set; }
+    public Action<IRecordPass, string?, Exception>? Faulted { get; init; }
 
     /// <summary>Runs when a run removed before it started is noticed, before the runner can queue another. Test seam.</summary>
     internal Action? BeforeRemovedRunEnds { get; set; }

@@ -150,7 +150,7 @@
                          with demos, so it's hidden in the empty/hero state — the landing then reads as
                          LIBRARY + Add folder + the hero, not a wall of inert dropdowns. Collapsed WrapPanel
                          children reserve no space, so the empty state stays clean. -->
-                        <TextBox Text="{Binding SearchText}" Watermark="Search map, player, file…"
+                        <TextBox Text="{Binding SearchText}" PlaceholderText="Search map, player, file…"
                                  IsVisible="{Binding ShowDemoChrome}"
                                  FontSize="12" Margin="0 3 8 3" MinWidth="220" MaxWidth="360"
                                  VerticalAlignment="Center" />
@@ -360,7 +360,7 @@
                 <!-- The hosted view (Teams) replaces the demo browser while the toggle is on it. Declared
                      first and the browser's layers hidden by IsDemosView, so the hero's on-top rule below is
                      unaffected. -->
-                <ContentControl Content="{Binding Sections.SelectedSection.ActiveContent}"
+                <ContentControl Content="{Binding Sections.SelectedSection.ActiveContent, FallbackValue={x:Null}}"
                                 IsVisible="{Binding IsTeamsView}" />
 
                 <!-- The demo browser: every layer below keeps its own visibility inside this one. -->
@@ -455,10 +455,10 @@
                                                                         Classes.pinned="{Binding BadgeIsPinned}"
                                                                         Content="{Binding BadgeLabel}"
                                                                         ToolTip.Tip="{Binding BadgeTooltip}"
-                                                                        IsVisible="{Binding $parent[UserControl].((vm:LibraryTabViewModel)DataContext).HasBadge}">
+                                                                        IsVisible="{Binding $parent[UserControl].((vm:LibraryTabViewModel)DataContext).HasBadge, FallbackValue=False}">
                                                                     <Button.Flyout>
                                                                         <MenuFlyout
-                                                                            ItemsSource="{Binding $parent[UserControl].((vm:LibraryTabViewModel)DataContext).BadgeMenuEntries}">
+                                                                            ItemsSource="{Binding $parent[UserControl].((vm:LibraryTabViewModel)DataContext).BadgeMenuEntries, FallbackValue={x:Null}}">
                                                                             <MenuFlyout.ItemTemplate>
                                                                                 <DataTemplate
                                                                                     x:DataType="vm:LibraryBadgeMenuEntry">

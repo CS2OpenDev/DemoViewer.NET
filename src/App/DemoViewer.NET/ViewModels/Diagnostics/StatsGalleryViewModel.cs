@@ -133,7 +133,7 @@ public sealed partial class StatsGalleryViewModel : ObservableObject
     public StatBarAlignment BarAlignment => (StatBarAlignment)Math.Clamp(BarAlignmentIndex, 0, 3);
 
     /// <summary>The selected polarity as the enum the controls take.</summary>
-    public StatPolarity Polarity => (StatPolarity)Math.Clamp(PolarityIndex, 0, 2);
+    private StatPolarity Polarity => (StatPolarity)Math.Clamp(PolarityIndex, 0, 2);
 
     /// <summary>Human-readable polarity, for the readout line.</summary>
     public string PolarityName => _polarityNames[Math.Clamp(PolarityIndex, 0, 2)];

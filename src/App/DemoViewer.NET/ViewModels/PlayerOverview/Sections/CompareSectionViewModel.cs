@@ -21,8 +21,6 @@ namespace DemoViewer.NET.ViewModels.PlayerOverview.Sections;
 /// </summary>
 public sealed partial class CompareSectionViewModel : PlayerOverviewSection
 {
-    private const string None = "–";
-
     private readonly PlayerSearch _search;
     private readonly PlayerOverviewServices _services;
     private bool _clearingSearch;
@@ -198,7 +196,8 @@ public sealed partial class CompareSectionViewModel : PlayerOverviewSection
         }
 
         OnPropertyChanged(nameof(HasCandidates));
-        if (result.SteamId64 is { } id && !result.IsFlagged && id != subject && _services.Directory.Get(id) is not null)
+        if (result is { SteamId64: { } id, IsFlagged: false } && id != subject
+            && _services.Directory.Get(id) is not null)
         {
             Pick(id);
             return;
@@ -354,7 +353,7 @@ public sealed record CompareStatItem(
     CompareCell Other,
     int Lead)
 {
-    private static readonly CompareCell Empty = new("–", null, null, "");
+    private static readonly CompareCell _empty = new("–", null, null, "");
 
     /// <summary>True when the subject's value is the better.</summary>
     public bool SubjectLeads => Lead > 0;
@@ -366,7 +365,7 @@ public sealed record CompareStatItem(
     internal static CompareStatItem Of(SummaryTileItem mine, SummaryTileItem? theirs)
     {
         CompareCell subject = new(mine.Text, mine.Value, mine.Scale, "");
-        CompareCell other = theirs is null ? Empty : new CompareCell(theirs.Text, theirs.Value, theirs.Scale, "");
+        CompareCell other = theirs is null ? _empty : new CompareCell(theirs.Text, theirs.Value, theirs.Scale, "");
         int lead = mine.Scale is { } scale && theirs?.Scale is not null
             ? LeadOf(mine.Value, theirs.Value, scale.Polarity)
             : 0;
@@ -381,7 +380,7 @@ public sealed record CompareStatItem(
         CategoryStatItem a = entry.Build(mine, mineRows);
         CategoryStatItem? b = theirs is null ? null : entry.Build(theirs, theirRows);
         CompareCell subject = new(a.Text, a.Value, a.Scale, a.Detail);
-        CompareCell other = b is null ? Empty : new CompareCell(b.Text, b.Value, b.Scale, b.Detail);
+        CompareCell other = b is null ? _empty : new CompareCell(b.Text, b.Value, b.Scale, b.Detail);
         int lead = 0;
         if (b is not null)
         {
@@ -416,8 +415,4 @@ public sealed record CompareStatItem(
 /// <param name="Value">The value, for the colour.</param>
 /// <param name="Scale">The catalogue's fixed band, or null for a count or too thin a sample.</param>
 /// <param name="Detail">The rate beside a count ("0.12 per round"), or empty.</param>
-public sealed record CompareCell(string Text, double? Value, StatScale? Scale, string Detail)
-{
-    /// <summary>True when there is a rate to show.</summary>
-    public bool HasDetail => Detail.Length > 0;
-}
+public sealed record CompareCell(string Text, double? Value, StatScale? Scale, string Detail);

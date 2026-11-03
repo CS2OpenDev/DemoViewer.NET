@@ -24,11 +24,10 @@ namespace DemoViewer.NET.ViewModels.EntityTracking;
 ///     prev-tick snapshot used for delta display.
 ///     <para>
 ///         Stable-ref collections, lifecycle fields,
-///         scalar state, the three async seek pipelines, all rebuild helpers and the
-///         <c>WatchField</c> command target now live here. Shell-side concerns (the
-///         <see cref="EntityTracker" /> factory, the post-seek card refresh, parse-chain
+///         scalar state, the three async seek pipelines and all rebuild helpers
+///         now live here. Shell-side concerns (the post-seek card refresh, parse-chain
 ///         updates on entity selection) reach in via callback hooks
-///         (<see cref="CreateTracker" />, <see cref="OnSeekCompleted" />,
+///         (<see cref="OnSeekCompleted" />,
 ///         <see cref="OnEntitySelectionChanged" />) that <c>MainViewModel</c> wires in
 ///         its constructor -- same pattern as <c>Analysis.OnFrameSeeked</c>.
 ///     </para>
@@ -40,10 +39,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
     /// <summary>Active class filter from the browser (null = all classes).</summary>
     private string? _classFilter;
-
-    // Diagnostics-pillar logger (v0.6.0, the seek-error surfaces show clean text, this carries
-    // the real exception). Lazy: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
 
     [ObservableProperty]
     private int _entityDeltaFieldCount;
@@ -78,8 +73,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSeekingEntities;
 
-    private EntityTracker? _localTracker;
-
     [ObservableProperty]
     private object? _selectedEntityItem; // EntityState
 
@@ -100,10 +93,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     private bool _showRelationshipTree;
 
     /// <summary>Initializes a new <see cref="EntityTrackingTabViewModel" /> instance.</summary>
-    public EntityTrackingTabViewModel(FrameNavigationViewModel navigation)
+    public EntityTrackingTabViewModel()
     {
-        Navigation = navigation;
-
         // 3.4b: WatchedValues -> HasWatched subscription used to live in
         // MainViewModel's constructor. Both ends are now EntityTab-owned, so
         // the wire moved here.
@@ -117,22 +108,17 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         ClassBrowser.ClassFilterChanged += OnClassFilterChanged;
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.EntityTracking");
+    // Diagnostics-pillar logger (v0.6.0, the seek-error surfaces show clean text, this carries
+    // the real exception). Lazy: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.EntityTracking");
 
     /// <summary>Full unfiltered field list for the currently selected entity (for delta filter toggle).</summary>
-    internal List<PayloadNode>? AllEntityFieldNodes { get; set; }
+    private List<PayloadNode>? AllEntityFieldNodes { get; set; }
 
     /// <summary>Left-rail class browser; selection filters the entity list.</summary>
     public ClassBrowserViewModel ClassBrowser { get; } = new();
 
     // ── Callback hooks (wired by MainViewModel) ───────────────────────────────
-    /// <summary>
-    ///     Factory that yields a fresh <see cref="EntityTracker" /> instance hooked to the
-    ///     shell's <c>Debugger</c>. Required for all three seek variants. MainViewModel
-    ///     sets this in its constructor.
-    /// </summary>
-    public Func<EntityTracker>? CreateTracker { get; set; }
-
     /// <summary>
     ///     Shared checkpoint-replay seek core. Wired by MainViewModel. The three seek
     ///     pipelines delegate the tracker-build + replay to this service; only the per-pipeline
@@ -158,10 +144,10 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     /// </summary>
     internal EntityTracker? CurrentTrackerInternal
     {
-        get => TrackerSource is not null ? TrackerSource() : _localTracker;
-        set
+        get => TrackerSource is not null ? TrackerSource() : field;
+        private set
         {
-            _localTracker = value;
+            field = value;
             if (value is not null)
             {
                 PublishTracker?.Invoke(value);
@@ -203,7 +189,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     public ObservableCollection<EntityListItem> EntityListItems { get; } = [];
 
     /// <summary>First entity with changed fields after the last delta rebuild, used for auto-select.</summary>
-    internal EntityState? FirstChangedEntity { get; set; }
+    private EntityState? FirstChangedEntity { get; set; }
 
     /// <summary>
     ///     Source of the parsed frame list. MainViewModel sets this so the seek
@@ -211,9 +197,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     ///     to the shell. Returning <c>null</c> aborts the seek.
     /// </summary>
     public Func<List<DemoFrame>?>? FrameSource { get; set; }
-
-    /// <summary>Navigation.</summary>
-    public FrameNavigationViewModel Navigation { get; }
 
     /// <summary>
     ///     Fires whenever <see cref="SelectedEntityItem" /> effectively changes (including
@@ -238,7 +221,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     public Action? OnSeekFinally { get; set; }
 
     /// <summary>Snapshot of entity state just before the current frame/tick. Used for delta display.</summary>
-    internal Dictionary<int, Dictionary<string, object?>>? PrevTickSnapshot { get; set; }
+    private Dictionary<int, Dictionary<string, object?>>? PrevTickSnapshot { get; set; }
 
     /// <summary>
     ///     Optional shell-side hook to push tracker counters onto the DebuggerPanel
@@ -333,8 +316,11 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
         SeekCts = cts;
-        oldCts?.Cancel();
-        oldCts?.Dispose();
+        if (oldCts is not null)
+        {
+            await oldCts.CancelAsync();
+            oldCts.Dispose();
+        }
 
         try
         {
@@ -426,8 +412,11 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
         SeekCts = cts;
-        oldCts?.Cancel();
-        oldCts?.Dispose();
+        if (oldCts is not null)
+        {
+            await oldCts.CancelAsync();
+            oldCts.Dispose();
+        }
 
         try
         {
@@ -517,8 +506,11 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
         SeekCts = cts;
-        oldCts?.Cancel();
-        oldCts?.Dispose();
+        if (oldCts is not null)
+        {
+            await oldCts.CancelAsync();
+            oldCts.Dispose();
+        }
 
         try
         {
@@ -616,7 +608,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         ClassBrowser.Filter is { Length: > 0 } f ? f : null,
         false);
 
-    internal void AutoSelectFirstChangedEntity()
+    private void AutoSelectFirstChangedEntity()
     {
         if (FirstChangedEntity is null)
         {
@@ -634,7 +626,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     ///     Repopulates <see cref="EntityFieldNodes" /> from <see cref="AllEntityFieldNodes" />,
     ///     applying the delta-only filter when <see cref="ShowDeltaFieldsOnly" /> is set.
     /// </summary>
-    internal void FilterAndSetEntityFieldNodes()
+    private void FilterAndSetEntityFieldNodes()
     {
         EntityFieldNodes.Clear();
         if (AllEntityFieldNodes is null)
@@ -652,9 +644,9 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     }
 
     /// <summary>Internal helper used by MainViewModel to raise <see cref="EntitiesRefreshed" />.</summary>
-    internal void RaiseEntitiesRefreshed() => EntitiesRefreshed?.Invoke();
+    private void RaiseEntitiesRefreshed() => EntitiesRefreshed?.Invoke();
 
-    internal void RebuildEntityGroups(EntityTracker tracker)
+    private void RebuildEntityGroups(EntityTracker tracker)
     {
         List<EntityGroup> grouped = LiveEntities(tracker)
             .GroupBy(e => Categorise(e.ClassName))
@@ -672,7 +664,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         RebuildEntityListItems(tracker, null);
     }
 
-    internal void RebuildEntityGroupsWithDelta(
+    private void RebuildEntityGroupsWithDelta(
         EntityTracker tracker,
         Dictionary<int, Dictionary<string, object?>> prevSnapshot)
     {
@@ -758,7 +750,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         RebuildEntityListItems(tracker, prevSnapshot);
     }
 
-    internal void RebuildEntityListItems(
+    private void RebuildEntityListItems(
         EntityTracker tracker,
         Dictionary<int, Dictionary<string, object?>>? prevSnapshot)
     {
@@ -846,7 +838,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     ///     <see cref="ShowDormantEntities" /> filter. Used as the partial handler for
     ///     <c>OnShowDormantEntitiesChanged</c>; safe to call any time.
     /// </summary>
-    internal void RefreshEntityView()
+    private void RefreshEntityView()
     {
         if (CurrentTrackerInternal is not { } tracker)
         {
@@ -863,7 +855,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         }
     }
 
-    internal void UpdateWatchedValues(EntityTracker tracker)
+    private void UpdateWatchedValues(EntityTracker tracker)
     {
         foreach (WatchedValue w in WatchedValues)
         {
@@ -873,31 +865,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 ? MainViewModel.FormatValue(v)
                 : "<not found>";
         }
-    }
-
-    // ── Watched-field commands ────────────────────────────────────────────────
-    internal void WatchField(EntityState entity, string fieldKey)
-    {
-        if (WatchedValues.Any(w => w.EntityClassName == entity.ClassName
-                                   && w.EntitySerial == entity.Serial
-                                   && w.FieldKey == fieldKey))
-        {
-            return;
-        }
-
-        WatchedValue wv = null!;
-        wv = new WatchedValue
-        {
-            Label = $"{entity.ClassName}.{fieldKey}",
-            EntityClassName = entity.ClassName,
-            EntitySerial = entity.Serial,
-            FieldKey = fieldKey,
-            CurrentValue = entity.Fields.TryGetValue(fieldKey, out object? v)
-                ? MainViewModel.FormatValue(v)
-                : "",
-            RemoveCommand = new RelayCommand(() => WatchedValues.Remove(wv))
-        };
-        WatchedValues.Add(wv);
     }
 
     private void ApplyClassFilterToNodes()
@@ -1042,8 +1009,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 {
                     Name = kv.Key,
                     Value = currVal,
-                    PreviousValue = prevVal,
-                    WatchCommand = new RelayCommand(() => WatchField(entity, kv.Key))
+                    PreviousValue = prevVal
                 };
             })
         ];
@@ -1062,7 +1028,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         // selected entity's serializer schema in the bottom strip.
         List<(string Field, string Prev, string Curr)> changes = AllEntityFieldNodes
             .Where(n => n.IsDelta)
-            .Select(n => (n.Name, n.PreviousValue ?? "", n.Value ?? ""))
+            .Select(n => (n.Name, n.PreviousValue ?? "", n.Value))
             .ToList();
         DeltaLog.Show(CurrentTrackerInternal?.CurrentTick ?? 0,
             $"{entity.ClassName} (serial {entity.Serial})", changes);

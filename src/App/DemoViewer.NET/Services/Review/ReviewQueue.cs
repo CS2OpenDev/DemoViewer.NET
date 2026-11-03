@@ -42,7 +42,6 @@ public sealed class ReviewQueue
     private readonly List<ReviewEntry> _loaded = [];
     private readonly LoadOnce _load;
     private readonly string? _path;
-    private readonly TimeSpan _saveDelay;
     private readonly CoalescedWriter<ReviewEntry[]> _writer;
     private int _deferDepth;
     private bool _deferredChange;
@@ -58,10 +57,10 @@ public sealed class ReviewQueue
         Func<Action, Task>? scheduleLoad = null)
     {
         _path = configRoot is null ? null : Path.Combine(configRoot, FileName);
-        _saveDelay = saveDelay ?? TimeSpan.FromMilliseconds(300);
-        Func<Action, Task> schedule = scheduleSave ?? (drain => Task.Run(drain));
+        TimeSpan delay = saveDelay ?? TimeSpan.FromMilliseconds(300);
+        Func<Action, Task> schedule = scheduleSave ?? Task.Run;
         _writer = new CoalescedWriter<ReviewEntry[]>(Write, _ => { },
-            drain => Task.Delay(_saveDelay).ContinueWith(_ => schedule(drain), TaskScheduler.Default).Unwrap());
+            drain => Task.Delay(delay).ContinueWith(_ => schedule(drain), TaskScheduler.Default).Unwrap());
         _load = new LoadOnce(_path is null ? () => { } : Load);
         if (_path is null)
         {
@@ -69,7 +68,7 @@ public sealed class ReviewQueue
         }
         else
         {
-            _ = (scheduleLoad ?? (load => Task.Run(load)))(_load.Ensure);
+            _ = (scheduleLoad ?? Task.Run)(_load.Ensure);
         }
     }
 
@@ -79,12 +78,10 @@ public sealed class ReviewQueue
         get
         {
             _ = List;
-            return _migration;
+            return field;
         }
-        private set => _migration = value;
+        private set;
     }
-
-    private ReviewQueueMigrationResult? _migration;
 
     /// <summary>Completes when the file has been read (or refused).</summary>
     public Task Loaded => _load.Completion;
@@ -123,7 +120,7 @@ public sealed class ReviewQueue
     public int ClipCount => List.Count(e => e.Kind == ReviewEntryKind.Clip);
 
     /// <summary>How many queued clips nobody has marked reviewed.</summary>
-    public int UnreviewedCount => List.Count(e => e.Kind == ReviewEntryKind.Clip && !e.Reviewed);
+    public int UnreviewedCount => List.Count(e => e is { Kind: ReviewEntryKind.Clip, Reviewed: false });
 
     /// <summary>Marks clips reviewed or not, in one change and one save; ids of title cards are ignored.</summary>
     /// <param name="ids">The clips.</param>
@@ -181,10 +178,10 @@ public sealed class ReviewQueue
 
     /// <summary>
     ///     Writes a pending save now, waiting at most <paramref name="timeout" /> for one in progress. Never
-    ///     throws; false when it could not.
+    ///     throws.
     /// </summary>
     /// <param name="timeout">The wait for a write in progress; infinite when null.</param>
-    public bool Flush(TimeSpan? timeout = null) => _writer.Flush(timeout);
+    public void Flush(TimeSpan? timeout = null) => _writer.Flush(timeout);
 
     /// <summary>The entry with this id, or null.</summary>
     /// <param name="id">The entry's id.</param>
@@ -360,59 +357,6 @@ public sealed class ReviewQueue
         return count;
     }
 
-    /// <summary>
-    ///     Rewrites the queue in one pass and one save: <paramref name="map" /> returns the entry to keep
-    ///     (its id and kind are kept whatever it returns) or null to drop it. Title cards
-    ///     <paramref name="dropWhenEmpty" /> matches are then dropped when no clip is left under them.
-    /// </summary>
-    /// <param name="map">Old entry to new, or null to remove.</param>
-    /// <param name="dropWhenEmpty">Which title cards go when their section is empty; none when null.</param>
-    /// <returns>How many entries changed or went.</returns>
-    public int Reconcile(Func<ReviewEntry, ReviewEntry?> map, Func<ReviewEntry, bool>? dropWhenEmpty = null)
-    {
-        ArgumentNullException.ThrowIfNull(map);
-        int changed = 0;
-        List<ReviewEntry> kept = new(List.Count);
-        foreach (ReviewEntry entry in List)
-        {
-            if (map(entry) is not { } mapped)
-            {
-                changed++;
-                continue;
-            }
-
-            ReviewEntry next = mapped with { Id = entry.Id, Kind = entry.Kind };
-            if (next != entry)
-            {
-                changed++;
-            }
-
-            kept.Add(next);
-        }
-
-        if (dropWhenEmpty is not null)
-        {
-            for (int i = kept.Count - 1; i >= 0; i--)
-            {
-                bool empty = i + 1 >= kept.Count || kept[i + 1].Kind == ReviewEntryKind.Section;
-                if (kept[i].Kind == ReviewEntryKind.Section && empty && dropWhenEmpty(kept[i]))
-                {
-                    kept.RemoveAt(i);
-                    changed++;
-                }
-            }
-        }
-
-        if (changed > 0)
-        {
-            List.Clear();
-            List.AddRange(kept);
-            Commit();
-        }
-
-        return changed;
-    }
-
     /// <summary>Puts a title card at <paramref name="index" />, clamped; at the end when null.</summary>
     /// <param name="title">The card's title.</param>
     /// <param name="index">Where it goes, or null for the end.</param>
@@ -522,7 +466,7 @@ public sealed class ReviewQueue
     /// <param name="id">The entry.</param>
     /// <param name="edit">The new value from the old.</param>
     /// <returns>False when the id is not in the queue.</returns>
-    public bool Update(Guid id, Func<ReviewEntry, ReviewEntry> edit)
+    private bool Update(Guid id, Func<ReviewEntry, ReviewEntry> edit)
     {
         ArgumentNullException.ThrowIfNull(edit);
         int index = IndexOf(id);

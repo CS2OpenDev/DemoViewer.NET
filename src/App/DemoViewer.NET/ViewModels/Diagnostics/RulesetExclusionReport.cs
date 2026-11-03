@@ -105,7 +105,7 @@ internal static class RulesetExclusionReport
         const int Cap = 5;
         IEnumerable<string> lines = diagnostics
             .Take(Cap)
-            .Select(d => d.Position is { } pos ? $"[{d.Code}] {d.Message} ({pos})" : $"[{d.Code}] {d.Message}");
+            .Select(d => $"[{d.Code}] {d.Message} ({d.Position})");
         string body = string.Join("; ", lines);
         return diagnostics.Count > Cap
             ? $"{body}; +{diagnostics.Count - Cap} more"

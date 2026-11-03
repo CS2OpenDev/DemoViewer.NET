@@ -18,21 +18,16 @@ public sealed partial class HubTabViewModel : ObservableObject, IWorkspaceTabVie
     [ObservableProperty]
     private bool _isRailCollapsed;
 
-    /// <param name="hubId">The id sections name as their host.</param>
     /// <param name="header">The strip header, which also names the rail's collapse buttons.</param>
     /// <param name="railLabel">The band over the rail.</param>
-    public HubTabViewModel(string hubId, string header, string railLabel)
+    public HubTabViewModel(string header, string railLabel)
     {
-        HubId = hubId;
         Header = header;
         RailLabel = railLabel;
     }
 
-    /// <summary>The id sections name as their host.</summary>
-    public string HubId { get; }
-
     /// <summary>The strip header.</summary>
-    public string Header { get; }
+    private string Header { get; }
 
     /// <summary>The band over the rail.</summary>
     public string RailLabel { get; }

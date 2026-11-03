@@ -199,8 +199,10 @@ public class DemoSchedulerTests
         using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline, _ => Synthetic());
         Fake thrower = new("thrower", onEvaluate: _ => throw new InvalidOperationException("boom"));
         ConcurrentQueue<(string Id, string? Path)> reported = new();
-        using DemoScheduler scheduler = new([thrower], queue, () => _oneDemo);
-        scheduler.Faulted = (id, path, _) => reported.Enqueue((id, path));
+        using DemoScheduler scheduler = new([thrower], queue, () => _oneDemo)
+        {
+            Faulted = (id, path, _) => reported.Enqueue((id, path))
+        };
 
         scheduler.DemoChanged("/x/demo.dem");
         await WaitFor(() => !reported.IsEmpty && !scheduler.HasOutstanding("thrower"), "the throwing run");

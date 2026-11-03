@@ -214,8 +214,10 @@ public class LibraryTeamTablesTests
         try
         {
             AnalysisRun? served = null;
-            using DemoLibraryService library = new(a => a(), json);
-            library.TeamRun = (_, _) => served;
+            using DemoLibraryService library = new(a => a(), json)
+            {
+                TeamRun = (_, _) => served
+            };
             library.IndexTier2Core(Entry(), MergedRulesBuildTests.TwoFrameDemo());
             int withoutRun = replays;
             ParsedDemo parsed = MergedRulesBuildTests.TwoFrameDemo();

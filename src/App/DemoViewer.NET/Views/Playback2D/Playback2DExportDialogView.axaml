@@ -84,9 +84,9 @@
             </ComboBox>
             <CheckBox Content="Custom size" IsChecked="{Binding UseCustomSize}" FontSize="11" />
             <WrapPanel ItemSpacing="8" LineSpacing="6" IsVisible="{Binding UseCustomSize}">
-                <TextBox Width="90" Text="{Binding CustomWidthText}" Watermark="width" />
+                <TextBox Width="90" Text="{Binding CustomWidthText}" PlaceholderText="width" />
                 <TextBlock Text="×" VerticalAlignment="Center" />
-                <TextBox Width="90" Text="{Binding CustomHeightText}" Watermark="height" />
+                <TextBox Width="90" Text="{Binding CustomHeightText}" PlaceholderText="height" />
                 <TextBlock VerticalAlignment="Center" FontSize="11"
                            Foreground="{DynamicResource Pb2dTextDim}"
                            Text="Odd values snap down — webm/mp4 need even dimensions." />
@@ -168,7 +168,7 @@
                                              Foreground="{DynamicResource Pb2dTextDim}" />
                     </ScrollViewer>
                     <WrapPanel ItemSpacing="8" LineSpacing="6">
-                        <Button Content="Accept and install" Classes="accent"
+                        <Button Content="Accept and install"
                                 Command="{Binding AcceptFfmpegLicenseCommand}" />
                         <Button Content="Decline" Command="{Binding DeclineFfmpegLicenseCommand}" />
                     </WrapPanel>
@@ -193,6 +193,6 @@
                    TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Pb2dTeamT}" />
 
         <Button x:Name="ExportStartButton" Content="Export" Command="{Binding StartCommand}"
-                HorizontalAlignment="Left" Classes="accent" />
+                HorizontalAlignment="Left" />
     </StackPanel>
 </UserControl>

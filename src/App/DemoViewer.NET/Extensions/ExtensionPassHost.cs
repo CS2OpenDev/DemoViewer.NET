@@ -24,10 +24,10 @@ namespace DemoViewer.NET.Extensions;
 internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectingPass
 {
     /// <summary>How long a run may take before it counts as an overrun.</summary>
-    public static readonly TimeSpan DefaultBudget = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan _defaultBudget = TimeSpan.FromMinutes(5);
 
     /// <summary>Overruns in a session that switch the pass off.</summary>
-    public const int DefaultMaxOverruns = 3;
+    private const int DefaultMaxOverruns = 3;
 
     private static ILogger? _log;
 
@@ -44,7 +44,7 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
     /// <param name="after">The pass ids it runs after, as registered.</param>
     /// <param name="guard">The extension's guard.</param>
     /// <param name="onUiThread">True on the UI thread; the dispatcher's check when null.</param>
-    /// <param name="budget">How long a run may take; <see cref="DefaultBudget" /> when null.</param>
+    /// <param name="budget">How long a run may take; <see cref="_defaultBudget" /> when null.</param>
     /// <param name="maxOverruns">Overruns that switch the pass off for the session.</param>
     /// <param name="collectors">The collectors the extension registered for this pass.</param>
     /// <param name="tableRulesets">The qualified ids of the extension's rulesets whose tables this pass reads.</param>
@@ -60,7 +60,7 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
         After = after ?? throw new ArgumentNullException(nameof(after));
         _guard = guard ?? throw new ArgumentNullException(nameof(guard));
         _onUiThread = onUiThread ?? (static () => Dispatcher.UIThread.CheckAccess());
-        _budget = budget ?? DefaultBudget;
+        _budget = budget ?? _defaultBudget;
         _maxOverruns = Math.Max(1, maxOverruns);
         // Read once: a throwing getter makes the factory fail, which the registry reports.
         Id = inner.Id;

@@ -75,7 +75,7 @@ public sealed partial class MapsSectionViewModel : PlayerOverviewSection
     /// <summary>One row per map of <paramref name="demos" />, most demos first, then by name.</summary>
     /// <param name="demos">The window's demos.</param>
     /// <param name="ranks">Each map's latest Competitive rank over all the subject's demos; null before the records are read.</param>
-    internal static IReadOnlyList<MapRowItem> Build(IReadOnlyList<PlayerDemo> demos,
+    private static IReadOnlyList<MapRowItem> Build(IReadOnlyList<PlayerDemo> demos,
         IReadOnlyDictionary<string, MapRankItem>? ranks = null) =>
     [
         .. demos.GroupBy(d => d.Match.Row.Map ?? "", StringComparer.OrdinalIgnoreCase)
@@ -86,7 +86,7 @@ public sealed partial class MapsSectionViewModel : PlayerOverviewSection
 
     /// <summary>What the section says when some matches with stats have no rounds by side yet; empty when all do.</summary>
     /// <param name="window">The window, pooled.</param>
-    internal static string NoteOf(PlayerAggregate window) =>
+    private static string NoteOf(PlayerAggregate window) =>
         window.WithSides >= window.WithStats
             ? ""
             : window.WithSides == 0

@@ -83,6 +83,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     private double _pixelWidth;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PlayheadOffset))]
     private double _playheadX;
 
     [ObservableProperty]
@@ -103,9 +104,6 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     /// <summary>The registered tracks' toggles, in registration order (which is display order).</summary>
     public IReadOnlyList<TimelineTrackToggle> Tracks => _toggles;
 
-    /// <summary>The registered tracks themselves, in registration order, the tab's and the lanes'.</summary>
-    public IReadOnlyList<ITimelineTrack> RegisteredTracks => _tracks;
-
     /// <summary>The lanes added through <see cref="RegisterLane" />, in registration order.</summary>
     public IReadOnlyList<IHostLaneHandle> Lanes => _lanes;
 
@@ -116,7 +114,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     internal IReadOnlyList<TimelineBand> BuiltBands => _builtBands;
 
     /// <summary>The data the bands were last built from, or null before the first <see cref="Rebuild" />.</summary>
-    public ITimelineData? Data { get; private set; }
+    private ITimelineData? Data { get; set; }
 
     /// <summary>The laid-out round bands. Rebuilt on <see cref="Rebuild" /> and on a width change.</summary>
     public ObservableCollection<TimelineBandViewModel> Bands { get; } = new();
@@ -387,7 +385,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     /// </summary>
     /// <param name="trackId">The track. Unknown ids are ignored.</param>
     /// <param name="suppressed">True to hide it.</param>
-    public void SetTrackSuppressed(string trackId, bool suppressed)
+    private void SetTrackSuppressed(string trackId, bool suppressed)
     {
         bool changed = suppressed ? _suppressed.Add(trackId) : _suppressed.Remove(trackId);
         if (!changed)
@@ -484,9 +482,9 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     public void PressBand(TimelineBandViewModel band)
     {
         ArgumentNullException.ThrowIfNull(band);
-        if (Data is { } data && LaneFor(band.TrackId)?.Behaviour is { } behaviour)
+        if (Data is not null && LaneFor(band.TrackId)?.Behaviour is { } behaviour)
         {
-            behaviour.OnBandPressed(band, data);
+            behaviour.OnBandPressed(band);
         }
 
         RequestSeekToFrame(band.StartFrameIndex);
@@ -527,9 +525,9 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     {
         ArgumentNullException.ThrowIfNull(band);
         List<MenuEntry> entries = [];
-        if (Data is { } data && LaneFor(band.TrackId)?.Behaviour is { } behaviour)
+        if (Data is not null && LaneFor(band.TrackId)?.Behaviour is { } behaviour)
         {
-            entries.AddRange(behaviour.MenuFor(band, data));
+            entries.AddRange(behaviour.MenuFor(band));
         }
 
         foreach (Func<TimelineBandViewModel, IEnumerable<MenuEntry>> contributor in BandMenus)
@@ -648,7 +646,6 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
         : IHostLaneHandle
     {
         private (int Start, int End)? _editSpan;
-        private bool _isEditable;
 
         public IHostLaneBehaviour? Behaviour => behaviour;
 
@@ -662,15 +659,15 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
 
         public bool IsEditable
         {
-            get => _isEditable;
+            get;
             set
             {
-                if (_isEditable == value)
+                if (field == value)
                 {
                     return;
                 }
 
-                _isEditable = value;
+                field = value;
                 owner.RaiseLaneEditing();
             }
         }
@@ -771,8 +768,6 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
         Relayout();
         PlayheadX = XForFrame(CurrentFrameIndex);
     }
-
-    partial void OnPlayheadXChanged(double value) => OnPropertyChanged(nameof(PlayheadOffset));
 
     private void OnToggleChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -968,7 +963,6 @@ public sealed class TimelineMarkerViewModel
     internal TimelineMarkerViewModel(TimelineMarker marker, double x, IBrush brush, string tooltip)
     {
         TrackId = marker.TrackId;
-        FrameIndex = marker.FrameIndex;
         Tick = marker.Tick;
         Kind = marker.Kind;
         Glyph = marker.Glyph;
@@ -979,9 +973,6 @@ public sealed class TimelineMarkerViewModel
 
     /// <summary>The producing track's stable id.</summary>
     public string TrackId { get; }
-
-    /// <summary>The frame this marker sits on (the layout axis).</summary>
-    public int FrameIndex { get; }
 
     /// <summary>The server tick the event fired at.</summary>
     public int Tick { get; }
@@ -1021,8 +1012,8 @@ public sealed class TimelineMarkerViewModel
     /// <summary>Resolved from the marker's ARGB, or from the theme token for its kind.</summary>
     public IBrush Brush { get; }
 
-    /// <summary>Left offset in px on the scrub bar.</summary>
-    public double X { get; }
+    // Left offset in px on the scrub bar.
+    private double X { get; }
 
     /// <summary>The same offset as a left margin.</summary>
     public Thickness Offset => new(X, 0, 0, 0);

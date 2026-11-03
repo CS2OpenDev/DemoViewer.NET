@@ -70,10 +70,11 @@
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextCardHeader}"
                                                TextTrimming="CharacterEllipsis" />
-                                    <ui:GameIcon Grid.Column="1" x:Name="MapRankBadge" Key="{Binding Rank.BadgeKey}"
+                                    <ui:GameIcon Grid.Column="1" x:Name="MapRankBadge"
+                                                 Key="{Binding Rank.BadgeKey, FallbackValue={x:Null}}"
                                                  IconHeight="22"
                                                  VerticalAlignment="Center" IsVisible="{Binding HasRank}"
-                                                 ToolTip.Tip="{Binding Rank.Tooltip}" />
+                                                 ToolTip.Tip="{Binding Rank.Tooltip, FallbackValue={x:Null}}" />
                                 </Grid>
 
                                 <DockPanel>

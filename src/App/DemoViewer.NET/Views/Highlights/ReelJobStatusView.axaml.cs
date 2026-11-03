@@ -24,20 +24,14 @@ public partial class ReelJobStatusView : UserControl
 
     private async void OnCopyErrorClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not ReelJobStatusViewModel vm)
-        {
-            return;
-        }
-
-        IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        if (clipboard is null)
-        {
-            return; // no clipboard host (designer / degraded): the SelectableTextBlock is the fallback
-        }
-
         try
         {
-            await clipboard.SetTextAsync(vm.CopyDiagnosticsText);
+            // No clipboard host (designer / degraded) copies nothing: the SelectableTextBlock is the fallback.
+            if (DataContext is ReelJobStatusViewModel vm
+                && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(vm.CopyDiagnosticsText);
+            }
         }
         catch (Exception)
         {

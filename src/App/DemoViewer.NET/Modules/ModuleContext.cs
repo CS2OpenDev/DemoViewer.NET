@@ -131,7 +131,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
     ///         capability the shell hands one tab explicitly, exactly like <see cref="SetLiveSyncHud" />.
     ///     </para>
     /// </summary>
-    public Playback2DExportHost? ExportHost { get; private set; }
+    private Playback2DExportHost? ExportHost { get; set; }
 
     /// <inheritdoc />
     public ParsedDemo? CurrentDemo { get; private set; }
@@ -360,7 +360,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
     ///     <see cref="GetService{T}" /> call, so a host wired or swapped after this call is still the
     ///     current one. Last registration for a type wins.
     /// </summary>
-    public void RegisterService<T>(Func<T?> resolve) where T : class => _serviceLookups[typeof(T)] = () => resolve();
+    public void RegisterService<T>(Func<T?> resolve) where T : class => _serviceLookups[typeof(T)] = resolve;
 
     /// <inheritdoc />
     public T? GetService<T>() where T : class

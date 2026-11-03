@@ -29,8 +29,7 @@ public class ThemeReloadTests
     public async Task ThemeJson_ParsesIdNameBaseTokens()
     {
         ThemeDefinition? def = ThemeJson.TryParse(
-            """{ "id": "egirl", "name": "E-Girl", "base": "dark", "tokens": { "ShellBg": "#0A0008" } }""",
-            "test");
+            """{ "id": "egirl", "name": "E-Girl", "base": "dark", "tokens": { "ShellBg": "#0A0008" } }""");
 
         await Assert.That(def).IsNotNull();
         await Assert.That(def!.Id).IsEqualTo("egirl");
@@ -43,14 +42,14 @@ public class ThemeReloadTests
     public async Task ThemeJson_DegradesGracefully()
     {
         // Unparseable → null.
-        await Assert.That(ThemeJson.TryParse("{ not json", "test")).IsNull();
+        await Assert.That(ThemeJson.TryParse("{ not json")).IsNull();
         // No id → null (cannot be persisted/resolved).
-        await Assert.That(ThemeJson.TryParse("""{ "name": "x" }""", "test")).IsNull();
+        await Assert.That(ThemeJson.TryParse("""{ "name": "x" }""")).IsNull();
 
         // A bad token hex is skipped; the rest of the file still loads. Missing base defaults to dark; missing
         // name defaults to the id.
         ThemeDefinition? def = ThemeJson.TryParse(
-            """{ "id": "partial", "tokens": { "ShellBg": "#123456", "PanelBg": "not-a-colour" } }""", "test");
+            """{ "id": "partial", "tokens": { "ShellBg": "#123456", "PanelBg": "not-a-colour" } }""");
         await Assert.That(def).IsNotNull();
         await Assert.That(def!.DisplayName).IsEqualTo("partial");
         await Assert.That(def.BaseVariant).IsEqualTo(ThemeVariant.Dark);

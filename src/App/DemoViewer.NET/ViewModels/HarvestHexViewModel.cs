@@ -27,7 +27,7 @@ public sealed partial class HarvestHexViewModel : ObservableObject
     public const int ChunkRows = 1024;
 
     /// <summary>Chunks kept live in the ListBox at once (prev + current + next).</summary>
-    public const int VisibleChunks = 3;
+    private const int VisibleChunks = 3;
 
     /// <summary>Maximum rows in the ListBox at any time (3 072 = 49 152 bytes).</summary>
     public const int WindowRows = ChunkRows * VisibleChunks;
@@ -171,10 +171,6 @@ public sealed partial class HarvestHexViewModel : ObservableObject
             ByteClicked?.Invoke(absoluteOffset);
         }
     }
-
-    /// <summary>Scroll so that <paramref name="byteOffset" /> is visible.</summary>
-    public void ScrollToOffset(int byteOffset) =>
-        NavigateToAbsoluteRow(byteOffset / 16);
 
     /// <summary>
     ///     Convenience overload: highlight a single range at Level 0.
@@ -409,12 +405,11 @@ public sealed partial class HarvestHexViewModel : ObservableObject
 
                     cells[i] = new HarvestHexCell(
                         valid ? b.ToString("X2", CultureInfo.InvariantCulture) : "  ",
-                        ac,
                         valid ? ResolveBrush(spans, abs) : null,
                         valid,
                         valid ? abs : -1);
 
-                    ascii[i] = valid ? ac : ' ';
+                    ascii[i] = ac;
                 }
 
                 return new HarvestHexRow(

@@ -136,7 +136,7 @@ public sealed record PlayerBenchmark(int Population, IReadOnlyList<BenchmarkStat
     /// </summary>
     /// <param name="pool">The pool.</param>
     /// <param name="key">A catalogue key, or <see cref="WinRate" />.</param>
-    public static double? ValueOf(PlayerAggregate pool, string key)
+    private static double? ValueOf(PlayerAggregate pool, string key)
     {
         ArgumentNullException.ThrowIfNull(pool);
         if (key == WinRate)

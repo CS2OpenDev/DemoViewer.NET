@@ -12,9 +12,6 @@ namespace DemoViewer.NET.ViewModels.PlayerOverview;
 /// </summary>
 public static class PlayerOverviewLink
 {
-    /// <summary>The entry's label.</summary>
-    public const string Label = "Open player overview";
-
     /// <summary>The tooltip on an entry that offers no action.</summary>
     public const string NoSteamIdTip = "this demo carries no SteamID for this player";
 

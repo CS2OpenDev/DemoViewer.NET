@@ -102,7 +102,8 @@ public sealed class FeatureGate : IFeatureGate, IFeatureSuspension, IDisposable
         RaiseChanged();
     }
 
-    /// <inheritdoc />
+    /// <summary>True while <paramref name="packFeatureId" /> is suspended.</summary>
+    /// <param name="packFeatureId">A pack's master switch.</param>
     public bool IsSuspended(string packFeatureId) => _suspended.Contains(packFeatureId);
 
     /// <inheritdoc />

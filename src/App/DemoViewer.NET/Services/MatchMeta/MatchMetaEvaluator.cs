@@ -164,7 +164,7 @@ public sealed class MatchMetaEvaluator : IDemoEvaluator, IRetainedVisitEvaluator
                 RankOld = Ranked(controller.Ranking),
                 RankSource = RankSource.Controller
             };
-            if (controller.RankType == PremierRankType && controller.Team is 2 or 3 && winner.Value is { } won)
+            if (controller is { RankType: PremierRankType, Team: 2 or 3 } && winner.Value is { } won)
             {
                 bool tie = won == 0, win = won == controller.Team;
                 row.RankNew = Ranked(tie ? controller.PredictedTie :

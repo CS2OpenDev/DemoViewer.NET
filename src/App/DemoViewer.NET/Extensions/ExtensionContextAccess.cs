@@ -45,5 +45,5 @@ internal static class ExtensionContextAccess
     }
 
     /// <summary>The service key <paramref name="extensionId" />'s context is registered under for the host.</summary>
-    public static object KeyFor(string extensionId) => new ExtensionContextKey(extensionId);
+    private static ExtensionContextKey KeyFor(string extensionId) => new(extensionId);
 }

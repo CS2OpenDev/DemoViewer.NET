@@ -116,7 +116,7 @@ public partial class LibraryTabView : UserControl
     // now-obsolete e.Data.GetFiles(); TryGetFiles is desktop-only, which suits the desktop drag-drop path.
     private static string? FirstDemoPath(DragEventArgs e)
     {
-        IEnumerable<IStorageItem>? items = e.DataTransfer?.TryGetFiles();
+        IEnumerable<IStorageItem>? items = e.DataTransfer.TryGetFiles();
         if (items is null)
         {
             return null;

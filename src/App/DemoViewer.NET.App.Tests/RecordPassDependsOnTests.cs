@@ -118,8 +118,10 @@ public class RecordPassDependsOnTests
         contributions.RecordPass(known.Id, () => known, _kast);
         List<IRecordPass> passes = Resolve(contributions, library);
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue);
-        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
+        using RecordPassRunner runner = new(() => passes, store, queue)
+        {
+            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
+        };
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         Stamp(store, "kast", 1);
@@ -148,8 +150,10 @@ public class RecordPassDependsOnTests
         contributions.RecordPass(barrier.Id, () => barrier);
         List<IRecordPass> passes = Resolve(contributions, library);
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue);
-        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
+        using RecordPassRunner runner = new(() => passes, store, queue)
+        {
+            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
+        };
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
@@ -176,8 +180,10 @@ public class RecordPassDependsOnTests
         contributions.RecordPass(barrier.Id, () => barrier);
         List<IRecordPass> passes = Resolve(contributions, library);
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue);
-        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
+        using RecordPassRunner runner = new(() => passes, store, queue)
+        {
+            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
+        };
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
@@ -216,8 +222,10 @@ public class RecordPassDependsOnTests
                 ExtensionRecordPassHost.Cached(r, () => library, id => id == index.Owner ? owner : null)())
         ];
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue);
-        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
+        using RecordPassRunner runner = new(() => passes, store, queue)
+        {
+            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
+        };
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
@@ -259,8 +267,10 @@ public class RecordPassDependsOnTests
         contributions.RecordPass(barrier.Id, () => barrier);
         List<IRecordPass> passes = Resolve(contributions, library);
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue);
-        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
+        using RecordPassRunner runner = new(() => passes, store, queue)
+        {
+            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
+        };
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
@@ -285,8 +295,10 @@ public class RecordPassDependsOnTests
                 ExtensionRecordPassHost.Cached(r, () => library, id => id == "test.owner" ? owner : null)())
         ];
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue);
-        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
+        using RecordPassRunner runner = new(() => passes, store, queue)
+        {
+            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
+        };
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");

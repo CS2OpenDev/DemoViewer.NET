@@ -34,9 +34,9 @@ public static class ExtensionSignature
 
     // Domain-separates the signature from any other 32-byte message this key might ever be asked
     // to sign. The signed message is this tag followed by the digest, never the bare digest.
-    private static readonly byte[] DomainTag = Encoding.ASCII.GetBytes("DemoViewer.NET extension signature v1");
+    private static readonly byte[] _domainTag = "DemoViewer.NET extension signature v1"u8.ToArray();
 
-    private static readonly JsonSerializerOptions JsonOptions =
+    private static readonly JsonSerializerOptions _jsonOptions =
         new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     /// <summary>
@@ -135,7 +135,7 @@ public static class ExtensionSignature
         string keyId = KeyId(privateKey.ExportSubjectPublicKeyInfo());
         SignatureFile file = new(AlgorithmName, keyId, Convert.ToBase64String(digest),
             Convert.ToBase64String(signature));
-        return JsonSerializer.Serialize(file, JsonOptions);
+        return JsonSerializer.Serialize(file, _jsonOptions);
     }
 
     /// <summary>
@@ -171,7 +171,7 @@ public static class ExtensionSignature
         byte[] signature;
         try
         {
-            file = JsonSerializer.Deserialize<SignatureFile>(sigText, JsonOptions);
+            file = JsonSerializer.Deserialize<SignatureFile>(sigText, _jsonOptions);
             if (file?.KeyId is null || file.Digest is null || file.Signature is null)
             {
                 return SignatureCheck.Fail(SignatureFailure.Malformed, InvalidDetail,
@@ -237,7 +237,7 @@ public static class ExtensionSignature
     public static string KeyId(byte[] subjectPublicKeyInfo) =>
         Convert.ToHexStringLower(SHA256.HashData(subjectPublicKeyInfo));
 
-    private static byte[] Payload(byte[] digest) => [.. DomainTag, .. digest];
+    private static byte[] Payload(byte[] digest) => [.. _domainTag, .. digest];
 
     // True only when a listed key's id matches the claimed one AND that key verifies the signature.
     // keyKnown is false when no listed key has the claimed id, which the caller reads as "not ours"
@@ -388,13 +388,13 @@ public static class ExtensionSignature
             Signature = signature;
         }
 
-        public string? Alg { get; set; }
+        public string? Alg { get; init; }
 
-        public string? KeyId { get; set; }
+        public string? KeyId { get; init; }
 
-        public string? Digest { get; set; }
+        public string? Digest { get; init; }
 
-        public string? Signature { get; set; }
+        public string? Signature { get; init; }
     }
 }
 
@@ -439,10 +439,6 @@ public sealed record SignatureCheck(bool Verified, SignatureFailure? Failure, st
 /// <summary>A staged directory's signature could not be computed or checked: a cap was exceeded, a link was found, or a file could not be read.</summary>
 public sealed class ExtensionSignatureException : Exception
 {
-    public ExtensionSignatureException()
-    {
-    }
-
     public ExtensionSignatureException(string message) : base(message)
     {
     }

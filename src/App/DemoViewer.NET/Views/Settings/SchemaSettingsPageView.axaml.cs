@@ -18,19 +18,26 @@ public partial class SchemaSettingsPageView : UserControl
     // The folder picker needs the window's storage provider, which only the view can reach.
     private async void OnChooseFolder(object? sender, RoutedEventArgs e)
     {
-        if ((sender as Control)?.DataContext is not FolderSettingRow row
-            || TopLevel.GetTopLevel(this)?.StorageProvider is not { CanPickFolder: true } storage)
+        try
         {
-            return;
-        }
+            if ((sender as Control)?.DataContext is not FolderSettingRow row
+                || TopLevel.GetTopLevel(this)?.StorageProvider is not { CanPickFolder: true } storage)
+            {
+                return;
+            }
 
-        IReadOnlyList<IStorageFolder> picked = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            IReadOnlyList<IStorageFolder> picked = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = row.Label, AllowMultiple = false
+            });
+            if (picked.Count > 0 && picked[0].TryGetLocalPath() is { } path)
+            {
+                row.Path = path;
+            }
+        }
+        catch (Exception)
         {
-            Title = row.Label, AllowMultiple = false
-        });
-        if (picked.Count > 0 && picked[0].TryGetLocalPath() is { } path)
-        {
-            row.Path = path;
+            // A picker the platform refuses leaves the setting as it was.
         }
     }
 }

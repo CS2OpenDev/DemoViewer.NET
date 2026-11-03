@@ -14,9 +14,6 @@ namespace DemoViewer.NET.Modules.Playback2D.Levels;
 /// </summary>
 public sealed partial class LevelChipViewModel : ObservableObject
 {
-    /// <summary>The glyph shown next to a level the map has no baked radar for.</summary>
-    public const string NoRadarGlyph = "⌀";
-
     [ObservableProperty]
     private bool _isActive;
 

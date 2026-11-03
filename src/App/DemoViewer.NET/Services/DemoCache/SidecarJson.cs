@@ -19,7 +19,7 @@ public static class SidecarJson
     private const int MaxTrailerHint = 256 * 1024 * 1024;
 
     /// <summary>True when <paramref name="bytes" /> starts with the gzip magic.</summary>
-    public static bool IsGzip(ReadOnlySpan<byte> bytes) => bytes.Length >= 2 && bytes[0] == 0x1F && bytes[1] == 0x8B;
+    private static bool IsGzip(ReadOnlySpan<byte> bytes) => bytes.Length >= 2 && bytes[0] == 0x1F && bytes[1] == 0x8B;
 
     /// <summary>Compact UTF-8 JSON, gzipped.</summary>
     public static byte[] SerializeGzip<T>(T value, JsonSerializerOptions? options) =>

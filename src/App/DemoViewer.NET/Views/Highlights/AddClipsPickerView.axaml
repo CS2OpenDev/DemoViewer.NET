@@ -101,7 +101,7 @@
             <!-- ══ Filter bar — the four orphaned filters (WrapPanel reflows at narrow width) ══ -->
             <Border DockPanel.Dock="Top" Padding="10 8" Background="{DynamicResource PanelHeaderBg}">
                 <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBox Text="{Binding SearchText}" Watermark="Search map, player, file…"
+                    <TextBox Text="{Binding SearchText}" PlaceholderText="Search map, player, file…"
                              FontSize="12" Margin="0 3 8 3" MinWidth="200" MaxWidth="300"
                              VerticalAlignment="Center" />
 

@@ -85,7 +85,7 @@ internal sealed class NotificationCenter
     }
 
     /// <summary>Applies every pending post and dismiss. UI thread.</summary>
-    internal void Drain()
+    private void Drain()
     {
         List<(Source Source, List<Pending> Ops)> work = [];
         lock (_gate)
@@ -152,7 +152,7 @@ internal sealed class NotificationCenter
     internal void Close(NotificationCardViewModel card) => Cards.Remove(card);
 
     /// <summary>Closes every card whose extension's feature is off. UI thread.</summary>
-    internal void Recheck()
+    private void Recheck()
     {
         foreach (NotificationCardViewModel card in Cards.ToArray())
         {
@@ -260,11 +260,6 @@ internal sealed class NotificationCenter
                     dropped |= _pending[0].Notification is not null;
                     _pending.RemoveAt(0);
                 }
-
-                if (dropped)
-                {
-                    Dropped++;
-                }
             }
 
             if (dropped)
@@ -315,9 +310,6 @@ internal sealed class NotificationCenter
                 // A logger that throws must not reach the extension's post.
             }
         }
-
-        /// <summary>How many posts dropped something to the cap before it was shown.</summary>
-        internal int Dropped { get; private set; }
     }
 }
 
@@ -374,6 +366,10 @@ public sealed partial class NotificationCardViewModel : ObservableObject
 
     /// <summary>How the card is tinted: info, success, warning or error.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsInfo))]
+    [NotifyPropertyChangedFor(nameof(IsSuccess))]
+    [NotifyPropertyChangedFor(nameof(IsWarning))]
+    [NotifyPropertyChangedFor(nameof(IsError))]
     private NotificationSeverity _severity;
 
     /// <summary>The card's one-line headline.</summary>
@@ -410,14 +406,6 @@ public sealed partial class NotificationCardViewModel : ObservableObject
 
     /// <summary>True for an <see cref="NotificationSeverity.Error" /> card.</summary>
     public bool IsError => Severity == NotificationSeverity.Error;
-
-    partial void OnSeverityChanged(NotificationSeverity value)
-    {
-        OnPropertyChanged(nameof(IsInfo));
-        OnPropertyChanged(nameof(IsSuccess));
-        OnPropertyChanged(nameof(IsWarning));
-        OnPropertyChanged(nameof(IsError));
-    }
 
     internal void Apply(Notification notification, DateTimeOffset? expiresAt)
     {

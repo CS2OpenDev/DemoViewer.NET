@@ -104,10 +104,10 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     private readonly ExportDialogScene _scene;
 
     [ObservableProperty]
-    private string _customHeightText = "1080";
+    private string _customHeightText;
 
     [ObservableProperty]
-    private string _customWidthText = "1920";
+    private string _customWidthText;
 
     private CancellationTokenSource? _downloadCts;
 
@@ -134,7 +134,7 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     private string? _ffmpegLicenseText;
 
     [ObservableProperty]
-    private bool _includeAnnotations = true;
+    private bool _includeAnnotations;
 
     /// <summary>
     ///     The master HUD switch, persisted as the original <c>ExportIncludeHud</c>.
@@ -146,19 +146,19 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     ///     </para>
     /// </summary>
     [ObservableProperty]
-    private bool _includeHud = true;
+    private bool _includeHud;
 
     /// <summary>Whether <c>hud.clock</c> (the score, round and countdown strip) is burned in.</summary>
     [ObservableProperty]
-    private bool _includeHudClock = true;
+    private bool _includeHudClock;
 
     /// <summary>Whether <c>hud.killfeed</c> is burned in.</summary>
     [ObservableProperty]
-    private bool _includeHudKillFeed = true;
+    private bool _includeHudKillFeed;
 
     /// <summary>Whether <c>hud.roster</c> (the player cards down both edges) is burned in.</summary>
     [ObservableProperty]
-    private bool _includeHudRoster = true;
+    private bool _includeHudRoster;
 
     [ObservableProperty]
     private bool _includeVision;
@@ -192,19 +192,19 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     private string? _noticeBanner;
 
     [ObservableProperty]
-    private string _outputPath = string.Empty;
+    private string _outputPath;
 
     [ObservableProperty]
-    private string _selectedEncoder = EncoderLadder.Auto;
+    private string _selectedEncoder;
 
     [ObservableProperty]
-    private string _selectedFormat = ExportFormats.WebM;
+    private string _selectedFormat;
 
     [ObservableProperty]
     private int _selectedFps = 60;
 
     [ObservableProperty]
-    private string _selectedQuality = ExportQualities.Standard;
+    private string _selectedQuality;
 
     [ObservableProperty]
     private ExportRangeOption? _selectedRange;
