@@ -22,9 +22,10 @@ Each installer is self-contained: it carries the .NET runtime and the map assets
 is everything. The app updates itself from this repository's releases; you are told about a new
 version and it downloads only when you say so.
 
-Builds are currently **unsigned**, so the first launch needs one extra step: on macOS, right-click
-the app and choose **Open**; on Windows, click **More info → Run anyway** at the SmartScreen
-prompt.
+macOS releases after v0.10.0 are signed with a Developer ID and notarized by Apple, so they open
+normally. Windows builds are **unsigned**, so the first launch needs one extra step: click **More
+info → Run anyway** at the SmartScreen prompt. (v0.10.0 and earlier are unsigned on macOS too: open
+**System Settings → Privacy & Security** and choose **Open Anyway**.)
 
 The other files on a release (`.nupkg`, `RELEASES*`, `releases.*.json`) are what the updater
 reads. You never need to download those by hand.
@@ -36,11 +37,17 @@ build provenance attestation, which proves it was built by this repository's rel
 not changed since. With the [GitHub CLI](https://cli.github.com/):
 
 ```
-gh attestation verify DemoViewer.NET-win-Setup.exe --repo CS2OpenDev/DemoViewer.NET
+gh attestation verify DemoViewer.NET-win-Setup.exe \
+  --repo CS2OpenDev/DemoViewer.NET \
+  --signer-workflow CS2OpenDev/DemoViewer.NET/.github/workflows/release.yml
 ```
 
-Without it, compare the file's hash against `SHA256SUMS` (`sha256sum`, or `Get-FileHash` in
-PowerShell).
+`--signer-workflow` is what pins the claim to the release workflow; `--repo` on its own accepts an
+attestation from any workflow in the repository.
+
+`SHA256SUMS` is attested the same way, so verify it first and then check hashes against it
+(`sha256sum`, or `Get-FileHash` in PowerShell). On its own the checksum file proves nothing: it
+lives on the same release as the files it describes.
 
 ## What it does
 

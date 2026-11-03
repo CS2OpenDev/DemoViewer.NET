@@ -1,6 +1,6 @@
 #!/bin/bash
 # Wraps a self-contained publish into a Velopack install/auto-update package:
-#   Windows → Setup.exe · macOS → .app/.dmg · Linux → AppImage, each with delta updates.
+#   Windows → Setup.exe · macOS → .app + Setup.pkg · Linux → AppImage, each with delta updates.
 #
 #   ./scripts/pack-velopack.sh [RID]
 #
@@ -10,13 +10,21 @@
 # macOS. So run this on each platform (that's why CI is a tri-OS matrix). The RID
 # must match the host OS family; a mismatch is rejected up front.
 #
-# Signing/notarization is DEFERRED: unset identities = unsigned. Flip it on later via
-# these env vars (empty = unsigned, no re-architecture):
-#   DV_SIGN_APP_IDENTITY      subject name of the app-signing cert     (--signAppIdentity)
-#   DV_SIGN_INSTALL_IDENTITY  subject name of the installer cert       (--signInstallIdentity)
-#   DV_SIGN_ENTITLEMENTS      entitlements plist for hardened runtime  (--signEntitlements)
-#   DV_NOTARY_PROFILE         notarytool credential profile name       (--notaryProfile)
-#   DV_VPK_EXTRA_ARGS         escape hatch for anything not modeled (e.g. Windows --signParams)
+# Signing. Unset means unsigned. The DV_MAC_* names are read only for osx-arm64 and one of them on
+# another RID is an error, so this script cannot hand a macOS secret to the Windows vpk. vpk also
+# binds every signing option to a VPK_* variable it reads straight from the environment, which this
+# script has no say over, so those names are refused outright.
+#   macOS (osx-arm64), all of the first three or none:
+#     DV_MAC_SIGN_APP_IDENTITY      "Developer ID Application: ..."   (--signAppIdentity)
+#     DV_MAC_SIGN_INSTALL_IDENTITY  "Developer ID Installer: ..."     (--signInstallIdentity)
+#     DV_MAC_NOTARY_PROFILE         notarytool keychain profile name   (--notaryProfile)
+#     DV_MAC_KEYCHAIN               keychain holding both identities and the profile (--keychain)
+#     DV_MAC_SIGN_ENTITLEMENTS      entitlements plist (--signEntitlements); vpk's .NET default if unset
+#   Windows: none yet; Windows signing is deferred.
+#   DV_REQUIRE_SIGNING=1          fail instead of packing unsigned. release.yml sets it wherever it signs.
+#   DV_PACK_RETRIES               extra `vpk pack` attempts after a notarization network drop
+#                                 (default 1, signed packs only; 0 disables).
+#   DV_VPK_EXTRA_ARGS             escape hatch for anything not modeled
 #
 # Delta updates: vpk diffs against the *.nupkg files already in --outputDir, so keep a
 # release dir warm (download the previous channel release into it in CI) to emit deltas.
@@ -93,6 +101,61 @@ if [ "${DV_BETA:-0}" = "1" ] || [[ "$VERSION" =~ -beta[0-9]+ ]]; then
     echo "beta build: channel $CHANNEL"
 fi
 
+# Signing inputs. The old shared names reached every platform's vpk; refuse them rather than ignore
+# them, so a leftover secret cannot silently produce an unsigned build.
+for old in DV_SIGN_APP_IDENTITY DV_SIGN_INSTALL_IDENTITY DV_SIGN_ENTITLEMENTS DV_NOTARY_PROFILE; do
+    if [ -n "${!old:-}" ]; then
+        echo "ERROR: $old was replaced by the DV_MAC_* variables (see the header of this script)." >&2
+        exit 2
+    fi
+done
+
+# vpk reads these itself (`vpk pack -H` lists them), so they reach it whatever the checks below decide.
+for v in VPK_SIGN_APP_IDENTITY VPK_SIGN_INSTALL_IDENTITY VPK_SIGN_ENTITLEMENTS VPK_NOTARY_PROFILE VPK_KEYCHAIN; do
+    if [ -n "${!v:-}" ]; then
+        echo "ERROR: $v goes straight to vpk and bypasses this script's per-RID signing checks." >&2
+        echo "       Use the DV_MAC_* variables instead." >&2
+        exit 2
+    fi
+done
+
+SIGN_ARGS=()
+MAC_VARS=(DV_MAC_SIGN_APP_IDENTITY DV_MAC_SIGN_INSTALL_IDENTITY DV_MAC_NOTARY_PROFILE DV_MAC_KEYCHAIN DV_MAC_SIGN_ENTITLEMENTS)
+SIGNED=0
+if [ "$RID" = "osx-arm64" ]; then
+    have=0
+    for v in DV_MAC_SIGN_APP_IDENTITY DV_MAC_SIGN_INSTALL_IDENTITY DV_MAC_NOTARY_PROFILE; do
+        if [ -n "${!v:-}" ]; then have=$((have + 1)); fi
+    done
+    # Signed but not notarized is no better than unsigned to Gatekeeper, so it is all three or none.
+    if [ "$have" -ne 0 ] && [ "$have" -ne 3 ]; then
+        echo "ERROR: macOS signing needs DV_MAC_SIGN_APP_IDENTITY, DV_MAC_SIGN_INSTALL_IDENTITY and" >&2
+        echo "       DV_MAC_NOTARY_PROFILE together; only $have of the 3 are set." >&2
+        exit 2
+    fi
+    if [ "$have" -eq 3 ]; then
+        SIGN_ARGS+=(--signAppIdentity "$DV_MAC_SIGN_APP_IDENTITY")
+        SIGN_ARGS+=(--signInstallIdentity "$DV_MAC_SIGN_INSTALL_IDENTITY")
+        SIGN_ARGS+=(--notaryProfile "$DV_MAC_NOTARY_PROFILE")
+        if [ -n "${DV_MAC_KEYCHAIN:-}" ]; then SIGN_ARGS+=(--keychain "$DV_MAC_KEYCHAIN"); fi
+        if [ -n "${DV_MAC_SIGN_ENTITLEMENTS:-}" ]; then SIGN_ARGS+=(--signEntitlements "$DV_MAC_SIGN_ENTITLEMENTS"); fi
+        SIGNED=1
+    fi
+else
+    for v in "${MAC_VARS[@]}"; do
+        if [ -n "${!v:-}" ]; then
+            echo "ERROR: $v is a macOS signing input, but this pack is $RID." >&2
+            exit 2
+        fi
+    done
+fi
+
+if [ "${DV_REQUIRE_SIGNING:-0}" = "1" ] && [ "$SIGNED" != "1" ]; then
+    echo "ERROR: DV_REQUIRE_SIGNING=1, but no signing inputs are set for $RID." >&2
+    exit 2
+fi
+echo "signing: $([ "$SIGNED" = 1 ] && echo "signed and notarized ($RID)" || echo "unsigned")"
+
 # 1. Self-contained publish (+ asset/native layout + guards).
 ./scripts/publish.sh "$RID"
 
@@ -138,16 +201,72 @@ args=(
     --runtime "$RID"
     --outputDir "$REL"
 )
-[ -n "$CHANNEL" ]                      && args+=(--channel             "$CHANNEL")
-[ -n "${DV_SIGN_APP_IDENTITY:-}" ]     && args+=(--signAppIdentity     "$DV_SIGN_APP_IDENTITY")
-[ -n "${DV_SIGN_INSTALL_IDENTITY:-}" ] && args+=(--signInstallIdentity "$DV_SIGN_INSTALL_IDENTITY")
-[ -n "${DV_SIGN_ENTITLEMENTS:-}" ]     && args+=(--signEntitlements    "$DV_SIGN_ENTITLEMENTS")
-[ -n "${DV_NOTARY_PROFILE:-}" ]        && args+=(--notaryProfile       "$DV_NOTARY_PROFILE")
+[ -n "$CHANNEL" ] && args+=(--channel "$CHANNEL")
+# The ${x[@]+...} form: macOS runs this under Apple's bash 3.2, where an empty "${x[@]}" is an
+# unbound-variable error under set -u.
+args+=(${SIGN_ARGS[@]+"${SIGN_ARGS[@]}"})
+
 # shellcheck disable=SC2206
 [ -n "${DV_VPK_EXTRA_ARGS:-}" ] && args+=($DV_VPK_EXTRA_ARGS)
 
+# Notarization is the only part of a pack that waits on the network for tens of minutes, and vpk
+# throws away a signed build when that wait drops. Invalid or Rejected is Apple's verdict on the
+# submission and will not change, so neither is ever retried.
+pack_retryable() {
+    if grep -qE 'status: (Invalid|Rejected)' "$1"; then return 1; fi
+    grep -qE 'NSURLErrorDomain|HTTPError\(statusCode: 5|The request timed out' "$1"
+}
+
+# Apple keeps processing a submission whose wait was interrupted, so report the id rather than
+# leaving a finished notarization unreachable.
+pack_submission_id() {
+    # grep finds nothing when the failure never reached Apple, and set -e must not take the caller out.
+    grep -oE 'submissions/[0-9a-f]{8}-[0-9a-f-]{27}' "$1" | tail -1 | cut -d/ -f2 || true
+}
+
+ATTEMPTS=1
+[ "$SIGNED" = "1" ] && ATTEMPTS=$(( ${DV_PACK_RETRIES:-1} + 1 ))
+PACK_LOG="$(mktemp "${TMPDIR:-/tmp}/vpk-pack.XXXXXX")"
+PACK_SNAP=""
+pack_restore() { [ -n "$PACK_SNAP" ] || return 0; rm -rf "$REL"; cp -Rp "$PACK_SNAP" "$REL"; }
+pack_cleanup() {
+    rm -f "$PACK_LOG"
+    if [ -n "$PACK_SNAP" ]; then rm -rf "$(dirname "$PACK_SNAP")"; fi
+}
+trap pack_cleanup EXIT
+if [ "$ATTEMPTS" -gt 1 ]; then
+    # Restore $REL from a copy, not by deleting what the failed attempt added: vpk may also rewrite
+    # the seeded release metadata in place, and a second pack must not diff against its own output.
+    PACK_SNAP="$(mktemp -d "${TMPDIR:-/tmp}/vpk-rel.XXXXXX")/rel"
+    cp -Rp "$REL" "$PACK_SNAP"
+fi
+
 echo "vpk pack: id=$PACK_ID version=$VERSION rid=$RID channel=${CHANNEL:-<os default>} -> $REL"
-dotnet vpk pack "${args[@]}"
+PACK_TRY=1
+while :; do
+    if dotnet vpk pack "${args[@]}" 2>&1 | tee "$PACK_LOG"; then
+        break
+    fi
+    PACK_RC=${PIPESTATUS[0]}
+    [ "$PACK_RC" -eq 0 ] && PACK_RC=1
+    if [ "$PACK_TRY" -ge "$ATTEMPTS" ] || ! pack_retryable "$PACK_LOG"; then
+        echo "ERROR: vpk pack failed on attempt $PACK_TRY of $ATTEMPTS (exit $PACK_RC)." >&2
+        PACK_SUB="$(pack_submission_id "$PACK_LOG")"
+        if [ -n "$PACK_SUB" ]; then
+            echo "       Apple may still be processing submission $PACK_SUB. Its verdict:" >&2
+            echo "         xcrun notarytool info $PACK_SUB --key <p8> --key-id <id> --issuer <uuid>" >&2
+        fi
+        # A half-written package here becomes a delta base for the next run. Only a pack with
+        # retries enabled holds a snapshot to restore from.
+        pack_restore
+        exit "$PACK_RC"
+    fi
+    PACK_TRY=$(( PACK_TRY + 1 ))
+    echo "vpk pack lost its connection while notarizing. Retrying: attempt $PACK_TRY of $ATTEMPTS." >&2
+    echo "       Apple finishes the abandoned submission anyway; nothing needs cleaning up." >&2
+    pack_restore
+    sleep 30
+done
 
 echo "velopack packages:"
 ls -la "$REL"
