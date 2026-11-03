@@ -47,7 +47,7 @@ public class Scene2DHostFrameHostTests
 {
     private const byte BgR = 0x15, BgG = 0x18, BgB = 0x1C;
 
-    private static readonly WorldBounds Mirage = new(-3230, -3410, 1860, 1680);
+    private static readonly WorldBounds _mirage = new(-3230, -3410, 1860, 1680);
 
     [Test]
     public async Task FakeHost_MountsAndRendersMarkers_WithoutATabViewModel()
@@ -125,9 +125,9 @@ public class Scene2DHostFrameHostTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ViewportTransform both = FirstFit(Mirage, Mirage);
-            ViewportTransform observedOnly = FirstFit(Mirage, null);
-            ViewportTransform networkedOnly = FirstFit(WorldBounds.Default, Mirage);
+            ViewportTransform both = FirstFit(_mirage, _mirage);
+            ViewportTransform observedOnly = FirstFit(_mirage, null);
+            ViewportTransform networkedOnly = FirstFit(WorldBounds.Default, _mirage);
 
             Console.WriteLine(
                 $"[fit] scale both={both.EffectiveScale:F6} observedOnly={observedOnly.EffectiveScale:F6} " +
@@ -317,7 +317,7 @@ public class Scene2DHostFrameHostTests
             await Assert.That(contributed).IsTypeOf<StubLayer>();
 
             ArgumentException refused =
-                Assert.Throws<ArgumentException>(() => host.AddLayer("ext.pack.heat", () => new StubLayer("mine")))!;
+                Assert.Throws<ArgumentException>(() => host.AddLayer("ext.pack.heat", () => new StubLayer("mine")));
 
             using (Assert.Multiple())
             {
@@ -553,7 +553,7 @@ public class Scene2DHostFrameHostTests
     {
         Time = new SceneTime(tick, tick, tick / 64.0, 1 / 64.0, discontinuity),
         Markers = markers,
-        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = Mirage, NetworkedBounds = Mirage }
+        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = _mirage, NetworkedBounds = _mirage }
     };
 
     private static PlayerMarker[] OneToken(int slot, int team, float x, float y) => [Token(slot, team, x, y, 64f)];

@@ -23,7 +23,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 [NotInParallel]
 public class ExtensionPlaybackFaultTests
 {
-    private static readonly TimelineBandViewModel RoundBand =
+    private static readonly TimelineBandViewModel _roundBand =
         new(new TimelineBand("round", 0, 10, "7", "round 7", 0), 0, 1, Brushes.Gray);
 
     private static (Playback2DTabViewModel Vm, FaultRig Rig, SdkPlaybackContribution Hosted, ThrowingContribution Fake)
@@ -85,7 +85,7 @@ public class ExtensionPlaybackFaultTests
     {
         (Playback2DTabViewModel vm, FaultRig rig, SdkPlaybackContribution hosted, ThrowingContribution fake) = Attach();
 
-        IReadOnlyList<Sdk.MenuEntry> menu = vm.Timeline.MenuFor(RoundBand);
+        IReadOnlyList<Sdk.MenuEntry> menu = vm.Timeline.MenuFor(_roundBand);
         await Assert.That(menu.Select(m => m.Header))
             .IsEquivalentTo([ThrowingContribution.EntryHeader], CollectionOrdering.Matching)
             .Because("the throwing menu contributed nothing; the good one its entry");
@@ -120,7 +120,7 @@ public class ExtensionPlaybackFaultTests
     [Test]
     public async Task APanelWhoseFactoriesThrow_ShowsThePlaceholder()
     {
-        (Playback2DTabViewModel vm, FaultRig rig, SdkPlaybackContribution hosted, ThrowingContribution fake) = Attach();
+        (Playback2DTabViewModel vm, _, SdkPlaybackContribution hosted, ThrowingContribution fake) = Attach();
 
         fake.Panel!.Open();
         object? content = vm.Surface.Panels.Single().View;

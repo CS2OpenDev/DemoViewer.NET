@@ -68,7 +68,7 @@ public class ZoneOverlayLoadTests
             await RequireNobodyHoldsTheMap();
             using RuleWorkbenchTabViewModel workbench = new();
 
-            (Playback2DTabViewModel vm, _) = ActivatedTab();
+            Playback2DTabViewModel vm = ActivatedTab();
             PlaceResolver? resolver = vm.Zones;
 
             await Assert.That(resolver).IsNotNull();
@@ -102,7 +102,7 @@ public class ZoneOverlayLoadTests
         {
             ZoneOverlayDiagnostics.Reset();
             await RequireNobodyHoldsTheMap();
-            (Playback2DTabViewModel vm, _) = ActivatedTab();
+            Playback2DTabViewModel vm = ActivatedTab();
             LoadedMapAsset? asset = vm.MapAsset;
             await Assert.That(asset).IsNotNull();
 
@@ -184,7 +184,7 @@ public class ZoneOverlayLoadTests
                 .Because("the overlay was saved after the first read");
             await Assert.That(second!.PlaceId("Sandwich")).IsNotNull();
             await Assert.That(second.Zones.HasOverlay).IsTrue();
-            await Assert.That(second.Zones.EffectiveVersion).IsNotEqualTo(first!.Zones.EffectiveVersion);
+            await Assert.That(second.Zones.EffectiveVersion).IsNotEqualTo(first.Zones.EffectiveVersion);
             await Assert.That(ReferenceEquals(lease.RefreshZones(), second)).IsTrue()
                 .Because("an unchanged overlay is not re-read");
             await Assert.That(ReferenceEquals(lease.Zones, second)).IsTrue()
@@ -199,13 +199,13 @@ public class ZoneOverlayLoadTests
         await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(0)
             .Because($"another test is still holding {Map}, so its overlay root is the one in force");
 
-    private static (Playback2DTabViewModel Vm, Playback2DFakeContext Ctx) ActivatedTab()
+    private static Playback2DTabViewModel ActivatedTab()
     {
         Playback2DFakeContext ctx = new() { MapName = Map, Gate = new FakeModuleFeatureGate() };
         ctx.AddPlayer(0, "Alpha", 2);
         Playback2DTabViewModel vm = new();
         vm.OnActivated(ctx);
-        return (vm, ctx);
+        return vm;
     }
 
     private static string RequireBundle()
@@ -232,7 +232,7 @@ public class ZoneOverlayLoadTests
             Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, Path);
         }
 
-        public string Path { get; }
+        private string Path { get; }
 
         public static string WriteOverlay(string json)
         {

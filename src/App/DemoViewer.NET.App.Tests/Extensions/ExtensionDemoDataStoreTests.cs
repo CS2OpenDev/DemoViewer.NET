@@ -70,7 +70,7 @@ public class ExtensionDemoDataStoreTests
                 await Assert.That(store.Stamps("rounds").Single().DemoPath).IsEqualTo(Demo);
                 await Assert.That(store.ReadAny(Demo, "rounds")!.ExtensionVersion).IsEqualTo("1.2.3");
                 await Assert.That(File.Exists(Path.Combine(store.Root, "rounds", "aaaa.json.gz"))).IsTrue();
-                await Assert.That(told.Count == 1 && told[0] == Demo).IsTrue();
+                await Assert.That(told is [Demo]).IsTrue();
             }
         }
         finally
@@ -230,7 +230,7 @@ public class ExtensionDemoDataStoreTests
                 await Assert.That(Encoding.UTF8.GetString(store.Read(Demo, "rounds", 1, "fp-1", "positions")!))
                     .IsEqualTo("one-positions");
                 await Assert.That(Directory.GetFiles(Path.Combine(store.Root, "rounds"))
-                        .Select(f => Path.GetFileName(f)!).Order(StringComparer.Ordinal))
+                        .Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal))
                     .IsEquivalentTo(["cccc.json.gz", "cccc.positions.json.gz"], CollectionOrdering.Matching);
             }
         }
@@ -280,19 +280,19 @@ public class ExtensionDemoDataStoreTests
         string root = NewRoot();
         try
         {
-            const string unhashed = "/demos/new.dem";
+            const string Unhashed = "/demos/new.dem";
             DemoCacheStore library = new(null);
             Seed(library, Demo, "aaaa");
             Seed(library, Other, "bbbb");
-            Seed(library, unhashed, null);
+            Seed(library, Unhashed, null);
             ExtensionDemoDataStore store = NewStore(root, library);
             store.Write(Demo, Rounds("a"));
             store.Write(Other, Rounds("b"));
-            store.Write(unhashed, Rounds("n"));
+            store.Write(Unhashed, Rounds("n"));
 
             library.Detach(Demo);
             library.Detach(Other);
-            library.Detach(unhashed);
+            library.Detach(Unhashed);
             ExtensionDemoDataStore reopened = NewStore(root, library);
 
             using (Assert.Multiple())
@@ -329,10 +329,10 @@ public class ExtensionDemoDataStoreTests
         string root = NewRoot();
         try
         {
-            const string copy = "/mnt/share/a.dem";
+            const string Copy = "/mnt/share/a.dem";
             DemoCacheStore library = new(null);
             Seed(library, Demo, "aaaa");
-            await Assert.That(library.AttachUnconfirmed("aaaa", copy, 10, 20)).IsTrue();
+            await Assert.That(library.AttachUnconfirmed("aaaa", Copy, 10, 20)).IsTrue();
             ExtensionDemoDataStore store = NewStore(root, library);
             store.Write(Demo, Rounds("a"));
 
@@ -343,9 +343,9 @@ public class ExtensionDemoDataStoreTests
             {
                 await Assert.That(File.Exists(Path.Combine(store.Root, "rounds", "aaaa.json.gz"))).IsTrue();
                 await Assert.That(File.Exists(Path.Combine(store.Root, "rounds", "aaaa.positions.json.gz"))).IsTrue();
-                await Assert.That(store.Stamp(copy, "rounds")).IsNull()
+                await Assert.That(store.Stamp(Copy, "rounds")).IsNull()
                     .Because("an unconfirmed path may hold other bytes");
-                await Assert.That(store.Read(copy, "rounds", 1, "fp-1")).IsNull();
+                await Assert.That(store.Read(Copy, "rounds", 1, "fp-1")).IsNull();
                 await Assert.That(store.Stamps("rounds")).IsEmpty();
             }
 
@@ -354,13 +354,13 @@ public class ExtensionDemoDataStoreTests
             await Assert.That(reopened.Stamps("rounds")).IsEmpty();
             await Assert.That(File.Exists(Path.Combine(store.Root, "rounds", "aaaa.json.gz"))).IsTrue();
 
-            await Assert.That(library.ConfirmLocation(copy, "aaaa", 10)).IsTrue();
+            await Assert.That(library.ConfirmLocation(Copy, "aaaa", 10)).IsTrue();
             using (Assert.Multiple())
             {
-                await Assert.That(store.Stamp(copy, "rounds")).IsNotNull();
-                await Assert.That(Encoding.UTF8.GetString(store.Read(copy, "rounds", 1, "fp-1")!)).IsEqualTo("a");
-                await Assert.That(store.Stamps("rounds").Single().DemoPath).IsEqualTo(copy);
-                await Assert.That(Encoding.UTF8.GetString(reopened.Read(copy, "rounds", 1, "fp-1")!)).IsEqualTo("a");
+                await Assert.That(store.Stamp(Copy, "rounds")).IsNotNull();
+                await Assert.That(Encoding.UTF8.GetString(store.Read(Copy, "rounds", 1, "fp-1")!)).IsEqualTo("a");
+                await Assert.That(store.Stamps("rounds").Single().DemoPath).IsEqualTo(Copy);
+                await Assert.That(Encoding.UTF8.GetString(reopened.Read(Copy, "rounds", 1, "fp-1")!)).IsEqualTo("a");
             }
         }
         finally
@@ -378,7 +378,7 @@ public class ExtensionDemoDataStoreTests
         string demo = Path.Combine(root, "replaced.dem");
         try
         {
-            File.WriteAllBytes(demo, new byte[64]);
+            await File.WriteAllBytesAsync(demo, new byte[64]);
             DemoCacheStore library = new(null);
             Seed(library, demo, "aaaa");
             Seed(library, Other, "aaaa");
@@ -410,21 +410,21 @@ public class ExtensionDemoDataStoreTests
         string root = NewRoot();
         try
         {
-            const string copy = "/mnt/share/a.dem";
+            const string Copy = "/mnt/share/a.dem";
             DemoCacheStore library = new(null);
             Seed(library, Demo, "aaaa");
-            await Assert.That(library.AttachUnconfirmed("aaaa", copy, 10, 20)).IsTrue();
+            await Assert.That(library.AttachUnconfirmed("aaaa", Copy, 10, 20)).IsTrue();
             ExtensionDemoDataStore store = NewStore(root, library);
-            store.Write(copy, Rounds("from the copy"));
+            store.Write(Copy, Rounds("from the copy"));
 
-            library.NoteContentRead(copy, "cccc", null, 10, new DateTime(20, DateTimeKind.Local).ToUniversalTime());
+            library.NoteContentRead(Copy, "cccc", null, 10, new DateTime(20, DateTimeKind.Local).ToUniversalTime());
 
             using (Assert.Multiple())
             {
-                await Assert.That(library.LocationOf(copy)?.ContentId).IsEqualTo("cccc");
-                await Assert.That(Encoding.UTF8.GetString(store.Read(copy, "rounds", 1, "fp-1")!))
+                await Assert.That(library.LocationOf(Copy)?.ContentId).IsEqualTo("cccc");
+                await Assert.That(Encoding.UTF8.GetString(store.Read(Copy, "rounds", 1, "fp-1")!))
                     .IsEqualTo("from the copy");
-                await Assert.That(store.Stamp(copy, "rounds")!.Sha256).IsEqualTo("cccc");
+                await Assert.That(store.Stamp(Copy, "rounds")!.Sha256).IsEqualTo("cccc");
                 await Assert.That(store.Read(Demo, "rounds", 1, "fp-1")).IsNull();
             }
         }

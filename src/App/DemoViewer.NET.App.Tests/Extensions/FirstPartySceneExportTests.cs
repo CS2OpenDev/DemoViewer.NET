@@ -17,7 +17,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 /// </summary>
 public class FirstPartySceneExportTests
 {
-    private static readonly SceneExportDefaults Gif = new(ExportFormats.Gif, 20, 640, 640, true, true, true, false);
+    private static readonly SceneExportDefaults _gif = new(ExportFormats.Gif, 20, 640, 640, true, true, true, false);
 
     [Test]
     public async Task TheDialog_TakesTheExtensionsChoices_AndTheSavedFolder_AndSavesOnlyTheFolderOnStart()
@@ -40,7 +40,7 @@ public class FirstPartySceneExportTests
             using HeavyJobGate gate = new();
             FirstPartyExports exports = new(gate, null!, settings);
             RecordingJob job = new();
-            Playback2DExportDialogViewModel dialog = FirstPartySceneExport.NewDialog(exports, Gif,
+            Playback2DExportDialogViewModel dialog = FirstPartySceneExport.NewDialog(exports, _gif,
                 [new ExportRangeOption("all", 0, 99)], job, static (start, end, _, _) => end - start + 1, null,
                 static () => null,
                 new ExportDialogScene("Export scene", "scene", FirstPartySceneExport.SizePresets, null));

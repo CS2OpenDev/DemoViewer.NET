@@ -23,9 +23,9 @@ public class PlayerEventFacetTests
     /// <summary>Set to 1 to rewrite the samples from a real demo through <see cref="PlayerEventRealDemoTests" />.</summary>
     internal const string SampleUpdateVar = "PLAYER_EVENT_SAMPLE_UPDATE";
 
-    private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
+    private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
-    private static readonly string[] Dimensions =
+    private static readonly string[] _dimensions =
         ["match_id", "map", "round_number", "tick", "player_slot", "player_name", "steam_id", "team"];
 
     internal static string SamplePath(string repo, string table) =>
@@ -66,7 +66,7 @@ public class PlayerEventFacetTests
             throw new SkipTestException("repo root not found from the test output directory");
         }
 
-        MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, null));
+        MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, null));
         Dictionary<string, FactTable> tables = [];
         foreach (FactKey key in (FactKey[])[PlayerEventFacet.KillsKey, PlayerEventFacet.DeathsKey])
         {
@@ -77,7 +77,7 @@ public class PlayerEventFacetTests
                     $"missing the {key.Output} sample; regenerate with {SampleUpdateVar}=1 through PlayerEventRealDemoTests");
             }
 
-            string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
             FactTable? table = FactsCodec.Decode(PlayerMatchFacetTests.Gzip(committed));
             IReadOnlyList<string> declared =
             [
@@ -94,7 +94,7 @@ public class PlayerEventFacetTests
                 await Assert.That(string.Join(",", table.Values)).IsEqualTo(string.Join(",", declared))
                     .Because(
                         "the shipped ruleset declares the committed columns, in order; a change is a new facet version");
-                await Assert.That(string.Join(",", table.Dimensions)).IsEqualTo(string.Join(",", Dimensions));
+                await Assert.That(string.Join(",", table.Dimensions)).IsEqualTo(string.Join(",", _dimensions));
                 await Assert.That(table.Rows.Count).IsGreaterThan(0);
                 await Assert.That(table.Rows.All(r => declared.All(r.Values.ContainsKey))).IsTrue();
                 await Assert.That(table.Rows.All(r => r.Dimensions["tick"].Kind == FactValueKind.Whole)).IsTrue();
@@ -120,22 +120,22 @@ public class PlayerEventFacetTests
     [Test]
     public async Task Kills_PairEachKillWithItsDeath()
     {
-        const string a = "76561190000000001", b = "76561190000000002", c = "76561190000000003", d = "76561190000000004";
+        const string A = "76561190000000001", B = "76561190000000002", C = "76561190000000003", D = "76561190000000004";
         FactRow[] kills =
         [
-            Kill(100, 1, a, 2, headshot: true),
-            Kill(100, 1, a, 3, "awp"),
-            Kill(200, 2, b, 4),
-            Kill(300, 3, c, 5),
-            Kill(400, 4, d, 1)
+            Kill(100, 1, A, 2, headshot: true),
+            Kill(100, 1, A, 3, "awp"),
+            Kill(200, 2, B, 4),
+            Kill(300, 3, C, 5),
+            Kill(400, 4, D, 1)
         ];
         FactRow[] deaths =
         [
-            Death(100, 3, c, 1),
-            Death(100, 2, b, 1),
-            Death(200, 4, d, 2),
+            Death(100, 3, C, 1),
+            Death(100, 2, B, 1),
+            Death(200, 4, D, 2),
             Death(300, 5, "0", 3),
-            Death(350, 2, b, 0)
+            Death(350, 2, B, 0)
         ];
 
         List<PlayerKill> joined = PlayerEventFacet.Kills(kills, deaths);
@@ -143,7 +143,7 @@ public class PlayerEventFacetTests
         using (Assert.Multiple())
         {
             await Assert.That(joined.Select(k => (k.Killer, k.Victim)))
-                .IsEquivalentTo(new (string?, string?)[] { (a, b), (a, c), (b, d), (c, null), (d, null) },
+                .IsEquivalentTo(new (string?, string?)[] { (A, B), (A, C), (B, D), (C, null), (D, null) },
                     CollectionOrdering.Matching)
                 .Because(
                     "a collateral pairs by victim slot, a bot victim has no account, and a kill with no death row keeps no victim");
@@ -161,32 +161,32 @@ public class PlayerEventFacetTests
         MergedRulesBuild rules = PlayerMatchParityRealDemoTests.AppRules();
         StampedFacts stamped = new(rules);
         DemoCacheStore cache = new(null);
-        const string path = "/demos/a.dem";
+        const string Path = "/demos/a.dem";
         cache.Upsert(new DemoCacheRecord
         {
-            Path = path,
+            Path = Path,
             Size = 1,
             Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
         });
         FactsEvaluator evaluator = new(cache, stamped);
         AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
-        bool wanted = evaluator.Records(path, PlayerEventFacet.RulesetId);
+        bool wanted = evaluator.Records(Path, PlayerEventFacet.RulesetId);
 
-        evaluator.Evaluate(path, MergedRulesBuildTests.TwoFrameDemo());
-        DemoCacheIndexEntry row = cache.TryGetIndex(path)!;
+        evaluator.Evaluate(Path, MergedRulesBuildTests.TwoFrameDemo());
+        DemoCacheIndexEntry row = cache.TryGetIndex(Path)!;
 
         using (Assert.Multiple())
         {
             await Assert.That(wanted).IsTrue().Because("a parsed demo with no facet is the backlog");
             await Assert.That(facts.Declared).Contains(PlayerEventFacet.KillsKey);
             await Assert.That(facts.Declared).Contains(PlayerEventFacet.DeathsKey);
-            await Assert.That(facts.Status(path, PlayerEventFacet.KillsKey)).IsEqualTo(FactStatus.Current);
-            await Assert.That(facts.Status(path, PlayerEventFacet.DeathsKey)).IsEqualTo(FactStatus.Current);
+            await Assert.That(facts.Status(Path, PlayerEventFacet.KillsKey)).IsEqualTo(FactStatus.Current);
+            await Assert.That(facts.Status(Path, PlayerEventFacet.DeathsKey)).IsEqualTo(FactStatus.Current);
             await Assert.That(row.Stamp(StampedFacts.StampId(PlayerEventFacet.RulesetId))?.State)
                 .IsEqualTo(DemoAnalysisState.Indexed);
             await Assert.That(row.Stamp(StampedFacts.StampId(PlayerEventFacet.RulesetId))?.Fingerprint)
                 .IsNotEqualTo(row.Stamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId))?.Fingerprint);
-            await Assert.That(evaluator.Records(path, PlayerEventFacet.RulesetId)).IsFalse();
+            await Assert.That(evaluator.Records(Path, PlayerEventFacet.RulesetId)).IsFalse();
             await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64)
                 .Because("the facet is stamped on its own, so the highlights stamp never moves");
         }
@@ -204,7 +204,7 @@ public class PlayerEventFacetTests
             string playerMatch = stamped.Fingerprint(PlayerMatchFacet.RulesetId, 64)!;
             string roundFacts = stamped.Fingerprint(RoundFactsFingerprint.RulesetId, 64)!;
 
-            string yaml = await File.ReadAllTextAsync(Path.Combine(Shipped, "player_event.rules.yaml"));
+            string yaml = await File.ReadAllTextAsync(Path.Combine(_shipped, "player_event.rules.yaml"));
             await File.WriteAllTextAsync(Path.Combine(user.FullName, "player_event.rules.yaml"),
                 yaml.Replace("capture: event.Weapon", "capture: event.Weapon\n    keep: last",
                     StringComparison.Ordinal));

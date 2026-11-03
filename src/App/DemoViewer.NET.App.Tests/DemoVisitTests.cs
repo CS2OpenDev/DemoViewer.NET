@@ -356,7 +356,7 @@ public class DemoVisitTests
         using (Assert.Multiple())
         {
             await Assert.That(ended).Contains(("thrower", PassOutcome.Failed, "boom"));
-            await Assert.That(ended.Any(e => e.Item1 == "stopped" && e.Item2 == PassOutcome.Cancelled)).IsTrue();
+            await Assert.That(ended.Any(e => e is { Item1: "stopped", Item2: PassOutcome.Cancelled })).IsTrue();
             await Assert.That(ended).Contains(("fine", PassOutcome.Ran, null));
             await Assert.That(ended).Contains(("onbad", PassOutcome.ParseFailed, "corrupt"));
             await Assert.That(onBad.Failed).IsEquivalentTo(["corrupt"], CollectionOrdering.Matching);

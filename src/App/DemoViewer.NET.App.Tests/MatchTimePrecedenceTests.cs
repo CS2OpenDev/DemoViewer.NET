@@ -18,14 +18,14 @@ namespace DemoViewer.NET.AppTests;
 public class MatchTimePrecedenceTests
 {
     private const string Sha = "sha-matchmeta";
-    private static readonly string Replays = Path.Combine(Path.GetTempPath(), "dv-replays");
-    private static readonly string Library = Path.Combine(Path.GetTempPath(), "dv-library");
-    private static readonly DateTime Played = new(2026, 6, 17, 23, 17, 26, DateTimeKind.Utc);
-    private static readonly DateTime Downloaded = new(2026, 6, 18, 8, 0, 0, DateTimeKind.Utc);
+    private static readonly string _replays = Path.Combine(Path.GetTempPath(), "dv-replays");
+    private static readonly string _library = Path.Combine(Path.GetTempPath(), "dv-library");
+    private static readonly DateTime _played = new(2026, 6, 17, 23, 17, 26, DateTimeKind.Utc);
+    private static readonly DateTime _downloaded = new(2026, 6, 18, 8, 0, 0, DateTimeKind.Utc);
 
     private static DemoCacheRecord Record(string path, string? sha = Sha) => new()
     {
-        Path = path, Size = 100, ModifiedTicks = Downloaded.ToLocalTime().Ticks, Sha256 = sha
+        Path = path, Size = 100, ModifiedTicks = _downloaded.ToLocalTime().Ticks, Sha256 = sha
     };
 
     private sealed class Disk
@@ -51,9 +51,9 @@ public class MatchTimePrecedenceTests
     {
         DemoCacheStore store = new(null);
         Disk disk = new();
-        string demo = Path.Combine(Replays, MatchInfoReaderTests.CommittedName);
+        string demo = Path.Combine(_replays, MatchInfoReaderTests.CommittedName);
         disk.Infos[demo + ".info"] = MatchInfoReaderTests.CommittedInfo();
-        disk.Demos[demo] = Downloaded;
+        disk.Demos[demo] = _downloaded;
         store.Upsert(Record(demo));
 
         Run(store, disk.Pass(store), demo);
@@ -63,12 +63,12 @@ public class MatchTimePrecedenceTests
         using (Assert.Multiple())
         {
             await Assert.That(meta.MatchTimeSource).IsEqualTo(MatchTimeSource.ValveMatchInfo);
-            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(Played.Ticks);
+            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(_played.Ticks);
             await Assert.That(meta.IsApproximate).IsFalse();
             await Assert.That(meta.ReservationId).IsEqualTo("3826256877184877003");
             await Assert.That(meta.OutcomeId).IsEqualTo(981591541);
             await Assert.That(meta.Token).IsEqualTo(410);
-            await Assert.That(row.MatchTimeUtcTicks).IsEqualTo(Played.Ticks).Because("the row mirrors the record");
+            await Assert.That(row.MatchTimeUtcTicks).IsEqualTo(_played.Ticks).Because("the row mirrors the record");
             await Assert.That(row.MatchTimeSource).IsEqualTo(MatchTimeSource.ValveMatchInfo);
             await Assert
                 .That(row.IsPackCurrent(MatchMetaPass.StampId, DemoMatchMeta.CurrentSchema, MatchInfoReader.Version))
@@ -83,8 +83,8 @@ public class MatchTimePrecedenceTests
     {
         DemoCacheStore store = new(null);
         Disk disk = new();
-        string demo = Path.Combine(Library, "faceit-scrim.dem");
-        disk.Demos[demo] = Downloaded;
+        string demo = Path.Combine(_library, "faceit-scrim.dem");
+        disk.Demos[demo] = _downloaded;
         store.Upsert(Record(demo));
 
         Run(store, disk.Pass(store), demo);
@@ -93,7 +93,7 @@ public class MatchTimePrecedenceTests
         using (Assert.Multiple())
         {
             await Assert.That(meta.MatchTimeSource).IsEqualTo(MatchTimeSource.FileWriteTime);
-            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(Downloaded.Ticks);
+            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(_downloaded.Ticks);
             await Assert.That(meta.IsApproximate).IsTrue();
             await Assert.That(meta.ReservationId).IsNull().Because("the name is not a Valve name");
         }
@@ -104,7 +104,7 @@ public class MatchTimePrecedenceTests
     {
         DemoCacheStore store = new(null);
         Disk disk = new();
-        string demo = Path.Combine(Replays, MatchInfoReaderTests.CommittedName);
+        string demo = Path.Combine(_replays, MatchInfoReaderTests.CommittedName);
         disk.Infos[demo + ".info"] = [0x10, 0x80];
         store.Upsert(Record(demo));
 
@@ -114,7 +114,7 @@ public class MatchTimePrecedenceTests
         using (Assert.Multiple())
         {
             await Assert.That(meta.MatchTimeSource).IsEqualTo(MatchTimeSource.FileWriteTime);
-            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(Downloaded.Ticks)
+            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(_downloaded.Ticks)
                 .Because("the record's write time is local ticks");
             await Assert.That(meta.ReservationId).IsEqualTo("3826256877184877003").Because("the name still carries it");
         }
@@ -126,8 +126,8 @@ public class MatchTimePrecedenceTests
         DemoCacheStore store = new(null);
         Disk disk = new();
         MatchMetaPass pass = disk.Pass(store);
-        string original = Path.Combine(Replays, MatchInfoReaderTests.CommittedName);
-        string moved = Path.Combine(Library, "renamed.dem");
+        string original = Path.Combine(_replays, MatchInfoReaderTests.CommittedName);
+        string moved = Path.Combine(_library, "renamed.dem");
         disk.Infos[original + ".info"] = MatchInfoReaderTests.CommittedInfo();
         store.Upsert(Record(original));
         Run(store, pass, original);
@@ -147,31 +147,31 @@ public class MatchTimePrecedenceTests
             await Assert.That(store.TryGetIndex(moved)!.Stamp(MatchMetaPass.StampId)).IsNotNull()
                 .Because("the pass ran again");
             await Assert.That(meta.MatchTimeSource).IsEqualTo(MatchTimeSource.ValveMatchInfo);
-            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(Played.Ticks);
+            await Assert.That(meta.MatchTimeUtcTicks).IsEqualTo(_played.Ticks);
             await Assert.That(meta.ReservationId).IsEqualTo("3826256877184877003")
                 .Because("the new name is not a Valve name");
-            await Assert.That(store.TryGetIndex(moved)!.MatchTimeUtcTicks).IsEqualTo(Played.Ticks);
+            await Assert.That(store.TryGetIndex(moved)!.MatchTimeUtcTicks).IsEqualTo(_played.Ticks);
         }
     }
 
     [Test]
     public async Task Resolve_TakesTheFirstSourcePresent()
     {
-        MatchInfo info = new(Played, 7, [], null);
-        DemoMatchMeta written = MatchMetaPass.Resolve(null, null, null, Downloaded);
+        MatchInfo info = new(_played, 7, [], null);
+        DemoMatchMeta written = MatchMetaPass.Resolve(null, null, null, _downloaded);
         DemoMatchMeta reserved = new() { MatchTimeUtcTicks = 5, MatchTimeSource = MatchTimeSource.UserOverride };
         using (Assert.Multiple())
         {
             await Assert.That(MatchMetaPass.Resolve(null, null, null, null).MatchTimeSource)
                 .IsEqualTo(MatchTimeSource.Unknown);
             await Assert.That(MatchMetaPass.Resolve(null, null, null, null).MatchTimeUtcTicks).IsNull();
-            await Assert.That(MatchMetaPass.Resolve(written, null, info, Downloaded).MatchTimeSource)
+            await Assert.That(MatchMetaPass.Resolve(written, null, info, _downloaded).MatchTimeSource)
                 .IsEqualTo(MatchTimeSource.ValveMatchInfo)
                 .Because("an info file found later beats the write time");
             await Assert.That(MatchMetaPass.Resolve(written, null, null, null).MatchTimeUtcTicks)
-                .IsEqualTo(Downloaded.Ticks)
+                .IsEqualTo(_downloaded.Ticks)
                 .Because("a file gone since keeps the time it was seen with");
-            await Assert.That(MatchMetaPass.Resolve(reserved, null, info, Downloaded).MatchTimeUtcTicks).IsEqualTo(5)
+            await Assert.That(MatchMetaPass.Resolve(reserved, null, info, _downloaded).MatchTimeUtcTicks).IsEqualTo(5)
                 .Because("a reserved higher source is never overwritten");
             await Assert.That(MatchMetaPass.Resolve(null, (9, 1, 2), info, null).ReservationId).IsEqualTo("7")
                 .Because("the info file's reservation id wins over the name's");
@@ -215,8 +215,8 @@ public class MatchTimePrecedenceTests
     {
         DemoCacheStore store = new(null);
         Disk disk = new();
-        string valve = Path.Combine(Replays, MatchInfoReaderTests.CommittedName);
-        string other = Path.Combine(Library, "other.dem");
+        string valve = Path.Combine(_replays, MatchInfoReaderTests.CommittedName);
+        string other = Path.Combine(_library, "other.dem");
         disk.Infos[valve + ".info"] = MatchInfoReaderTests.CommittedInfo();
         store.Upsert(Record(valve));
         store.Upsert(Record(other, "sha-other"));

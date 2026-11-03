@@ -29,7 +29,7 @@ namespace DemoViewer.NET.AppTests;
 public class PlayerOverviewTrendsTests
 {
     private const ulong Grim = PlayerOverviewHistoryTests.Grim;
-    private static readonly string Stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     // Demo i: Grim kills 10 + i over 20 rounds and deals 60 x kills damage, rated 1 + i / 10, so every metric climbs with i.
     private static FactTable Facet(int i)
@@ -70,7 +70,7 @@ public class PlayerOverviewTrendsTests
                 new IdentityAccount(Grim.ToString(CultureInfo.InvariantCulture), null, DateTime.UtcNow)
             ]);
             PlayerRowCache cache = new(store, directory, path =>
-                store.TryGetIndex(path)?.Stamp(Stamp) is { State: DemoAnalysisState.Indexed }
+                store.TryGetIndex(path)?.Stamp(_stamp) is { State: DemoAnalysisState.Indexed }
                     ? Facet(int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture))
                     : null);
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, cache, _ => { },
@@ -78,7 +78,7 @@ public class PlayerOverviewTrendsTests
             Tab.OnActivated(null!);
         }
 
-        public IdentityService Identity { get; }
+        private IdentityService Identity { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public TrendsSectionViewModel Trends => Tab.Reveal<TrendsSectionViewModel>();
 
@@ -231,7 +231,7 @@ public class PlayerOverviewTrendsRenderTests
                 await Assert.That(lines.Length).IsEqualTo(3);
                 await Assert.That(lines.All(l => l.Bounds.Width > 0)).IsTrue();
                 await Assert.That(bars.Length).IsEqualTo(3);
-                await Assert.That(bars.All(b => b.Positive > 0 && b.Extent == TrendsSectionViewModel.FormExtent))
+                await Assert.That(bars.All(b => b is { Positive: > 0, Extent: TrendsSectionViewModel.FormExtent }))
                     .IsTrue();
             }
 

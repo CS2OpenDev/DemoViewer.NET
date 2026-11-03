@@ -21,9 +21,9 @@ public class IdentitySettingsTests
 {
     private const string Main = "76561198000000001";
     private const string Dismissed = "76561198000000009";
-    private static readonly DateTime Added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
 
-    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _indented = new() { WriteIndented = true };
 
     private static string NewTempDir()
     {
@@ -51,14 +51,14 @@ public class IdentitySettingsTests
     {
         settings.Write(s => s.Identity.MigratedFromTeamsJson = true);
         using IdentityService identity = new(settings);
-        identity.SetAccounts([new IdentityAccount(Main, "main", Added)]);
+        identity.SetAccounts([new IdentityAccount(Main, "main", _added)]);
         identity.DismissSuggestion(new IdentitySuggestion(Dismissed, "someone", 30, 0.6));
     }
 
     // Only the Identity section of a settings file, as the sample holds it.
     private static string SectionOf(string settingsJson) =>
         Lf(new JsonObject { ["Identity"] = JsonNode.Parse(settingsJson)!["Identity"]!.DeepClone() }
-            .ToJsonString(Indented));
+            .ToJsonString(_indented));
 
     [Test]
     public async Task V1Schema_MatchesTheCheckedInSamples()
@@ -74,12 +74,12 @@ public class IdentitySettingsTests
         try
         {
             WriteSample(new SettingsService(dir));
-            string json = SectionOf(File.ReadAllText(Path.Combine(dir, "settings.json")));
+            string json = SectionOf(await File.ReadAllTextAsync(Path.Combine(dir, "settings.json")));
             string path = Path.Combine(repo, "tests", "fixtures", "identity", "settings.identity.sample.json");
             if (Environment.GetEnvironmentVariable("IDENTITY_GOLDEN_UPDATE") == "1")
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                File.WriteAllText(path, json);
+                await File.WriteAllTextAsync(path, json);
             }
 
             if (!File.Exists(path))
@@ -87,9 +87,9 @@ public class IdentitySettingsTests
                 throw new SkipTestException("missing the identity sample; regenerate with IDENTITY_GOLDEN_UPDATE=1");
             }
 
-            string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
             // The committed sample as a whole settings file, read through the binder the app reads it with.
-            File.WriteAllText(Path.Combine(back, "settings.json"), committed);
+            await File.WriteAllTextAsync(Path.Combine(back, "settings.json"), committed);
             SettingsService settings = new(back);
             using IdentityService identity = new(settings);
             IdentityAccount account = identity.Accounts.Single();
@@ -99,7 +99,7 @@ public class IdentitySettingsTests
                     .Because("the Identity section is a published format; this build still writes the committed shape");
                 await Assert.That(account.SteamId64).IsEqualTo(Main);
                 await Assert.That(account.Label).IsEqualTo("main");
-                await Assert.That(account.AddedUtc).IsEqualTo(Added);
+                await Assert.That(account.AddedUtc).IsEqualTo(_added);
                 await Assert.That(account.AddedUtc.Kind).IsEqualTo(DateTimeKind.Utc)
                     .Because("the binder reads Z as local time; the service gives UTC");
                 await Assert.That(identity.ActiveSteamId64).IsEqualTo(Main);
@@ -113,7 +113,7 @@ public class IdentitySettingsTests
             // A write through the service over the read-back file leaves the section as committed.
             identity.SetActive(Main);
             identity.SetAccounts([.. identity.Accounts]);
-            await Assert.That(SectionOf(File.ReadAllText(Path.Combine(back, "settings.json")))).IsEqualTo(committed)
+            await Assert.That(SectionOf(await File.ReadAllTextAsync(Path.Combine(back, "settings.json")))).IsEqualTo(committed)
                 .Because("round trip");
         }
         finally
@@ -129,7 +129,7 @@ public class IdentitySettingsTests
         SettingsService settings = new(null);
         WriteSample(settings);
         using IdentityService identity = new(settings);
-        identity.SetAccounts([.. identity.Accounts, new IdentityAccount("76561198000000002", null, Added)]);
+        identity.SetAccounts([.. identity.Accounts, new IdentityAccount("76561198000000002", null, _added)]);
 
         using IdentityService reread = new(settings);
         using (Assert.Multiple())
@@ -138,7 +138,7 @@ public class IdentitySettingsTests
                 .IsEquivalentTo([Main, "76561198000000002"], CollectionOrdering.Matching);
             await Assert.That(reread.Accounts[0].Label).IsEqualTo("main");
             await Assert.That(reread.Accounts[1].Label).IsNull();
-            await Assert.That(reread.Accounts[0].AddedUtc).IsEqualTo(Added);
+            await Assert.That(reread.Accounts[0].AddedUtc).IsEqualTo(_added);
             await Assert.That(reread.ActiveSteamId64).IsEqualTo(Main);
             await Assert.That(reread.DismissedSuggestions).IsEquivalentTo([Dismissed], CollectionOrdering.Matching);
             await Assert.That(settings.Current.Identity.MigratedFromTeamsJson).IsTrue();

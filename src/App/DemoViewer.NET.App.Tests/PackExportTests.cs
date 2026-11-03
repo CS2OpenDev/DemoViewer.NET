@@ -376,23 +376,23 @@ public class PackExportTests
     [Test]
     public async Task TitleCard_IsOneOpaqueFrame_OnTheSceneBackground_WithTheTitleDrawn()
     {
-        const int side = 256;
-        byte[] rgba = PackTitleCardRenderer.Render("A executes", "tuesday scrim", side, ScenePalette.Dark);
+        const int Side = 256;
+        byte[] rgba = PackTitleCardRenderer.Render("A executes", "tuesday scrim", Side, ScenePalette.Dark);
 
         SkiaSharp.SKColor background = ScenePalette.Dark.Background;
         bool drawn = false;
-        for (int p = 0; p < side * side; p++)
+        for (int p = 0; p < Side * Side; p++)
         {
             drawn |= rgba[p * 4] != background.Red;
         }
 
         using (Assert.Multiple())
         {
-            await Assert.That(rgba.Length).IsEqualTo(side * side * 4);
+            await Assert.That(rgba.Length).IsEqualTo(Side * Side * 4);
             await Assert.That(rgba[0]).IsEqualTo(background.Red);
             await Assert.That(rgba[1]).IsEqualTo(background.Green);
             await Assert.That(rgba[2]).IsEqualTo(background.Blue);
-            await Assert.That(Enumerable.Range(0, side * side).All(p => rgba[p * 4 + 3] == 255)).IsTrue();
+            await Assert.That(Enumerable.Range(0, Side * Side).All(p => rgba[p * 4 + 3] == 255)).IsTrue();
             await Assert.That(drawn).IsTrue();
         }
     }

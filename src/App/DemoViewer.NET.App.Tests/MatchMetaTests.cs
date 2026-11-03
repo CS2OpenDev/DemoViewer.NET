@@ -16,7 +16,7 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class MatchMetaTests
 {
-    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _indented = new() { WriteIndented = true };
 
     private static string Lf(string json) => json.Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
 
@@ -32,12 +32,12 @@ public class MatchMetaTests
         DemoMatchMeta meta = MatchMetaPass.Resolve(null, MatchMetaPass.ParseName(MatchInfoReaderTests.CommittedName),
             MatchInfoReader.Read(MatchInfoReaderTests.CommittedInfo()),
             new DateTime(2026, 6, 18, 0, 0, 0, DateTimeKind.Utc));
-        string json = Lf(JsonSerializer.Serialize(meta, Indented));
+        string json = Lf(JsonSerializer.Serialize(meta, _indented));
         string path = Path.Combine(repo, "tests", "fixtures", "match-meta", "match-meta.sample.json");
         if (Environment.GetEnvironmentVariable("MATCH_META_GOLDEN_UPDATE") == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, json);
+            await File.WriteAllTextAsync(path, json);
         }
 
         if (!File.Exists(path))
@@ -45,13 +45,13 @@ public class MatchMetaTests
             throw new SkipTestException("missing the match-meta sample; regenerate with MATCH_META_GOLDEN_UPDATE=1");
         }
 
-        string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         DemoMatchMeta? back = JsonSerializer.Deserialize<DemoMatchMeta>(committed);
         using (Assert.Multiple())
         {
             await Assert.That(json).IsEqualTo(committed)
                 .Because("MatchMeta is a published format; this build still writes the committed shape");
-            await Assert.That(Lf(JsonSerializer.Serialize(back, Indented))).IsEqualTo(json).Because("round trip");
+            await Assert.That(Lf(JsonSerializer.Serialize(back, _indented))).IsEqualTo(json).Because("round trip");
             await Assert.That(new DateTime(back!.MatchTimeUtcTicks!.Value, DateTimeKind.Utc).ToString("O"))
                 .IsEqualTo("2026-06-17T23:17:26.0000000Z");
             await Assert.That(back.MatchTimeSource).IsEqualTo(MatchTimeSource.ValveMatchInfo);

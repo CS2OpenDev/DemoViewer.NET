@@ -38,9 +38,9 @@ public class ThemeEditorTests
 
         public List<string> Used { get; } = [];
 
-        public ThemeVariant? AppVariant { get; set; }
+        public ThemeVariant? AppVariant { get; private set; }
 
-        public int Restores { get; set; }
+        private int Restores { get; set; }
 
         public ThemeEditorHost Build() => new()
         {
@@ -411,7 +411,7 @@ public class ThemeEditorTests
         RecordingWindows windows = new();
         ThemeEditorLauncher launcher = new(windows, new UserThemeStore(registry), new FakeHost().Build());
         ThemeWarningViewModel warning = new(registry, () => selected, () => dismissed, s => dismissed = s,
-            (id, missingOnly) => launcher.Open(id, missingOnly));
+            launcher.Open);
 
         await Assert.That(warning.IsVisible).IsTrue();
         await Assert.That(warning.Message).IsEqualTo(
@@ -510,7 +510,7 @@ public class ThemeEditorTests
             SettingsService svc = new(folder.Root);
             ServiceCollection services = new();
             services.Configure<AppSettings>(svc.Configuration);
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
             ThemeRegistry registry = new();
             registry.Reload();
@@ -535,7 +535,7 @@ public class ThemeEditorTests
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
                 chip[theme.Id] = item.GetVisualDescendants().OfType<TextBlock>()
-                    .Any(t => t.Text == "Built-in" && t.IsEffectivelyVisible);
+                    .Any(t => t is { Text: "Built-in", IsEffectivelyVisible: true });
             }
 
             window.Close();

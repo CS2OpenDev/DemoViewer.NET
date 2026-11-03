@@ -51,7 +51,7 @@ public class MatchOverviewDemoActionTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(requested).IsEquivalentTo(new[] { Demo }, CollectionOrdering.Matching);
+            await Assert.That(requested).IsEquivalentTo([Demo], CollectionOrdering.Matching);
             await Assert.That(row.IsVisible).IsFalse().Because("pressed once, it steps aside");
         }
     }

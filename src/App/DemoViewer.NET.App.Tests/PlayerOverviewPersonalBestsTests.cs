@@ -23,7 +23,7 @@ public class PlayerOverviewPersonalBestsTests
     private const ulong Grim = PlayerOverviewHistoryTests.Grim;
 
     private static Dictionary<string, double> Line(int kills, double hltv, double damage, bool won) =>
-        new Dictionary<string, double>
+        new()
         {
             ["rounds"] = 20,
             ["TotalK"] = kills,

@@ -20,12 +20,12 @@ namespace DemoViewer.NET.AppTests.Extensions;
 public class SdkPlaybackSurfaceMapInfoTests
 {
     // Two floors: upper [-500, 100000) under key QuantizeZ(-500) = -512, lower [-2000, -500).
-    private static readonly MapLevel Upper = new()
+    private static readonly MapLevel _upper = new()
     {
         Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000
     };
 
-    private static readonly MapLevel Lower = new()
+    private static readonly MapLevel _lower = new()
     {
         Id = MapSpace.IdForZMin(-2000), Name = "lower", ZMin = -2000, ZMax = -500
     };
@@ -55,9 +55,9 @@ public class SdkPlaybackSurfaceMapInfoTests
     [Test]
     public async Task Places_AreTheMapsNamesDistinctAndOrdered_AndEmptyWithoutZones()
     {
-        (Playback2DTabViewModel vm, Playback2DSurface inner) = Surface([Lower, Upper], Zones());
+        (Playback2DTabViewModel vm, Playback2DSurface inner) = Surface([_lower, _upper], Zones());
         using SdkPlaybackSurface surface = new(inner, new FaultRig().Guard);
-        (Playback2DTabViewModel bareVm, Playback2DSurface bare) = Surface([Lower, Upper], null);
+        (Playback2DTabViewModel bareVm, Playback2DSurface bare) = Surface([_lower, _upper], null);
         using SdkPlaybackSurface none = new(bare, new FaultRig().Guard);
 
         using (Assert.Multiple())
@@ -74,7 +74,7 @@ public class SdkPlaybackSurfaceMapInfoTests
     [Test]
     public async Task PlaceAt_ResolvesOnTheNamedFloorOnly()
     {
-        (Playback2DTabViewModel vm, Playback2DSurface inner) = Surface([Lower, Upper], Zones());
+        (Playback2DTabViewModel vm, Playback2DSurface inner) = Surface([_lower, _upper], Zones());
         using SdkPlaybackSurface surface = new(inner, new FaultRig().Guard);
 
         using (Assert.Multiple())
@@ -95,9 +95,9 @@ public class SdkPlaybackSurfaceMapInfoTests
     [Test]
     public async Task PlaceAt_WithNoFloorNamed_UsesTheOnlyFloor_AndAnswersNullWithoutZonesOrFloors()
     {
-        (Playback2DTabViewModel vm, Playback2DSurface inner) = Surface([Upper], Zones());
+        (Playback2DTabViewModel vm, Playback2DSurface inner) = Surface([_upper], Zones());
         using SdkPlaybackSurface single = new(inner, new FaultRig().Guard);
-        (Playback2DTabViewModel bareVm, Playback2DSurface bare) = Surface([Upper], null);
+        (Playback2DTabViewModel bareVm, Playback2DSurface bare) = Surface([_upper], null);
         using SdkPlaybackSurface noZones = new(bare, new FaultRig().Guard);
         (Playback2DTabViewModel emptyVm, Playback2DSurface empty) = Surface([], Zones());
         using SdkPlaybackSurface noFloors = new(empty, new FaultRig().Guard);
@@ -118,7 +118,7 @@ public class SdkPlaybackSurfaceMapInfoTests
     public async Task PlaceAt_AnswersWhatAPressAtTheSamePointAnswers()
     {
         PlaceResolver zones = Zones();
-        (Playback2DTabViewModel vm, Playback2DSurface inner) = Surface([Lower, Upper], zones);
+        (Playback2DTabViewModel vm, Playback2DSurface inner) = Surface([_lower, _upper], zones);
         using SdkPlaybackSurface surface = new(inner, new FaultRig().Guard);
         List<string?> pressed = [];
         using IDisposable handler = surface.AddPointerPreHandler(p =>
@@ -128,7 +128,7 @@ public class SdkPlaybackSurfaceMapInfoTests
         });
 
         (MapLevel Level, double X, double Y)[] points =
-            [(Upper, 50, 50), (Upper, 150, 50), (Lower, 50, 50), (Upper, 900, 900)];
+            [(_upper, 50, 50), (_upper, 150, 50), (_lower, 50, 50), (_upper, 900, 900)];
         foreach ((MapLevel level, double x, double y) in points)
         {
             inner.TryHandlePointerPress(new ScenePointer(level, x, y, SKPoint.Empty, ToolModifiers.None,

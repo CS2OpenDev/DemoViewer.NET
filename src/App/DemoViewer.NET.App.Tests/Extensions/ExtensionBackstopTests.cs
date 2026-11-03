@@ -172,9 +172,7 @@ public class ExtensionBackstopTests
 
     private sealed class ThrowingGetter
     {
-        private readonly string _message = "getter";
-
-        public string Value => throw new InvalidOperationException(_message);
+        public string Value { get => throw new InvalidOperationException(field); } = "getter";
     }
 
     private sealed class ThrowingView : UserControl

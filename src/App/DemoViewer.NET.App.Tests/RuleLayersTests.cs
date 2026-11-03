@@ -21,7 +21,7 @@ public class RuleLayersTests
 {
     private const string Owner = "dev.example.layers";
 
-    private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
+    private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
     private static string Id(string local) => RulesetContribution.QualifiedId(Owner, local);
 
@@ -45,7 +45,7 @@ public class RuleLayersTests
         new(id, Owner, "pack." + Owner, () => yaml);
 
     private static RuleConfigLoadResult Load(string? userDir, params ContributedRuleset[] extensions) =>
-        RuleLayers.Load(Shipped, userDir, extensions, NullLogger.Instance);
+        RuleLayers.Load(_shipped, userDir, extensions, NullLogger.Instance);
 
     private static IReadOnlyList<string> Ids(RuleConfigLoadResult result) => [.. result.Rulesets.Select(r => r.Id)];
 
@@ -68,7 +68,7 @@ public class RuleLayersTests
     [Test]
     public async Task AnExtensionRuleset_JoinsAfterTheShippedRules()
     {
-        RuleConfigLoadResult shipped = YamlConfigLoader.LoadWithOverlay(Shipped, null);
+        RuleConfigLoadResult shipped = YamlConfigLoader.LoadWithOverlay(_shipped, null);
         RuleConfigLoadResult layered = Load(null, Contributed(Id("kills"), Yaml(Id("kills"), "layer_kills")));
 
         await Assert.That(Ids(layered)).IsEquivalentTo([.. Ids(shipped), Id("kills")], CollectionOrdering.Matching);
@@ -81,11 +81,11 @@ public class RuleLayersTests
         string user = Directory.CreateTempSubdirectory("dv-layers-user-").FullName;
         try
         {
-            File.WriteAllText(Path.Combine(user, "override.rules.yaml"), Yaml(Id("kills"), "layer_kills", "UserKills"));
+            await File.WriteAllTextAsync(Path.Combine(user, "override.rules.yaml"), Yaml(Id("kills"), "layer_kills", "UserKills"));
             RuleConfigLoadResult overridden = Load(user, Contributed(Id("kills"), Yaml(Id("kills"), "layer_kills")));
             RulesetDoc doc = overridden.Rulesets.Single(r => r.Id == Id("kills"));
 
-            File.WriteAllText(Path.Combine(user, "override.rules.yaml"), $"ruleset: {Id("kills")}\nenabled: false\n");
+            await File.WriteAllTextAsync(Path.Combine(user, "override.rules.yaml"), $"ruleset: {Id("kills")}\nenabled: false\n");
             RuleConfigLoadResult disabled = Load(user, Contributed(Id("kills"), Yaml(Id("kills"), "layer_kills")));
 
             using (Assert.Multiple())
@@ -105,7 +105,7 @@ public class RuleLayersTests
     [Test]
     public async Task ARulesetThatDoesNotFit_IsLeftOut_AndNothingElseMoves()
     {
-        RuleConfigLoadResult shipped = YamlConfigLoader.LoadWithOverlay(Shipped, null);
+        RuleConfigLoadResult shipped = YamlConfigLoader.LoadWithOverlay(_shipped, null);
         RuleConfigLoadResult layered = Load(null,
             Contributed(Id("broken"), "ruleset: [this is not a ruleset"),
             Contributed(Id("renamed"), Yaml("someone_else", "layer_renamed")),

@@ -50,7 +50,7 @@ public class Playback2DBrowserHonestyTests
         try
         {
             (SettingsViewModel browser, ServiceProvider spB) = NewVm(dir, true);
-            using (spB)
+            await using (spB)
             {
                 Console.WriteLine($"[wasm-honesty] browser note='{browser.KeybindPersistenceNote}'");
 
@@ -65,7 +65,7 @@ public class Playback2DBrowserHonestyTests
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
-            using (spD)
+            await using (spD)
             {
                 await Assert.That(desktop.KeybindsPersist).IsTrue();
                 await Assert.That(desktop.KeybindPersistenceNote).IsEmpty()
@@ -90,7 +90,7 @@ public class Playback2DBrowserHonestyTests
         try
         {
             (SettingsViewModel browser, ServiceProvider spB) = NewVm(dir, true);
-            using (spB)
+            await using (spB)
             {
                 Console.WriteLine($"[wasm-honesty] browser rejection='{browser.KeybindRejectionSource}'");
                 await Assert.That(browser.KeybindRejectionSource).DoesNotContain("settings.json");
@@ -99,7 +99,7 @@ public class Playback2DBrowserHonestyTests
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
-            using (spD)
+            await using (spD)
             {
                 await Assert.That(desktop.KeybindRejectionSource).Contains("settings.json")
                     .Because("on desktop the file IS the answer to 'where do I fix this'");
@@ -127,15 +127,15 @@ public class Playback2DBrowserHonestyTests
         string dir = NewTempDir();
         try
         {
-            const string exportId = "playback2d.export";
-            await Assert.That(ShellModuleFeatureGate.DesktopOnlyIds.Contains(exportId)).IsTrue()
+            const string ExportId = "playback2d.export";
+            await Assert.That(ShellModuleFeatureGate.DesktopOnlyIds.Contains(ExportId)).IsTrue()
                 .Because("this suite is asserting about THE desktop-only id, not a spelling of it");
 
             (SettingsViewModel browser, ServiceProvider spB, SettingsService svc) =
                 NewVmWithService(dir, true);
-            using (spB)
+            await using (spB)
             {
-                FeatureToggleRow row = Row(browser, exportId);
+                FeatureToggleRow row = Row(browser, ExportId);
                 Console.WriteLine($"[wasm-honesty] browser row: enabled={row.IsEnabled} "
                                   + $"interactive={row.IsInteractive} hint='{row.LockHint}'");
 
@@ -150,14 +150,14 @@ public class Playback2DBrowserHonestyTests
                 // that would follow the user to a desktop head they never asked it on.
                 row.IsEnabled = true;
                 await Assert.That(row.IsEnabled).IsFalse();
-                await Assert.That(svc.Current.Features.Overrides.ContainsKey(exportId)).IsFalse()
+                await Assert.That(svc.Current.Features.Overrides.ContainsKey(ExportId)).IsFalse()
                     .Because("an override that can never take effect is a preference nobody expressed");
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
-            using (spD)
+            await using (spD)
             {
-                FeatureToggleRow row = Row(desktop, exportId);
+                FeatureToggleRow row = Row(desktop, ExportId);
                 await Assert.That(row.IsPlatformUnavailable).IsFalse();
                 await Assert.That(row.IsInteractive).IsTrue()
                     .Because("on desktop it is an ordinary, switchable feature");

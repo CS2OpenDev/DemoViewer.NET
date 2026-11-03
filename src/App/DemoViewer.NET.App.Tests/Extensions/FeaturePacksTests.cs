@@ -271,10 +271,10 @@ public class FeaturePacksTests
         ];
 
         public IEnumerable<CommandDescriptor> Commands =>
-            [new CommandDescriptor("TogglePlay", "Cmd", "playback2d", null, _ => true)];
+            [new("TogglePlay", "Cmd", "playback2d", null, _ => true)];
 
         public IEnumerable<ExtensionJobKind> JobKinds =>
-            [new ExtensionJobKind(BuiltInJobKinds.Save, "collides", false, 9)];
+            [new(BuiltInJobKinds.Save, "collides", false, 9)];
 
         public void Register(IServiceCollection services)
         {

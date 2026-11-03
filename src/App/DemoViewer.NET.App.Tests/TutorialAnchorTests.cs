@@ -38,11 +38,11 @@ public class TutorialAnchorTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            const TutorialTarget target = TutorialTarget.StatsContent;
+            const TutorialTarget Target = TutorialTarget.StatsContent;
 
             StackPanel host = new();
             Border anchor = new();
-            TutorialAnchor.SetTarget(anchor, target);
+            TutorialAnchor.SetTarget(anchor, Target);
             host.Children.Add(anchor);
 
             Window window = new() { Width = 400, Height = 300, Content = host };
@@ -50,7 +50,7 @@ public class TutorialAnchorTests
             Pump();
 
             await Assert.That(TopLevel.GetTopLevel(anchor)).IsNotNull().Because("the anchor is now in the visual tree");
-            await Assert.That(TutorialAnchor.TryResolve(target, out Control resolved)).IsTrue()
+            await Assert.That(TutorialAnchor.TryResolve(Target, out Control resolved)).IsTrue()
                 .Because("an attached tagged control registers itself");
             await Assert.That(ReferenceEquals(resolved, anchor)).IsTrue()
                 .Because("TryResolve returns the live control that registered for this target");
@@ -59,7 +59,7 @@ public class TutorialAnchorTests
             host.Children.Remove(anchor);
             Pump();
 
-            await Assert.That(TutorialAnchor.TryResolve(target, out _)).IsFalse()
+            await Assert.That(TutorialAnchor.TryResolve(Target, out _)).IsFalse()
                 .Because("a detached control unregisters, so the target no longer resolves");
         });
     }

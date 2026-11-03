@@ -78,13 +78,13 @@ public class DemoCacheTier3Tests
         string root = TempRoot();
         try
         {
-            const string demo = "/demos/tier3.dem";
+            const string Demo = "/demos/tier3.dem";
             DemoCacheStore cache = new(root);
             using HighlightScanService scanner = Scanner(cache, (_, _) => Harvest(54_000, 61_000));
 
-            scanner.Evaluate(demo, SyntheticDemo());
+            scanner.Evaluate(Demo, SyntheticDemo());
 
-            DemoCacheRecord? record = cache.TryLoadRecord(demo);
+            DemoCacheRecord? record = cache.TryLoadRecord(Demo);
 
             using (Assert.Multiple())
             {
@@ -118,17 +118,17 @@ public class DemoCacheTier3Tests
         string root = TempRoot();
         try
         {
-            const string demo = "/demos/identity.dem";
+            const string Demo = "/demos/identity.dem";
             long localTicks = DateTime.Now.Ticks; // the library's convention
 
             DemoCacheStore cache = new(root);
-            cache.Upsert(LibraryIndexed(demo, localTicks));
+            cache.Upsert(LibraryIndexed(Demo, localTicks));
 
             using HighlightScanService scanner = Scanner(cache, (_, _) => Harvest(54_000));
 
-            scanner.Evaluate(demo, SyntheticDemo());
+            scanner.Evaluate(Demo, SyntheticDemo());
 
-            DemoCacheRecord? record = cache.TryLoadRecord(demo);
+            DemoCacheRecord? record = cache.TryLoadRecord(Demo);
 
             using (Assert.Multiple())
             {
@@ -158,25 +158,25 @@ public class DemoCacheTier3Tests
         string root = TempRoot();
         try
         {
-            const string demo = "/demos/fails.dem";
+            const string Demo = "/demos/fails.dem";
             DemoCacheStore cache = new(root);
 
             using (HighlightScanService ok = Scanner(cache, (_, _) => Harvest(54_000)))
             {
-                ok.Evaluate(demo, SyntheticDemo());
+                ok.Evaluate(Demo, SyntheticDemo());
             }
 
-            await Assert.That(cache.TryLoadRecord(demo)!.Highlights.Count).IsEqualTo(1);
+            await Assert.That(cache.TryLoadRecord(Demo)!.Highlights.Count).IsEqualTo(1);
 
             // A later pass throws.
             using (HighlightScanService bad = Scanner(cache,
                        (_, _) => throw new InvalidOperationException("rules blew up")))
             {
-                bad.RequestScan(demo); // forced: a current demo is not in the derived backlog
-                bad.Evaluate(demo, SyntheticDemo());
+                bad.RequestScan(Demo); // forced: a current demo is not in the derived backlog
+                bad.Evaluate(Demo, SyntheticDemo());
             }
 
-            DemoCacheRecord? record = cache.TryLoadRecord(demo);
+            DemoCacheRecord? record = cache.TryLoadRecord(Demo);
 
             using (Assert.Multiple())
             {
@@ -202,24 +202,24 @@ public class DemoCacheTier3Tests
         string root = TempRoot();
         try
         {
-            const string demo = "/demos/raced-press.dem";
+            const string Demo = "/demos/raced-press.dem";
             DemoCacheStore cache = new(root);
             RunRecordingHarvester harvester = new();
             using HighlightScanService scanner =
-                new(cache, harvester, () => [demo], () => true, a => a());
+                new(cache, harvester, () => [Demo], () => true, a => a());
 
-            scanner.RequestScan(demo);
+            scanner.RequestScan(Demo);
 
             // The piggyback gets there first on the shared parse and leaves the demo CURRENT.
             cache.Upsert(new DemoCacheRecord
             {
-                Path = demo,
+                Path = Demo,
                 Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
                 AnalysisState = DemoAnalysisState.Indexed,
                 ConfigFingerprint = "fp-A@64"
             });
 
-            scanner.Evaluate(demo, SyntheticDemo());
+            scanner.Evaluate(Demo, SyntheticDemo());
 
             await Assert.That(harvester.Calls.Count).IsEqualTo(1)
                 .Because("the press must still run, not be skipped as already current");
@@ -243,9 +243,9 @@ public class DemoCacheTier3Tests
         string root = TempRoot();
         try
         {
-            const string demo = "/demos/racy.dem";
+            const string Demo = "/demos/racy.dem";
             DemoCacheStore cache = new(root);
-            cache.Upsert(LibraryIndexed(demo, DateTime.Now.Ticks));
+            cache.Upsert(LibraryIndexed(Demo, DateTime.Now.Ticks));
 
             // Forces the interleaving rather than hoping for it. Each writer announces that it is inside its
             // mutate and waits for the other. Serialized, the second cannot enter until the first has
@@ -260,7 +260,7 @@ public class DemoCacheTier3Tests
             TimeSpan patience = TimeSpan.FromMilliseconds(750);
 
             await Task.WhenAll(
-                Task.Run(() => cache.UpdateExisting(demo, r =>
+                Task.Run(() => cache.UpdateExisting(Demo, r =>
                 {
                     r.Highlights =
                     [
@@ -273,7 +273,7 @@ public class DemoCacheTier3Tests
                     highlightsInside.Set();
                     scoreboardInside.Wait(patience);
                 })),
-                Task.Run(() => cache.UpdateExisting(demo, r =>
+                Task.Run(() => cache.UpdateExisting(Demo, r =>
                 {
                     r.Scoreboard =
                     [
@@ -284,7 +284,7 @@ public class DemoCacheTier3Tests
                     highlightsInside.Wait(patience);
                 })));
 
-            DemoCacheRecord? record = cache.TryLoadRecord(demo);
+            DemoCacheRecord? record = cache.TryLoadRecord(Demo);
 
             using (Assert.Multiple())
             {

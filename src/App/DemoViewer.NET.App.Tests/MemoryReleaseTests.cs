@@ -91,9 +91,9 @@ public class MemoryReleaseTests
 
             // Seek: builds the authoritative tracker (checkpoint replay), the entity node/group trees,
             // the prev-tick delta snapshot, and the parser card build for the landed frame.
-            const int target = 40;
-            vm.Navigation.SeekToFrame(target);
-            EntityTracker? tracker = await WaitForTrackerAt(vm, target);
+            const int Target = 40;
+            vm.Navigation.SeekToFrame(Target);
+            EntityTracker? tracker = await WaitForTrackerAt(vm, Target);
             await Assert.That(vm.EntityTab.EntityListItems.Count).IsGreaterThan(0);
 
             // Inspect: fills EntityInspector (relationship tree) + DeltaLog for the selected entity.

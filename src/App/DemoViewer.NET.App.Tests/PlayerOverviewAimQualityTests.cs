@@ -30,7 +30,7 @@ namespace DemoViewer.NET.AppTests;
 public class PlayerOverviewAimQualityTests
 {
     private const ulong Grim = PlayerOverviewHistoryTests.Grim;
-    private static readonly string Stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
@@ -89,7 +89,7 @@ public class PlayerOverviewAimQualityTests
             for (int i = 0; i < demos; i++)
             {
                 DemoCacheRecord record = PlayerOverviewHistoryTests.Demo(i, stamped?.Invoke(i) ?? true);
-                if (record.Stamp(Stamp) is { } facet)
+                if (record.Stamp(_stamp) is { } facet)
                 {
                     record.SetStamp(facet with { HasVisibility = sight(i) });
                 }
@@ -103,7 +103,7 @@ public class PlayerOverviewAimQualityTests
 
     internal static PlayerRowCache Cache(DemoCacheStore store, PlayerDirectory directory) =>
         new(store, directory, path =>
-            store.TryGetIndex(path)?.Stamp(Stamp) is { State: DemoAnalysisState.Indexed } stamp
+            store.TryGetIndex(path)?.Stamp(_stamp) is { State: DemoAnalysisState.Indexed } stamp
                 ? Facet(Of(path), stamp.HasVisibility)
                 : null);
 
@@ -123,7 +123,7 @@ public class PlayerOverviewAimQualityTests
             Tab.OnActivated(null!);
         }
 
-        public IdentityService Identity { get; }
+        private IdentityService Identity { get; }
         public PlayerRowCache Rows { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public AimQualitySectionViewModel Aim => Tab.Reveal<AimQualitySectionViewModel>();
@@ -142,7 +142,7 @@ public class PlayerOverviewAimQualityTests
         string[] sight =
         [
             .. ColumnCatalogue.All.Where(m =>
-                    m.RequiresVisibility && !m.Hidden && ColumnRules.For(m.Key) is not ColumnRule.NotAggregable)
+                    m is { RequiresVisibility: true, Hidden: false } && ColumnRules.For(m.Key) is not ColumnRule.NotAggregable)
                 .Select(m => m.Key)
         ];
 
@@ -150,7 +150,7 @@ public class PlayerOverviewAimQualityTests
         {
             await Assert.That(sight.Except(keys)).IsEmpty()
                 .Because("every pooled sight column on the board is in the section");
-            await Assert.That(ColumnCatalogue.All.Where(m => m.Group == StatGroup.AimQuality && !m.Hidden)
+            await Assert.That(ColumnCatalogue.All.Where(m => m is { Group: StatGroup.AimQuality, Hidden: false })
                 .Select(m => m.Key).Except(keys)).IsEmpty();
             await Assert.That(keys.Where(k => ColumnRules.For(k) is null or ColumnRule.NotAggregable)).IsEmpty();
             await Assert.That(keys).IsEquivalentTo(keys.Distinct(), CollectionOrdering.Matching);

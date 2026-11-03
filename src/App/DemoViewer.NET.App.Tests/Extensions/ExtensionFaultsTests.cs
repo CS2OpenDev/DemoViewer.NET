@@ -66,13 +66,15 @@ public class ExtensionFaultsTests
 
         await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(1);
 
-        Action other = () => throw new ArgumentException("other type");
-        rig.Faults.Run(rig.Scope, "playhead handler", other, FaultKind.Recurring);
+        rig.Faults.Run(rig.Scope, "playhead handler", Other, FaultKind.Recurring);
         await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(2);
 
         rig.Clock.Advance(TimeSpan.FromSeconds(61));
         rig.Throw("playhead handler", FaultKind.Recurring);
         await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(3);
+        return;
+
+        static void Other() => throw new ArgumentException("other type");
     }
 
     [Test]

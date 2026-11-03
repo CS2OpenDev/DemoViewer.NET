@@ -183,18 +183,11 @@ public class Playback2DTrajectoryRealDemoTests
 
     // ── Minimal harness: a context whose Entities/snapshot are backed by the REAL entity view. ──
 
-    private sealed class Snap : IPlaybackSnapshot
+    private sealed class Snap(int frameIndex, int tick, IReadOnlyEntityView entities) : IPlaybackSnapshot
     {
-        public Snap(int frameIndex, int tick, IReadOnlyEntityView entities)
-        {
-            FrameIndex = frameIndex;
-            Tick = tick;
-            Entities = entities;
-        }
-
-        public int FrameIndex { get; }
-        public int Tick { get; }
-        public IReadOnlyEntityView Entities { get; }
+        public int FrameIndex { get; } = frameIndex;
+        public int Tick { get; } = tick;
+        public IReadOnlyEntityView Entities { get; } = entities;
         public IReadOnlyList<IPlayerState> Players { get; } = new List<IPlayerState>();
     }
 }

@@ -91,7 +91,6 @@ public class PlayerOverviewHighlightsTests
     {
         public Shell(DemoCacheStore store, bool withPicker = true)
         {
-            Store = store;
             Facts = new HighlightsOnly(store);
             Directory = new PlayerDirectory(store, _ => true);
             Identity = new IdentityService(new SettingsService(null));
@@ -100,10 +99,9 @@ public class PlayerOverviewHighlightsTests
             Tab.OnActivated(null!);
         }
 
-        public DemoCacheStore Store { get; }
         public HighlightsOnly Facts { get; }
-        public PlayerDirectory Directory { get; }
-        public IdentityService Identity { get; }
+        private PlayerDirectory Directory { get; }
+        private IdentityService Identity { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public List<string> Opened { get; } = [];
         public List<ulong> AddedFor { get; } = [];

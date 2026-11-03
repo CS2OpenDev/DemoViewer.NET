@@ -178,6 +178,6 @@ public class ExtensionTabFaultTests
 
         public void OnDeactivated() => throw new InvalidOperationException("deactivate");
 
-        public object? SnapshotState() => throw new InvalidOperationException("snapshot");
+        public object SnapshotState() => throw new InvalidOperationException("snapshot");
     }
 }

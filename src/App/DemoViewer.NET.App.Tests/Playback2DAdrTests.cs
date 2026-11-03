@@ -67,18 +67,14 @@ public class Playback2DAdrTests
 
     private static AttrPlayer Player(int slot, int team, int damage)
     {
-        Ent pawn = new("CCSPlayerPawn");
-        pawn.F["m_iHealth"] = 100;
-        pawn.F["m_lifeState"] = 0;
-        Ent ctrl = new("CCSPlayerController");
-        ctrl.F["m_pActionTrackingServices.m_iDamage"] = damage;
+        Ent pawn = new("CCSPlayerPawn") { F = { ["m_iHealth"] = 100, ["m_lifeState"] = 0 } };
+        Ent ctrl = new("CCSPlayerController") { F = { ["m_pActionTrackingServices.m_iDamage"] = damage } };
         return new AttrPlayer(slot, team, pawn, ctrl);
     }
 
     private static FakeSnap Snap(int frameIndex, int roundsPlayed, params IPlayerState[] players)
     {
-        Ent rules = new("CCSGameRulesProxy");
-        rules.F["m_pGameRules.m_totalRoundsPlayed"] = roundsPlayed;
+        Ent rules = new("CCSGameRulesProxy") { F = { ["m_pGameRules.m_totalRoundsPlayed"] = roundsPlayed } };
         return new FakeSnap(frameIndex, players, new View(rules));
     }
 

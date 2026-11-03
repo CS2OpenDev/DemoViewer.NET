@@ -22,25 +22,25 @@ namespace DemoViewer.NET.AppTests.Extensions;
 /// </summary>
 public class PackPlayback2DBindingTests
 {
-    private static readonly string[] UnpublishedAssemblies = ["DemoViewer.NET.Playback2D.Pipeline"];
+    private static readonly string[] _unpublishedAssemblies = ["DemoViewer.NET.Playback2D.Pipeline"];
 
     /// <summary>
     ///     Every app type the pack may bind, with the reason: none. Everything it reaches in the host goes
     ///     through the SDK, and the pack no longer references the app assembly at all.
     /// </summary>
-    private static readonly (string Type, string Reason)[] AllowedApp = [];
+    private static readonly (string Type, string Reason)[] _allowedApp = [];
 
     /// <summary>
     ///     What the pack may bind in the unpublished Playback2D assembly: nothing. Video and clip export,
     ///     the review queue and the pack export all go through the SDK.
     /// </summary>
-    private static readonly (string Assembly, string Type, string Reason)[] Allowed = [];
+    private static readonly (string Assembly, string Type, string Reason)[] _allowed = [];
 
     [Test]
     public async Task ThePack_BindsOnlyTheAllowedTypes_InTheApp()
     {
         SortedSet<string> bound = BoundTypes(typeof(StratBookPack).Assembly.Location, ["DemoViewer.NET"]);
-        SortedSet<string> allowed = new(AllowedApp.Select(a => $"DemoViewer.NET|{a.Type}"), StringComparer.Ordinal);
+        SortedSet<string> allowed = new(_allowedApp.Select(a => $"DemoViewer.NET|{a.Type}"), StringComparer.Ordinal);
 
         string[] unexpected = [.. bound.Except(allowed)];
         string[] stale = [.. allowed.Except(bound)];
@@ -55,8 +55,8 @@ public class PackPlayback2DBindingTests
     [Test]
     public async Task ThePack_BindsOnlyTheAllowedTypes_InTheUnpublishedPlayback2DAssemblies()
     {
-        SortedSet<string> bound = BoundTypes(typeof(StratBookPack).Assembly.Location, UnpublishedAssemblies);
-        SortedSet<string> allowed = new(Allowed.Select(a => $"{a.Assembly}|{a.Type}"), StringComparer.Ordinal);
+        SortedSet<string> bound = BoundTypes(typeof(StratBookPack).Assembly.Location, _unpublishedAssemblies);
+        SortedSet<string> allowed = new(_allowed.Select(a => $"{a.Assembly}|{a.Type}"), StringComparer.Ordinal);
 
         string[] unexpected = [.. bound.Except(allowed)];
         string[] stale = [.. allowed.Except(bound)];

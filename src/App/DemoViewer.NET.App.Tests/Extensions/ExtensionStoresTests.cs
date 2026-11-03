@@ -18,7 +18,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 /// </summary>
 public class ExtensionStoresTests
 {
-    private const string Id = "dev.example.stores";
+    private const string ExtensionId = "dev.example.stores";
 
     private static string NewRoot()
     {
@@ -28,7 +28,7 @@ public class ExtensionStoresTests
     }
 
     private static ExtensionStores Declared(string config, string cache, params StoreDescriptor[] stores) =>
-        new(Id, config, cache, stores);
+        new(ExtensionId, config, cache, stores);
 
     [Test]
     public async Task AFolderStore_OpensAtItsDeclaredPath_AndWritesLandUnderIt()
@@ -37,18 +37,18 @@ public class ExtensionStoresTests
         try
         {
             ExtensionStores stores = Declared(root, Path.Combine(root, "cache"),
-                new StoreDescriptor("notes", "Notes", StoreRoot.Config, [Id], IsUserWork: true));
+                new StoreDescriptor("notes", "Notes", StoreRoot.Config, [ExtensionId], IsUserWork: true));
             IExtensionFolder folder = stores.Open("notes")!;
 
-            folder.WriteAtomic("today.json", Encoding.UTF8.GetBytes("one"));
-            folder.WriteAtomic("today.json", Encoding.UTF8.GetBytes("two"));
+            folder.WriteAtomic("today.json", "one"u8);
+            folder.WriteAtomic("today.json", "two"u8);
             folder.WriteAtomic("deep/later.json", stream => stream.Write("three"u8));
             folder.Append("log.jsonl", "{\"a\":1}");
             folder.Append("log.jsonl", "{\"a\":2}");
 
             using (Assert.Multiple())
             {
-                await Assert.That(folder.Path).IsEqualTo(Path.Combine(root, Id));
+                await Assert.That(folder.Path).IsEqualTo(Path.Combine(root, ExtensionId));
                 await Assert.That(Encoding.UTF8.GetString(folder.Read("today.json")!)).IsEqualTo("two");
                 await Assert.That(Encoding.UTF8.GetString(folder.Read("deep/later.json")!)).IsEqualTo("three");
                 await Assert.That(Encoding.UTF8.GetString(folder.Read("log.jsonl")!))
@@ -58,7 +58,7 @@ public class ExtensionStoresTests
                 await Assert.That(folder.FileExists("missing.json")).IsFalse();
                 await Assert.That(folder.LastWriteTimeUtc("today.json")).IsNotNull();
                 await Assert.That(folder.LastWriteTimeUtc("missing.json")).IsNull();
-                await Assert.That(Directory.GetFiles(Path.Combine(root, Id)).Select(f => Path.GetFileName(f))
+                await Assert.That(Directory.GetFiles(Path.Combine(root, ExtensionId)).Select(f => Path.GetFileName(f))
                         .Order(StringComparer.Ordinal))
                     .IsEquivalentTo(["log.jsonl", "today.json"], CollectionOrdering.Matching)
                     .Because("the temporary file was moved over the target, never left beside it");
@@ -72,7 +72,7 @@ public class ExtensionStoresTests
                     .Because("a missing folder lists nothing");
             }
 
-            using (Stream stream = folder.OpenRead("today.json")!)
+            await using (Stream stream = folder.OpenRead("today.json")!)
             using (StreamReader reader = new(stream))
             {
                 await Assert.That(await reader.ReadToEndAsync()).IsEqualTo("two");
@@ -101,7 +101,7 @@ public class ExtensionStoresTests
         try
         {
             ExtensionStores stores = Declared(root, root,
-                new StoreDescriptor("teams", "Teams", StoreRoot.Config, [Id + ".json"], IsUserWork: true));
+                new StoreDescriptor("teams", "Teams", StoreRoot.Config, [ExtensionId + ".json"], IsUserWork: true));
             IExtensionFile file = stores.OpenFile("teams")!;
             await File.WriteAllTextAsync(Path.Combine(root, "settings.json"), "{}");
 
@@ -111,18 +111,18 @@ public class ExtensionStoresTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(file.Path).IsEqualTo(Path.Combine(root, Id + ".json"));
+                await Assert.That(file.Path).IsEqualTo(Path.Combine(root, ExtensionId + ".json"));
                 await Assert.That(before).IsFalse();
                 await Assert.That(file.Exists).IsTrue();
                 await Assert.That(file.LastWriteTimeUtc).IsNotNull();
                 await Assert.That(file.Read()).IsEquivalentTo("{\"v\":2}"u8.ToArray(), CollectionOrdering.Matching);
                 await Assert.That(Directory.GetFiles(root).Select(f => Path.GetFileName(f))
                         .Order(StringComparer.Ordinal))
-                    .IsEquivalentTo([Id + ".json", "settings.json"], CollectionOrdering.Matching)
+                    .IsEquivalentTo([ExtensionId + ".json", "settings.json"], CollectionOrdering.Matching)
                     .Because("the temporary file was moved over the target, never left beside it");
             }
 
-            using (Stream stream = file.OpenRead()!)
+            await using (Stream stream = file.OpenRead()!)
             using (StreamReader reader = new(stream))
             {
                 await Assert.That(await reader.ReadToEndAsync()).IsEqualTo("{\"v\":2}");
@@ -151,14 +151,14 @@ public class ExtensionStoresTests
         try
         {
             ExtensionStores stores = Declared(root, root,
-                new StoreDescriptor("file", "File", StoreRoot.Config, [Id + ".json"], IsUserWork: true),
-                new StoreDescriptor("folder", "Folder", StoreRoot.Cache, [Id], IsUserWork: false));
+                new StoreDescriptor("file", "File", StoreRoot.Config, [ExtensionId + ".json"], IsUserWork: true),
+                new StoreDescriptor("folder", "Folder", StoreRoot.Cache, [ExtensionId], IsUserWork: false));
 
             using (Assert.Multiple())
             {
-                await Assert.That(stores.OpenFile("file")!.Path).IsEqualTo(Path.Combine(root, Id + ".json"));
-                await Assert.That(stores.Open("folder")!.Path).IsEqualTo(Path.Combine(root, Id));
-                await Assert.That(stores.Open("file")!.Path).IsEqualTo(Path.Combine(root, Id + ".json"))
+                await Assert.That(stores.OpenFile("file")!.Path).IsEqualTo(Path.Combine(root, ExtensionId + ".json"));
+                await Assert.That(stores.Open("folder")!.Path).IsEqualTo(Path.Combine(root, ExtensionId));
+                await Assert.That(stores.Open("file")!.Path).IsEqualTo(Path.Combine(root, ExtensionId + ".json"))
                     .Because("nothing is on disk yet, so the extension's word stands");
             }
 
@@ -166,7 +166,7 @@ public class ExtensionStoresTests
             stores.OpenFile("file")!.WriteAtomic("{}"u8);
             using (Assert.Multiple())
             {
-                await Assert.That(Directory.Exists(Path.Combine(root, Id))).IsTrue();
+                await Assert.That(Directory.Exists(Path.Combine(root, ExtensionId))).IsTrue();
                 await Assert.That(() => stores.OpenFile("folder")).Throws<InvalidOperationException>();
                 await Assert.That(() => stores.Open("file")).Throws<InvalidOperationException>();
             }
@@ -188,12 +188,12 @@ public class ExtensionStoresTests
         try
         {
             IExtensionFolder folder =
-                Declared(root, root, new StoreDescriptor("s", "S", StoreRoot.Config, [Id], IsUserWork: true))
+                Declared(root, root, new StoreDescriptor("s", "S", StoreRoot.Config, [ExtensionId], IsUserWork: true))
                     .Open("s")!;
 
             using (Assert.Multiple())
             {
-                await Assert.That(() => folder.WriteAtomic(path, new byte[] { 1 })).Throws<ArgumentException>();
+                await Assert.That(() => folder.WriteAtomic(path, [1])).Throws<ArgumentException>();
                 await Assert.That(() => folder.Read(path)).Throws<ArgumentException>();
                 await Assert.That(() => folder.Append(path, "x")).Throws<ArgumentException>();
                 await Assert.That(() => folder.Move("a.json", path, true)).Throws<ArgumentException>();
@@ -201,7 +201,7 @@ public class ExtensionStoresTests
             }
 
             await Assert.That(File.Exists(Path.Combine(root, "escape.json"))).IsFalse();
-            await Assert.That(File.Exists(Path.Combine(root, Id, "escape.json"))).IsFalse();
+            await Assert.That(File.Exists(Path.Combine(root, ExtensionId, "escape.json"))).IsFalse();
         }
         finally
         {
@@ -216,8 +216,8 @@ public class ExtensionStoresTests
         try
         {
             ExtensionStores stores = Declared(root, root,
-                new StoreDescriptor("many", "Many", StoreRoot.Cache, ["demos/*" + Id + ".json", Id], IsUserWork: false),
-                new StoreDescriptor("pattern", "Pattern", StoreRoot.Cache, ["demos/*" + Id + ".json"],
+                new StoreDescriptor("many", "Many", StoreRoot.Cache, ["demos/*" + ExtensionId + ".json", ExtensionId], IsUserWork: false),
+                new StoreDescriptor("pattern", "Pattern", StoreRoot.Cache, ["demos/*" + ExtensionId + ".json"],
                     IsUserWork: false));
 
             using (Assert.Multiple())
@@ -236,8 +236,8 @@ public class ExtensionStoresTests
     [Test]
     public async Task WithoutAFilesystem_EveryStoreOpensAsNull()
     {
-        ExtensionStores stores = new(Id, null, null,
-            [new StoreDescriptor("s", "S", StoreRoot.Config, [Id], IsUserWork: true)]);
+        ExtensionStores stores = new(ExtensionId, null, null,
+            [new StoreDescriptor("s", "S", StoreRoot.Config, [ExtensionId], IsUserWork: true)]);
 
         using (Assert.Multiple())
         {
@@ -258,13 +258,13 @@ public class ExtensionStoresTests
             IExtensionFolder config = stores.Own(StoreRoot.Config)!;
             IExtensionFolder cache = stores.Own(StoreRoot.Cache)!;
             config.WriteAtomic("notes/today.json", "one"u8);
-            cache.WriteAtomic("index.bin", new byte[] { 1, 2, 3 });
+            cache.WriteAtomic("index.bin", [1, 2, 3]);
 
             using (Assert.Multiple())
             {
-                await Assert.That(config.Path).IsEqualTo(Path.Combine(root, ExtensionFolders.DataDirectoryName, Id));
+                await Assert.That(config.Path).IsEqualTo(Path.Combine(root, ExtensionFolders.DataDirectoryName, ExtensionId));
                 await Assert.That(cache.Path).IsEqualTo(Path.Combine(root, "cache", ExtensionFolders.DataDirectoryName,
-                    Id,
+                    ExtensionId,
                     ExtensionFolders.OwnCacheDirectoryName));
                 await Assert.That(Encoding.UTF8.GetString(config.Read("notes/today.json")!)).IsEqualTo("one");
                 await Assert.That(cache.Read("index.bin"))
@@ -286,7 +286,7 @@ public class ExtensionStoresTests
         {
             string cacheRoot = Path.Combine(root, "cache");
             ExtensionStores stores = Declared(root, cacheRoot);
-            string hostData = Path.Combine(cacheRoot, ExtensionFolders.DataDirectoryName, Id,
+            string hostData = Path.Combine(cacheRoot, ExtensionFolders.DataDirectoryName, ExtensionId,
                 ExtensionDemoDataStore.DirectoryName);
             Directory.CreateDirectory(hostData);
             await File.WriteAllTextAsync(Path.Combine(hostData, "index.json.gz"), "host");
@@ -329,7 +329,7 @@ public class ExtensionStoresTests
         {
             IExtensionFolder folder = Declared(root, root).Own(StoreRoot.Config)!;
             folder.Create();
-            folder.WriteAtomic("clips/one.gif", new byte[] { 1 });
+            folder.WriteAtomic("clips/one.gif", [1]);
 
             using (Assert.Multiple())
             {
@@ -362,7 +362,7 @@ public class ExtensionStoresTests
         try
         {
             string cacheRoot = Path.Combine(root, "cache");
-            string own = Path.Combine(cacheRoot, ExtensionFolders.DataDirectoryName, Id);
+            string own = Path.Combine(cacheRoot, ExtensionFolders.DataDirectoryName, ExtensionId);
             string files = Path.Combine(own, ExtensionFolders.OwnCacheDirectoryName);
             Directory.CreateDirectory(Path.Combine(own, "strat-mining"));
             Directory.CreateDirectory(Path.Combine(own, ExtensionDemoDataStore.DirectoryName));
@@ -469,9 +469,9 @@ public class ExtensionStoresTests
     [Test]
     public async Task ARefusedStore_IsDroppedFromTheContext_AndReported()
     {
-        StoreDescriptor own = new("own", "Own", StoreRoot.Config, [Id], IsUserWork: true);
+        StoreDescriptor own = new("own", "Own", StoreRoot.Config, [ExtensionId], IsUserWork: true);
         StoreDescriptor settings = new("settings", "Settings", StoreRoot.Config, ["settings.json"], IsUserWork: true);
-        Pack pack = new(Id, [own, settings]);
+        Pack pack = new(ExtensionId, [own, settings]);
         ExtensionGuard guard = ExtensionGuard.Standalone(pack);
         await using ServiceProvider sp = new ServiceCollection().AddSingleton<ExtensionShellHub>()
             .BuildServiceProvider();

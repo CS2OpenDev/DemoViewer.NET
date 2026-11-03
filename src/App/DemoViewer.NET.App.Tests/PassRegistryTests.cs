@@ -152,7 +152,7 @@ public class PassRegistryTests
         registry.AddPackPass("broken", () => throw new InvalidOperationException("factory"), ["core"], () => true,
             ex => reported.Add("broken: " + ex.Message));
         registry.AddPackPass("misnamed", () => new Fake("other", "core"), ["core"], () => true,
-            ex => reported.Add("misnamed"));
+            _ => reported.Add("misnamed"));
         registry.AddPackPass("fine", () => new Fake("fine", "core"), ["core"], () => true, _ => reported.Add("fine"));
 
         IReadOnlyList<IDemoPass> resolved = registry.Resolve();
@@ -211,7 +211,7 @@ public class PassRegistryTests
         registry.AddCore("a", () => new Fake("a", "b"), "b");
         registry.AddCore("b", () => new Fake("b", "a"), "a");
 
-        Assert.Throws<InvalidOperationException>(() => registry.Validate());
+        Assert.Throws<InvalidOperationException>(registry.Validate);
     }
 
     [Test]
@@ -220,7 +220,7 @@ public class PassRegistryTests
         PassRegistry registry = new();
         registry.AddCore("a", () => new Fake("a", "ghost"), "ghost");
 
-        Assert.Throws<InvalidOperationException>(() => registry.Validate());
+        Assert.Throws<InvalidOperationException>(registry.Validate);
     }
 
     [Test]
@@ -291,9 +291,13 @@ public class PassRegistryTests
     {
         PackContributions contributions = new(new EvaluatorPack(), () => throw new InvalidOperationException());
         SdkFake shared = new("ext.shared");
-        int built = 0;
         contributions.Pass("ext.shared", () => shared);
-        contributions.Pass("ext.fresh", () => new SdkFake("ext.fresh", ++built));
+        int built = 0;
+        contributions.Pass("ext.fresh", () =>
+        {
+            built++;
+            return new SdkFake("ext.fresh");
+        });
 
         PassRegistry registry = new();
         foreach (PassContribution c in contributions.Passes)
@@ -381,9 +385,8 @@ public class PassRegistryTests
         }
     }
 
-    private sealed class SdkFake(string id, int generation = 0) : IExtensionPass
+    private sealed class SdkFake(string id) : IExtensionPass
     {
-        public int Generation { get; } = generation;
         public string Id { get; } = id;
 
         public DemoInterest Interest(string demoPath) => DemoInterest.No;

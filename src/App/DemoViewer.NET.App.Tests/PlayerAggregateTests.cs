@@ -22,7 +22,7 @@ public class PlayerAggregateTests
 {
     private const ulong Grim = 76561190000000003;
 
-    private static readonly DemoCacheIndexEntry Row = new() { Path = "/d/a.dem", Map = "de_nuke" };
+    private static readonly DemoCacheIndexEntry _row = new() { Path = "/d/a.dem", Map = "de_nuke" };
 
     // HLTV 2.0 as rules/player_stats.rules.yaml computes it, from a row's own columns.
     private static double Hltv(Dictionary<string, double> c)
@@ -87,7 +87,7 @@ public class PlayerAggregateTests
 
         FactTable table =
             FactsCodec.Decode(
-                PlayerMatchFacetTests.Gzip(File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal)))!;
+                PlayerMatchFacetTests.Gzip((await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal)))!;
         List<string> mismatches = [];
         foreach (FactRow row in table.Rows)
         {
@@ -97,7 +97,7 @@ public class PlayerAggregateTests
             IReadOnlyDictionary<string, double> merged = PlayerAggregate.Merge(table.Rows, id)!;
             bool sight = PlayerMatchFacet.HasSight(table.Rows);
             PlayerAggregate aggregate = PlayerAggregate.Of([
-                new PlayerDemo(new PlayerMatch(Row, 3, [], [], false), true, merged) { HasSight = sight }
+                new PlayerDemo(new PlayerMatch(_row, 3, [], [], false), true, merged) { HasSight = sight }
             ]);
             foreach ((string key, ColumnRule rule) in
                      ColumnRules.All.Where(r => r.Value is not ColumnRule.NotAggregable))

@@ -29,7 +29,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public class BackgroundPlanRealDemoTests
 {
-    private static readonly JsonSerializerOptions Json = new() { WriteIndented = false, IncludeFields = true };
+    private static readonly JsonSerializerOptions _json = new() { WriteIndented = false, IncludeFields = true };
 
     internal static string SmallestDemo(int which)
     {
@@ -92,32 +92,32 @@ public class BackgroundPlanRealDemoTests
 
         new RoundFactsEvaluator(cache, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity())
             .Evaluate(path, parsed);
-        outputs["round facts"] = JsonSerializer.Serialize(cache.TryLoadRecord(path)?.RoundFacts, Json);
+        outputs["round facts"] = JsonSerializer.Serialize(cache.TryLoadRecord(path)?.RoundFacts, _json);
 
         RoundIndexStore index = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
         new RoundIndexEvaluator(cache.Library(), cache.RoundFacts(), index, sources, () => true).Evaluate(path, parsed);
         outputs["round index"] = index.TryReadText(path) ?? "null";
-        outputs["round positions"] = JsonSerializer.Serialize(index.TryReadPositions(path), Json);
+        outputs["round positions"] = JsonSerializer.Serialize(index.TryReadPositions(path), _json);
 
         ProposalStore proposals = new(cache.Data());
         SuggestedTagsService tags = new(cache.Library(), cache.RoundFacts(), proposals, null, new SiteRegionStore(null),
             () => DetectorProfile.Default, () => true, () => true, index, sources);
         tags.Evaluate(path, parsed);
         outputs["suggested tags"] = JsonSerializer.Serialize(
-            tags.Load(path).Entries.Select(e => e.Proposal).ToList(), Json);
+            tags.Load(path).Entries.Select(e => e.Proposal).ToList(), _json);
 
         RuleConfigLoadResult rules =
             YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null);
         BuildResult build = DemoAnalysis.Build(parsed,
             [.. rules.Rulesets.Where(r => r.Id != RoundFactsFingerprint.RulesetId)]);
         AnalysisRun run = DemoAnalysis.Evaluate(parsed, build, new AnalysisOptions { CaptureSnapshots = false });
-        outputs["highlights"] = JsonSerializer.Serialize(run.Highlights, Json);
+        outputs["highlights"] = JsonSerializer.Serialize(run.Highlights, _json);
 
         List<string> players =
         [
             .. parsed.Players.Values
-                .Where(p => !p.IsBot && !p.IsHltv && !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct()
+                .Where(p => p is { IsBot: false, IsHltv: false } && !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct()
         ];
         (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coaches) =
             DemoLibraryService.ExtractFinalState(parsed);
@@ -131,7 +131,7 @@ public class BackgroundPlanRealDemoTests
             ctClan,
             tClan,
             coaches = coaches.Order().ToList()
-        }, Json);
+        }, _json);
         return outputs;
     }
 }

@@ -28,12 +28,12 @@ public class QueueJobTests
     private const string MiningKind = "test.mining";
     private const string ClipsKind = "test.clips";
 
-    private static readonly DemoViewer.NET.Extensions.JobKindRegistry Kinds =
+    private static readonly DemoViewer.NET.Extensions.JobKindRegistry _kinds =
         DemoViewer.NET.Extensions.JobKindRegistry.Build([new KindsExtension()]);
 
     private static DemoProcessingQueue NewQueue(HeavyJobGate gate, Func<string, ParsedDemo>? parse = null) =>
         new(gate, a => a(), parse ?? (_ => SyntheticDemo()), _ => SyntheticDemo(), () => Task.CompletedTask,
-            jobKinds: Kinds);
+            jobKinds: _kinds);
 
     private sealed class KindsExtension : IExtension
     {
@@ -266,7 +266,7 @@ public class QueueJobTests
         {
             handles.Add(queue.SubmitBackground(new DemoProcessingRequest($"/d/{i}.dem", "library",
                 DemoJobPriority.Background, i, _ => { })));
-            handles.Add(queue.SubmitJob(Job(i % 2 == 0 ? QueueJobKind.Extension : QueueJobKind.Extension, $"job {i}",
+            handles.Add(queue.SubmitJob(Job(QueueJobKind.Extension, $"job {i}",
                 async ctx =>
                 {
                     Enter();
@@ -449,14 +449,7 @@ public class QueueJobTests
     {
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = NewQueue(gate);
-        List<PackProgress> seen = [];
-        Progress<PackProgress> sink = new(p =>
-        {
-            lock (seen)
-            {
-                seen.Add(p);
-            }
-        });
+        Progress<PackProgress> sink = new(_ => { });
 
         int result = await PackExportQueue.RunAsync(queue, "Pack export: 2 segments to pack.mp4", "/out/pack.mp4",
             async (progress, ct) =>
@@ -485,7 +478,7 @@ public class QueueJobTests
             started = true;
             return Task.FromResult(1);
         }, null, cts.Token);
-        cts.Cancel();
+        await cts.CancelAsync();
         await Assert.That(await EndsCancelledAsync(queued)).IsTrue();
         hold.SetResult();
 
@@ -565,9 +558,10 @@ public class QueueJobTests
         };
 
         queue.Pause();
-        List<IDemoQueueHandle> handles = [];
-        handles.Add(
-            queue.SubmitJob(Job(QueueJobKind.PackExport, "pack", Exclusive(true), DemoJobPriority.UserRequested)));
+        List<IDemoQueueHandle> handles =
+        [
+            queue.SubmitJob(Job(QueueJobKind.PackExport, "pack", Exclusive(true), DemoJobPriority.UserRequested))
+        ];
         for (int i = 0; i < 6; i++)
         {
             handles.Add(queue.SubmitBackground(new DemoProcessingRequest($"/d/{i}.dem", "library",

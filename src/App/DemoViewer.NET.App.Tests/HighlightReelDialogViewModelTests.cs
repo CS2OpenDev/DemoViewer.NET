@@ -78,10 +78,10 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task Coalesces_OverlappingSamePlayerRound_IntoOneVisibleMergedClip()
     {
-        HighlightSelection[] sels = new[]
-        {
+        HighlightSelection[] sels =
+        [
             Sel("/d/a.dem", "10", "s1mple", 7, 5000, "kill A"), Sel("/d/a.dem", "10", "s1mple", 7, 6000, "kill B")
-        };
+        ];
         HighlightReelDialogViewModel vm = New(sels, out FakeReelJob job); // default lead-in 15 → windows overlap
 
         await Assert.That(vm.ClipGroups.Count).IsEqualTo(1);
@@ -100,10 +100,10 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task DistinctRounds_DoNotCoalesce()
     {
-        HighlightSelection[] sels = new[]
-        {
+        HighlightSelection[] sels =
+        [
             Sel("/d/a.dem", "10", "s1mple", 7, 5000, "r7"), Sel("/d/a.dem", "10", "s1mple", 8, 5100, "r8")
-        };
+        ];
         HighlightReelDialogViewModel vm = New(sels, out _);
 
         await Assert.That(vm.ClipsHeader).IsEqualTo("CLIPS (2 staged · 2 after merge)");
@@ -116,10 +116,10 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task EditingLeadIn_RecomputesPlanLive()
     {
-        HighlightSelection[] sels = new[]
-        {
+        HighlightSelection[] sels =
+        [
             Sel("/d/a.dem", "10", "s1mple", 7, 5000, "A"), Sel("/d/a.dem", "10", "s1mple", 7, 6000, "B")
-        };
+        ];
         HighlightReelDialogViewModel vm = New(sels, out _);
 
         vm.LeadInSeconds = 5; // windows [4680,5320] & [5680,6320], no overlap → 2 clips
@@ -154,7 +154,7 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task HandedOffClips_AreFrameClock_NotCs2DemoTicks()
     {
-        HighlightSelection[] sels = new[] { Sel("/d/a.dem", "10", "s1mple", 7, 5000, "A") };
+        HighlightSelection[] sels = [Sel("/d/a.dem", "10", "s1mple", 7, 5000, "A")];
         HighlightReelDialogViewModel vm = New(sels, out FakeReelJob job);
 
         vm.GenerateCommand.Execute(null);
@@ -167,12 +167,12 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task SteamId_ParsedOrZero()
     {
-        HighlightSelection[] ok = new[] { Sel("/d/a.dem", "76561198000000010", "s1mple", 7, 5000, "A") };
+        HighlightSelection[] ok = [Sel("/d/a.dem", "76561198000000010", "s1mple", 7, 5000, "A")];
         HighlightReelDialogViewModel vmOk = New(ok, out FakeReelJob jobOk);
         vmOk.GenerateCommand.Execute(null);
         await Assert.That(jobOk.LastRequest!.Clips[0].PlayerSteamId64).IsEqualTo(76561198000000010L);
 
-        HighlightSelection[] empty = new[] { Sel("/d/a.dem", "", "s1mple", 7, 5000, "A") };
+        HighlightSelection[] empty = [Sel("/d/a.dem", "", "s1mple", 7, 5000, "A")];
         HighlightReelDialogViewModel vmEmpty = New(empty, out FakeReelJob jobEmpty);
         vmEmpty.GenerateCommand.Execute(null);
         await Assert.That(jobEmpty.LastRequest!.Clips[0].PlayerSteamId64).IsEqualTo(0L);

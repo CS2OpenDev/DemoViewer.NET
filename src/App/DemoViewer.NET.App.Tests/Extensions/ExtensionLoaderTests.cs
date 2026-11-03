@@ -29,8 +29,8 @@ public class ExtensionLoaderTests
 
     // At least what the REAL Strat Book manifest requires: the load cases below stage the shipped pack,
     // so a contract below its requiresHost turns every one of them into a compatibility refusal.
-    private static readonly ExtensionHostInfo Host = new(SemVersion.Parse("2.1.0"), null, SemVersion.Parse("0.14.1"));
-    private static readonly ITrustPolicy TrustAll = new AllTrust();
+    private static readonly ExtensionHostInfo _host = new(SemVersion.Parse("2.1.0"), null, SemVersion.Parse("0.14.1"));
+    private static readonly ITrustPolicy _trustAll = new AllTrust();
 
     // ── Discover ─────────────────────────────────────────────────────────────────────────────────
 
@@ -102,20 +102,19 @@ public class ExtensionLoaderTests
         {
             byte[] zip = UpdateFixtures.ExtensionZip(FakeId, "1.0.1");
             FakeFeeds.Entry entry = new("1.0.1", zip);
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Zips[entry.Url] = zip;
-            ExtensionUpdateService updater = new(root, [UpdateFixtures.Status()], Host, TrustAll, client,
+            UpdateFixtures.FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
+            ExtensionUpdateService updater = new(root, [UpdateFixtures.Status()], _host, _trustAll, client,
                 UpdateFixtures.FeedUrl);
 
             StageResult staged =
                 await updater.DownloadAndStageAsync(ExtensionFeed.Parse(FakeFeeds.Json(entry)).Entries.Single());
             string inFlight = Path.Combine(root, "extensions", ExtensionStaging.StagingDirectoryName, FakeId, "1.0.2");
             Directory.CreateDirectory(inFlight);
-            File.WriteAllText(Path.Combine(inFlight, ExtensionManifest.FileName), ManifestJson(FakeId, "1.0.2"));
+            await File.WriteAllTextAsync(Path.Combine(inFlight, ExtensionManifest.FileName), ManifestJson(FakeId, "1.0.2"));
 
             ExtensionLoader.Discovery found = ExtensionLoader.Discover(Path.Combine(root, "extensions"));
             ExtensionLoader.Selection selection =
-                ExtensionLoader.Select(found.Candidates, FakeId, SemVersion.Parse("1.0.0"), Host, TrustAll);
+                ExtensionLoader.Select(found.Candidates, FakeId, SemVersion.Parse("1.0.0"), _host, _trustAll);
 
             using (Assert.Multiple())
             {
@@ -144,7 +143,7 @@ public class ExtensionLoaderTests
         {
             string outside = Path.Combine(root, "outside", "1.5.0");
             Directory.CreateDirectory(outside);
-            File.WriteAllText(Path.Combine(outside, ExtensionManifest.FileName), ManifestJson(FakeId, "1.5.0"));
+            await File.WriteAllTextAsync(Path.Combine(outside, ExtensionManifest.FileName), ManifestJson(FakeId, "1.5.0"));
             string idDir = Path.Combine(root, "extensions", FakeId);
             Directory.CreateDirectory(idDir);
             try
@@ -158,7 +157,7 @@ public class ExtensionLoaderTests
 
             string linkedManifestDir = Path.Combine(idDir, "1.6.0");
             Directory.CreateDirectory(linkedManifestDir);
-            File.WriteAllText(Path.Combine(root, "loose.json"), ManifestJson(FakeId, "1.6.0"));
+            await File.WriteAllTextAsync(Path.Combine(root, "loose.json"), ManifestJson(FakeId, "1.6.0"));
             File.CreateSymbolicLink(Path.Combine(linkedManifestDir, ExtensionManifest.FileName),
                 Path.Combine(root, "loose.json"));
 
@@ -193,7 +192,7 @@ public class ExtensionLoaderTests
         ];
 
         ExtensionLoader.Selection selection =
-            ExtensionLoader.Select(candidates, FakeId, SemVersion.Parse("1.0.0"), Host, TrustAll);
+            ExtensionLoader.Select(candidates, FakeId, SemVersion.Parse("1.0.0"), _host, _trustAll);
 
         using (Assert.Multiple())
         {
@@ -210,16 +209,16 @@ public class ExtensionLoaderTests
     {
         ExtensionCandidate[] equalAndOlder = [Candidate("1.2.0"), Candidate("1.1.0")];
         ExtensionLoader.Selection notNewer =
-            ExtensionLoader.Select(equalAndOlder, FakeId, SemVersion.Parse("1.2.0"), Host, TrustAll);
+            ExtensionLoader.Select(equalAndOlder, FakeId, SemVersion.Parse("1.2.0"), _host, _trustAll);
         ExtensionLoader.Selection untrusted = ExtensionLoader.Select([Candidate("1.3.0")], FakeId,
-            SemVersion.Parse("1.0.0"), Host, TrustPolicy.Nothing);
+            SemVersion.Parse("1.0.0"), _host, TrustPolicy.Nothing);
         ExtensionLoader.Selection unknownShipped =
-            ExtensionLoader.Select([Candidate("1.3.0")], FakeId, null, Host, TrustAll);
+            ExtensionLoader.Select([Candidate("1.3.0")], FakeId, null, _host, _trustAll);
         ExtensionLoader.Selection throwingTrust = ExtensionLoader.Select([Candidate("1.3.0")], FakeId,
-            SemVersion.Parse("1.0.0"), Host, new ThrowingTrust());
+            SemVersion.Parse("1.0.0"), _host, new ThrowingTrust());
         ExtensionLoader.Selection prerelease = ExtensionLoader.Select(
-            [Candidate("1.3.0-beta1", requiresCs2DemoKit: "0.15.0")], FakeId, SemVersion.Parse("1.0.0"), Host,
-            TrustAll);
+            [Candidate("1.3.0-beta1", requiresCs2DemoKit: "0.15.0")], FakeId, SemVersion.Parse("1.0.0"), _host,
+            _trustAll);
 
         using (Assert.Multiple())
         {
@@ -416,7 +415,7 @@ public class ExtensionLoaderTests
                 return new StratBookPack();
             }, WriteShippedManifest(root, OlderThanBuilt));
 
-            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], Host, TrustAll);
+            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], _host, _trustAll);
 
             using (Assert.Multiple())
             {
@@ -453,7 +452,7 @@ public class ExtensionLoaderTests
                 return new StratBookPack();
             }, WriteShippedManifest(root, OlderThanBuilt));
 
-            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], Host, TrustAll);
+            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], _host, _trustAll);
 
             using (Assert.Multiple())
             {
@@ -483,7 +482,7 @@ public class ExtensionLoaderTests
                 WriteShippedManifest(root, OlderThanBuilt));
 
             IReadOnlyList<PackStatus> statuses =
-                ExtensionLoader.Resolve(root, [shipped], Host, TrustPolicy.UnsignedOptIn(_ => null));
+                ExtensionLoader.Resolve(root, [shipped], _host, TrustPolicy.UnsignedOptIn(_ => null));
 
             using (Assert.Multiple())
             {
@@ -510,12 +509,12 @@ public class ExtensionLoaderTests
         try
         {
             ExtensionCandidate staged = StageRealCopy(root, versionOverride: null);
-            File.WriteAllText(Path.Combine(staged.Directory, ExtensionSignature.FileName),
+            await File.WriteAllTextAsync(Path.Combine(staged.Directory, ExtensionSignature.FileName),
                 ExtensionSignature.Sign(staged.Directory, key));
             ShippedPack shipped = new(StratBookPack.PackId, static () => new StratBookPack(),
                 WriteShippedManifest(root, OlderThanBuilt));
 
-            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], Host,
+            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], _host,
                 TrustPolicy.SignedOrOptIn([publicKey], static _ => null));
 
             using (Assert.Multiple())
@@ -541,15 +540,15 @@ public class ExtensionLoaderTests
         try
         {
             ExtensionCandidate staged = StageRealCopy(root, versionOverride: null);
-            File.WriteAllText(Path.Combine(staged.Directory, ExtensionSignature.FileName),
+            await File.WriteAllTextAsync(Path.Combine(staged.Directory, ExtensionSignature.FileName),
                 ExtensionSignature.Sign(staged.Directory, key));
-            byte[] dllBytes = File.ReadAllBytes(staged.AssemblyPath);
+            byte[] dllBytes = await File.ReadAllBytesAsync(staged.AssemblyPath);
             dllBytes[^1] ^= 0xFF;
-            File.WriteAllBytes(staged.AssemblyPath, dllBytes);
+            await File.WriteAllBytesAsync(staged.AssemblyPath, dllBytes);
             ShippedPack shipped = new(StratBookPack.PackId, static () => new StratBookPack(),
                 WriteShippedManifest(root, OlderThanBuilt));
 
-            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], Host,
+            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], _host,
                 TrustPolicy.SignedOrOptIn([publicKey], static _ => null));
 
             using (Assert.Multiple())
@@ -573,12 +572,12 @@ public class ExtensionLoaderTests
         {
             ShippedPack shipped = new(StratBookPack.PackId, static () => new StratBookPack(),
                 WriteShippedManifest(root, BuiltVersion));
-            IReadOnlyList<PackStatus> noRoot = ExtensionLoader.Resolve(null, [shipped], Host, TrustAll);
-            IReadOnlyList<PackStatus> empty = ExtensionLoader.Resolve(root, [shipped], Host, TrustAll);
+            IReadOnlyList<PackStatus> noRoot = ExtensionLoader.Resolve(null, [shipped], _host, _trustAll);
+            IReadOnlyList<PackStatus> empty = ExtensionLoader.Resolve(root, [shipped], _host, _trustAll);
 
             StageRealCopy(root, versionOverride: null);
             ShippedPack unreadable = shipped with { ManifestPath = Path.Combine(root, "no-such-manifest.json") };
-            IReadOnlyList<PackStatus> unknown = ExtensionLoader.Resolve(root, [unreadable], Host, TrustAll);
+            IReadOnlyList<PackStatus> unknown = ExtensionLoader.Resolve(root, [unreadable], _host, _trustAll);
 
             using (Assert.Multiple())
             {
@@ -618,7 +617,7 @@ public class ExtensionLoaderTests
         List<string> offenders = [];
         foreach (string file in Directory.EnumerateFiles(extension, "*.axaml", SearchOption.AllDirectories))
         {
-            string text = File.ReadAllText(file);
+            string text = await File.ReadAllTextAsync(file);
             if (text.Contains("avares://", StringComparison.Ordinal)
                 || text.Contains(";assembly=", StringComparison.Ordinal))
             {
@@ -634,7 +633,7 @@ public class ExtensionLoaderTests
                 continue;
             }
 
-            string text = File.ReadAllText(file);
+            string text = await File.ReadAllTextAsync(file);
             if (text.Contains("Type.GetType(", StringComparison.Ordinal)
                 || text.Contains("Assembly.Load(", StringComparison.Ordinal)
                 || text.Contains("Assembly.LoadFrom(", StringComparison.Ordinal)
@@ -750,7 +749,7 @@ public class ExtensionLoaderTests
 
             ShippedPack shipped = new(StratBookPack.PackId, static () => new StratBookPack(),
                 WriteShippedManifest(root, OlderThanBuilt));
-            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], Host, TrustAll);
+            IReadOnlyList<PackStatus> statuses = ExtensionLoader.Resolve(root, [shipped], _host, _trustAll);
 
             using (Assert.Multiple())
             {

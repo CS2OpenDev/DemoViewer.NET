@@ -27,8 +27,8 @@ public class PlayerOverviewBenchmarksTests
     private const ulong First = 76561190000000100;
     private const int Accounts = 10;
     private const int Demos = 10;
-    private static readonly int[] Others = [0, 1, 2, 4, 5, 6, 7, 8];
-    private static readonly string FacetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly int[] _others = [0, 1, 2, 4, 5, 6, 7, 8];
+    private static readonly string _facetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     // Account k has K/D k+1; the last account is in the first two demos only.
     private static ulong Account(int k) => First + (ulong)k;
@@ -64,7 +64,7 @@ public class PlayerOverviewBenchmarksTests
         };
         DemoCacheStore.StampHeader(record);
         DemoCacheStore.StampParse(record);
-        record.PackStamps.Add(new PackStamp(FacetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
+        record.PackStamps.Add(new PackStamp(_facetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
         record.SetStamp(
             new PackStamp(MatchMetaEvaluator.StampId, DemoMatchMeta.CurrentSchema, MatchMetaEvaluator.Version)
             {
@@ -162,8 +162,8 @@ public class PlayerOverviewBenchmarksTests
         }
 
         DemoCacheRecord rewritten = Demo(4);
-        rewritten.PackStamps.RemoveAll(s => s.Id == FacetStamp);
-        rewritten.PackStamps.Add(new PackStamp(FacetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 2 });
+        rewritten.PackStamps.RemoveAll(s => s.Id == _facetStamp);
+        rewritten.PackStamps.Add(new PackStamp(_facetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 2 });
         library.Store.Upsert(rewritten);
         library.FacetReads.Clear();
         await library.Rows.LoadLibraryAsync();
@@ -187,7 +187,7 @@ public class PlayerOverviewBenchmarksTests
         using (Assert.Multiple())
         {
             await Assert.That(five.Select(p => p.SteamId64))
-                .IsEquivalentTo([.. Others.Select(Account)], CollectionOrdering.Matching);
+                .IsEquivalentTo([.. _others.Select(Account)], CollectionOrdering.Matching);
             await Assert.That(one.Count).IsEqualTo(9);
             await Assert.That(nuke.Count).IsEqualTo(8);
             await Assert.That(nuke.All(p => p.Pool.Matches == 5)).IsTrue()

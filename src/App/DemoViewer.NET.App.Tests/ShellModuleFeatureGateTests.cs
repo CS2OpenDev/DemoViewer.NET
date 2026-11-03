@@ -21,9 +21,7 @@ public class ShellModuleFeatureGateTests
     [Test]
     public async Task Delegates_ToUnderlyingGate()
     {
-        FakeGate gate = new();
-        gate.Answers["playback2d.follow"] = false;
-        gate.Answers["playback2d.timeline"] = true;
+        FakeGate gate = new() { Answers = { ["playback2d.follow"] = false, ["playback2d.timeline"] = true } };
 
         using ShellModuleFeatureGate projection = new(gate);
 
@@ -39,8 +37,7 @@ public class ShellModuleFeatureGateTests
     [Test]
     public async Task DesktopOnlyId_IsFalse_OnBrowser_TrueOtherwise()
     {
-        FakeGate gate = new();
-        gate.Answers["playback2d.export"] = true;
+        FakeGate gate = new() { Answers = { ["playback2d.export"] = true } };
 
         using ShellModuleFeatureGate onBrowser = new(gate, static () => true);
         using ShellModuleFeatureGate onDesktop = new(gate, static () => false);
@@ -58,8 +55,7 @@ public class ShellModuleFeatureGateTests
     [Test]
     public async Task DesktopOnlyId_StaysFalse_OnBrowser_EvenWhenTheGateSaysYes()
     {
-        FakeGate gate = new();
-        gate.Answers["playback2d.export"] = true;
+        FakeGate gate = new() { Answers = { ["playback2d.export"] = true } };
 
         using ShellModuleFeatureGate projection = new(gate, static () => true);
 
@@ -80,12 +76,11 @@ public class ShellModuleFeatureGateTests
             svc.Write(s => s.UserCategory = UserCategory.Developer);
             ServiceCollection services = new();
             services.Configure<AppSettings>(svc.Configuration);
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             using FeatureGate gate = new(sp.GetRequiredService<IOptionsMonitor<AppSettings>>(), false);
             using ShellModuleFeatureGate projection = new(gate, static () => false);
             string sub = FeatureCatalog.All
-                .First(d => d.OwnerPackId == StratBookPack.PackFeatureId && d.Scope == FeatureScope.SubFeature
-                                                                         && !d.Required).Id;
+                .First(d => d is { OwnerPackId: StratBookPack.PackFeatureId, Scope: FeatureScope.SubFeature, Required: false }).Id;
             int raised = 0;
             projection.Changed += () => raised++;
             await Assert.That(projection.IsEnabled(sub)).IsTrue();

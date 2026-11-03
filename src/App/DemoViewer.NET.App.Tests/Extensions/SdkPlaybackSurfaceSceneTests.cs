@@ -25,7 +25,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 [NotInParallel]
 public class SdkPlaybackSurfaceSceneTests
 {
-    private static readonly MapLevel Floor = new()
+    private static readonly MapLevel _floor = new()
     {
         Id = MapSpace.IdForZMin(-500), Name = "upper", ZMin = -500, ZMax = 100_000
     };
@@ -33,7 +33,7 @@ public class SdkPlaybackSurfaceSceneTests
     private static (Playback2DTabViewModel Vm, Playback2DSurface Surface) Surface(Func<Scene2DFrame>? frame = null)
     {
         (Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab();
-        return (vm, new Playback2DSurface(vm.Timeline, () => [Floor], _ => true, frame ?? (() => Scene2DFrame.Empty)));
+        return (vm, new Playback2DSurface(vm.Timeline, () => [_floor], _ => true, frame ?? (() => Scene2DFrame.Empty)));
     }
 
     /// <summary>
@@ -478,7 +478,7 @@ public class SdkPlaybackSurfaceSceneTests
         });
 
         inner.TryExecute("x.run");
-        inner.TryHandlePointerPress(new ScenePointer(Floor, 1, 2, SKPoint.Empty, ToolModifiers.None, shown,
+        inner.TryHandlePointerPress(new ScenePointer(_floor, 1, 2, SKPoint.Empty, ToolModifiers.None, shown,
             () => null));
 
         await Assert.That(ranWith).IsSameReferenceAs(shown);
@@ -661,10 +661,10 @@ public class SdkPlaybackSurfaceSceneTests
         public bool IsAvailable(ITimelineData data) => true;
 
         public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
-            [new TimelineBand("round", 10, 20, "3", "", 0xFF00FF00)];
+            [new("round", 10, 20, "3", "", 0xFF00FF00)];
 
         public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) =>
-            [new TimelineMarker("round", 15, 30, TimelineMarkerKind.Kill, "*", "a mark", 0xFFFF0000)];
+            [new("round", 15, 30, TimelineMarkerKind.Kill, "*", "a mark", 0xFFFF0000)];
     }
 
     // One labelled band, so two of these from two owners are told apart in the lane row.
@@ -683,7 +683,7 @@ public class SdkPlaybackSurfaceSceneTests
         public bool IsAvailable(ITimelineData data) => true;
 
         public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
-            [new TimelineBand(id, 10, 20, label, "", 0)];
+            [new(id, 10, 20, label, "", 0)];
 
         public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
     }

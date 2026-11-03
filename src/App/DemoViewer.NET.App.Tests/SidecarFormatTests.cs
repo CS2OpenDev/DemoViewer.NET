@@ -95,8 +95,8 @@ public class SidecarFormatTests
                 await Assert.That(json).DoesNotContain("\n").Because("the record is written compact");
                 await Assert.That(back).IsNotNull();
                 await Assert.That(back!.RoundFacts!.Rounds.Count).IsEqualTo(24);
-                await Assert.That(back!.Highlights.Count).IsEqualTo(200);
-                await Assert.That(back!.Players[0].SteamId64).IsEqualTo("76561198000000001");
+                await Assert.That(back.Highlights.Count).IsEqualTo(200);
+                await Assert.That(back.Players[0].SteamId64).IsEqualTo("76561198000000001");
             }
         }
         finally
@@ -119,10 +119,10 @@ public class SidecarFormatTests
 
             // Turn it into what the previous build left: an indented .json and no .json.gz.
             DemoCacheRecord original = seed.TryLoadRecord(Demo)!;
-            File.WriteAllText(legacy, JsonSerializer.Serialize(original, _indented));
+            await File.WriteAllTextAsync(legacy, JsonSerializer.Serialize(original, _indented));
             File.Delete(file);
             string otherLegacy = seed.LegacySidecarPathFor("/d/untouched.dem")!;
-            File.WriteAllText(otherLegacy, "{}");
+            await File.WriteAllTextAsync(otherLegacy, "{}");
 
             DemoCacheStore store = new(root);
             DemoCacheRecord? read = store.TryLoadRecord(Demo);
@@ -163,10 +163,10 @@ public class SidecarFormatTests
             seed.Upsert(BigRecord(Demo));
             string file = seed.SidecarPathFor(Demo)!;
             string legacy = seed.LegacySidecarPathFor(Demo)!;
-            byte[] good = File.ReadAllBytes(file);
+            byte[] good = await File.ReadAllBytesAsync(file);
 
             // Truncated gzip.
-            File.WriteAllBytes(file, good[..(good.Length / 2)]);
+            await File.WriteAllBytesAsync(file, good[..(good.Length / 2)]);
             await Assert.That(new DemoCacheStore(root).TryLoadRecord(Demo)).IsNull();
 
             // Gzip magic then garbage.
@@ -174,17 +174,17 @@ public class SidecarFormatTests
             await Assert.That(new DemoCacheStore(root).TryLoadRecord(Demo)).IsNull();
 
             // A valid legacy file beside a corrupt new one is the last good write, and is read.
-            File.WriteAllText(legacy, JsonSerializer.Serialize(BigRecord(Demo)));
+            await File.WriteAllTextAsync(legacy, JsonSerializer.Serialize(BigRecord(Demo)));
             await Assert.That(new DemoCacheStore(root).TryLoadRecord(Demo)).IsNotNull();
 
             // Corrupt legacy alone.
             File.Delete(file);
-            File.WriteAllText(legacy, "{ not json");
+            await File.WriteAllTextAsync(legacy, "{ not json");
             await Assert.That(new DemoCacheStore(root).TryLoadRecord(Demo)).IsNull();
 
             // A plain-JSON file under the new name still reads: readers sniff, not trust the name.
             File.Delete(legacy);
-            File.WriteAllText(file, JsonSerializer.Serialize(BigRecord(Demo)));
+            await File.WriteAllTextAsync(file, JsonSerializer.Serialize(BigRecord(Demo)));
             await Assert.That(new DemoCacheStore(root).TryLoadRecord(Demo)).IsNotNull();
         }
         finally
@@ -202,7 +202,7 @@ public class SidecarFormatTests
             DemoCacheStore store = new(root);
             store.Upsert(BigRecord(Demo));
             string legacy = store.LegacySidecarPathFor(Demo)!;
-            File.WriteAllText(legacy, "{}");
+            await File.WriteAllTextAsync(legacy, "{}");
 
             store.Remove(Demo);
             using (Assert.Multiple())
@@ -251,8 +251,8 @@ public class SidecarFormatTests
             await Assert.That(store.TryReadPositions(Demo, "fp")).IsNotNull();
 
             string file = Directory.GetFiles(root, "*.positions.json.gz", SearchOption.AllDirectories).Single();
-            byte[] good = File.ReadAllBytes(file);
-            File.WriteAllBytes(file, good[..(good.Length / 2)]);
+            byte[] good = await File.ReadAllBytesAsync(file);
+            await File.WriteAllBytesAsync(file, good[..(good.Length / 2)]);
             await Assert.That(store.TryReadPositions(Demo)).IsNull();
         }
         finally
@@ -274,17 +274,10 @@ public class SidecarFormatTests
         Trajectory = [new TrajectoryPoint(10, 1, 2, 3, 0), new TrajectoryPoint(20, 50, 100, 3, 0)]
     };
 
-    private static (GrenadeDocument Rows, GrenadePathsDocument Paths) Documents(params GrenadeRow[] rows)
+    private static GrenadeDocument Documents(params GrenadeRow[] rows)
     {
         GrenadeDemoHeader header = new() { Sha256 = "sha-g", StableKey = DemoCacheStore.StableKey(Demo) };
-        GrenadeDocument document = new() { Demo = header, Grenades = [.. rows] };
-        GrenadePathsDocument paths = new() { Demo = header };
-        foreach (GrenadeRow row in rows)
-        {
-            paths.Paths[row.Id] = row.Trajectory;
-        }
-
-        return (document, paths);
+        return new GrenadeDocument { Demo = header, Grenades = [.. rows] };
     }
 
     // ── One-off conversion pass ─────────────────────────────────────────────────────────────────
@@ -306,7 +299,8 @@ public class SidecarFormatTests
 
             seed.SaveIndex();
             DemoCacheRecord aRecord = seed.TryLoadRecord("/d/a.dem")!;
-            File.WriteAllText(seed.LegacySidecarPathFor("/d/a.dem")!, JsonSerializer.Serialize(aRecord, _indented));
+            await File.WriteAllTextAsync(seed.LegacySidecarPathFor("/d/a.dem")!,
+                JsonSerializer.Serialize(aRecord, _indented));
             File.Delete(seed.SidecarPathFor("/d/a.dem")!);
 
             DemoCacheStore cache = new(root);
@@ -338,9 +332,9 @@ public class SidecarFormatTests
         string root = TempRoot();
         try
         {
-            const string a = "/d/a.dem", b = "/d/b.dem", c = "/d/c.dem", d = "/d/d.dem";
+            const string A = "/d/a.dem", B = "/d/b.dem", C = "/d/c.dem", D = "/d/d.dem";
             DemoCacheStore seed = new(root);
-            foreach (string path in (string[])[a, b, c, d])
+            foreach (string path in (string[])[A, B, C, D])
             {
                 seed.Upsert(BigRecord(path));
             }
@@ -348,19 +342,19 @@ public class SidecarFormatTests
             seed.SaveIndex();
 
             // a: legacy only, carrying a field no model knows. c: corrupt legacy only. d: new plus a stale legacy.
-            DemoCacheRecord aRecord = seed.TryLoadRecord(a)!;
+            DemoCacheRecord aRecord = seed.TryLoadRecord(A)!;
             string aJson = JsonSerializer.Serialize(aRecord, _indented).Insert(1, "\n  \"FutureField\": 7,");
-            File.WriteAllText(seed.LegacySidecarPathFor(a)!, aJson);
-            File.Delete(seed.SidecarPathFor(a)!);
-            File.WriteAllText(seed.LegacySidecarPathFor(c)!, "{ not json");
-            File.Delete(seed.SidecarPathFor(c)!);
-            File.WriteAllText(seed.LegacySidecarPathFor(d)!, "{}");
+            await File.WriteAllTextAsync(seed.LegacySidecarPathFor(A)!, aJson);
+            File.Delete(seed.SidecarPathFor(A)!);
+            await File.WriteAllTextAsync(seed.LegacySidecarPathFor(C)!, "{ not json");
+            File.Delete(seed.SidecarPathFor(C)!);
+            await File.WriteAllTextAsync(seed.LegacySidecarPathFor(D)!, "{}");
 
             DemoCacheStore cache = new(root);
             SidecarFormatResult first = await Pass(cache);
             string marker = Path.Combine(root, SidecarFormatMigration.MarkerFileName);
 
-            await using (GZipStream gzip = new(File.OpenRead(cache.SidecarPathFor(a)!), CompressionMode.Decompress))
+            await using (GZipStream gzip = new(File.OpenRead(cache.SidecarPathFor(A)!), CompressionMode.Decompress))
             using (StreamReader reader = new(gzip, Encoding.UTF8))
             {
                 string converted = await reader.ReadToEndAsync();
@@ -373,12 +367,12 @@ public class SidecarFormatTests
                 await Assert.That(first.Failed).IsEqualTo(1).Because("c's record does not read");
                 await Assert.That(first.Completed).IsFalse();
                 await Assert.That(File.Exists(marker)).IsFalse();
-                await Assert.That(File.Exists(cache.LegacySidecarPathFor(a)!)).IsFalse();
-                await Assert.That(cache.TryLoadRecord(a)!.Highlights.Count).IsEqualTo(200);
-                await Assert.That(File.Exists(cache.LegacySidecarPathFor(c)!)).IsTrue();
-                await Assert.That(File.Exists(cache.SidecarPathFor(c)!)).IsFalse();
-                await Assert.That(File.Exists(cache.LegacySidecarPathFor(d)!)).IsFalse();
-                await Assert.That(cache.TryLoadRecord(d)).IsNotNull();
+                await Assert.That(File.Exists(cache.LegacySidecarPathFor(A)!)).IsFalse();
+                await Assert.That(cache.TryLoadRecord(A)!.Highlights.Count).IsEqualTo(200);
+                await Assert.That(File.Exists(cache.LegacySidecarPathFor(C)!)).IsTrue();
+                await Assert.That(File.Exists(cache.SidecarPathFor(C)!)).IsFalse();
+                await Assert.That(File.Exists(cache.LegacySidecarPathFor(D)!)).IsFalse();
+                await Assert.That(cache.TryLoadRecord(D)).IsNotNull();
             }
 
             // Resumable: the converted demos have nothing left, the bad files are tried again.
@@ -389,7 +383,7 @@ public class SidecarFormatTests
                 await Assert.That(second.Failed).IsEqualTo(1);
             }
 
-            File.Delete(cache.LegacySidecarPathFor(c)!);
+            File.Delete(cache.LegacySidecarPathFor(C)!);
             SidecarFormatResult third = await Pass(cache);
             SidecarFormatResult fourth = await Pass(cache);
             using (Assert.Multiple())
@@ -408,7 +402,7 @@ public class SidecarFormatTests
     [Test]
     public async Task GrenadeRow_SteamIdText_RoundTripsExactly()
     {
-        (GrenadeDocument rows, _) = Documents(Row("a", "76561198000000001"), Row("b", null), Row("c", "007"),
+        GrenadeDocument rows = Documents(Row("a", "76561198000000001"), Row("b", null), Row("c", "007"),
             Row("d", "bot"), Row("e", "0"));
         string json = GrenadeSidecar.Serialize(rows);
         GrenadeDocument back = GrenadeSidecar.TryDeserializeRows(json)!;
@@ -416,7 +410,7 @@ public class SidecarFormatTests
         {
             await Assert.That(GrenadeSidecar.Serialize(back)).IsEqualTo(json);
             await Assert.That(back.Grenades.Select(g => g.ThrowerSteamId64)).IsEquivalentTo(
-                new[] { "76561198000000001", null, "007", "bot", "0" }, CollectionOrdering.Matching);
+                ["76561198000000001", null, "007", "bot", "0"], CollectionOrdering.Matching);
             await Assert.That(back.Grenades[2].ThrowerSteamId).IsNull()
                 .Because("text that would not print back is kept as text");
             await Assert.That(back.Grenades[4].ThrowerSteamId).IsEqualTo(0UL);
@@ -436,28 +430,28 @@ public class SidecarFormatTests
             DemoCacheRecord record = BigRecord(Demo);
             store.Upsert(record);
             string legacy = Path.Combine(root, "legacy.json");
-            File.WriteAllText(legacy, JsonSerializer.Serialize(record, _indented));
+            await File.WriteAllTextAsync(legacy, JsonSerializer.Serialize(record, _indented));
 
-            const int reads = 50;
+            const int Reads = 50;
             JsonSerializer.Deserialize<DemoCacheRecord>(File.ReadAllText(legacy));
             new DemoCacheStore(root).TryLoadRecord(Demo);
 
             long start = GC.GetAllocatedBytesForCurrentThread();
-            for (int i = 0; i < reads; i++)
+            for (int i = 0; i < Reads; i++)
             {
                 JsonSerializer.Deserialize<DemoCacheRecord>(File.ReadAllText(legacy));
             }
 
-            long before = (GC.GetAllocatedBytesForCurrentThread() - start) / reads;
+            long before = (GC.GetAllocatedBytesForCurrentThread() - start) / Reads;
 
-            DemoCacheStore[] fresh = [.. Enumerable.Range(0, reads).Select(_ => new DemoCacheStore(root))];
+            DemoCacheStore[] fresh = [.. Enumerable.Range(0, Reads).Select(_ => new DemoCacheStore(root))];
             start = GC.GetAllocatedBytesForCurrentThread();
             foreach (DemoCacheStore s in fresh)
             {
                 s.TryLoadRecord(Demo);
             }
 
-            long after = (GC.GetAllocatedBytesForCurrentThread() - start) / reads;
+            long after = (GC.GetAllocatedBytesForCurrentThread() - start) / Reads;
             Console.WriteLine(
                 $"[record read] indented text {new FileInfo(legacy).Length} B, gzip {new FileInfo(store.SidecarPathFor(Demo)!).Length} B; "
                 +

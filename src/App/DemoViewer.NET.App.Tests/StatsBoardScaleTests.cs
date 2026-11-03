@@ -543,7 +543,7 @@ public class StatsBoardScaleTests
         vm.SelectedCategory = ColumnCatalogue.Resolve(column).Group;
 
         StatScaleSpec spec = ColumnCatalogue.Resolve(column).Scale!;
-        await Assert.That(spec.ColourGateColumns).IsEquivalentTo(new[] { gate }, CollectionOrdering.Matching);
+        await Assert.That(spec.ColourGateColumns).IsEquivalentTo([gate], CollectionOrdering.Matching);
 
         StatCell thin = Cell(vm, starved, column);
         await Assert.That(thin.Scale).IsNotNull().Because("the bar survives the gate");
@@ -1846,7 +1846,7 @@ public class StatsBoardScaleTests
             Dispatcher.UIThread.RunJobs();
 
             TextBlock[] shown = view.GetVisualDescendants().OfType<TextBlock>()
-                .Where(t => t.IsVisible && t.Text is { } text && text.Contains("Time to Shoot",
+                .Where(t => t is { IsVisible: true, Text: { } text } && text.Contains("Time to Shoot",
                     StringComparison.Ordinal))
                 .ToArray();
             await Assert.That(shown).IsNotEmpty()
@@ -1857,7 +1857,7 @@ public class StatsBoardScaleTests
             if (window.CaptureRenderedFrame() is { } frame)
             {
                 string outPath = Path.Combine(HeadlessSession.ArtifactDir, "stats-no-sight-data.png");
-                using FileStream file = File.Create(outPath);
+                await using FileStream file = File.Create(outPath);
                 frame.Save(file, new PngBitmapEncoderOptions());
                 Console.WriteLine($"[stats-no-sight-data] {outPath}");
             }

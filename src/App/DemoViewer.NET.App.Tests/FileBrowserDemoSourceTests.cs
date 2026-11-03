@@ -83,8 +83,8 @@ public class FileBrowserDemoSourceTests
               """);
 
     /// <summary>Constructs a source and discards it, so a ctor-rejection case reads as a call.</summary>
-    private static FileBrowserDemoSource Build(string token) =>
-        new FileBrowserDemoSource(_instance, token, new StubHandler(_ => Status(HttpStatusCode.NotFound)));
+    private static void Build(string token) =>
+        _ = new FileBrowserDemoSource(_instance, token, new StubHandler(_ => Status(HttpStatusCode.NotFound)));
 
     // ── Download ──────────────────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ public class FileBrowserDemoSourceTests
             using (Assert.Multiple())
             {
                 await Assert.That(source.TryCopyTo(Demo(body, "benchmarks"), dest)).IsTrue();
-                await Assert.That(File.ReadAllBytes(dest)).IsEquivalentTo(body);
+                await Assert.That(await File.ReadAllBytesAsync(dest)).IsEquivalentTo(body);
                 // The dir candidate is tried first and hit, so there is exactly one round trip.
                 await Assert.That(handler.Requests.Count).IsEqualTo(1);
                 await Assert.That(handler.Requests[0]).Contains("source=Demos");
@@ -131,7 +131,7 @@ public class FileBrowserDemoSourceTests
             using (Assert.Multiple())
             {
                 await Assert.That(source.TryCopyTo(Demo(body, "pro-demos"), dest)).IsTrue();
-                await Assert.That(File.ReadAllBytes(dest)).IsEquivalentTo(body);
+                await Assert.That(await File.ReadAllBytesAsync(dest)).IsEquivalentTo(body);
                 await Assert.That(handler.Requests.Count).IsEqualTo(2);
             }
         }

@@ -50,9 +50,9 @@ public class ExtensionSignatureTests
         {
             // Same contents as NewTree, written in the opposite order, under a sub-folder too.
             Directory.CreateDirectory(Path.Combine(dirB, "sub"));
-            File.WriteAllText(Path.Combine(dirB, "sub", "a.txt"), "hello");
-            File.WriteAllText(Path.Combine(dirB, ".hidden"), "dotfile content");
-            File.WriteAllText(Path.Combine(dirB, "extension.json"), "{\"id\":\"x\"}");
+            await File.WriteAllTextAsync(Path.Combine(dirB, "sub", "a.txt"), "hello");
+            await File.WriteAllTextAsync(Path.Combine(dirB, ".hidden"), "dotfile content");
+            await File.WriteAllTextAsync(Path.Combine(dirB, "extension.json"), "{\"id\":\"x\"}");
 
             string firstRun = Convert.ToHexString(ExtensionSignature.ComputeDigest(dirA));
             string secondRun = Convert.ToHexString(ExtensionSignature.ComputeDigest(dirA));
@@ -105,15 +105,15 @@ public class ExtensionSignatureTests
             try
             {
                 WriteSignature(byteChanged, privateKey);
-                byte[] bytes = File.ReadAllBytes(Path.Combine(byteChanged, "extension.json"));
+                byte[] bytes = await File.ReadAllBytesAsync(Path.Combine(byteChanged, "extension.json"));
                 bytes[0] ^= 0xFF;
-                File.WriteAllBytes(Path.Combine(byteChanged, "extension.json"), bytes);
+                await File.WriteAllBytesAsync(Path.Combine(byteChanged, "extension.json"), bytes);
 
                 WriteSignature(renamed, privateKey);
                 File.Move(Path.Combine(renamed, "sub", "a.txt"), Path.Combine(renamed, "sub", "b.txt"));
 
                 WriteSignature(added, privateKey);
-                File.WriteAllText(Path.Combine(added, "new.txt"), "surprise");
+                await File.WriteAllTextAsync(Path.Combine(added, "new.txt"), "surprise");
 
                 WriteSignature(removed, privateKey);
                 File.Delete(Path.Combine(removed, ".hidden"));
@@ -181,7 +181,7 @@ public class ExtensionSignatureTests
         {
             try
             {
-                File.WriteAllText(Path.Combine(dir, ExtensionSignature.FileName), "not json");
+                await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName), "not json");
                 SignatureCheck check = ExtensionSignature.Verify(dir, [publicKey]);
                 using (Assert.Multiple())
                 {
@@ -210,9 +210,9 @@ public class ExtensionSignatureTests
             try
             {
                 WriteSignature(dir, privateKey);
-                byte[] bytes = File.ReadAllBytes(Path.Combine(dir, "extension.json"));
+                byte[] bytes = await File.ReadAllBytesAsync(Path.Combine(dir, "extension.json"));
                 bytes[0] ^= 0xFF;
-                File.WriteAllBytes(Path.Combine(dir, "extension.json"), bytes);
+                await File.WriteAllBytesAsync(Path.Combine(dir, "extension.json"), bytes);
                 byte[] tamperedDigest = ExtensionSignature.ComputeDigest(dir);
                 RewriteSignatureField(dir, "digest", Convert.ToBase64String(tamperedDigest));
 
@@ -272,7 +272,7 @@ public class ExtensionSignatureTests
     public async Task Verify_AKeyOnAnotherCurve_IsSkippedRatherThanAttempted_AndReadsAsSignatureInvalid()
     {
         string dir = NewTree();
-        (string signerPublicKey, ECDsa signerPrivateKey) = NewKeyPair();
+        (_, ECDsa signerPrivateKey) = NewKeyPair();
         using ECDsa otherCurveKey = ECDsa.Create(ECCurve.NamedCurves.nistP384);
         string otherCurvePublicKey = Convert.ToBase64String(otherCurveKey.ExportSubjectPublicKeyInfo());
         using (signerPrivateKey)
@@ -372,7 +372,7 @@ public class ExtensionSignatureTests
         {
             for (int i = 0; i < ExtensionSignature.MaxFiles + 1; i++)
             {
-                File.WriteAllText(Path.Combine(manyFiles, $"f{i}.txt"), "x");
+                await File.WriteAllTextAsync(Path.Combine(manyFiles, $"f{i}.txt"), "x");
             }
 
             Exception? ex = Catch(() => ExtensionSignature.ComputeDigest(manyFiles));
@@ -398,7 +398,7 @@ public class ExtensionSignatureTests
         try
         {
             string bigFile = Path.Combine(tooLarge, "big.bin");
-            using (FileStream stream = File.Create(bigFile))
+            await using (FileStream stream = File.Create(bigFile))
             {
                 stream.SetLength(ExtensionSignature.MaxTotalBytes + 1);
             }
@@ -424,7 +424,7 @@ public class ExtensionSignatureTests
         try
         {
             string outside = Path.Combine(dir, "..", "dvsig-outside-" + Guid.NewGuid().ToString("N") + ".txt");
-            File.WriteAllText(outside, "elsewhere");
+            await File.WriteAllTextAsync(outside, "elsewhere");
             try
             {
                 File.CreateSymbolicLink(Path.Combine(dir, "linked.txt"), outside);

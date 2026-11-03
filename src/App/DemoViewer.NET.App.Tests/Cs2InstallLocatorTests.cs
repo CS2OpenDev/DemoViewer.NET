@@ -42,14 +42,14 @@ public class Cs2InstallLocatorTests
     public async Task FindsReplays_OnSecondaryLibrary_FromLibraryFoldersVdf_WithBackslashUnescape()
     {
         // The vdf lists a second library on another drive with escaped backslashes, Windows-style.
-        const string secondLibrary = @"D:\SteamLibrary";
-        string replays = Replays(secondLibrary);
+        const string SecondLibrary = @"D:\SteamLibrary";
+        string replays = Replays(SecondLibrary);
 
         HashSet<string> dirs = new(StringComparer.Ordinal)
         {
             SteamRoot, // the root exists, but CS2 is NOT under it
-            secondLibrary,
-            CommonInstall(secondLibrary),
+            SecondLibrary,
+            CommonInstall(SecondLibrary),
             replays
         };
         Dictionary<string, string> files = new(StringComparer.Ordinal)

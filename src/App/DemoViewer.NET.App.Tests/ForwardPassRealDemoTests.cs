@@ -32,7 +32,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public class ForwardPassRealDemoTests
 {
-    private static readonly JsonSerializerOptions Json = new() { WriteIndented = false, IncludeFields = true };
+    private static readonly JsonSerializerOptions _json = new() { WriteIndented = false, IncludeFields = true };
 
     private static RuleConfigLoadResult ShippedRules() =>
         YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null);
@@ -144,7 +144,7 @@ public class ForwardPassRealDemoTests
             highlights.Evaluate(path, parsed);
             facts.Evaluate(path, parsed);
         });
-        written["firings"] = JsonSerializer.Serialize(merged.BareRun(parsed).Highlights, Json);
+        written["firings"] = JsonSerializer.Serialize(merged.BareRun(parsed).Highlights, _json);
         written["extension pass"] = ExtensionPassSees(path, parsed, null);
 
         IReadOnlyList<RulesetDoc> rules = ShippedRules().Rulesets;
@@ -165,7 +165,7 @@ public class ForwardPassRealDemoTests
         {
             ["firings"] = JsonSerializer.Serialize(
                 DemoAnalysis.Evaluate(parsed, highlightsOnly, new AnalysisOptions { CaptureSnapshots = false })
-                    .Highlights, Json),
+                    .Highlights, _json),
             ["round facts"] = factsTable.Rows.Count == 0 ? None : WithoutSha(rows),
             ["highlight fingerprint"] = HighlightConfigFingerprint.Compute(
                 HighlightsOnly(rules), parsed.TickRate, RulesHighlightHarvester.GotvProfileId).Fingerprint,
@@ -190,7 +190,7 @@ public class ForwardPassRealDemoTests
             seen.LastServerTick,
             seen.Map,
             seen.Rounds
-        }, Json);
+        }, _json);
     }
 
     private static Dictionary<string, string> Forward(string path, MergedRulesBuild merged)
@@ -203,7 +203,7 @@ public class ForwardPassRealDemoTests
             highlights.EvaluateForward(path, pass);
             facts.EvaluateForward(path, pass);
         });
-        written["firings"] = JsonSerializer.Serialize(pass.Run!.Highlights, Json);
+        written["firings"] = JsonSerializer.Serialize(pass.Run!.Highlights, _json);
         written["extension pass"] = ExtensionPassSees(path, null, pass);
         return written;
     }
@@ -250,7 +250,7 @@ public class ForwardPassRealDemoTests
             run(library, entry, highlights, facts);
 
             DemoCacheRecord record = cache.TryLoadRecord(path)!;
-            JsonObject recordJson = JsonSerializer.SerializeToNode(record, Json)!.AsObject();
+            JsonObject recordJson = JsonSerializer.SerializeToNode(record, _json)!.AsObject();
             StripStamps(recordJson);
             return new Dictionary<string, string>
             {
@@ -271,7 +271,7 @@ public class ForwardPassRealDemoTests
                         entry.TClan,
                         Rounds = record.Rounds.Count,
                         Roster = record.Players
-                    }, Json)
+                    }, _json)
             };
         }
         finally
@@ -289,7 +289,7 @@ public class ForwardPassRealDemoTests
             return None;
         }
 
-        JsonObject json = JsonSerializer.SerializeToNode(rows, Json)!.AsObject();
+        JsonObject json = JsonSerializer.SerializeToNode(rows, _json)!.AsObject();
         json.Remove("DemoSha256");
         return json.ToJsonString();
     }

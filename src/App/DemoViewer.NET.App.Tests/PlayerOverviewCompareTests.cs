@@ -56,7 +56,7 @@ public class PlayerOverviewCompareTests
             });
 
     // Grim wins even demos; Rival, on the other side, wins odd ones.
-    internal static FactTable Facet(int i) => new(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
+    private static FactTable Facet(int i) => new(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
         ["player_slot", "steam_id", "team"], [], new Dictionary<string, string>(),
         [
             Row(2, Grim, 3, 20, 15, 4, 2, i % 2 == 0),
@@ -79,10 +79,10 @@ public class PlayerOverviewCompareTests
             Section = new CompareSectionViewModel(Services);
         }
 
-        public PlayerDirectory Directory { get; }
-        public IdentityService Identity { get; }
-        public PlayerRowCache Rows { get; }
-        public PlayerOverviewServices Services { get; }
+        private PlayerDirectory Directory { get; }
+        private IdentityService Identity { get; }
+        private PlayerRowCache Rows { get; }
+        private PlayerOverviewServices Services { get; }
         public CompareSectionViewModel Section { get; }
         public List<ulong> Opened { get; } = [];
 

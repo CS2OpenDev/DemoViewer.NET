@@ -25,9 +25,9 @@ namespace DemoViewer.NET.AppTests;
 public class PlayerOverviewFilterTests
 {
     private const ulong Grim = PlayerOverviewHistoryTests.Grim;
-    private static readonly string[] Maps = ["de_nuke", "de_inferno", "de_mirage"];
+    private static readonly string[] _maps = ["de_nuke", "de_inferno", "de_mirage"];
 
-    // Demo i is on Maps[i % 3], competitive on even i and premier on odd; Grim ends on CT on even demos. A demo
+    // Demo i is on _maps[i % 3], competitive on even i and premier on odd; Grim ends on CT on even demos. A demo
     // that passes rounds has its player_round facet written.
     private static DemoCacheStore Library(int demos, Func<int, bool>? stamped = null, Func<int, bool>? rounds = null)
     {
@@ -37,7 +37,7 @@ public class PlayerOverviewFilterTests
             for (int i = 0; i < demos; i++)
             {
                 DemoCacheRecord record = PlayerOverviewHistoryTests.Demo(i, stamped?.Invoke(i) ?? true);
-                record.Map = Maps[i % Maps.Length];
+                record.Map = _maps[i % _maps.Length];
                 record.MatchMeta!.GameMode = i % 2 == 0 ? "competitive" : "premier";
                 if (rounds?.Invoke(i) == true)
                 {
@@ -71,7 +71,7 @@ public class PlayerOverviewFilterTests
             ["TFK"] = FactValue.Of(1L),
             ["TFD"] = FactValue.Of(1L + (i % 2))
         };
-        return facet with { Rows = [new FactRow(row.Dimensions, values)] };
+        return facet with { Rows = [row with { Values = values }] };
     }
 
     // Grim's rounds in demo i: two CT rounds with 2 kills, a death, 150 damage and KAST each; two T rounds with a
@@ -131,8 +131,8 @@ public class PlayerOverviewFilterTests
         }
 
         public DemoCacheStore Store { get; }
-        public PlayerDirectory Directory { get; }
-        public IdentityService Identity { get; }
+        private PlayerDirectory Directory { get; }
+        private IdentityService Identity { get; }
         public PlayerRowCache Cache { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public ConcurrentQueue<string> Reads { get; } = new();
@@ -554,7 +554,7 @@ public class PlayerOverviewFilterTests
         {
             await Assert.That(inferno.MatchesText).IsEqualTo("1");
             await Assert.That(cells.All(c => c == "–")).IsTrue();
-            await Assert.That(shell.Maps.Sides.All(s => s.RoundsText == "–" && s.OpeningText == "–")).IsTrue();
+            await Assert.That(shell.Maps.Sides.All(s => s is { RoundsText: "–", OpeningText: "–" })).IsTrue();
         }
     }
 }

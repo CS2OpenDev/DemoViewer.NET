@@ -35,7 +35,7 @@ public class DemoContentFingerprintTests
         return path;
     }
 
-    private static readonly TimeSpan Settled = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan _settled = TimeSpan.FromMinutes(10);
 
     [Test]
     public async Task ALargeFile_ReadsExactlyTwoWindows_AndHashesEachEnd()
@@ -93,7 +93,7 @@ public class DemoContentFingerprintTests
     public async Task AFileNoLargerThanOneWindow_HasBothEndsEqualToTheContentHash()
     {
         byte[] bytes = Bytes(Window - 7, 4);
-        string path = TempFile(bytes, Settled);
+        string path = TempFile(bytes, _settled);
         try
         {
             DemoContentFingerprint? fp =
@@ -131,7 +131,7 @@ public class DemoContentFingerprintTests
     public async Task TheCombinedPass_MatchesTheContentHash_AndTheStandaloneFingerprint()
     {
         byte[] bytes = Bytes(3 * Window + 11, 5);
-        string path = TempFile(bytes, Settled);
+        string path = TempFile(bytes, _settled);
         try
         {
             (string? sha, DemoContentFingerprint? fp) =
@@ -181,10 +181,10 @@ public class DemoContentFingerprintTests
     public async Task AWriteDuringTheRead_WithholdsTheHashAndTheFingerprint()
     {
         byte[] bytes = Bytes(2 * Window + 1, 7);
-        string path = TempFile(bytes, Settled);
+        string path = TempFile(bytes, _settled);
         try
         {
-            FileStat old = new(bytes.Length, DateTimeOffset.UtcNow - Settled);
+            FileStat old = new(bytes.Length, DateTimeOffset.UtcNow - _settled);
 
             // IsSettled stats twice and the read is bracketed by two more: the last one sees a new write.
             Func<string, FileStat> Moving()

@@ -214,7 +214,8 @@ public class LibraryTeamTablesTests
         try
         {
             AnalysisRun? served = null;
-            using DemoLibraryService library = new(a => a(), json) { TeamRun = (_, _) => served };
+            using DemoLibraryService library = new(a => a(), json);
+            library.TeamRun = (_, _) => served;
             library.IndexTier2Core(Entry(), MergedRulesBuildTests.TwoFrameDemo());
             int withoutRun = replays;
             ParsedDemo parsed = MergedRulesBuildTests.TwoFrameDemo();
@@ -401,7 +402,7 @@ public class LibraryTeamTablesTests
         Console.WriteLine($"{file}: replay {Show(replay)}, merged {Show(merged)}, tap {Show(tap)}");
         using (Assert.Multiple())
         {
-            await Assert.That(replay.Ct is { } ct && replay.T is { } t
+            await Assert.That(replay is { Ct: { } ct, T: { } t }
                                                   && LibraryFinalScore.IsResult(Math.Max(ct, t), Math.Min(ct, t)))
                 .IsTrue().Because($"{Show(replay)} is not a finished MR12 result");
             await Assert.That(Show(merged)).IsEqualTo(Show(replay));

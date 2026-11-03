@@ -85,7 +85,7 @@ public class RuleWorkbenchModuleTests
     [Test]
     public async Task RuleWorkbench_NewFile_CreatesAndOpensDraft()
     {
-        await WithTempRules(async (vm, userDir) =>
+        await WithTempRules(async (vm, _) =>
         {
             vm.NewFileCommand.Execute(null);
 
@@ -100,7 +100,7 @@ public class RuleWorkbenchModuleTests
     [Test]
     public async Task RuleWorkbench_Save_WritesBufferAndClearsDirty()
     {
-        await WithTempRules(async (vm, userDir) =>
+        await WithTempRules(async (vm, _) =>
         {
             vm.NewFileCommand.Execute(null);
             string file = vm.SelectedFile!.FullPath;
@@ -110,7 +110,7 @@ public class RuleWorkbenchModuleTests
 
             vm.SaveCommand.Execute(null);
             await Assert.That(vm.IsDirty).IsFalse();
-            string onDisk = File.ReadAllText(file);
+            string onDisk = await File.ReadAllTextAsync(file);
             await Assert.That(onDisk).Contains("ruleset: saved_probe");
         });
     }
@@ -118,7 +118,7 @@ public class RuleWorkbenchModuleTests
     [Test]
     public async Task RuleWorkbench_Save_StampsCatalogVersion()
     {
-        await WithTempRules(async (vm, userDir) =>
+        await WithTempRules(async (vm, _) =>
         {
             vm.NewFileCommand.Execute(null);
             string file = vm.SelectedFile!.FullPath;
@@ -129,7 +129,7 @@ public class RuleWorkbenchModuleTests
 
             await Assert.That(vm.DocumentText).Contains("catalog_version:")
                 .Because("Save stamps the current catalog version");
-            string onDisk = File.ReadAllText(file);
+            string onDisk = await File.ReadAllTextAsync(file);
             await Assert.That(onDisk).Contains("catalog_version:");
             await Assert.That(vm.IsDirty).IsFalse().Because("stamping does not leave the buffer dirty");
             await Assert.That(vm.IsClean).IsTrue().Because("a stamped starter template still composes clean");
@@ -514,7 +514,7 @@ public class RuleWorkbenchModuleTests
         IReadOnlyList<WorkbenchPathNode> tree = WorkbenchPathTree.Build(paths);
 
         WorkbenchPathNode round = tree.Single(n => n.Segment == "round");
-        await Assert.That(round.Children.Any(c => c.Segment == "number" && c.FullPath == "round.number")).IsTrue()
+        await Assert.That(round.Children.Any(c => c is { Segment: "number", FullPath: "round.number" })).IsTrue()
             .Because("round.number is a leaf under the round node");
         WorkbenchPathNode bomb = round.Children.Single(c => c.Segment == "bomb");
         await Assert.That(bomb.FullPath).IsNull().Because("round.bomb is only an intermediate prefix here");
@@ -692,7 +692,7 @@ public class RuleWorkbenchModuleTests
         WorkbenchTraceReport report = WorkbenchTraceModel.Build(result, docs, demo);
 
         WorkbenchTraceTarget[] firedStats =
-            report.Targets.Where(t => t.Kind == "stat" && t.FireCount > 0).ToArray();
+            report.Targets.Where(t => t is { Kind: "stat", FireCount: > 0 }).ToArray();
         await Assert.That(firedStats.Length).IsGreaterThan(0)
             .Because("count/sum stats fire through the applied-edge source, not the timeline");
 

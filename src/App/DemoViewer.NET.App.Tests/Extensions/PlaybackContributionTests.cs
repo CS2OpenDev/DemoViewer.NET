@@ -28,7 +28,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 /// </summary>
 public class PlaybackContributionTests
 {
-    private static readonly TimelineBandViewModel RoundBand =
+    private static readonly TimelineBandViewModel _roundBand =
         new(new TimelineBand("round", 0, 10, "7", "round 7", 0), 0, 1, Brushes.Gray);
 
     private static (Playback2DTabViewModel Vm, Playback2DFakeContext Ctx) Tab()
@@ -49,7 +49,7 @@ public class PlaybackContributionTests
         FakeContribution fake = new();
 
         using IDisposable binding = Host(null, fake).Attach(vm.Surface, ctx);
-        IReadOnlyList<MenuEntry> menu = vm.Timeline.MenuFor(RoundBand);
+        IReadOnlyList<MenuEntry> menu = vm.Timeline.MenuFor(_roundBand);
 
         using (Assert.Multiple())
         {
@@ -77,7 +77,7 @@ public class PlaybackContributionTests
         (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Tab();
         FakeContribution fake = new();
         IDisposable binding = Host(null, fake).Attach(vm.Surface, ctx);
-        vm.Timeline.MenuFor(RoundBand)[0].Run();
+        vm.Timeline.MenuFor(_roundBand)[0].Run();
         FakePaneViewModel opened = (FakePaneViewModel)vm.Surface.SidePane!;
         int closed = 0;
         fake.Pane!.Closed += () => closed++;
@@ -87,7 +87,7 @@ public class PlaybackContributionTests
         using (Assert.Multiple())
         {
             await Assert.That(fake.Detached).IsEqualTo(1);
-            await Assert.That(vm.Timeline.MenuFor(RoundBand)).IsEmpty();
+            await Assert.That(vm.Timeline.MenuFor(_roundBand)).IsEmpty();
             await Assert.That(vm.Surface.Panes).IsEmpty();
             await Assert.That(vm.Surface.SidePane).IsNull();
             await Assert.That(opened.Disposed).IsTrue();
@@ -105,13 +105,13 @@ public class PlaybackContributionTests
         FakeGate gate = new() { On = false };
 
         using IDisposable binding = Host(gate, fake).Attach(vm.Surface, ctx);
-        await Assert.That(vm.Timeline.MenuFor(RoundBand)).IsEmpty().Because("the pack is off");
+        await Assert.That(vm.Timeline.MenuFor(_roundBand)).IsEmpty().Because("the pack is off");
         await Assert.That(fake.Attached).IsEqualTo(0);
 
         gate.On = true;
         gate.Raise();
-        await Assert.That(vm.Timeline.MenuFor(RoundBand).Count).IsEqualTo(1).Because("the pack came on");
-        vm.Timeline.MenuFor(RoundBand)[0].Run();
+        await Assert.That(vm.Timeline.MenuFor(_roundBand).Count).IsEqualTo(1).Because("the pack came on");
+        vm.Timeline.MenuFor(_roundBand)[0].Run();
         FakePaneViewModel opened = (FakePaneViewModel)vm.Surface.SidePane!;
 
         gate.Raise();
@@ -122,7 +122,7 @@ public class PlaybackContributionTests
         using (Assert.Multiple())
         {
             await Assert.That(fake.Detached).IsEqualTo(1);
-            await Assert.That(vm.Timeline.MenuFor(RoundBand)).IsEmpty();
+            await Assert.That(vm.Timeline.MenuFor(_roundBand)).IsEmpty();
             await Assert.That(vm.Surface.SidePane).IsNull().Because("the pack going off closes its pane");
             await Assert.That(opened.Disposed).IsTrue();
         }
@@ -142,13 +142,13 @@ public class PlaybackContributionTests
         vm.OnDeactivated();
         vm.OnActivated(ctx);
         await Assert.That(fake.Attached).IsEqualTo(1).Because("once per tab view-model, not per activation");
-        await Assert.That(vm.Timeline.MenuFor(RoundBand).Count).IsEqualTo(1);
+        await Assert.That(vm.Timeline.MenuFor(_roundBand).Count).IsEqualTo(1);
 
         vm.Dispose();
         using (Assert.Multiple())
         {
             await Assert.That(fake.Detached).IsEqualTo(1);
-            await Assert.That(vm.Timeline.MenuFor(RoundBand)).IsEmpty();
+            await Assert.That(vm.Timeline.MenuFor(_roundBand)).IsEmpty();
         }
     }
 
@@ -202,7 +202,7 @@ public class PlaybackContributionTests
         fake.Pane.Open();
         vm.OnDeactivated();
         await Assert.That(vm.Surface.SidePane).IsNull();
-        await Assert.That(vm.Timeline.MenuFor(RoundBand).Count).IsEqualTo(1)
+        await Assert.That(vm.Timeline.MenuFor(_roundBand).Count).IsEqualTo(1)
             .Because("deactivation keeps the contribution");
 
         vm.Dispose();

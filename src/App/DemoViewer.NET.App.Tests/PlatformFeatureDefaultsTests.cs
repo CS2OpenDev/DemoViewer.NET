@@ -87,7 +87,7 @@ public class PlatformFeatureDefaultsTests
             services.Configure<AppSettings>(svc.Configuration);
             services.AddSingleton<IFeatureGate>(s =>
                 new FeatureGate(s.GetRequiredService<IOptionsMonitor<AppSettings>>(), false));
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
 
             bool enabled = sp.GetRequiredService<IFeatureGate>().IsEnabled("tab.highlights");
 
@@ -112,7 +112,7 @@ public class PlatformFeatureDefaultsTests
         Directory.CreateDirectory(dir);
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 """{ "Features": { "Overrides": { "tab.highlights": true } } }""");
 
             SettingsService svc = new(dir);
@@ -120,7 +120,7 @@ public class PlatformFeatureDefaultsTests
             services.Configure<AppSettings>(svc.Configuration);
             services.AddSingleton<IFeatureGate>(s =>
                 new FeatureGate(s.GetRequiredService<IOptionsMonitor<AppSettings>>(), false));
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
 
             await Assert.That(sp.GetRequiredService<IFeatureGate>().IsEnabled("tab.highlights")).IsTrue()
                 .Because(

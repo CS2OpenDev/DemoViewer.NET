@@ -133,7 +133,7 @@ public class ZLibraryRenderTests
         // recents persist to the single config file, so the seam is a throwaway config dir.
         string tempRecents = Path.Combine(Path.GetTempPath(), "dvhrec_" + Guid.NewGuid().ToString("N"));
         string realDemo = Path.Combine(Path.GetTempPath(), "dvhreal_" + Guid.NewGuid().ToString("N") + ".dem");
-        File.WriteAllText(realDemo, "x");
+        await File.WriteAllTextAsync(realDemo, "x");
 
         RecentFilesStore recents = new(new SettingsService(tempRecents));
         recents.RecordOpen(realDemo, "de_mirage"); // exists → shown normally

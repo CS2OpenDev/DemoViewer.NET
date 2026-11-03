@@ -50,7 +50,7 @@ public class ExtensionSettingsStoreTests
                 await Assert.That(reread.Get("name", "")).IsEqualTo("dust");
                 await Assert.That(reread.Get("shade", Shade.Light)).IsEqualTo(Shade.Dark);
                 await Assert.That(reread.Get("missing", 42)).IsEqualTo(42);
-                await Assert.That(File.ReadAllText(file)).Contains("\"Dark\"").Because("an enum is stored by name");
+                await Assert.That(await File.ReadAllTextAsync(file)).Contains("\"Dark\"").Because("an enum is stored by name");
             }
         }
         finally

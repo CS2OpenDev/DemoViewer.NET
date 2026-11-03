@@ -68,9 +68,8 @@ public class AimPunchOracleProbe
         double worst = 0;
         Dictionary<int, List<(double X, double Y)>> byIndex = [];
 
-        for (int i = 0; i < demo.Frames.Count; i++)
+        foreach (DemoFrame frame in demo.Frames)
         {
-            DemoFrame frame = demo.Frames[i];
             foreach (GameEvent evt in EventsIn(frame))
             {
                 if (evt.Payload is not BulletDamageEvent shot)
@@ -186,7 +185,7 @@ public class AimPunchOracleProbe
     {
         foreach (NetMessage msg in frame.DecodedMessages)
         {
-            if (msg is GameEventMessage gem && gem.DecodedEvent is { } evt)
+            if (msg is GameEventMessage { DecodedEvent: { } evt })
             {
                 yield return evt;
             }

@@ -210,7 +210,7 @@ public class ProcessingQueueViewTests
                 using IDemoOpenTicket open = queue.BeginOpen("/demos/faze-vs-g2-m1.dem", "faze-vs-g2-m1.dem");
                 Task<ParsedDemo> parse = open.ParseAsync(new byte[] { 1 });
                 using ProcessingQueueStatusViewModel vm = new(queue, () => { });
-                await PumpUntilAsync(() => vm.Rows.Count == 3 && vm.Rows[1].HasDetail, "the waiting open");
+                await PumpUntilAsync(() => vm.Rows is [_, { HasDetail: true }, _], "the waiting open");
 
                 Border host = new()
                 {

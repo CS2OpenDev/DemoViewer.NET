@@ -450,8 +450,8 @@ public class ProcessingQueueStatusViewModelTests
         public int MaxQueueSize { get; set; } = 200;
         public bool BackgroundEnabled { get; set; } = true;
         public bool IsPaused { get; private set; }
-        public int QueuedCount { get; set; }
-        public int RunningCount { get; set; }
+        public int QueuedCount { get; }
+        public int RunningCount { get; }
 
         public void Pause()
         {

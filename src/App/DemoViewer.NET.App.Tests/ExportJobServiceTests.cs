@@ -177,7 +177,7 @@ public class ExportJobServiceTests
             .Because("the wait below is only meaningful if the pre-start status is the idle one");
 
         service.Start(Request());
-        await WaitUntil(() => !service.Status.IsIdle && !service.Status.IsRunning);
+        await WaitUntil(() => service.Status is { IsIdle: false, IsRunning: false });
 
         await Assert.That(service.Status.IsIdle).IsFalse()
             .Because("a status still idle after the wait means the job never published anything");

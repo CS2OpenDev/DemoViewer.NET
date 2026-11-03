@@ -85,7 +85,7 @@ public class DiagnosticsFileLogTests
 
             string active = Path.Combine(dir, "diagnostics.log");
             await Assert.That(File.Exists(active)).IsTrue();
-            string[] lines = File.ReadAllLines(active);
+            string[] lines = await File.ReadAllLinesAsync(active);
             await Assert.That(lines).Contains("hello");
             await Assert.That(lines).Contains("world");
         }

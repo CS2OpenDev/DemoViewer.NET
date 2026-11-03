@@ -75,8 +75,10 @@ public class VersionRangeTests
 
             await Assert.That(SemVersion.Parse("1.0.0-beta0001")).IsEqualTo(SemVersion.Parse("1.0.0-beta0001+other"))
                 .Because("records compare by value and metadata is not a value");
-            await Assert.That(SemVersion.Parse("1.0.0") >= SemVersion.Parse("1.0.0")).IsTrue();
-            await Assert.That(SemVersion.Parse("1.0.0") <= SemVersion.Parse("1.0.0")).IsTrue();
+            SemVersion one = SemVersion.Parse("1.0.0");
+            SemVersion same = SemVersion.Parse("1.0.0");
+            await Assert.That(one >= same).IsTrue();
+            await Assert.That(one <= same).IsTrue();
         }
     }
 

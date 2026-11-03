@@ -222,7 +222,7 @@ public class PlayerOverviewEntryPointRenderTests
                     .IsEquivalentTo((bool[])[true, false, true], CollectionOrdering.Matching);
                 await Assert.That(ToolTip.GetTip(items[1])).IsEqualTo(PlayerOverviewLink.NoSteamIdTip);
                 items[2].RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
-                await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (1UL, "Alpha"), (3UL, "Charlie") },
+                await Assert.That(opened).IsEquivalentTo(((ulong, string?)[])[(1UL, "Alpha"), (3UL, "Charlie")],
                     CollectionOrdering.Matching);
             }
             finally

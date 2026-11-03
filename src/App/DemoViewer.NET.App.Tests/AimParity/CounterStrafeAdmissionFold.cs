@@ -51,7 +51,7 @@ public static class CounterStrafeAdmissionFold
     ///     the straight line across that hole is not a speed. Mirrors the engine's own default;
     ///     <c>CounterStrafeAdmissionFoldTests</c> pins the pair together.
     /// </summary>
-    public const int MaxSpeedSampleGapTicks = 8;
+    private const int MaxSpeedSampleGapTicks = 8;
 
     /// <summary>
     ///     Implied horizontal speed above which a delta is read as a teleport and reported as zero.
@@ -305,7 +305,7 @@ public static class CounterStrafeAdmissionFold
 
             float speed = 0f;
             int gap = tick - _lastTick;
-            if (_hasAnchor && gap > 0 && gap <= MaxSpeedSampleGapTicks)
+            if (_hasAnchor && gap is > 0 and <= MaxSpeedSampleGapTicks)
             {
                 float dx = position.X - _lastPosition.X;
                 float dy = position.Y - _lastPosition.Y;
@@ -447,29 +447,6 @@ public sealed record AdmissionFoldResult(
         foreach (AdmissionShot shot in Shots)
         {
             if (!shot.AdmittedAt(windowTicks) || !NamesBySlot.TryGetValue(shot.Slot, out string? name))
-            {
-                continue;
-            }
-
-            byName[name] = byName.GetValueOrDefault(name) + 1;
-        }
-
-        return byName;
-    }
-
-    /// <summary>
-    ///     Clean counter-strafe counts per player name at one candidate window: admitted, and taken
-    ///     from a standstill. This is the <c>cs_clean</c> numerator.
-    /// </summary>
-    /// <param name="windowTicks">The candidate window, in ticks.</param>
-    /// <returns>Player name to clean count.</returns>
-    public IReadOnlyDictionary<string, int> CleanByName(int windowTicks)
-    {
-        Dictionary<string, int> byName = new(StringComparer.Ordinal);
-        foreach (AdmissionShot shot in Shots)
-        {
-            if (!shot.AdmittedAt(windowTicks) || !shot.CleanAtShot
-                                              || !NamesBySlot.TryGetValue(shot.Slot, out string? name))
             {
                 continue;
             }

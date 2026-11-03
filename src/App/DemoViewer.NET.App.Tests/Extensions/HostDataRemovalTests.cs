@@ -1,6 +1,5 @@
 #region
 
-using System.Text;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Services;
@@ -37,8 +36,8 @@ public class HostDataRemovalTests
         ExtensionContext context = new(pack, sp);
         sp.GetRequiredService<DemoCacheStore>().Update("/demos/a.dem", 1, 1, r => r.Sha256 = "aaaa");
 
-        context.Stores.Own(StoreRoot.Config)!.WriteAtomic("notes.json", Encoding.UTF8.GetBytes("{}"));
-        context.Stores.Own(StoreRoot.Cache)!.WriteAtomic("index.bin", new byte[] { 1 });
+        context.Stores.Own(StoreRoot.Config)!.WriteAtomic("notes.json", "{}"u8);
+        context.Stores.Own(StoreRoot.Cache)!.WriteAtomic("index.bin", [1]);
         context.Data.Write("/demos/a.dem", new DemoDataWrite("rounds", 1, "fp", new byte[] { 1, 2 }));
         string declared = Path.Combine(configRoot, id + "-legacy.json");
         await File.WriteAllTextAsync(declared, "{}");

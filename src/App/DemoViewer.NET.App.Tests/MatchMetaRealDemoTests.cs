@@ -26,7 +26,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public class MatchMetaRealDemoTests
 {
-    private static readonly MergedRulesBuild Rules = new(() =>
+    private static readonly MergedRulesBuild _rules = new(() =>
         YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null));
 
     [Test]
@@ -104,7 +104,7 @@ public class MatchMetaRealDemoTests
         ServerRankCapture ranks = ServerRankCapture.OverFile(path);
         using DemoReader reader =
             DemoReader.OpenFile(path, ranks.Attach(ForwardDemoPass.ReaderOptions(CancellationToken.None)));
-        return ForwardDemoPass.Run(reader, needs, (needs & ForwardNeeds.Rules) != 0 ? Rules.Docs : null, null, null,
+        return ForwardDemoPass.Run(reader, needs, (needs & ForwardNeeds.Rules) != 0 ? _rules.Docs : null, null, null,
             CollectorSet.Empty, ranks);
     }
 

@@ -96,7 +96,7 @@ public class UnconfirmedLocationTests
             await Assert.That(store.LocationOf(B)).IsEqualTo((Sha,
                 new DemoLocation(B, false, 1000, 3000, store.LocationOf(B)!.Value.Location.LastSeenUtcTicks)));
             await Assert.That(atB?.Map).IsEqualTo("de_mirage");
-            await Assert.That(atB?.Scoreboard?.Count).IsEqualTo(1);
+            await Assert.That(atB?.Scoreboard.Count).IsEqualTo(1);
             await Assert.That(store.HoldsContent(Sha)).IsTrue();
             await Assert.That(store.IsOrphaned(Sha)).IsFalse();
         }
@@ -110,24 +110,24 @@ public class UnconfirmedLocationTests
         string root = Path.Combine(Path.GetTempPath(), $"dv-unconfirmed-{Guid.NewGuid():N}");
         try
         {
-            const string b = "/gone/b.dem";
+            const string B = "/gone/b.dem";
             DateTime written = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             long local = written.ToLocalTime().Ticks;
             DemoCacheStore store = new(root);
             store.Upsert(Analysed(A));
-            store.NoteContentRead(b, Sha, null, 1000, written);
-            store.AttachUnconfirmed(Sha, b, 1000, local);
+            store.NoteContentRead(B, Sha, null, 1000, written);
+            store.AttachUnconfirmed(Sha, B, 1000, local);
             store.Remove(A);
             store.SaveIndex();
 
-            store.UpdateExisting(b, r => r.Server = "from b");
+            store.UpdateExisting(B, r => r.Server = "from b");
 
             using (Assert.Multiple())
             {
-                await Assert.That(store.LocationOf(b)?.ContentId).IsEqualTo(Sha);
-                await Assert.That(store.LocationOf(b)?.Location.Confirmed).IsTrue();
-                await Assert.That(store.TryLoadRecord(b)?.Scoreboard.Count).IsEqualTo(1);
-                await Assert.That(store.TryLoadRecord(b)?.Server).IsEqualTo("from b");
+                await Assert.That(store.LocationOf(B)?.ContentId).IsEqualTo(Sha);
+                await Assert.That(store.LocationOf(B)?.Location.Confirmed).IsTrue();
+                await Assert.That(store.TryLoadRecord(B)?.Scoreboard.Count).IsEqualTo(1);
+                await Assert.That(store.TryLoadRecord(B)?.Server).IsEqualTo("from b");
                 await Assert.That(File.Exists(Path.Combine(root, "demos", Sha + DemoCacheStore.RecordSuffix))).IsTrue();
             }
         }
@@ -206,7 +206,7 @@ public class UnconfirmedLocationTests
         string file = Path.Combine(Path.GetTempPath(), $"dv-content-id-{Guid.NewGuid():N}.dem");
         try
         {
-            File.WriteAllBytes(file, new byte[1000]);
+            await File.WriteAllBytesAsync(file, new byte[1000]);
             DemoCacheStore store = Attached();
             store.NoteContentRead(file, "sha-read", null, 1000, File.GetLastWriteTimeUtc(file));
 
@@ -217,7 +217,7 @@ public class UnconfirmedLocationTests
                 await Assert.That(store.ContentIdOf(B)).IsNull().Because("only a fingerprint placed it");
             }
 
-            File.WriteAllBytes(file, new byte[1001]);
+            await File.WriteAllBytesAsync(file, new byte[1001]);
             await Assert.That(store.ContentIdOf(file)).IsNull().Because("the file changed since it was read");
         }
         finally
@@ -242,7 +242,7 @@ public class UnconfirmedLocationTests
             await Assert.That(store.DemoKeyOf(B)).IsEqualTo(Sha);
             await Assert.That(store.RowsForContentId(Sha).Select(r => r.Path))
                 .IsEquivalentTo([A, B], CollectionOrdering.Matching);
-            await Assert.That(store.TryLoadRecord(B)?.Scoreboard?.Count).IsEqualTo(1);
+            await Assert.That(store.TryLoadRecord(B)?.Scoreboard.Count).IsEqualTo(1);
             await Assert.That(store.TryLoadRecord(A)?.Server).IsEqualTo("from b");
         }
     }
@@ -268,7 +268,7 @@ public class UnconfirmedLocationTests
             await Assert.That(atB?.Scoreboard).IsEmpty();
             await Assert.That(atB?.Analysis.IsPresent).IsFalse();
             await Assert.That(atB?.Map).IsEqualTo("de_mirage");
-            await Assert.That(store.TryLoadRecord(A)?.Scoreboard?.Count).IsEqualTo(1);
+            await Assert.That(store.TryLoadRecord(A)?.Scoreboard.Count).IsEqualTo(1);
             await Assert.That(store.TryGetByContentId(Sha)?.Locations.Select(l => l.Path))
                 .IsEquivalentTo([A], CollectionOrdering.Matching);
         }

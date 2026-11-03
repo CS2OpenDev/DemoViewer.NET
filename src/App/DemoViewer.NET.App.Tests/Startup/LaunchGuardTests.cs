@@ -9,10 +9,10 @@ namespace DemoViewer.NET.AppTests.Startup;
 /// <summary>Safe mode's decision: what the previous launch left behind, and the command line.</summary>
 public class LaunchGuardTests
 {
-    private static readonly DateTimeOffset At = new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _at = new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
 
     private static LaunchState State(LaunchPhase phase, bool hung = false, CrashRecord? crash = null) =>
-        new(phase, At, false, 1, hung, crash);
+        new(phase, _at, false, 1, hung, crash);
 
     private static string NewRoot()
     {
@@ -24,8 +24,8 @@ public class LaunchGuardTests
     [Test]
     public async Task TheDecision_FollowsWhatThePreviousLaunchLeft()
     {
-        CrashRecord inHello = new(At, "System.InvalidOperationException", "Hello", "pack.hello");
-        CrashRecord unattributed = new(At, "System.InvalidOperationException", null, null);
+        CrashRecord inHello = new(_at, "System.InvalidOperationException", "Hello", "pack.hello");
+        CrashRecord unattributed = new(_at, "System.InvalidOperationException", null, null);
 
         using (Assert.Multiple())
         {

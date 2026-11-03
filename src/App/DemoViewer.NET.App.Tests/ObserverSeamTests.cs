@@ -293,27 +293,27 @@ public class ObserverSeamTests
     [Test]
     public async Task ACollectorStamp_MovesWithTheDeclaredReads()
     {
-        CollectorContribution base_ = CollectorKit.Counting("stamp",
+        CollectorContribution baseline = CollectorKit.Counting("stamp",
             providers: ["entity.pawn.pos_x", "entity.pawn.place"], classes: ["CSmokeGrenadeProjectile"]);
 
         using (Assert.Multiple())
         {
-            await Assert.That((base_ with { Providers = ["entity.pawn.place", "entity.pawn.pos_x"] }).Stamp)
-                .IsEqualTo(base_.Stamp)
+            await Assert.That((baseline with { Providers = ["entity.pawn.place", "entity.pawn.pos_x"] }).Stamp)
+                .IsEqualTo(baseline.Stamp)
                 .Because("declaration order is not a different read");
-            await Assert.That((base_ with { Providers = ["entity.pawn.place"] }).Stamp).IsNotEqualTo(base_.Stamp);
-            await Assert.That((base_ with { ProjectileClasses = [] }).Stamp).IsNotEqualTo(base_.Stamp);
-            await Assert.That((base_ with { Version = 2 }).Stamp).IsNotEqualTo(base_.Stamp);
-            await Assert.That((base_ with { ReadsUserCommands = true }).Stamp).IsNotEqualTo(base_.Stamp);
-            await Assert.That((base_ with { GameEvents = ["weapon_fire"] }).Stamp).IsNotEqualTo(base_.Stamp);
-            await Assert.That((base_ with { GameEvents = ["weapon_fire", "decoy_started"] }).Stamp)
-                .IsEqualTo((base_ with { GameEvents = ["decoy_started", "weapon_fire"] }).Stamp);
-            await Assert.That(base_.Stamp)
+            await Assert.That((baseline with { Providers = ["entity.pawn.place"] }).Stamp).IsNotEqualTo(baseline.Stamp);
+            await Assert.That((baseline with { ProjectileClasses = [] }).Stamp).IsNotEqualTo(baseline.Stamp);
+            await Assert.That((baseline with { Version = 2 }).Stamp).IsNotEqualTo(baseline.Stamp);
+            await Assert.That((baseline with { ReadsUserCommands = true }).Stamp).IsNotEqualTo(baseline.Stamp);
+            await Assert.That((baseline with { GameEvents = ["weapon_fire"] }).Stamp).IsNotEqualTo(baseline.Stamp);
+            await Assert.That((baseline with { GameEvents = ["weapon_fire", "decoy_started"] }).Stamp)
+                .IsEqualTo((baseline with { GameEvents = ["decoy_started", "weapon_fire"] }).Stamp);
+            await Assert.That(baseline.Stamp)
                 .Contains(typeof(DemoFrame).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
                     .InformationalVersion)
                 .Because("an engine build moves it, a patch or prerelease included");
-            await Assert.That(CollectorSet.Of([CollectorKit.Register(base_ with { Version = 2 })])
-                    .IsSupersetOf(CollectorSet.Of([CollectorKit.Register(base_)]))).IsFalse()
+            await Assert.That(CollectorSet.Of([CollectorKit.Register(baseline with { Version = 2 })])
+                    .IsSupersetOf(CollectorSet.Of([CollectorKit.Register(baseline)]))).IsFalse()
                 .Because("a run carried an older collector");
         }
     }
@@ -348,12 +348,12 @@ public class ObserverSeamTests
     {
         public const string Id = "positions.text";
 
-        private static readonly string[] Reads = ["entity.pawn.pos_x", "entity.pawn.pos_y", "entity.pawn.place"];
+        private static readonly string[] _reads = ["entity.pawn.pos_x", "entity.pawn.pos_y", "entity.pawn.place"];
 
         private readonly StringBuilder _text = new();
 
         public static CollectorContribution Contribution { get; } =
-            new(Id, "ext.positions", 1, Reads, [], () => new PositionsText());
+            new(Id, "ext.positions", 1, _reads, [], () => new PositionsText());
 
         public void OnFrame(IFrameReadView view)
         {
@@ -362,7 +362,7 @@ public class ObserverSeamTests
                 return;
             }
 
-            ObservedRead x = view.Provider(Reads[0]), y = view.Provider(Reads[1]), place = view.Provider(Reads[2]);
+            ObservedRead x = view.Provider(_reads[0]), y = view.Provider(_reads[1]), place = view.Provider(_reads[2]);
             for (int slot = 0; slot < 64; slot++)
             {
                 if (view.TryReadFloat(x, slot, out float px) && view.TryReadFloat(y, slot, out float py))

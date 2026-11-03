@@ -151,7 +151,6 @@ internal sealed class TestPass(string id, params string[] after) : IDemoPass
 {
     public List<string> Ran { get; init; } = [];
     public PassNeeds NeedsValue { get; init; } = PassNeeds.RetainedWithoutUserCommands;
-    public PassInterest Answer { get; set; } = PassInterest.Yes;
     public Action<PassInput>? OnRun { get; init; }
 
     public string Id => id;
@@ -159,7 +158,7 @@ internal sealed class TestPass(string id, params string[] after) : IDemoPass
 
     public PassNeeds Needs(VisitedDemo demo) => NeedsValue;
 
-    public PassInterest Interest(VisitedDemo demo, PassLevel level) => Answer;
+    public PassInterest Interest(VisitedDemo demo, PassLevel level) => PassInterest.Yes;
 
     public void Run(PassInput input)
     {

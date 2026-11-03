@@ -170,14 +170,14 @@ public class DemoProcessingQueueTests
             q.MaxConcurrency = 1;
             q.MaxQueueSize = 2;
 
-            List<string> backlog = new()
-            {
+            List<string> backlog =
+            [
                 "/d/1.dem",
                 "/d/2.dem",
                 "/d/3.dem",
                 "/d/4.dem",
                 "/d/5.dem"
-            };
+            ];
             HashSet<string> done = new();
             HashSet<string> pending = new(backlog);
             object pendingLock = new();
@@ -439,7 +439,7 @@ public class DemoProcessingQueueTests
             await Assert.That(fg).IsSameReferenceAs(parser.ForegroundDemo);
 
             using CancellationTokenSource cts = new();
-            cts.Cancel();
+            await cts.CancelAsync();
             await AssertThrowsAsync<OperationCanceledException>(async () =>
                 await q.RequestForegroundAsync(null, new byte[] { 3 }, cts.Token));
         }
@@ -921,12 +921,9 @@ public class DemoProcessingQueueTests
         ManualClock clock = new();
         int attempts = 0;
         using DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), parser.ParseFile, parser.ParseBytes,
-            () =>
-            {
-                return Interlocked.Increment(ref attempts) == 1
-                    ? Task.FromException(new InvalidOperationException("compaction failed"))
-                    : Task.CompletedTask;
-            }, clock);
+            () => Interlocked.Increment(ref attempts) == 1
+                ? Task.FromException(new InvalidOperationException("compaction failed"))
+                : Task.CompletedTask, clock);
 
         await RunJobOnceAsync(queue, "a"); // fails
         clock.Advance(TimeSpan.FromSeconds(1));
@@ -959,7 +956,7 @@ public class DemoProcessingQueueTests
     // One-shot timers only; they fire on the Advance caller's thread.
     private sealed class ManualClock : TimeProvider
     {
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private readonly List<ManualTimer> _timers = [];
         private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -1038,7 +1035,7 @@ public class DemoProcessingQueueTests
         public readonly HashSet<string> FailPaths = new(StringComparer.OrdinalIgnoreCase);
         public readonly ParsedDemo ForegroundDemo = SyntheticDemo();
         public readonly List<string> Processed = [];
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         public ManualResetEventSlim? Block; // if set, ParseFile waits on it
         public int ByteCalls;
         public int FileCalls;

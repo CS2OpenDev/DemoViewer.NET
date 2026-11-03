@@ -126,7 +126,7 @@ public class SettingsServiceTests
 
             ServiceCollection services = new();
             services.Configure<AppSettings>(svc.Configuration);
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
 
             bool fired = false;
@@ -313,7 +313,7 @@ public class SettingsServiceTests
     {
         string dir = NewTempDir();
         string path = Path.Combine(dir, "settings.json");
-        File.WriteAllText(path,
+        await File.WriteAllTextAsync(path,
             """
             {
               "FirstRunCompleted": true,
@@ -329,7 +329,7 @@ public class SettingsServiceTests
 
         svc.Write(s => s.Playback2D.LastTool = "Erase");
 
-        string written = File.ReadAllText(path);
+        string written = await File.ReadAllTextAsync(path);
         Console.WriteLine($"[orphan-key] settings.json after the write:\n{written}");
         await Assert.That(written).DoesNotContain("LegacyViewport")
             .Because("a preference write replaces the whole Playback2D node");
@@ -347,7 +347,7 @@ public class SettingsServiceTests
         string dir = NewTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 """
                 {
                   "FirstRunCompleted": true,
@@ -396,7 +396,7 @@ public class SettingsServiceTests
             SessionPayload session = new(
                 new TabSessionState(7, "root/x", true), null, null,
                 true, false, "parser");
-            List<RecentFile> recents = new() { new RecentFile("/demos/a.dem", "de_dust2", DateTime.UtcNow) };
+            List<RecentFile> recents = [new RecentFile("/demos/a.dem", "de_dust2", DateTime.UtcNow)];
             svc.SaveSession(session);
             svc.SaveRecents(recents);
 
@@ -482,7 +482,7 @@ public class SettingsServiceTests
                 new TabSessionState(3, null, false), null, null, false, true, "entity");
             await File.WriteAllTextAsync(
                 Path.Combine(dir, "session.json"), JsonSerializer.Serialize(legacySession));
-            List<RecentFile> legacyRecents = new() { new RecentFile("/demos/legacy.dem", "de_nuke", DateTime.UtcNow) };
+            List<RecentFile> legacyRecents = [new RecentFile("/demos/legacy.dem", "de_nuke", DateTime.UtcNow)];
             await File.WriteAllTextAsync(
                 Path.Combine(dir, "recent-files.json"), JsonSerializer.Serialize(legacyRecents));
 

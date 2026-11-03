@@ -128,7 +128,7 @@ public sealed class GraphBreakpointStoreTests
     public async Task AnUnreadableLegacyFile_IsDiscardedRatherThanRetriedForever()
     {
         using ConfigDir dir = new();
-        File.WriteAllText(AppPaths.LegacyGraphBreakpointsFile!, "{ this is not json");
+        await File.WriteAllTextAsync(AppPaths.LegacyGraphBreakpointsFile!, "{ this is not json");
 
         GraphBreakpointStore.MigrateLegacyFile();
 
@@ -144,7 +144,7 @@ public sealed class GraphBreakpointStoreTests
         // occurrence is omitted at zero, so what earlier builds wrote IS the first copy's form. The
         // carry is therefore the absence of a rewrite, and this is what says so.
         using ConfigDir dir = new();
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             AppPaths.GraphBreakpointsFile!,
             """
             {"demo-f":[{"TargetKind":"Node","NodeKey":"p0:7:wallbang_kills","EdgeSourceKey":null,

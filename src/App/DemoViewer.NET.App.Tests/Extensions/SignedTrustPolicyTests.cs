@@ -44,7 +44,7 @@ public class SignedTrustPolicyTests
         string publicKey = Convert.ToBase64String(key.ExportSubjectPublicKeyInfo());
         try
         {
-            File.WriteAllText(Path.Combine(dir, ExtensionSignature.FileName), ExtensionSignature.Sign(dir, key));
+            await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName), ExtensionSignature.Sign(dir, key));
             SignedTrustPolicy policy = new([publicKey]);
 
             TrustVerdict verdict = policy.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));
@@ -79,7 +79,7 @@ public class SignedTrustPolicyTests
         using ECDsa notThePublisher = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         try
         {
-            File.WriteAllText(Path.Combine(dir, ExtensionSignature.FileName),
+            await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName),
                 ExtensionSignature.Sign(dir, notThePublisher));
 
             TrustVerdict verdict = TrustPolicy.Default.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));
@@ -104,7 +104,7 @@ public class SignedTrustPolicyTests
         string publicKey = Convert.ToBase64String(key.ExportSubjectPublicKeyInfo());
         try
         {
-            File.WriteAllText(Path.Combine(dir, ExtensionSignature.FileName), ExtensionSignature.Sign(dir, key));
+            await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName), ExtensionSignature.Sign(dir, key));
             ITrustPolicy policy = TrustPolicy.SignedOrOptIn([publicKey], static _ => null);
 
             TrustVerdict verdict = policy.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));
@@ -156,7 +156,8 @@ public class SignedTrustPolicyTests
         string otherPublicKey = Convert.ToBase64String(otherKey.ExportSubjectPublicKeyInfo());
         try
         {
-            File.WriteAllText(Path.Combine(dir, ExtensionSignature.FileName), ExtensionSignature.Sign(dir, signingKey));
+            await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName),
+                ExtensionSignature.Sign(dir, signingKey));
             ITrustPolicy withOptIn = TrustPolicy.SignedOrOptIn([otherPublicKey], static _ => "1");
 
             TrustVerdict verdict = withOptIn.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));

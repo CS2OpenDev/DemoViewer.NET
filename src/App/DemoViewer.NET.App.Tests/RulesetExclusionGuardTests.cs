@@ -70,15 +70,15 @@ public class RulesetExclusionGuardTests
                                                     - { stat: no_such_stat_anywhere, label: nope }
                                             """;
 
-    private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
+    private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
     private static MergedRulesBuild Build(string? userDir, ContributedRuleset[] contributed, params string[] stamped)
     {
-        HashSet<string> shippedIds = new(YamlConfigLoader.LoadWithOverlay(Shipped, null).Rulesets.Select(r => r.Id),
+        HashSet<string> shippedIds = new(YamlConfigLoader.LoadWithOverlay(_shipped, null).Rulesets.Select(r => r.Id),
             StringComparer.Ordinal);
         HashSet<string> overridden = new(stamped, StringComparer.Ordinal);
         return new MergedRulesBuild(
-            () => RuleLayers.WithExtensions(YamlConfigLoader.LoadWithOverlay(Shipped, userDir), shippedIds,
+            () => RuleLayers.WithExtensions(YamlConfigLoader.LoadWithOverlay(_shipped, userDir), shippedIds,
                 overridden, contributed, NullLogger.Instance),
             () => [.. contributed.Select(c => new StampedRuleset(c.RulesetId, c.Owner, static () => true))]);
     }
@@ -162,10 +162,10 @@ public class RulesetExclusionGuardTests
             new(BadId, Owner, Owner, () => BadYaml),
             new(HealthyId, Owner, Owner, () => HealthyYaml)
         ];
-        RuleConfigLoadResult shipped = YamlConfigLoader.LoadWithOverlay(Shipped, null);
+        RuleConfigLoadResult shipped = YamlConfigLoader.LoadWithOverlay(_shipped, null);
         HashSet<string> shippedIds = new(shipped.Rulesets.Select(r => r.Id), StringComparer.Ordinal);
         MergedRulesBuild rules = new(
-            () => RuleLayers.WithExtensions(YamlConfigLoader.LoadWithOverlay(Shipped, null), shippedIds,
+            () => RuleLayers.WithExtensions(YamlConfigLoader.LoadWithOverlay(_shipped, null), shippedIds,
                 new HashSet<string>(),
                 contributed, NullLogger.Instance),
             () => [.. contributed.Select(c => new StampedRuleset(c.RulesetId, c.Owner, static () => true))]);
@@ -217,10 +217,10 @@ public class RulesetExclusionGuardTests
         {
             await File.WriteAllTextAsync(Path.Combine(user.FullName, BadId + ".rules.yaml"), BadYaml);
             ContributedRuleset[] contributed = [new(BadId, Owner, Owner, () => BadYaml)];
-            HashSet<string> shippedIds = new(YamlConfigLoader.LoadWithOverlay(Shipped, null).Rulesets.Select(r => r.Id),
+            HashSet<string> shippedIds = new(YamlConfigLoader.LoadWithOverlay(_shipped, null).Rulesets.Select(r => r.Id),
                 StringComparer.Ordinal);
             MergedRulesBuild rules = new(
-                () => RuleLayers.WithExtensions(YamlConfigLoader.LoadWithOverlay(Shipped, user.FullName), shippedIds,
+                () => RuleLayers.WithExtensions(YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName), shippedIds,
                     new HashSet<string>(StringComparer.Ordinal) { BadId }, contributed, NullLogger.Instance),
                 () => [.. contributed.Select(c => new StampedRuleset(c.RulesetId, c.Owner, static () => true))]);
             int asked = 0;

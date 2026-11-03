@@ -33,13 +33,13 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public class PlayerMatchParityRealDemoTests
 {
-    private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
+    private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
-    private static readonly string[] Buckets = ["2K", "3K", "4K", "5K"];
+    private static readonly string[] _buckets = ["2K", "3K", "4K", "5K"];
 
     /// <summary>The app's stamped set over the shipped rules: round facts, the player facets and the library tables.</summary>
     internal static MergedRulesBuild AppRules(string? user = null) => new(
-        () => YamlConfigLoader.LoadWithOverlay(Shipped, user),
+        () => YamlConfigLoader.LoadWithOverlay(_shipped, user),
         () =>
         [
             StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
@@ -84,7 +84,7 @@ public class PlayerMatchParityRealDemoTests
                 ["player_name"] = FactValue.Of(team == 3 ? "player_a" : "player_b"),
                 ["steam_id"] = FactValue.Of(team == 3 ? "76561190000000001" : "76561190000000002")
             };
-            rows.Add(new FactRow(dimensions, real.Values));
+            rows.Add(real with { Dimensions = dimensions });
         }
 
         FactTable sample = facet with { Fingerprint = "sample", Rows = rows };
@@ -193,7 +193,7 @@ public class PlayerMatchParityRealDemoTests
 
             if (kastTotals.TryGetValue(slot, out MetricRow? totals))
             {
-                foreach (string bucket in Buckets.Where(b => cells[b] != Cell(totals.Values[b])))
+                foreach (string bucket in _buckets.Where(b => cells[b] != Cell(totals.Values[b])))
                 {
                     mismatches.Add($"slot {slot}: {bucket} {cells[bucket]}, kast_game_totals {totals.Values[bucket]}");
                 }

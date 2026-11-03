@@ -34,10 +34,10 @@ public class DemoCorpusTests
                                         """;
 
     /// <summary>Ordinal order, so "B" sorts before "a". A field because CA1861 forbids the literal.</summary>
-    private static readonly string[] OrdinalPair = ["B.dem", "a.dem"];
+    private static readonly string[] _ordinalPair = ["B.dem", "a.dem"];
 
-    private static readonly string[] OrdinalTriple = ["B.dem", "a.dem", "c.dem"];
-    private static readonly string[] AThenB = ["a.dem", "b.dem"];
+    private static readonly string[] _ordinalTriple = ["B.dem", "a.dem", "c.dem"];
+    private static readonly string[] _aThenB = ["a.dem", "b.dem"];
 
     private static string TempRoot() =>
         Path.Combine(Path.GetTempPath(), $"dv-corpus-{Guid.NewGuid():N}");
@@ -253,7 +253,7 @@ public class DemoCorpusTests
                 Path.Combine(root, "cache"), [new DirectoryDemoSource(Path.Combine(root, "source"))]);
 
             DemoCorpusIntegrityException thrown =
-                Assert.Throws<DemoCorpusIntegrityException>(() => corpus.TryResolve("subject.dem", out _))!;
+                Assert.Throws<DemoCorpusIntegrityException>(() => corpus.TryResolve("subject.dem", out _));
 
             using (Assert.Multiple())
             {
@@ -284,7 +284,7 @@ public class DemoCorpusTests
                 Path.Combine(root, "cache"), [new DirectoryDemoSource(Path.Combine(root, "source"))]);
 
             DemoCorpusIntegrityException thrown =
-                Assert.Throws<DemoCorpusIntegrityException>(() => corpus.TryResolve("subject.dem", out _))!;
+                Assert.Throws<DemoCorpusIntegrityException>(() => corpus.TryResolve("subject.dem", out _));
             await Assert.That(thrown.Message).Contains("manifest says 8");
         }
         finally
@@ -314,7 +314,7 @@ public class DemoCorpusTests
             DemoCorpus corpus = new(ManifestFor("subject.dem", bytes, null), [],
                 Path.Combine(root, "cache"), [new DirectoryDemoSource(a), new DirectoryDemoSource(b)]);
 
-            SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("subject.dem"))!;
+            SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("subject.dem"));
             using (Assert.Multiple())
             {
                 await Assert.That(thrown.Message).Contains("subject");
@@ -340,7 +340,7 @@ public class DemoCorpusTests
             using (Assert.Multiple())
             {
                 await Assert.That(corpus.CanFetch).IsFalse();
-                SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("subject.dem"))!;
+                SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("subject.dem"));
                 await Assert.That(thrown.Message).Contains(DemoTestHelper.DemoSourcesEnvVar);
                 await Assert.That(thrown.Message).Contains(DemoTestHelper.CorpusRootEnvVar);
             }
@@ -361,7 +361,7 @@ public class DemoCorpusTests
             DemoCorpus corpus = new(ManifestFor("subject.dem", [1, 2, 3], null), [],
                 Path.Combine(root, "cache"), [new DirectoryDemoSource(Path.Combine(root, "source"))]);
 
-            SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("stranger.dem"))!;
+            SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("stranger.dem"));
             await Assert.That(thrown.Message).Contains("not in the corpus manifest");
         }
         finally
@@ -458,7 +458,7 @@ public class DemoCorpusTests
             string poisoned = corpus.CachePath(manifest.ByName("subject")!);
             Write(Path.GetDirectoryName(poisoned)!, Path.GetFileName(poisoned), [1, 2]);
 
-            SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("subject.dem"))!;
+            SkipTestException thrown = Assert.Throws<SkipTestException>(() => corpus.Require("subject.dem"));
             using (Assert.Multiple())
             {
                 await Assert.That(thrown.Message).Contains("wrong length");
@@ -664,8 +664,8 @@ public class DemoCorpusTests
             using (Assert.Multiple())
             {
                 await Assert.That(problem).IsNull();
-                await Assert.That(demos.Select(p => Path.GetFileName(p)!))
-                    .IsEquivalentTo(OrdinalPair, CollectionOrdering.Matching);
+                await Assert.That(demos.Select(p => Path.GetFileName(p)))
+                    .IsEquivalentTo(_ordinalPair, CollectionOrdering.Matching);
                 // Ordinal, not culture: "B" before "a".
                 await Assert.That(Path.GetFileName(demos[0])).IsEqualTo("B.dem");
             }
@@ -745,7 +745,7 @@ public class DemoCorpusTests
 
         // Ordinal puts "B" before "a"; a culture-aware sort would not. Callers index by position.
         await Assert.That(corpus.SetMembers("s").Select(d => d.File).ToArray())
-            .IsEquivalentTo(OrdinalTriple, CollectionOrdering.Matching);
+            .IsEquivalentTo(_ordinalTriple, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -780,8 +780,8 @@ public class DemoCorpusTests
             string[] paths = corpus.RequireSet("s");
             using (Assert.Multiple())
             {
-                await Assert.That(paths.Select(p => Path.GetFileName(p)!).ToArray())
-                    .IsEquivalentTo(AThenB, CollectionOrdering.Matching);
+                await Assert.That(paths.Select(p => Path.GetFileName(p)).ToArray())
+                    .IsEquivalentTo(_aThenB, CollectionOrdering.Matching);
                 await Assert.That(await File.ReadAllBytesAsync(paths[0]))
                     .IsEquivalentTo(one, CollectionOrdering.Matching);
                 await Assert.That(corpus.RequireSetMember("s", 1)).IsEqualTo(paths[1]);

@@ -144,11 +144,11 @@ public class HighlightAddClipsPickerTests
 
         // Player multi-select carries LIBRARY-WIDE counts. The affordance's whole point is telling you how
         // much is behind each choice before you pick it.
-        PlayerFilterItem s1mple = picker.PlayerFilters.Single(p => p.Display == "s1mple");
-        await Assert.That(s1mple.Count).IsEqualTo(2);
+        PlayerFilterItem s1Mple = picker.PlayerFilters.Single(p => p.Display == "s1mple");
+        await Assert.That(s1Mple.Count).IsEqualTo(2);
         await Assert.That(picker.PlayerFilterSummary).IsEqualTo("Players");
 
-        s1mple.IsSelected = true;
+        s1Mple.IsSelected = true;
         await Assert.That(picker.Rows.Count).IsEqualTo(2);
         await Assert.That(picker.PlayerFilterSummary).IsEqualTo("Players (1)");
         await Assert.That(picker.CoverageLine).IsEqualTo("Showing 2 of 3 highlights across 2 demos");

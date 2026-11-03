@@ -329,8 +329,7 @@ public class DemoLibraryScanTests
 
             Task scan = svc.RescanAsync();
             await WaitForAsync(() => reader.BlockedReads == 1, "the hung read");
-            await WaitForAsync(() => !queue.Snapshot().Any(s => s.Kind == QueueJobKind.LibraryListing
-                                                                && s.State == DemoQueueItemState.Running),
+            await WaitForAsync(() => !queue.Snapshot().Any(s => s is { Kind: QueueJobKind.LibraryListing, State: DemoQueueItemState.Running }),
                 "the listing slice to end while its read is outstanding");
 
             Task heavy = QueueWork.Run(queue, QueueJobKind.LibraryScan, "other heavy job", "test", _ => { });
@@ -486,8 +485,7 @@ public class DemoLibraryScanTests
             Task scan = svc.RescanAsync();
             await WaitForAsync(() => headers.BlockedReads == 1, "the hung header read");
             await WaitForAsync(() => Map(svc, a) is not null, "the other folder's header");
-            await WaitForAsync(() => !queue.Snapshot().Any(s => s.Kind == QueueJobKind.LibraryListing
-                                                                && s.State == DemoQueueItemState.Running),
+            await WaitForAsync(() => !queue.Snapshot().Any(s => s is { Kind: QueueJobKind.LibraryListing, State: DemoQueueItemState.Running }),
                 "the header slice to end while its read is outstanding");
 
             Task heavy = QueueWork.Run(queue, QueueJobKind.LibraryScan, "other heavy job", "test", _ => { });
@@ -628,7 +626,7 @@ public class DemoLibraryScanTests
     // ── Helpers ──
 
     // Answers "de_<name>" for every demo; blocks reads under one folder until released, unless told to throw.
-    internal sealed class GatedHeaderReader(string blocked, Func<string, Exception?>? fail = null)
+    private sealed class GatedHeaderReader(string blocked, Func<string, Exception?>? fail = null)
         : ILibraryHeaderReader
     {
         private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -638,7 +636,7 @@ public class DemoLibraryScanTests
 
         public void Release() => _gate.TrySetResult();
 
-        public LibraryDemoHeader? Read(string path)
+        public LibraryDemoHeader Read(string path)
         {
             if (fail?.Invoke(path) is { } ex)
             {
@@ -691,7 +689,7 @@ public class DemoLibraryScanTests
     }
 
     // Blocks every read of one directory until released.
-    internal sealed class GatedReader(string blocked) : ILibraryFolderReader
+    private sealed class GatedReader(string blocked) : ILibraryFolderReader
     {
         private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _blockedReads;
@@ -752,7 +750,7 @@ public class DemoLibraryScanTests
         }
     }
 
-    internal sealed class ScriptedReader : ILibraryFolderReader
+    private sealed class ScriptedReader : ILibraryFolderReader
     {
         public Func<string, Exception?>? FailResolve { get; init; }
         public Func<string, Exception?>? FailRead { get; init; }

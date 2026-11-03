@@ -31,7 +31,7 @@ public class AimStatCatalogueTests
 
         string path = Path.Combine(root, LiveAimStats.RulesetRelativePath);
         RuleConfigLoadResult loaded =
-            YamlConfigLoader.LoadDocuments([(LiveAimStats.RulesetRelativePath, File.ReadAllText(path))]);
+            YamlConfigLoader.LoadDocuments([(LiveAimStats.RulesetRelativePath, await File.ReadAllTextAsync(path))]);
         await Assert.That(loaded.Success).IsTrue()
             .Because(string.Join("\n", loaded.Errors.Select(e => e.ToString())));
 

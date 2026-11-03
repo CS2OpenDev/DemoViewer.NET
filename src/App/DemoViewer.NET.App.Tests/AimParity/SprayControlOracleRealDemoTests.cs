@@ -81,7 +81,7 @@ public class SprayControlOracleRealDemoTests
             Console.WriteLine($"   {name,-24} {result.Render()}");
             measuredTotal += result.MeasuredShots;
 
-            if (result.Shots > 0 && result.Runs < 1)
+            if (result is { Shots: > 0, Runs: < 1 })
             {
                 violations.Add($"{name}: {result.Shots} shots and no run, so no shot anchored anything");
             }

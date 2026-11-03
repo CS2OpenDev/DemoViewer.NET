@@ -21,16 +21,16 @@ namespace DemoViewer.NET.AppTests;
 public class RecordPassDependsOnTests
 {
     private const string Demo = "/d/one.dem";
-    private static readonly FactKey Kast = new("kast", "kast_game_totals");
+    private static readonly FactKey _kast = new("kast", "kast_game_totals");
     private static readonly Action<Action> _inline = a => a();
 
-    private static readonly string[] Refusals =
+    private static readonly string[] _refusals =
     [
         "test.library.scoreboard: depends on kast/scoreboard, which the library does not write.",
         "test.library.unknown: depends on kast/no_such_table, which the library does not write."
     ];
 
-    private static readonly string[] UnknownOwnerRefusal =
+    private static readonly string[] _unknownOwnerRefusal =
         ["test.library.reader: depends on test.nobody:round-index, which the library does not write."];
 
     private static async Task WaitFor(Func<bool> cond, string what, int timeoutMs = 5000)
@@ -75,10 +75,10 @@ public class RecordPassDependsOnTests
     {
         using DemoProcessingQueue queue = Queue();
         DemoCacheStore store = new(null);
-        (PackContributions contributions, HostLibrary library) = Host(store, Kast);
+        (PackContributions contributions, HostLibrary library) = Host(store, _kast);
         SdkPass reader = new("test.library.reader");
         SdkPass barrier = new("test.library.barrier");
-        contributions.RecordPass(reader.Id, () => reader, Kast);
+        contributions.RecordPass(reader.Id, () => reader, _kast);
         contributions.RecordPass(barrier.Id, () => barrier);
         List<IRecordPass> passes = Resolve(contributions, library);
         using RecordPassRunner runner = new(() => passes, store, queue);
@@ -109,19 +109,17 @@ public class RecordPassDependsOnTests
         DemoCacheStore store = new(null);
         FactKey scoreboard = new("kast", FactKey.ScoreboardOutput);
         FactKey unknown = new("kast", "no_such_table");
-        (PackContributions contributions, HostLibrary library) = Host(store, Kast, scoreboard);
+        (PackContributions contributions, HostLibrary library) = Host(store, _kast, scoreboard);
         SdkPass unknownPass = new("test.library.unknown");
         SdkPass scoreboardPass = new("test.library.scoreboard");
         SdkPass known = new("test.library.known");
-        contributions.RecordPass(unknownPass.Id, () => unknownPass, Kast, unknown);
+        contributions.RecordPass(unknownPass.Id, () => unknownPass, _kast, unknown);
         contributions.RecordPass(scoreboardPass.Id, () => scoreboardPass, scoreboard);
-        contributions.RecordPass(known.Id, () => known, Kast);
+        contributions.RecordPass(known.Id, () => known, _kast);
         List<IRecordPass> passes = Resolve(contributions, library);
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue)
-        {
-            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
-        };
+        using RecordPassRunner runner = new(() => passes, store, queue);
+        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         Stamp(store, "kast", 1);
@@ -131,7 +129,7 @@ public class RecordPassDependsOnTests
 
         await Assert.That(unknownPass.Seen).IsEmpty();
         await Assert.That(scoreboardPass.Seen).IsEmpty();
-        await Assert.That(faults.Order()).IsEquivalentTo(Refusals, CollectionOrdering.Matching);
+        await Assert.That(faults.Order()).IsEquivalentTo(_refusals, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -150,10 +148,8 @@ public class RecordPassDependsOnTests
         contributions.RecordPass(barrier.Id, () => barrier);
         List<IRecordPass> passes = Resolve(contributions, library);
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue)
-        {
-            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
-        };
+        using RecordPassRunner runner = new(() => passes, store, queue);
+        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
@@ -180,10 +176,8 @@ public class RecordPassDependsOnTests
         contributions.RecordPass(barrier.Id, () => barrier);
         List<IRecordPass> passes = Resolve(contributions, library);
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue)
-        {
-            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
-        };
+        using RecordPassRunner runner = new(() => passes, store, queue);
+        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
@@ -222,10 +216,8 @@ public class RecordPassDependsOnTests
                 ExtensionRecordPassHost.Cached(r, () => library, id => id == index.Owner ? owner : null)())
         ];
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue)
-        {
-            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
-        };
+        using RecordPassRunner runner = new(() => passes, store, queue);
+        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
@@ -267,15 +259,13 @@ public class RecordPassDependsOnTests
         contributions.RecordPass(barrier.Id, () => barrier);
         List<IRecordPass> passes = Resolve(contributions, library);
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue)
-        {
-            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
-        };
+        using RecordPassRunner runner = new(() => passes, store, queue);
+        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
         await Assert.That(reader.Seen).IsEmpty();
-        await Assert.That(faults.ToArray()).IsEquivalentTo(UnknownOwnerRefusal, CollectionOrdering.Matching);
+        await Assert.That(faults.ToArray()).IsEquivalentTo(_unknownOwnerRefusal, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -295,10 +285,8 @@ public class RecordPassDependsOnTests
                 ExtensionRecordPassHost.Cached(r, () => library, id => id == "test.owner" ? owner : null)())
         ];
         ConcurrentQueue<string> faults = new();
-        using RecordPassRunner runner = new(() => passes, store, queue)
-        {
-            Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message)
-        };
+        using RecordPassRunner runner = new(() => passes, store, queue);
+        runner.Faulted = (pass, _, ex) => faults.Enqueue(pass.Id + ": " + ex.Message);
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
@@ -327,7 +315,7 @@ public class RecordPassDependsOnTests
 
         public DemoDataRecord? ReadAny(string demoPath, string facet, string? part = null) => null;
 
-        public DemoDataStamp? Write(string demoPath, DemoDataWrite write) => throw new NotSupportedException();
+        public DemoDataStamp Write(string demoPath, DemoDataWrite write) => throw new NotSupportedException();
 
         public void MarkFailed(string demoPath, string facet) => throw new NotSupportedException();
 

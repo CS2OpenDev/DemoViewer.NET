@@ -132,7 +132,7 @@ public class RoundFactsCacheTests
     [Test]
     public async Task AnOldSidecarWithoutTheField_Deserializes_WithNoRows()
     {
-        const string oldSidecar = """
+        const string OldSidecar = """
                                   {
                                     "Path": "/d/old.dem",
                                     "Size": 10,
@@ -145,7 +145,7 @@ public class RoundFactsCacheTests
                                   }
                                   """;
 
-        DemoCacheRecord? deserialized = JsonSerializer.Deserialize<DemoCacheRecord>(oldSidecar);
+        DemoCacheRecord? deserialized = JsonSerializer.Deserialize<DemoCacheRecord>(OldSidecar);
         await Assert.That(deserialized).IsNotNull();
         DemoCacheRecord record = deserialized!;
 

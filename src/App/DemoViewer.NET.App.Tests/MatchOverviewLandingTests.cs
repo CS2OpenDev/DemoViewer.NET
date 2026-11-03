@@ -217,7 +217,7 @@ public class MatchOverviewLandingTests
                         // Per-team round wins by side. The CT-ending team took 6 as CT + 7 as T = 13; the
                         // T-ending team 6 + 3 = 9. So the SIDE split (CT 12 / T 10) differs from the TEAM
                         // totals (13 / 9), exactly the half-swap case the page must not conflate.
-                        ["CTW"] = r.Team == 3 ? 6 : 6,
+                        ["CTW"] = 6,
                         ["TW"] = r.Team == 3 ? 7 : 3
                     }))
                 .ToList());
@@ -241,12 +241,10 @@ public class MatchOverviewLandingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            MatchOverviewTabViewModel vm = new();
             // Wired, so the hero's report button is actually REALIZED in every state this measures. The gate
             // needs an opener AND a path, and a bare `new()` would hide the button and measure a page
             // without it.
-            vm.ErrorReportOpener = _ => { };
-            vm.FilePath = "/demos/height.dem";
+            MatchOverviewTabViewModel vm = new() { ErrorReportOpener = _ => { }, FilePath = "/demos/height.dem" };
             MatchOverviewTabView view = new() { DataContext = vm };
             // Short window ON PURPOSE, and the measurement is the content panel's DESIRED height, not the
             // ScrollViewer's Extent. Extent is clamped up to the viewport by the content presenter, so in a
@@ -305,10 +303,8 @@ public class MatchOverviewLandingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            MatchOverviewTabViewModel vm = new();
             // Opener and path both, or the gate hides the button and this measures a page without it.
-            vm.ErrorReportOpener = _ => { };
-            vm.FilePath = "/demos/height.dem";
+            MatchOverviewTabViewModel vm = new() { ErrorReportOpener = _ => { }, FilePath = "/demos/height.dem" };
             MatchOverviewTabView view = new() { DataContext = vm };
             Window window = new() { Width = windowWidth, Height = 700, Content = view };
             window.Show();
@@ -447,8 +443,7 @@ public class MatchOverviewLandingTests
             Pump();
             double openingWith = Band().Bounds.Height;
 
-            List<(string State, double Without, double With)> rows = [];
-            rows.Add(("opening", openingWithout, openingWith));
+            List<(string State, double Without, double With)> rows = [("opening", openingWithout, openingWith)];
 
             foreach (DemoCacheTier tier in new[] { DemoCacheTier.Header, DemoCacheTier.Parse, DemoCacheTier.Analysis })
             {

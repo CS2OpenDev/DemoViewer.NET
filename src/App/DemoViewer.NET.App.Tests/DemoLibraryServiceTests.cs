@@ -255,8 +255,8 @@ public class DemoLibraryServiceTests
             using DemoScheduler scheduler = new([svc], queue, svc.Tier2Backlog);
             svc.Scheduler = scheduler;
             await svc.AddFoldersAsync([dir]);
-            await WaitForAsync(() => svc.Entries.Count == 1 && svc.Entries[0].State == DemoIndexState.Indexed
-                                                            && FullyIndexedInCacheFile(dataPath) == 1,
+            await WaitForAsync(() => svc.Entries is [{ State: DemoIndexState.Indexed }]
+                                     && FullyIndexedInCacheFile(dataPath) == 1,
                 "tier 2 read through the queue", 60000);
 
             await Assert.That(svc.Entries.Count).IsEqualTo(1);
@@ -391,7 +391,7 @@ public class DemoLibraryServiceTests
 
             await svc.AddFoldersAsync([dir]);
             await WaitForAsync(
-                () => svc.Entries.Count == 1 && svc.Entries[0].State == DemoIndexState.Failed,
+                () => svc.Entries is [{ State: DemoIndexState.Failed }],
                 "demo marked Failed");
 
             coord.RecheckAll(); // the whole-library re-check
@@ -650,7 +650,7 @@ public class DemoLibraryServiceTests
             svc.Scheduler = coord;
 
             await svc.AddFoldersAsync([dir1, dir2]);
-            await WaitForAsync(() => svc.Entries.Count == 1 && svc.Entries[0].State == DemoIndexState.Indexed,
+            await WaitForAsync(() => svc.Entries is [{ State: DemoIndexState.Indexed }],
                 "primary indexed once");
             await Assert.That(parses).IsEqualTo(1);
 
@@ -664,8 +664,8 @@ public class DemoLibraryServiceTests
             // macOS temp is a symlink /var → /private/var, so the stored canonical path is prefixed).
             string dir2Leaf = Path.GetFileName(dir2);
             await WaitForAsync(
-                () => svc.Entries.Count == 1 && svc.Entries[0].State == DemoIndexState.Indexed
-                                             && svc.Entries[0].FilePath.Contains(dir2Leaf, StringComparison.Ordinal),
+                () => svc.Entries is [{ State: DemoIndexState.Indexed } entry]
+                      && entry.FilePath.Contains(dir2Leaf, StringComparison.Ordinal),
                 "shadow promoted to primary and indexed");
 
             await Assert.That(svc.Entries.Count).IsEqualTo(1).Because("still one card — now the surviving copy");
@@ -719,7 +719,7 @@ public class DemoLibraryServiceTests
             svc.Scheduler = coord;
 
             await svc.AddFoldersAsync([dir]);
-            await WaitForAsync(() => svc.Entries.Count == 1 && svc.Entries[0].State == DemoIndexState.Indexed,
+            await WaitForAsync(() => svc.Entries is [{ State: DemoIndexState.Indexed }],
                 "first index");
 
             await svc.RescanAsync();
@@ -730,8 +730,7 @@ public class DemoLibraryServiceTests
             File.SetLastWriteTime(demo, File.GetLastWriteTime(demo).AddMinutes(1));
             await svc.RescanAsync();
             await WaitForAsync(
-                () => parses == 2 && svc.Entries.Count == 1 && svc.Entries[0].FileSizeBytes == 8
-                      && svc.Entries[0].State == DemoIndexState.Indexed,
+                () => parses == 2 && svc.Entries is [{ FileSizeBytes: 8, State: DemoIndexState.Indexed }],
                 "the modified demo indexed again");
 
             await svc.RescanAsync();
@@ -783,7 +782,8 @@ public class DemoLibraryServiceTests
             // alone). The wait below reports the states it saw, so a timeout that remains says what it was.
             using DemoProcessingQueue listing = new(new HeavyJobGate(), a => a(),
                 _ => throw new InvalidOperationException("the listing queue parses nothing"));
-            using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json")) { QueueOverride = listing };
+            using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json"));
+            svc.QueueOverride = listing;
             using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
             svc.Scheduler = coord;
 

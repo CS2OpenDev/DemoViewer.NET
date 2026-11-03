@@ -150,6 +150,6 @@ public class QueueOrderTests
     {
         public IHeldParse? TryHold(string demo) => null;
 
-        public string? LoadedPath => path;
+        public string LoadedPath => path;
     }
 }

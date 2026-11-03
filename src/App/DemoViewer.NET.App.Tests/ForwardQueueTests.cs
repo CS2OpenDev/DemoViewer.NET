@@ -123,7 +123,7 @@ public class ForwardQueueTests
         queue.Pause();
         coordinator.DemoChanged("a.dem");
         queue.Resume();
-        await WaitForAsync(() => facts.Forward + highlights.Forward + library.Forward == 3, "all three owners");
+        await WaitForAsync(() => facts.Forwarded + highlights.Forwarded + library.Forwarded == 3, "all three owners");
         // The owners run before the entry is marked finished, on the worker.
         await WaitForAsync(() => queue.Snapshot().Single().State == DemoQueueItemState.Completed,
             "the entry to finish");
@@ -165,7 +165,7 @@ public class ForwardQueueTests
         {
             await Assert.That(parses).IsEqualTo(1);
             await Assert.That(passes).IsEqualTo(0);
-            await Assert.That(facts.Forward).IsEqualTo(0);
+            await Assert.That(facts.Forwarded).IsEqualTo(0);
         }
     }
 
@@ -443,9 +443,9 @@ public class ForwardQueueTests
     [Test]
     public async Task NewRoundFactsFingerprint_ReEvaluatesEveryDemoOnce_ForwardAtBackgroundPriority_ThroughTheCap()
     {
-        const int demos = 7;
+        const int Demos = 7;
         DemoCacheStore store = new(null);
-        for (int i = 0; i < demos; i++)
+        for (int i = 0; i < Demos; i++)
         {
             DemoCacheRecord record = new()
             {
@@ -479,8 +479,7 @@ public class ForwardQueueTests
         queue.MaxQueueSize = 3;
         queue.Changed += () => maxQueued = Math.Max(maxQueued,
             queue.Snapshot().Count(s =>
-                s.Kind == QueueJobKind.DemoProcessing
-                && s.State is DemoQueueItemState.Queued or DemoQueueItemState.Running));
+                s is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued or DemoQueueItemState.Running }));
 
         RoundFactsEvaluator facts = new(store, new NoRows(), new Identity("after-merge"));
         using HighlightScanService highlights = new(store, new Harvester("fp"), () => [], () => true);
@@ -493,7 +492,7 @@ public class ForwardQueueTests
         using DemoScheduler coordinator = new(() => scheduled, queue,
             () => [.. highlights.PendingPaths().Concat(facts.PendingPaths()).Distinct()]);
 
-        await Assert.That(facts.PendingPaths().Count).IsEqualTo(demos);
+        await Assert.That(facts.PendingPaths().Count).IsEqualTo(Demos);
         await Assert.That(highlights.PendingPaths()).IsEmpty().Because("the highlight fingerprint did not move");
 
         coordinator.RecheckAll();
@@ -501,7 +500,7 @@ public class ForwardQueueTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(passes.Order()).IsEquivalentTo(Enumerable.Range(0, demos).Select(i => $"/d/{i}.dem"),
+            await Assert.That(passes.Order()).IsEquivalentTo(Enumerable.Range(0, Demos).Select(i => $"/d/{i}.dem"),
                 CollectionOrdering.Matching);
             await Assert.That(priorities.Distinct())
                 .IsEquivalentTo([DemoJobPriority.Background], CollectionOrdering.Matching);
@@ -529,7 +528,7 @@ public class ForwardQueueTests
 
         List<(string Path, DemoJobPriority Priority, string Owners)> seen = [];
         DemoProcessingQueue? queueRef = null;
-        using DemoProcessingQueue queue = Queue((path, needs, _, _) =>
+        using DemoProcessingQueue queue = Queue((path, _, _, _) =>
         {
             lock (seen)
             {
@@ -565,7 +564,7 @@ public class ForwardQueueTests
 
     private sealed class Evaluator(string id, ForwardNeeds? forward) : IDemoEvaluator
     {
-        public int Forward;
+        public int Forwarded;
         public int Retained;
         public HashSet<string> Wanted { get; } = [];
         public string Id => id;
@@ -573,7 +572,7 @@ public class ForwardQueueTests
         public bool Wants(string path) => Wanted.Contains(path);
         public ForwardNeeds? ForwardFor(string path) => forward;
         public void Evaluate(string path, ParsedDemo parsed) => Interlocked.Increment(ref Retained);
-        public void EvaluateForward(string path, ForwardDemoResult pass) => Interlocked.Increment(ref Forward);
+        public void EvaluateForward(string path, ForwardDemoResult pass) => Interlocked.Increment(ref Forwarded);
     }
 
     private sealed class NoRows : IRoundFactsRowSource
@@ -583,7 +582,7 @@ public class ForwardQueueTests
 
     private sealed class Identity(string fingerprint) : IRoundFactsRulesetIdentity
     {
-        public string? Fingerprint(int tickRate) => fingerprint;
+        public string Fingerprint(int tickRate) => fingerprint;
     }
 
     private sealed class Harvester(string fingerprint) : IHighlightHarvester

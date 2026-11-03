@@ -152,7 +152,7 @@ public class Playback2DFeatureCatalogTests
             SettingsService svc = new(dir);
             ServiceCollection services = new();
             services.Configure<AppSettings>(svc.Configuration);
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
 
             using FeatureGate gate = new(monitor, false);

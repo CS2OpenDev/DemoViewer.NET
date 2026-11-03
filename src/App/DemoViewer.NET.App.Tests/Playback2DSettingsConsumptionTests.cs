@@ -192,7 +192,7 @@ public class Playback2DSettingsConsumptionTests
     {
         PropertyInfo[] properties = settings
             .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(p => p.CanRead && p.CanWrite)
+            .Where(p => p is { CanRead: true, CanWrite: true })
             .ToArray();
 
         HashSet<string> accessors = properties

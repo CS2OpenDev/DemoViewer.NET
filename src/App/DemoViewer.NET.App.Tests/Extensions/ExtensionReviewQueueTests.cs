@@ -199,7 +199,7 @@ public class ExtensionReviewQueueTests
             await Assert.That(() => published.AddSection("x")).Throws<InvalidOperationException>();
             await Assert.That(() => published.Remove([])).Throws<InvalidOperationException>();
             await Assert.That(() => published.MoveBy(Guid.Empty, -1)).Throws<InvalidOperationException>();
-            await Assert.That(() => published.Clear()).Throws<InvalidOperationException>();
+            await Assert.That(published.Clear).Throws<InvalidOperationException>();
             await Assert.That(() => published.SetReviewed([], true)).Throws<InvalidOperationException>();
             await Assert.That(() => published.ClipsUnder(Guid.Empty)).Throws<InvalidOperationException>();
             await Assert.That(() => published.SetTitle(Guid.Empty, "x")).Throws<InvalidOperationException>();
@@ -224,7 +224,7 @@ public class ExtensionReviewQueueTests
             queue, "/videos", path => !path.EndsWith("gone.dem", StringComparison.Ordinal));
 
         ReviewPackPlan planned = export.Plan("/videos/pack.mp4", ExportFormats.Mp4);
-        ReviewPackResult result = await export.RunAsync(planned, new Progress<ReviewPackProgress>(), default);
+        ReviewPackResult result = await export.RunAsync(planned, new Progress<ReviewPackProgress>(), CancellationToken.None);
 
         using (Assert.Multiple())
         {
@@ -256,10 +256,10 @@ public class ExtensionReviewQueueTests
             await Assert.That(() => onWorker.Plan("/videos/pack.mp4", ExportFormats.Mp4))
                 .Throws<InvalidOperationException>();
             await Assert.That(async () =>
-                    await onWorker.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(), default))
+                    await onWorker.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(), CancellationToken.None))
                 .Throws<InvalidOperationException>();
             await Assert.That(async () =>
-                    await onUi.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(), default))
+                    await onUi.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(), CancellationToken.None))
                 .Throws<ArgumentException>().Because("the plan carries no host plan to render");
             await Assert.That(onUi.Validate("", ExportFormats.Mp4)).IsNotNull();
             await Assert.That(onUi.Validate("/videos/pack.mp4", ExportFormats.Mp4)).IsNull();

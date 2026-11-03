@@ -57,7 +57,7 @@ public class QueueStartOrderTests
             }, _ => SyntheticDemo(), () => Task.CompletedTask);
         }
 
-        public HeavyJobGate Gate { get; } = new();
+        private HeavyJobGate Gate { get; } = new();
         public DemoProcessingQueue Queue { get; }
 
         public IReadOnlyList<string> Started
@@ -110,7 +110,7 @@ public class QueueStartOrderTests
             }
         }
 
-        public IDemoQueueHandle Parse(string name, long order, DemoJobPriority priority = DemoJobPriority.Background) =>
+        public void Parse(string name, long order, DemoJobPriority priority = DemoJobPriority.Background) =>
             Queue.SubmitBackground(new DemoProcessingRequest("/d/" + name, "library", priority, order, _ => { }, null,
                 name));
 
@@ -132,7 +132,7 @@ public class QueueStartOrderTests
 
         // The queued heavy-lane items by the rank the queue reports.
         public List<string> Ranked() => Queue.Snapshot()
-            .Where(s => s.State == DemoQueueItemState.Queued && !s.Light && s.Kind != QueueJobKind.HeapCompaction)
+            .Where(s => s is { State: DemoQueueItemState.Queued, Light: false, Kind: not QueueJobKind.HeapCompaction })
             .OrderBy(s => s.StartRank)
             .Select(s => s.DisplayName!)
             .ToList();

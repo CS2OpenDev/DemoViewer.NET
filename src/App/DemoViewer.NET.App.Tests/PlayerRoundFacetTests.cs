@@ -25,9 +25,9 @@ public class PlayerRoundFacetTests
 
     private const string A = "76561190000000001", B = "76561190000000002";
 
-    private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
+    private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
-    private static readonly string[] Dimensions =
+    private static readonly string[] _dimensions =
         ["match_id", "map", "round_number", "player_slot", "player_name", "steam_id", "team"];
 
     internal static string SamplePath(string repo) =>
@@ -46,7 +46,7 @@ public class PlayerRoundFacetTests
                 ["steam_id"] =
                     FactValue.Of(string.Create(CultureInfo.InvariantCulture, $"765611900000000{slot:00}"))
             };
-            rows.Add(new FactRow(dimensions, real.Values));
+            rows.Add(real with { Dimensions = dimensions });
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -89,8 +89,8 @@ public class PlayerRoundFacetTests
                 $"missing the player_round sample; regenerate with {SampleUpdateVar}=1 through PlayerMatchParityRealDemoTests");
         }
 
-        MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, null));
-        string committed = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        MergedRulesBuild rules = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, null));
+        string committed = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         FactTable? table = FactsCodec.Decode(PlayerMatchFacetTests.Gzip(committed));
         IReadOnlyList<string> declared =
         [
@@ -107,7 +107,7 @@ public class PlayerRoundFacetTests
             await Assert.That(string.Join(",", table.Values)).IsEqualTo(string.Join(",", declared))
                 .Because(
                     "the shipped ruleset declares the committed columns, in order; a change is a new facet version");
-            await Assert.That(string.Join(",", table.Dimensions)).IsEqualTo(string.Join(",", Dimensions));
+            await Assert.That(string.Join(",", table.Dimensions)).IsEqualTo(string.Join(",", _dimensions));
             await Assert.That(table.Rows.Count).IsGreaterThanOrEqualTo(20).Because("two rounds of ten players");
             await Assert.That(table.Rows.All(r => declared.All(r.Values.ContainsKey))).IsTrue();
             await Assert.That(table.Rows.Count(r => r.Values["side"].AsInteger() == PlayerRoundFacet.Ct))
@@ -177,30 +177,30 @@ public class PlayerRoundFacetTests
         MergedRulesBuild rules = PlayerMatchParityRealDemoTests.AppRules();
         StampedFacts stamped = new(rules);
         DemoCacheStore cache = new(null);
-        const string path = "/demos/a.dem";
+        const string Path = "/demos/a.dem";
         cache.Upsert(new DemoCacheRecord
         {
-            Path = path,
+            Path = Path,
             Size = 1,
             Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
         });
         FactsEvaluator evaluator = new(cache, stamped);
         AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
-        bool wanted = evaluator.Records(path, PlayerRoundFacet.RulesetId);
+        bool wanted = evaluator.Records(Path, PlayerRoundFacet.RulesetId);
 
-        evaluator.Evaluate(path, MergedRulesBuildTests.TwoFrameDemo());
-        DemoCacheIndexEntry row = cache.TryGetIndex(path)!;
+        evaluator.Evaluate(Path, MergedRulesBuildTests.TwoFrameDemo());
+        DemoCacheIndexEntry row = cache.TryGetIndex(Path)!;
 
         using (Assert.Multiple())
         {
             await Assert.That(wanted).IsTrue().Because("a parsed demo with no facet is the backlog");
             await Assert.That(facts.Declared).Contains(PlayerRoundFacet.Key);
-            await Assert.That(facts.Status(path, PlayerRoundFacet.Key)).IsEqualTo(FactStatus.Current);
+            await Assert.That(facts.Status(Path, PlayerRoundFacet.Key)).IsEqualTo(FactStatus.Current);
             await Assert.That(row.Stamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId))?.State)
                 .IsEqualTo(DemoAnalysisState.Indexed);
             await Assert.That(row.Stamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId))?.Fingerprint)
                 .IsNotEqualTo(row.Stamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId))?.Fingerprint);
-            await Assert.That(evaluator.Records(path, PlayerRoundFacet.RulesetId)).IsFalse();
+            await Assert.That(evaluator.Records(Path, PlayerRoundFacet.RulesetId)).IsFalse();
             await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64)
                 .Because("the facet is stamped on its own, so the highlights stamp never moves");
         }
@@ -218,7 +218,7 @@ public class PlayerRoundFacetTests
             string playerMatch = stamped.Fingerprint(PlayerMatchFacet.RulesetId, 64)!;
             string playerEvent = stamped.Fingerprint(PlayerEventFacet.RulesetId, 64)!;
 
-            string yaml = await File.ReadAllTextAsync(Path.Combine(Shipped, "player_round.rules.yaml"));
+            string yaml = await File.ReadAllTextAsync(Path.Combine(_shipped, "player_round.rules.yaml"));
             await File.WriteAllTextAsync(Path.Combine(user.FullName, "player_round.rules.yaml"),
                 yaml.Replace("capture: player.team", "capture: player.team\n    keep: last", StringComparison.Ordinal));
             rules.Invalidate();

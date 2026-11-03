@@ -43,7 +43,7 @@ public class MergedRulesBuildTests
     private const string Always = "fixture_always";
     private const string Extension = "net.example.fixture";
 
-    private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
+    private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
     // The columns DemoCacheAnalysisProjector persists into the tier-3 scoreboard.
     private static string? _fixture;
@@ -57,7 +57,7 @@ public class MergedRulesBuildTests
     [Before(Class)]
     public static void WriteFixture()
     {
-        string multikill = File.ReadAllText(Path.Combine(Shipped, "highlights_multikill.rules.yaml"));
+        string multikill = File.ReadAllText(Path.Combine(_shipped, "highlights_multikill.rules.yaml"));
         _fixture = Directory.CreateTempSubdirectory("dv-mrb-fixture-").FullName;
         foreach (string id in new[] { Gated, Always })
         {
@@ -76,9 +76,9 @@ public class MergedRulesBuildTests
         }
     }
 
-    private static RuleConfigLoadResult ShippedRules() => YamlConfigLoader.LoadWithOverlay(Shipped, null);
+    private static RuleConfigLoadResult ShippedRules() => YamlConfigLoader.LoadWithOverlay(_shipped, null);
 
-    private static RuleConfigLoadResult FixtureRules() => YamlConfigLoader.LoadWithOverlay(Shipped, _fixture);
+    private static RuleConfigLoadResult FixtureRules() => YamlConfigLoader.LoadWithOverlay(_shipped, _fixture);
 
     private static StampedRuleset GatedBy(Func<bool> on) => new(Gated, Extension, on);
 
@@ -228,10 +228,10 @@ public class MergedRulesBuildTests
         DirectoryInfo user = Directory.CreateTempSubdirectory("dv-mrb-broken-");
         try
         {
-            string yaml = await File.ReadAllTextAsync(Path.Combine(Shipped, "round_facts.rules.yaml"));
+            string yaml = await File.ReadAllTextAsync(Path.Combine(_shipped, "round_facts.rules.yaml"));
             await File.WriteAllTextAsync(Path.Combine(user.FullName, "round_facts.rules.yaml"),
                 yaml + "\nhighlights:\n  broken:\n    when: no_such_stat >= 1\n    per: round\n    title: broken\n");
-            MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, user.FullName),
+            MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName),
                 () => [StampedRuleset.Core(RoundFacts)]);
 
             Exception? composed = null;
@@ -311,15 +311,15 @@ public class MergedRulesBuildTests
         DirectoryInfo user = Directory.CreateTempSubdirectory("dv-mrb-override-");
         try
         {
-            string yaml = await File.ReadAllTextAsync(Path.Combine(Shipped, "highlights_multikill.rules.yaml"));
+            string yaml = await File.ReadAllTextAsync(Path.Combine(_shipped, "highlights_multikill.rules.yaml"));
             await Assert.That(yaml).Contains("enemy_kills_round >= 5");
             await File.WriteAllTextAsync(Path.Combine(user.FullName, "highlights_multikill.rules.yaml"),
                 yaml.Replace("enemy_kills_round >= 5", "enemy_kills_round >= 6", StringComparison.Ordinal));
 
             MergedRulesBuild before = new(ShippedRules, () => [StampedRuleset.Core(RoundFacts)]);
-            MergedRulesBuild afterOn = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, user.FullName),
+            MergedRulesBuild afterOn = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName),
                 () => [new StampedRuleset(RoundFacts, Extension, () => true)]);
-            MergedRulesBuild afterOff = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, user.FullName),
+            MergedRulesBuild afterOff = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName),
                 () => [new StampedRuleset(RoundFacts, Extension, () => false)]);
 
             using (Assert.Multiple())
@@ -345,8 +345,8 @@ public class MergedRulesBuildTests
         DirectoryInfo user = Directory.CreateTempSubdirectory("dv-mrb-identity-");
         try
         {
-            string yaml = await File.ReadAllTextAsync(Path.Combine(Shipped, "round_facts.rules.yaml"));
-            MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, user.FullName),
+            string yaml = await File.ReadAllTextAsync(Path.Combine(_shipped, "round_facts.rules.yaml"));
+            MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName),
                 () => [StampedRuleset.Core(RoundFacts)]);
             string first = build.RulesetIdentity(RoundFacts, 64);
             await Assert.That(build.RulesetIdentity(RoundFacts, 64)).IsEqualTo(first);
@@ -521,8 +521,7 @@ public class MergedRulesBuildTests
     {
         bool fixtureOn = true;
         List<StampedRuleset> stamped =
-            [.. Enumerable.Range(0, 70).Select(i => new StampedRuleset($"absent_{i}", Extension, () => i % 2 == 0))];
-        stamped.Add(GatedBy(() => fixtureOn));
+            [.. Enumerable.Range(0, 70).Select(i => new StampedRuleset($"absent_{i}", Extension, () => i % 2 == 0)), GatedBy(() => fixtureOn)];
         MergedRulesBuild build = new(FixtureRules, () => stamped);
 
         IReadOnlyList<string> on = Ids(build.Docs);
@@ -575,7 +574,7 @@ public class MergedRulesBuildTests
         string root = DemoTestHelper.RequireRepoRoot();
         string[] files =
         [
-            .. Directory.EnumerateFiles(Shipped, "*.rules.yaml"),
+            .. Directory.EnumerateFiles(_shipped, "*.rules.yaml"),
             .. Directory.EnumerateFiles(Path.Combine(root, "samples"), "*.rules.yaml", SearchOption.AllDirectories)
         ];
         string[] readers =
@@ -782,8 +781,10 @@ public class MergedRulesBuildTests
     public async Task NothingStale_TheOpenRunsTheCoreRulesetsAlone() => await WithFactsFixture(async fixture =>
     {
         MergedRulesBuild build = new(() => AnalysisFactsTests.WithFixture(fixture),
-            () => [StampedRuleset.Core(RoundFacts), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)]);
-        build.OutputsFor = _ => new HashSet<string>();
+            () => [StampedRuleset.Core(RoundFacts), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)])
+        {
+            OutputsFor = _ => new HashSet<string>()
+        };
         ParsedDemo parsed = TwoFrameDemo();
 
         (OpenRunPlan plan, AnalysisRun run) = OpenRun(build, fixture, parsed);
@@ -807,10 +808,12 @@ public class MergedRulesBuildTests
     {
         CollectorSet registered = CollectorSet.Of([CollectorKit.Register(CollectorKit.Counting("count.a"))]);
         MergedRulesBuild build = new(() => AnalysisFactsTests.WithFixture(fixture),
-            () => [StampedRuleset.Core(RoundFacts), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)]);
-        build.OutputsFor = _ => new HashSet<string>();
-        build.OpenCollectors = () => registered;
-        build.CollectorsFor = _ => registered;
+            () => [StampedRuleset.Core(RoundFacts), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)])
+        {
+            OutputsFor = _ => new HashSet<string>(),
+            OpenCollectors = () => registered,
+            CollectorsFor = _ => registered
+        };
         ParsedDemo parsed = TwoFrameDemo();
 
         OpenRunPlan plan = build.PlanOpen(AnalysisFactsTests.WithFixture(fixture).Rulesets, OpenPath);
@@ -928,7 +931,7 @@ public class MergedRulesBuildTests
         MergedRulesBuild build = FactsBuild(fixture, () => true);
         _ = build.Docs;
         string kast = Path.Combine(fixture, "kast.rules.yaml");
-        File.WriteAllText(kast, File.ReadAllText(Path.Combine(Shipped, "kast.rules.yaml"))
+        await File.WriteAllTextAsync(kast, (await File.ReadAllTextAsync(Path.Combine(_shipped, "kast.rules.yaml")))
             .Replace("title: ", "title: Edited ", StringComparison.Ordinal));
 
         OpenRunPlan plan = build.PlanOpen(AnalysisFactsTests.WithFixture(fixture).Rulesets, OpenPath);

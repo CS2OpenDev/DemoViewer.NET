@@ -95,7 +95,7 @@ internal sealed class RecordingSwitch : IFeatureSuspension
 }
 
 /// <summary>Captures every diagnostics log entry while installed.</summary>
-internal sealed class CapturedLogs : ILoggerProvider, ILogger, IDisposable
+internal sealed class CapturedLogs : ILoggerProvider, ILogger
 {
     private readonly List<(int EventId, string Message, Exception? Exception)> _entries = [];
     private readonly ILoggerFactory _previous;
@@ -106,7 +106,7 @@ internal sealed class CapturedLogs : ILoggerProvider, ILogger, IDisposable
         DiagnosticsLog.LoggerFactory = LoggerFactory.Create(b => b.AddProvider(this).SetMinimumLevel(LogLevel.Trace));
     }
 
-    public IReadOnlyList<(int EventId, string Message, Exception? Exception)> Entries
+    private IReadOnlyList<(int EventId, string Message, Exception? Exception)> Entries
     {
         get
         {
@@ -159,8 +159,8 @@ internal sealed class FaultRig
 
     public void Throw(string site = "site", FaultKind kind = FaultKind.Counted)
     {
-        Action body = () => throw new InvalidOperationException("boom at " + site);
-        Faults.Run(Scope, site, body, kind);
+        void Body() => throw new InvalidOperationException("boom at " + site);
+        Faults.Run(Scope, site, Body, kind);
     }
 }
 

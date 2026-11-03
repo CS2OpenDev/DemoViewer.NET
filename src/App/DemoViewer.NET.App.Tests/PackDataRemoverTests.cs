@@ -275,35 +275,35 @@ public class PackDataRemoverTests
         try
         {
             DemoCacheStore store = new(cacheRoot);
-            const string path = "/demos/facts.dem";
-            store.Update(path, 1, 1, r => r.Sha256 = "ffff");
-            const string mine = "dev_example_x__kills";
-            const string other = "dev_example_y__kills";
-            foreach (string ruleset in new[] { mine, other })
+            const string Path = "/demos/facts.dem";
+            store.Update(Path, 1, 1, r => r.Sha256 = "ffff");
+            const string Mine = "dev_example_x__kills";
+            const string Other = "dev_example_y__kills";
+            foreach (string ruleset in new[] { Mine, Other })
             {
-                store.WriteSiblingBytes(path, StampedFacts.Suffix(new FactKey(ruleset, "kills_table")), [1]);
-                store.UpdateExisting(path,
+                store.WriteSiblingBytes(Path, StampedFacts.Suffix(new FactKey(ruleset, "kills_table")), [1]);
+                store.UpdateExisting(Path,
                     r => r.SetStamp(new PackStamp(StampedFacts.StampId(ruleset), StampedFacts.Schema, "fp")));
             }
 
             store.SaveIndex();
-            StoreDescriptor facts = new(StampedFacts.StampId(mine), "Facts", StoreRoot.Cache,
-                ["demos/*" + StampedFacts.RulesetSuffix(mine)], false);
+            StoreDescriptor facts = new(StampedFacts.StampId(Mine), "Facts", StoreRoot.Cache,
+                ["demos/*" + StampedFacts.RulesetSuffix(Mine)], false);
 
             ExtensionDataRemovalResult result = await new PackDataRemover(store, null, cacheRoot)
-                .DeleteAsync(PackId, [facts], [StampedFacts.StampId(mine)], "fake", "delete");
+                .DeleteAsync(PackId, [facts], [StampedFacts.StampId(Mine)], "fake", "delete");
 
             using (Assert.Multiple())
             {
                 await Assert.That(result.Removed.Items.Single().FileCount).IsEqualTo(1);
                 await Assert
-                    .That(store.TryReadSiblingBytes(path, StampedFacts.Suffix(new FactKey(mine, "kills_table"))))
+                    .That(store.TryReadSiblingBytes(Path, StampedFacts.Suffix(new FactKey(Mine, "kills_table"))))
                     .IsNull();
                 await Assert
-                    .That(store.TryReadSiblingBytes(path, StampedFacts.Suffix(new FactKey(other, "kills_table"))))
+                    .That(store.TryReadSiblingBytes(Path, StampedFacts.Suffix(new FactKey(Other, "kills_table"))))
                     .IsNotNull();
-                await Assert.That(store.TryGetIndex(path)!.Stamp(StampedFacts.StampId(mine))).IsNull();
-                await Assert.That(store.TryGetIndex(path)!.Stamp(StampedFacts.StampId(other))).IsNotNull();
+                await Assert.That(store.TryGetIndex(Path)!.Stamp(StampedFacts.StampId(Mine))).IsNull();
+                await Assert.That(store.TryGetIndex(Path)!.Stamp(StampedFacts.StampId(Other))).IsNotNull();
             }
         }
         finally
@@ -452,7 +452,7 @@ public class PackDataRemoverTests
     public async Task Delete_StripsADemoListedOnlyAtAnUnconfirmedPath_WithoutMovingThePath()
     {
         string cacheRoot = TempRoot("strip-unconfirmed");
-        const string offline = "/Volumes/offline-share/a.dem";
+        const string Offline = "/Volumes/offline-share/a.dem";
         try
         {
             DemoCacheStore store = new(cacheRoot);
@@ -460,7 +460,7 @@ public class PackDataRemoverTests
             record.Packs[PackId] = JsonSerializer.SerializeToElement("mine");
             record.SetStamp(new PackStamp("facet-a", 1, "fp-a"));
             store.Upsert(record);
-            store.AttachUnconfirmed("sha-a", offline, record.Size, record.ModifiedTicks + 1);
+            store.AttachUnconfirmed("sha-a", Offline, record.Size, record.ModifiedTicks + 1);
             store.Detach("/nfs/a.dem");
             store.SaveIndex();
 
@@ -470,12 +470,12 @@ public class PackDataRemoverTests
             using (Assert.Multiple())
             {
                 await Assert.That(result.RecordsUpdated).IsEqualTo(1);
-                await Assert.That(store.LocationOf(offline)?.ContentId).IsEqualTo("sha-a");
-                await Assert.That(store.LocationOf(offline)?.Location.Confirmed).IsFalse();
+                await Assert.That(store.LocationOf(Offline)?.ContentId).IsEqualTo("sha-a");
+                await Assert.That(store.LocationOf(Offline)?.Location.Confirmed).IsFalse();
                 await Assert.That(store.IsOrphaned("sha-a")).IsFalse();
-                await Assert.That(store.TryGetIndex(offline)!.PackStamps).IsEmpty();
-                await Assert.That(store.TryLoadRecord(offline)!.Packs.ContainsKey(PackId)).IsFalse();
-                await Assert.That(store.TryLoadRecord(offline)!.Parse.IsPresent).IsTrue();
+                await Assert.That(store.TryGetIndex(Offline)!.PackStamps).IsEmpty();
+                await Assert.That(store.TryLoadRecord(Offline)!.Packs.ContainsKey(PackId)).IsFalse();
+                await Assert.That(store.TryLoadRecord(Offline)!.Parse.IsPresent).IsTrue();
             }
         }
         finally
@@ -527,7 +527,7 @@ public class PackDataRemoverTests
         {
             using ManualResetEventSlim blockerStarted = new(false);
             using ManualResetEventSlim release = new(false);
-            const string serial = "fake";
+            const string Serial = "fake";
             DemoProcessingQueue queue = new(new HeavyJobGate(), a => a());
             queue.SubmitJob(new QueueJobRequest(QueueJobKind.SectionCompute, "blocker", "test",
                 DemoJobPriority.UserRequested,
@@ -536,12 +536,12 @@ public class PackDataRemoverTests
                     blockerStarted.Set();
                     release.Wait(TimeSpan.FromSeconds(5));
                     return Task.CompletedTask;
-                }, Serial: serial));
+                }, Serial: Serial));
             await Task.Run(() => blockerStarted.Wait(TimeSpan.FromSeconds(5)));
 
             StoreDescriptor descriptor = new("strats", "Strats", StoreRoot.Config, ["strats"], true);
             PackDataRemover remover = new(new DemoCacheStore(null), root, null, queue);
-            Task<ExtensionDataRemovalResult> delete = remover.DeleteAsync(PackId, [descriptor], [], serial, "delete");
+            Task<ExtensionDataRemovalResult> delete = remover.DeleteAsync(PackId, [descriptor], [], Serial, "delete");
 
             await Task.Delay(150);
             using (Assert.Multiple())
@@ -582,7 +582,7 @@ public class PackDataRemoverTests
         {
             using ManualResetEventSlim blockerStarted = new(false);
             using ManualResetEventSlim release = new(false);
-            const string serial = "fake";
+            const string Serial = "fake";
             DemoProcessingQueue queue = new(new HeavyJobGate(), a => a());
             queue.SubmitJob(new QueueJobRequest(QueueJobKind.SectionCompute, "blocker", "test",
                 DemoJobPriority.UserRequested,
@@ -591,14 +591,14 @@ public class PackDataRemoverTests
                     blockerStarted.Set();
                     release.Wait(TimeSpan.FromSeconds(5));
                     return Task.CompletedTask;
-                }, Serial: serial));
+                }, Serial: Serial));
             await Task.Run(() => blockerStarted.Wait(TimeSpan.FromSeconds(5)));
 
             bool stillOff = true;
             StoreDescriptor descriptor = new("strats", "Strats", StoreRoot.Config, ["strats"], true);
             PackDataRemover remover = new(new DemoCacheStore(null), root, null, queue);
             Task<ExtensionDataRemovalResult> delete =
-                remover.DeleteAsync(PackId, [descriptor], [], serial, "delete", stillOff: () => stillOff);
+                remover.DeleteAsync(PackId, [descriptor], [], Serial, "delete", stillOff: () => stillOff);
 
             await Task.Delay(150);
             stillOff = false; // the pack was re-enabled while the job still sat behind the blocker

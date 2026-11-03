@@ -27,7 +27,7 @@ public class SmokeVolumesTests
     public async Task SegmentThroughSphereCentre_IsBlocked()
     {
         // A ray straight through a smoke centred on the path.
-        Vector4[] smoke = new[] { new Vector4(500, 0, 0, 100) };
+        Vector4[] smoke = [new Vector4(500, 0, 0, 100)];
         bool blocked = SmokeVolumes.SegmentBlocked(Vector3.Zero, new Vector3(1000, 0, 0), smoke);
         await Assert.That(blocked).IsTrue();
     }
@@ -36,7 +36,7 @@ public class SmokeVolumesTests
     public async Task SegmentClearOfSphere_IsNotBlocked()
     {
         // Same smoke, but the ray runs 200u to the side (radius only 100u), misses.
-        Vector4[] smoke = new[] { new Vector4(500, 200, 0, 100) };
+        Vector4[] smoke = [new Vector4(500, 200, 0, 100)];
         bool blocked = SmokeVolumes.SegmentBlocked(Vector3.Zero, new Vector3(1000, 0, 0), smoke);
         await Assert.That(blocked).IsFalse();
     }
@@ -45,7 +45,7 @@ public class SmokeVolumesTests
     public async Task EndpointInsideSphere_IsBlocked()
     {
         // Viewer standing INSIDE the smoke can't see out: the a-endpoint is within the radius.
-        Vector4[] smoke = new[] { new Vector4(20, 0, 0, 100) };
+        Vector4[] smoke = [new Vector4(20, 0, 0, 100)];
         bool blocked = SmokeVolumes.SegmentBlocked(Vector3.Zero, new Vector3(1000, 0, 0), smoke);
         await Assert.That(blocked).IsTrue();
     }
@@ -55,7 +55,7 @@ public class SmokeVolumesTests
     {
         // The nearest approach on the *segment* (clamped to [a,b]) is the a-endpoint; a smoke well behind the
         // viewer must not block a forward sightline.
-        Vector4[] smoke = new[] { new Vector4(-500, 0, 0, 100) };
+        Vector4[] smoke = [new Vector4(-500, 0, 0, 100)];
         bool blocked = SmokeVolumes.SegmentBlocked(Vector3.Zero, new Vector3(1000, 0, 0), smoke);
         await Assert.That(blocked).IsFalse();
     }
@@ -64,8 +64,8 @@ public class SmokeVolumesTests
     public async Task Grazing_JustInside_And_JustOutside()
     {
         // Perpendicular offset equal to radius−ε blocks; radius+ε clears. Guards the ≤ boundary + sign.
-        Vector4[] near = new[] { new Vector4(500, 99f, 0, 100) };
-        Vector4[] far = new[] { new Vector4(500, 101f, 0, 100) };
+        Vector4[] near = [new Vector4(500, 99f, 0, 100)];
+        Vector4[] far = [new Vector4(500, 101f, 0, 100)];
         await Assert.That(SmokeVolumes.SegmentBlocked(Vector3.Zero, new Vector3(1000, 0, 0), near)).IsTrue();
         await Assert.That(SmokeVolumes.SegmentBlocked(Vector3.Zero, new Vector3(1000, 0, 0), far)).IsFalse();
     }

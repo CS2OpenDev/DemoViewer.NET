@@ -157,19 +157,19 @@ public class RankRowMappingTests
     [Test]
     public async Task ThePass_WritesTheRankSection_TheIndexMirrorsIt_AndTheRecordPassKeepsIt()
     {
-        const string path = "/d/match730_003826256877184877003_0981591541_410.dem";
+        const string Path = "/d/match730_003826256877184877003_0981591541_410.dem";
         DemoCacheStore store = new(null);
         store.Upsert(new DemoCacheRecord
         {
-            Path = path,
+            Path = Path,
             Size = 1,
             ModifiedTicks = 1,
             Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
         });
         MatchMetaEvaluator evaluator = new(store);
-        bool wanted = evaluator.Wants(path);
+        bool wanted = evaluator.Wants(Path);
 
-        evaluator.EvaluateForward(path,
+        evaluator.EvaluateForward(Path,
             new ForwardDemoResult
             {
                 Demo = new DemoDescriptor("de_test", 64, 1f / 64, 1000, 0, "test", "test", 0, DemoProfile.Unknown,
@@ -182,17 +182,17 @@ public class RankRowMappingTests
                 ControllerRanks = [Premier(A, 3)],
                 RankUpdates = [new ServerRankUpdate(A, 14213, 14402, 189, 301, 11)]
             });
-        DemoCacheRecord record = store.TryLoadRecord(path, false)!;
-        DemoCacheIndexEntry row = store.TryGetIndex(path)!;
+        DemoCacheRecord record = store.TryLoadRecord(Path, false)!;
+        DemoCacheIndexEntry row = store.TryGetIndex(Path)!;
         MatchMetaPass matchMeta = new(store, _ => null, _ => new DateTime(2026, 6, 18, 0, 0, 0, DateTimeKind.Utc));
         matchMeta.Run(record, CancellationToken.None);
-        DemoMatchMeta after = store.TryLoadRecord(path, false)!.MatchMeta!;
+        DemoMatchMeta after = store.TryLoadRecord(Path, false)!.MatchMeta!;
         string json = JsonSerializer.Serialize(after);
 
         using (Assert.Multiple())
         {
             await Assert.That(wanted).IsTrue();
-            await Assert.That(evaluator.Wants(path)).IsFalse().Because("stamped current");
+            await Assert.That(evaluator.Wants(Path)).IsFalse().Because("stamped current");
             await Assert.That(row.GameMode).IsEqualTo("premier");
             await Assert.That(row.MatchSource).IsEqualTo("Unknown");
             await Assert.That(after.MatchTimeSource).IsEqualTo(MatchTimeSource.FileWriteTime);
@@ -206,11 +206,11 @@ public class RankRowMappingTests
     [Test]
     public async Task AHeldVisit_TakesTheRanksOffItsOwnRead_AndNoneWithoutOne()
     {
-        const string withUpdate = "/d/held-update.dem", withoutUpdate = "/d/held-bare.dem";
+        const string WithUpdate = "/d/held-update.dem", WithoutUpdate = "/d/held-bare.dem";
         DemoCacheStore store = new(null);
         MatchMetaEvaluator evaluator = new(store);
         ParsedDemo parsed = SyntheticParsedDemo.Create();
-        foreach (string path in new[] { withUpdate, withoutUpdate })
+        foreach (string path in new[] { WithUpdate, WithoutUpdate })
         {
             store.Upsert(new DemoCacheRecord
             {
@@ -221,15 +221,15 @@ public class RankRowMappingTests
             });
         }
 
-        evaluator.Evaluate(withUpdate,
-            new PassInput(new VisitedDemo(withUpdate), PassLevel.Background, parsed, null, CancellationToken.None)
+        evaluator.Evaluate(WithUpdate,
+            new PassInput(new VisitedDemo(WithUpdate), PassLevel.Background, parsed, null, CancellationToken.None)
             {
                 RetainedRanks = [new ServerRankUpdate(A, 14213, 14402, 189, 312, 11)]
             });
-        evaluator.Evaluate(withoutUpdate,
-            new PassInput(new VisitedDemo(withoutUpdate), PassLevel.Background, parsed, null, CancellationToken.None));
-        List<MatchRankRow> captured = [.. store.TryLoadRecord(withUpdate, false)!.MatchMeta!.Players!];
-        DemoMatchMeta bare = store.TryLoadRecord(withoutUpdate, false)!.MatchMeta!;
+        evaluator.Evaluate(WithoutUpdate,
+            new PassInput(new VisitedDemo(WithoutUpdate), PassLevel.Background, parsed, null, CancellationToken.None));
+        List<MatchRankRow> captured = [.. store.TryLoadRecord(WithUpdate, false)!.MatchMeta!.Players!];
+        DemoMatchMeta bare = store.TryLoadRecord(WithoutUpdate, false)!.MatchMeta!;
 
         using (Assert.Multiple())
         {

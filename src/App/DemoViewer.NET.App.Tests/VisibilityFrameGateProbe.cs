@@ -36,9 +36,9 @@ public class VisibilityFrameGateProbe
 
     // Substrings we look for when probing whether the eye offset / eye angles / duck state are dict-readable.
     private static readonly string[] _eyeFieldNeedles =
-    {
+    [
         "ViewOffset", "vecView", "EyeAngle", "angEye", "m_flDuck", "bDuck"
-    };
+    ];
 
     [Test]
     public async Task Dust2_PlayerFeet_SitOnCollisionFloor()
@@ -103,7 +103,7 @@ public class VisibilityFrameGateProbe
         int noHit = 0;
         foreach (Vector3 s in samples)
         {
-            Vector3 origin = new(s.X, s.Y, s.Z + StartHeight);
+            Vector3 origin = s with { Z = s.Z + StartHeight };
             if (mesh.RayDownDistance(origin, out float t))
             {
                 gaps.Add(t - StartHeight);

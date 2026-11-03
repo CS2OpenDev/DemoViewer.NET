@@ -201,7 +201,7 @@ public class MapViewTests
             SdkSceneHosts.Install();
             MapView view = new();
             ArgumentException refused =
-                Assert.Throws<ArgumentException>(() => view.AddLayer(id, () => new CountingLayer(id)))!;
+                Assert.Throws<ArgumentException>(() => view.AddLayer(id, () => new CountingLayer(id)));
             await Assert.That(refused.ParamName).IsEqualTo("id");
         });
     }
@@ -337,7 +337,7 @@ public class MapViewTests
                     .Because("the tab and the extension read the same decode");
             }
 
-            offThread!.Dispose();
+            offThread.Dispose();
             window.Content = null;
             Playback2DTimelineHarness.Pump();
             tab.Dispose();

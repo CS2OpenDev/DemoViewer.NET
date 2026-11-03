@@ -23,7 +23,7 @@ public class ExtensionJobsTests
 
     private sealed class Rig : IDisposable
     {
-        public readonly HeavyJobGate Gate = new();
+        private readonly HeavyJobGate _gate = new();
         public readonly DemoProcessingQueue Queue;
         public readonly PostQueue Posts = new();
         public readonly ExtensionFaults Faults;
@@ -31,7 +31,7 @@ public class ExtensionJobsTests
 
         public Rig()
         {
-            Queue = new DemoProcessingQueue(Gate, a => a(),
+            Queue = new DemoProcessingQueue(_gate, a => a(),
                 parseBytes: _ => SyntheticParsedDemo.Create(),
                 compactHeap: () => Task.CompletedTask,
                 parseFileWithPlan: (_, plan) =>
@@ -49,7 +49,7 @@ public class ExtensionJobsTests
         public void Dispose()
         {
             Queue.Dispose();
-            Gate.Dispose();
+            _gate.Dispose();
         }
     }
 
@@ -168,7 +168,7 @@ public class ExtensionJobsTests
         rig.Queue.Pause();
         IDemoQueueHandle core = rig.Queue.SubmitJob(new QueueJobRequest(QueueJobKind.StoreSave, "Save: review queue",
             "review",
-            DemoJobPriority.Background, ctx => Record("core")(null!), Key: "save:review-queue", ReplacePending: true));
+            DemoJobPriority.Background, _ => Record("core")(null!), Key: "save:review-queue", ReplacePending: true));
         JobOptions save = new(BuiltInJobKinds.Save, Key: "save:review-queue");
         IJobHandle one = rig.JobsFor("dev.example.one").Enqueue(new JobRequest("one", Record("one"), save));
         IJobHandle two = rig.JobsFor("dev.example.two").Enqueue(new JobRequest("two", Record("two"), save));
@@ -290,7 +290,7 @@ public class ExtensionJobsTests
         using Rig rig = new();
         ExtensionJobs jobs = rig.JobsFor("dev.example.one");
         TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        IJobHandle handle = jobs.Enqueue(new JobRequest("work", async ctx =>
+        IJobHandle handle = jobs.Enqueue(new JobRequest("work", async _ =>
         {
             started.TrySetResult();
             while (true)

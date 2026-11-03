@@ -65,7 +65,7 @@ public class DemoFileReadTests
         finally
         {
             // Lets the abandoned open return.
-            using (new FileStream(fifo, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+            await using (new FileStream(fifo, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
             {
             }
 

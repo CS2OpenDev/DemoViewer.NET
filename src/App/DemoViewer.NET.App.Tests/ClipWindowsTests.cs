@@ -169,7 +169,7 @@ public class ClipWindowsTests
         await Assert.That(merged.StartTick).IsEqualTo(1000);
         await Assert.That(merged.EndTick).IsEqualTo(2600);
         await Assert.That(merged.RoundNumber).IsEqualTo(7);
-        await Assert.That(clips.Count(c => c.SteamId64 == "76561" && c.RoundNumber == 8)).IsEqualTo(1);
+        await Assert.That(clips.Count(c => c is { SteamId64: "76561", RoundNumber: 8 })).IsEqualTo(1);
     }
 
     [Test]

@@ -229,9 +229,9 @@ public class ZCsvgViewsRenderTests
     private sealed class FakeLiveSync : ILiveSyncService
     {
         public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
-        public long? LastCs2DemoTick { get; set; }
-        public LiveSyncVersionInfo? Versions { get; set; }
-        public LiveSyncCapabilities? Capabilities { get; set; }
+        public long? LastCs2DemoTick => null;
+        public LiveSyncVersionInfo? Versions => null;
+        public LiveSyncCapabilities? Capabilities => null;
 
         public event EventHandler<LiveSyncStateChangedEventArgs>? StateChanged;
 

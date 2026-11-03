@@ -43,7 +43,8 @@ public class OpenFacetRealDemoTests
                 Interlocked.Increment(ref fileParses);
                 return parsed;
             },
-            parseBytes: _ => parsed) { BackgroundEnabled = false };
+            parseBytes: _ => parsed);
+        queue.BackgroundEnabled = false;
         using DemoScheduler scheduler = new([facts], queue, () => [path]);
 
         await Assert.That(library.TryGet(path, PlayerMatchFacet.Key)).IsNull();

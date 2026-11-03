@@ -29,7 +29,7 @@ namespace DemoViewer.NET.AppTests;
 public class PlayerOverviewCategoriesTests
 {
     private const ulong Grim = PlayerOverviewHistoryTests.Grim;
-    private static readonly string[] Maps = ["de_nuke", "de_inferno", "de_mirage"];
+    private static readonly string[] _maps = ["de_nuke", "de_inferno", "de_mirage"];
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
@@ -100,7 +100,7 @@ public class PlayerOverviewCategoriesTests
             for (int i = 0; i < demos; i++)
             {
                 DemoCacheRecord record = PlayerOverviewHistoryTests.Demo(i, stamped?.Invoke(i) ?? true);
-                record.Map = Maps[i % Maps.Length];
+                record.Map = _maps[i % _maps.Length];
                 store.Upsert(record);
             }
         }
@@ -128,7 +128,7 @@ public class PlayerOverviewCategoriesTests
             Tab.OnActivated(null!);
         }
 
-        public IdentityService Identity { get; }
+        private IdentityService Identity { get; }
         public PlayerRowCache Rows { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public CategoriesSectionViewModel Categories => Tab.Reveal<CategoriesSectionViewModel>();
@@ -184,7 +184,7 @@ public class PlayerOverviewCategoriesTests
             string[] expected =
             [
                 .. ColumnCatalogue.All
-                    .Where(m => category.Groups.Contains(m.Group) && !m.Hidden && !m.RequiresVisibility)
+                    .Where(m => category.Groups.Contains(m.Group) && m is { Hidden: false, RequiresVisibility: false })
                     .Where(m => ColumnRules.For(m.Key) is not ColumnRule.NotAggregable)
                     .Select(m => m.Key)
             ];
@@ -209,7 +209,7 @@ public class PlayerOverviewCategoriesTests
             int[] demos =
             [
                 .. Enumerable.Range(0, 9).Where(i =>
-                    shell.Tab.Filter.Filter.Map is null || Maps[i % 3] == shell.Tab.Filter.Filter.Map)
+                    shell.Tab.Filter.Filter.Map is null || _maps[i % 3] == shell.Tab.Filter.Filter.Map)
             ];
             double rounds = demos.Sum(i => 20.0 + i);
             double kills = demos.Sum(i => 18.0 + i);

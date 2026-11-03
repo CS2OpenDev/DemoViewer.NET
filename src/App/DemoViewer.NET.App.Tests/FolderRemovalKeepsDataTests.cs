@@ -74,7 +74,7 @@ public class FolderRemovalKeepsDataTests
 
             ExtensionDemoDataStore data = new("dev.example.data", Path.Combine(config, "ext"), cache, a => a(),
                 "1.0.0");
-            data.Write(demo, new DemoDataWrite("rounds", 1, "fp", Encoding.UTF8.GetBytes("rounds of m")));
+            data.Write(demo, new DemoDataWrite("rounds", 1, "fp", "rounds of m"u8.ToArray()));
             cache.WriteSibling(demo, FactsSuffix, "facts of m");
 
             await svc.RemoveFolderAsync(away);

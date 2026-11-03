@@ -35,7 +35,7 @@ public class RoundEnvelopeTests
     private const int Round2 = 700;
     private const int Round3 = 1300;
 
-    private static readonly string[] EnvelopeBoxes =
+    private static readonly string[] _envelopeBoxes =
         ["FadeInBox", "FadeOutBox", "HoldBox", "CustomFromBox", "CustomUntilBox"];
 
     /// <summary>
@@ -148,10 +148,11 @@ public class RoundEnvelopeTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            Playback2DFakeContext ctx = new() { Gate = new FakeModuleFeatureGate() };
-
             // The name is indexed (AvailableEventNames unions both maps) but no decoded event exists.
-            ctx.Frames[RoundTrack.FreezeEndEvent] = [50, 350];
+            Playback2DFakeContext ctx = new()
+            {
+                Gate = new FakeModuleFeatureGate(), Frames = { [RoundTrack.FreezeEndEvent] = [50, 350] }
+            };
 
             Playback2DTabViewModel vm = new();
             vm.OnActivated(ctx);
@@ -212,7 +213,7 @@ public class RoundEnvelopeTests
             vm.Annotations.Visibility = EnvelopeMode.Round;
             Playback2DTimelineHarness.Pump();
 
-            foreach (string name in EnvelopeBoxes)
+            foreach (string name in _envelopeBoxes)
             {
                 NumericUpDown? found = window.GetVisualDescendants().OfType<NumericUpDown>()
                     .FirstOrDefault(n => n.Name == name);
@@ -262,12 +263,11 @@ public class RoundEnvelopeTests
     // event TIMELINE (not the frame index), so the rounds have to be here and not only in ctx.Frames.
     private static Playback2DTabViewModel RoundedTab()
     {
-        Playback2DFakeContext ctx = new() { Gate = new FakeModuleFeatureGate() };
-
-        ctx.Timelines[RoundTrack.FreezeEndEvent] =
-        [
-            Freeze(Round1), Freeze(Round2), Freeze(Round3)
-        ];
+        Playback2DFakeContext ctx = new()
+        {
+            Gate = new FakeModuleFeatureGate(),
+            Timelines = { [RoundTrack.FreezeEndEvent] = [Freeze(Round1), Freeze(Round2), Freeze(Round3)] }
+        };
 
         Playback2DTabViewModel vm = new();
         vm.OnActivated(ctx);

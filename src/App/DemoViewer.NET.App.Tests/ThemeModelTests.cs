@@ -114,7 +114,7 @@ public class ThemeModelTests
                 foreach (string token in ThemeTokens.All)
                 {
                     Application.Current!.TryGetResource(token, variant, out object? compiled);
-                    object? model = palette.Colors.TryGetValue(token, out Color c)
+                    object model = palette.Colors.TryGetValue(token, out Color c)
                         ? new SolidColorBrush(c)
                         : palette.Gradients[token].ToBrush();
                     if (!ThemeSampleFileTests.SameBrush(compiled, model))
@@ -192,12 +192,12 @@ public class ThemeModelTests
     {
         ThemePalette egirl = BuiltInThemes.Find("egirl")!;
         string json = ThemeExport.ToJson(egirl);
-        string pb2dTeamCt = json.Split('\n')
+        string pb2DTeamCt = json.Split('\n')
             .Single(l => l.TrimStart().StartsWith("\"Pb2dTeamCt\"", StringComparison.Ordinal));
         string shell = json.Split('\n').Single(l => l.TrimStart().StartsWith("\"ShellBg\"", StringComparison.Ordinal));
 
         await Assert.That(egirl.Inherited.Contains("Pb2dTeamCt")).IsTrue();
-        await Assert.That(pb2dTeamCt).EndsWith("// base");
+        await Assert.That(pb2DTeamCt).EndsWith("// base");
         await Assert.That(shell).DoesNotContain("// base");
         foreach (ThemeSection section in ThemeExport.Sections)
         {
@@ -233,7 +233,7 @@ public class ThemeModelTests
         {
             registry.Install(Application.Current!);
             Application.Current!.TryGetResource("PanelBg", theme.Variant, out live);
-            registry.Uninstall(Application.Current!);
+            registry.Uninstall(Application.Current);
             return Task.CompletedTask;
         });
         await Assert.That(((ISolidColorBrush)live!).Color).IsEqualTo(BuiltInThemes.Light.Colors["PanelBg"]);
