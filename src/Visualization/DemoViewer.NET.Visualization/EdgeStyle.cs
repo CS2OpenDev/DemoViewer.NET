@@ -17,7 +17,4 @@ public sealed record EdgeStyle
 
     /// <summary>Is dashed.</summary>
     public bool? IsDashed { get; init; }
-
-    /// <summary>Thickness.</summary>
-    public double? Thickness { get; init; }
 }

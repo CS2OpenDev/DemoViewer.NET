@@ -293,11 +293,14 @@ public class ExtensionJobsTests
         IJobHandle handle = jobs.Enqueue(new JobRequest("work", async _ =>
         {
             started.TrySetResult();
-            while (true)
+            // Bounded, so a ThrowIfStopped that never fires fails the job rather than spinning forever.
+            for (int i = 0; i < 2000; i++)
             {
                 JobScope.ThrowIfStopped();
                 await Task.Delay(5, CancellationToken.None);
             }
+
+            throw new TimeoutException("ThrowIfStopped never saw the cancel");
         }));
         await started.Task;
         handle.Cancel();

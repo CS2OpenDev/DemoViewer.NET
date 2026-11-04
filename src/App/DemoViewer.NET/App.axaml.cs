@@ -1059,8 +1059,8 @@ public class App : Application
             {
                 void Apply(AppSettings s)
                 {
-                    queue.MaxConcurrency = s.ProcessingQueue.MaxConcurrency;
-                    queue.MaxQueueSize = s.ProcessingQueue.MaxQueueSize;
+                    queue.SetMaxConcurrency(s.ProcessingQueue.MaxConcurrency);
+                    queue.SetMaxQueueSize(s.ProcessingQueue.MaxQueueSize);
                     queue.BackgroundEnabled = s.ProcessingQueue.BackgroundProcessingEnabled;
                 }
 

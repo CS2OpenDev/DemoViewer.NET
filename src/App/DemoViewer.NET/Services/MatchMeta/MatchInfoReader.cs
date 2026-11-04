@@ -163,22 +163,22 @@ public static class MatchInfoReader
                 Varint(bytes, ref at);
                 break;
             case 1:
-                Advance(bytes, ref at, 8);
+                Advance(bytes.Length, ref at, 8);
                 break;
             case 2:
                 Length(bytes, ref at);
                 break;
             case 5:
-                Advance(bytes, ref at, 4);
+                Advance(bytes.Length, ref at, 4);
                 break;
             default:
                 throw new InvalidDataException("unsupported wire type " + wire);
         }
     }
 
-    private static void Advance(ReadOnlySpan<byte> bytes, ref int at, int count)
+    private static void Advance(int length, ref int at, int count)
     {
-        if (count > bytes.Length - at)
+        if (count > length - at)
         {
             throw new InvalidDataException("fixed-width field runs past the end");
         }

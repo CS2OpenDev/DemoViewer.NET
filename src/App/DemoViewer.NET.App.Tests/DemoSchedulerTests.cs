@@ -367,7 +367,7 @@ public class DemoSchedulerTests
             release.Wait(3000);
             return Synthetic();
         });
-        queue.MaxQueueSize = 1;
+        queue.SetMaxQueueSize(1);
         HashSet<string> done = new(StringComparer.Ordinal);
         Fake a = new("a", p =>
         {
@@ -408,7 +408,7 @@ public class DemoSchedulerTests
             release.Wait(5000);
             return Synthetic();
         });
-        queue.MaxQueueSize = 1;
+        queue.SetMaxQueueSize(1);
         int asks = 0;
         HashSet<string> done = new(StringComparer.Ordinal);
         Fake a = new("a", p =>
@@ -461,7 +461,7 @@ public class DemoSchedulerTests
             release.Wait(5000);
             return Synthetic();
         });
-        queue.MaxQueueSize = 1;
+        queue.SetMaxQueueSize(1);
         Fake a = new("a");
         using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 
@@ -799,7 +799,7 @@ public class DemoSchedulerTests
         public CancellationToken Token { get; set; }
 
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
-        public bool BackgroundEnabled { get; set; } = true;
+        public bool BackgroundEnabled { get; } = true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
         public int RunningCount => 0;

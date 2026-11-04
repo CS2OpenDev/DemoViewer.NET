@@ -22,11 +22,11 @@ namespace DemoViewer.NET.Controls;
 ///         is registered per target.
 ///     </para>
 /// </summary>
-public sealed class TutorialAnchor
+public static class TutorialAnchor
 {
     /// <summary>The region this control anchors. <see cref="TutorialTarget.None" /> (default) = not an anchor.</summary>
     public static readonly AttachedProperty<TutorialTarget> TargetProperty =
-        AvaloniaProperty.RegisterAttached<TutorialAnchor, Control, TutorialTarget>("Target");
+        AvaloniaProperty.RegisterAttached<Control, TutorialTarget>("Target", typeof(TutorialAnchor));
 
     // The currently-attached anchor control per target (weak, so it never keeps a torn-down view alive).
     private static readonly Dictionary<TutorialTarget, WeakReference<Control>> _registry = new();
@@ -52,10 +52,6 @@ public sealed class TutorialAnchor
                 Register(GetTarget(control), control);
             }
         });
-    }
-
-    private TutorialAnchor()
-    {
     }
 
     /// <summary>XAML setter for <see cref="TargetProperty" />.</summary>

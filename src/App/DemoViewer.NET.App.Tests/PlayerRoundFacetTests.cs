@@ -198,7 +198,7 @@ public class PlayerRoundFacetTests
             await Assert.That(facts.Status(Path, PlayerRoundFacet.Key)).IsEqualTo(FactStatus.Current);
             await Assert.That(row.Stamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId))?.State)
                 .IsEqualTo(DemoAnalysisState.Indexed);
-            await Assert.That(row.Stamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId))?.Fingerprint)
+            await Assert.That<string?>(row.Stamp(StampedFacts.StampId(PlayerRoundFacet.RulesetId))?.Fingerprint)
                 .IsNotEqualTo(row.Stamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId))?.Fingerprint);
             await Assert.That(evaluator.Records(Path, PlayerRoundFacet.RulesetId)).IsFalse();
             await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64)

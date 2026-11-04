@@ -21,14 +21,7 @@ internal sealed class EglBindings
 {
     private readonly IntPtr[] _exportSources;
 
-    private EglBindings(IntPtr[] exportSources, string libraryPath)
-    {
-        _exportSources = exportSources;
-        LibraryPath = libraryPath;
-    }
-
-    /// <summary>The library the EGL entry points came from, the first thing to check in a bug report.</summary>
-    public string LibraryPath { get; }
+    private EglBindings(IntPtr[] exportSources) => _exportSources = exportSources;
 
     /// <summary><c>eglGetProcAddress</c>, the address source Skia's GL interface is assembled from.</summary>
     public required EglGetProcAddressFn GetProcAddressRaw { get; init; }
@@ -93,7 +86,7 @@ internal sealed class EglBindings
                 ? [egl, gles]
                 : [egl];
 
-            if (TryBind(sources, candidate, out bindings))
+            if (TryBind(sources, out bindings))
             {
                 reason = "loaded";
                 return true;
@@ -191,8 +184,7 @@ internal sealed class EglBindings
         }
     }
 
-    private static bool TryBind(IntPtr[] sources, string libraryPath,
-        [NotNullWhen(true)] out EglBindings? bindings)
+    private static bool TryBind(IntPtr[] sources, [NotNullWhen(true)] out EglBindings? bindings)
     {
         bindings = null;
 
@@ -214,7 +206,7 @@ internal sealed class EglBindings
 
         TryGet(sources, "eglGetPlatformDisplayEXT", out EglGetPlatformDisplayExtFn? platformDisplay);
 
-        bindings = new EglBindings(sources, libraryPath)
+        bindings = new EglBindings(sources)
         {
             GetProcAddressRaw = getProcAddress,
             GetDisplay = getDisplay,

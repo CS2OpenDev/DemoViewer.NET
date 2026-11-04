@@ -55,8 +55,8 @@ public sealed record LayoutMetrics(
     {
         Rect RectFor(IGraphNode n)
         {
-            double w = n.Style?.Width ?? style.Node.Width;
-            double h = n.Style?.Height ?? style.Node.Height;
+            double w = style.Node.Width;
+            double h = style.Node.Height;
             NodePosition pos = layout.NodePositions[n];
             return new Rect(pos.X - w / 2, pos.Y - h / 2, w, h);
         }

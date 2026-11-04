@@ -139,24 +139,21 @@ public class ExtensionPlaybackFaultTests
     {
         public const string EntryHeader = "Throws when run";
 
-        private readonly List<IDisposable> _owned = [];
-
         public Sdk.IPanelHandle? Panel { get; private set; }
         public bool Detached { get; private set; }
 
         public void Attach(Sdk.IPlaybackSurface surface, IModuleContext context)
         {
-            _owned.Add(surface.OnPlayheadChanged(_ => throw new InvalidOperationException("playhead")));
-            _owned.Add(surface.OnDemoChanged(() => throw new InvalidOperationException("demo")));
-            _owned.Add(surface.AddKeyHandler((_, _) => throw new InvalidOperationException("key")));
-            _owned.Add(surface.AddActionHandler(_ => throw new InvalidOperationException("action")));
-            _owned.Add(surface.AddBandMenu(_ => throw new InvalidOperationException("menu")));
-            _owned.Add(surface.AddBandMenu(_ =>
-                [new Sdk.MenuEntry(EntryHeader, () => throw new InvalidOperationException("entry"))]));
-            _owned.Add(surface.AddLane(new ThrowingTrack(), new ThrowingLane()));
+            _ = surface.OnPlayheadChanged(_ => throw new InvalidOperationException("playhead"));
+            _ = surface.OnDemoChanged(() => throw new InvalidOperationException("demo"));
+            _ = surface.AddKeyHandler((_, _) => throw new InvalidOperationException("key"));
+            _ = surface.AddActionHandler(_ => throw new InvalidOperationException("action"));
+            _ = surface.AddBandMenu(_ => throw new InvalidOperationException("menu"));
+            _ = surface.AddBandMenu(_ =>
+                [new Sdk.MenuEntry(EntryHeader, () => throw new InvalidOperationException("entry"))]);
+            _ = surface.AddLane(new ThrowingTrack(), new ThrowingLane());
             Panel = surface.AddPanel(0, () => throw new InvalidOperationException("panel vm"),
                 () => throw new InvalidOperationException("panel view"));
-            _owned.Add(Panel);
         }
 
         public void Detach()

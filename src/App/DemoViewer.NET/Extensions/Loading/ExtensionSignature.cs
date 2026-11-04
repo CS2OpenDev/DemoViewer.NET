@@ -4,6 +4,7 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 #endregion
 
@@ -172,7 +173,7 @@ public static class ExtensionSignature
         try
         {
             file = JsonSerializer.Deserialize<SignatureFile>(sigText, _jsonOptions);
-            if (file?.KeyId is null || file.Digest is null || file.Signature is null)
+            if (file?.SignerKeyId is null || file.Digest is null || file.Signature is null)
             {
                 return SignatureCheck.Fail(SignatureFailure.Malformed, InvalidDetail,
                     "the signature file is missing a required field");
@@ -194,8 +195,8 @@ public static class ExtensionSignature
         bool signatureOk;
         try
         {
-            signatureOk = VerifiesAgainstAnyKey(file.KeyId, Payload(recordedDigest), signature, publisherKeysBase64Spki,
-                out bool keyKnown);
+            signatureOk = VerifiesAgainstAnyKey(file.SignerKeyId, Payload(recordedDigest), signature,
+                publisherKeysBase64Spki, out bool keyKnown);
             if (!keyKnown)
             {
                 return SignatureCheck.Fail(SignatureFailure.UnknownKey, NotSignedDetail);
@@ -383,14 +384,16 @@ public static class ExtensionSignature
         public SignatureFile(string alg, string keyId, string digest, string signature)
         {
             Alg = alg;
-            KeyId = keyId;
+            SignerKeyId = keyId;
             Digest = digest;
             Signature = signature;
         }
 
         public string? Alg { get; init; }
 
-        public string? KeyId { get; init; }
+        // Named apart from the outer KeyId method; the JSON field stays "keyId".
+        [JsonPropertyName("keyId")]
+        public string? SignerKeyId { get; init; }
 
         public string? Digest { get; init; }
 

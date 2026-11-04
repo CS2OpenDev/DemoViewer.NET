@@ -61,8 +61,8 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
 
     // Filter re-application is O(rows); the constructor builds three filter lists and each one raises
     // PropertyChanged per item, so a naive hook would run the whole filter pass a few hundred times before
-    // the picker is even visible.
-    private bool _suppressApply = true;
+    // the picker is even visible. The constructor holds it on until the lists are built.
+    private bool _suppressApply;
 
     /// <summary>
     ///     Builds the picker over a snapshot of the highlights cache.
@@ -97,6 +97,7 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(records);
         ArgumentNullException.ThrowIfNull(isStaged);
+        _suppressApply = true;
         _stage = stage;
         _unstage = unstage;
         _close = close;

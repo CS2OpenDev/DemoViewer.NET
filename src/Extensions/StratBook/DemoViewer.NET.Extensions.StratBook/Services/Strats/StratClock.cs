@@ -19,9 +19,6 @@ public static class StratClock
     /// <summary>The v1 strat clock: seconds remaining in the round.</summary>
     public const string RoundKind = "round";
 
-    /// <summary>Reserved for post-plant strats counted from <c>bomb_planted</c>; not defined in v1.</summary>
-    public const string PlantKind = "plant";
-
     /// <summary>A strat timed from its trigger: <c>atSeconds</c> counts UP from 0.</summary>
     public const string TriggerKind = "trigger";
 

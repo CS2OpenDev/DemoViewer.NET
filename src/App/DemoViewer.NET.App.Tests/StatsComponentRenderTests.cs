@@ -126,7 +126,7 @@ public class StatsComponentRenderTests
             await Assert.That(soft.Sentiment).IsGreaterThan(0);
             await Assert.That(soft.Sentiment).IsLessThan(soft.StrongSentimentAt);
             await Assert.That(soft.Accent).IsEqualTo(soft.PositiveSoftBrush);
-            await Assert.That(soft.Accent).IsNotEqualTo(soft.PositiveBrush);
+            await Assert.That<IBrush?>(soft.Accent).IsNotEqualTo(soft.PositiveBrush);
 
             await Assert.That(strong.Accent).IsEqualTo(strong.PositiveBrush);
             await Assert.That(neutral.Accent).IsNull();

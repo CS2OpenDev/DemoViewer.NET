@@ -36,8 +36,8 @@ internal static class MsaglTranslator
         Dictionary<IGraphNode, Node> msaglNodes = new();
         foreach (IGraphNode node in nodes)
         {
-            double w = node.Style?.Width ?? nodeStyle.Width;
-            double h = node.Style?.Height ?? nodeStyle.Height;
+            double w = nodeStyle.Width;
+            double h = nodeStyle.Height;
             double cr = nodeStyle.CornerRadius;
 
             Node msaglNode = new(

@@ -200,12 +200,9 @@ public class MemoryReleaseTests
             new WeakReference(vm.EntityTab.SelectedEntityItem!));
     }
 
-    /// <summary>Waits for the async seek's tracker push, then hands back the tracker it published.</summary>
-    private static async Task<EntityTracker> WaitForTrackerAt(MainViewModel vm, int frameIndex)
-    {
+    /// <summary>Waits for the async seek's tracker push.</summary>
+    private static async Task WaitForTrackerAt(MainViewModel vm, int frameIndex) =>
         await vm.Playback.TrackerAtFrameAsync(frameIndex);
-        return vm.Playback.AuthoritativeTracker!;
-    }
 
     /// <summary>Full blocking compacting collection, repeated so finalizer-queue resurrections go too.</summary>
     private static void Collect()

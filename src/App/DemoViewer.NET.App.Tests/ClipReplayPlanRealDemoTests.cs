@@ -41,53 +41,27 @@ public class ClipReplayPlanRealDemoTests
         string root = Path.Combine(Path.GetTempPath(), $"dv-clip-ab-{Guid.NewGuid():N}");
         try
         {
-            ParsedDemo full = BackgroundPlanRealDemoTests.ParseMapped(path, DecodePlan.Everything);
-            GrenadeWalk walk = GrenadeWalker.Assemble(GrenadeIndexEvaluator.Run(full, 4), ClipRounds.Derive(full),
-                full.Players.Values,
-                full.TickRate > 0 ? full.TickRate : 64, full.ServerStartTick);
-            List<GrenadeRow> rows = [.. walk.Rows.Where(r => r.ThrowerSteamId is not null)];
-            if (rows.Count < 3)
-            {
-                throw new SkipTestException($"{Path.GetFileName(path)} has fewer than three attributed throws");
-            }
+            // The full parse lives only inside this call, so it is collectable before the replay renders run.
+            FullParseRender full = await RenderFromTheFullParse(path, root);
 
-            GrenadeRow[] picked = [rows[0], rows[rows.Count / 2], rows[^1]];
-            int rate = full.TickRate;
-            string map = full.MapName;
-
-            ParsedDemo replay = ParseForReplay(path);
-            using (Assert.Multiple())
-            {
-                await Assert.That(replay.Plan).IsEqualTo(DecodePlan.EntityReplay);
-                await Assert.That(replay.TickRate).IsEqualTo(rate);
-                await Assert.That(replay.MapName).IsEqualTo(map);
-                await Assert.That(FrameClock.IdentityFor(replay)).IsEqualTo(FrameClock.IdentityFor(full))
-                    .Because("pack ink is matched to the demo by this identity");
-            }
-
-            replay = null!;
-
-            List<string> fullGifs = await RenderLineups(path, picked, map, rate, Path.Combine(root, "full"), _ => full);
-            List<string> replayGifs = await RenderLineups(path, picked, map, rate, Path.Combine(root, "replay"), null);
-            await Assert.That(fullGifs.Count).IsEqualTo(3);
+            List<string> replayGifs =
+                await RenderLineups(path, full.Picked, full.Map, full.Rate, Path.Combine(root, "replay"), null);
+            await Assert.That(full.Gifs.Count).IsEqualTo(3);
             await Assert.That(replayGifs.Count).IsEqualTo(3);
-            for (int i = 0; i < fullGifs.Count; i++)
+            for (int i = 0; i < full.Gifs.Count; i++)
             {
                 await Assert.That(Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(replayGifs[i]))))
-                    .IsEqualTo(Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(fullGifs[i]))))
+                    .IsEqualTo(Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(full.Gifs[i]))))
                     .Because($"lineup GIF {i} of {Path.GetFileName(path)}");
             }
 
-            (int from, int to) = LineupClipPlanner.Range(picked[1], rate);
-            List<string> fullFrames = await RenderPackClip(path, from, to, rate, _ => full);
-            full = null!;
-            List<string> replayFrames = await RenderPackClip(path, from, to, rate, null);
-            await Assert.That(fullFrames.Distinct().Count()).IsGreaterThan(10).Because("a still clip proves nothing");
+            List<string> replayFrames = await RenderPackClip(path, full.From, full.To, full.Rate, null);
+            await Assert.That(full.Frames.Distinct().Count()).IsGreaterThan(10).Because("a still clip proves nothing");
             await Assert.That(replayFrames)
-                .IsEquivalentTo(fullFrames, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                .IsEquivalentTo(full.Frames, TUnit.Assertions.Enums.CollectionOrdering.Matching);
 
-            Console.WriteLine(
-                $"{Path.GetFileName(path)}: {fullGifs.Count} GIFs identical, pack clip {fullFrames.Count} frames identical");
+            Console.WriteLine($"{Path.GetFileName(path)}: {full.Gifs.Count} GIFs identical, " +
+                              $"pack clip {full.Frames.Count} frames identical");
         }
         finally
         {
@@ -98,7 +72,56 @@ public class ClipReplayPlanRealDemoTests
         }
     }
 
-    // An entity-replay parse, the smallest plan a clip render reads.
+    /// <summary>
+    ///     Parses the demo fully, checks the replay parse carries the same identity, and renders the three lineups
+    ///     and the middle pack clip from the full parse. Neither parse outlives the call.
+    /// </summary>
+    private static async Task<FullParseRender> RenderFromTheFullParse(string path, string root)
+    {
+        ParsedDemo full = BackgroundPlanRealDemoTests.ParseMapped(path, DecodePlan.Everything);
+        GrenadeWalk walk = GrenadeWalker.Assemble(GrenadeIndexEvaluator.Run(full, 4), ClipRounds.Derive(full),
+            full.Players.Values,
+            full.TickRate > 0 ? full.TickRate : 64, full.ServerStartTick);
+        List<GrenadeRow> rows = [.. walk.Rows.Where(r => r.ThrowerSteamId is not null)];
+        if (rows.Count < 3)
+        {
+            throw new SkipTestException($"{Path.GetFileName(path)} has fewer than three attributed throws");
+        }
+
+        GrenadeRow[] picked = [rows[0], rows[rows.Count / 2], rows[^1]];
+        int rate = full.TickRate;
+        string map = full.MapName;
+
+        await AssertReplayIdentity(path, full, rate, map);
+
+        List<string> gifs = await RenderLineups(path, picked, map, rate, Path.Combine(root, "full"), _ => full);
+        (int from, int to) = LineupClipPlanner.Range(picked[1], rate);
+        List<string> frames = await RenderPackClip(path, from, to, rate, _ => full);
+        return new FullParseRender(picked, rate, map, gifs, from, to, frames);
+    }
+
+    private static async Task AssertReplayIdentity(string path, ParsedDemo full, int rate, string map)
+    {
+        ParsedDemo replay = ParseForReplay(path);
+        using (Assert.Multiple())
+        {
+            await Assert.That(replay.Plan).IsEqualTo(DecodePlan.EntityReplay);
+            await Assert.That(replay.TickRate).IsEqualTo(rate);
+            await Assert.That(replay.MapName).IsEqualTo(map);
+            await Assert.That(FrameClock.IdentityFor(replay)).IsEqualTo(FrameClock.IdentityFor(full))
+                .Because("pack ink is matched to the demo by this identity");
+        }
+    }
+
+    private sealed record FullParseRender(
+        GrenadeRow[] Picked,
+        int Rate,
+        string Map,
+        List<string> Gifs,
+        int From,
+        int To,
+        List<string> Frames);
+
     private static ParsedDemo ParseForReplay(string path) =>
         BackgroundPlanRealDemoTests.ParseMapped(path, DecodePlan.EntityReplay);
 

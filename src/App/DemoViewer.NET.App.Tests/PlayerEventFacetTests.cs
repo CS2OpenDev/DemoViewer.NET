@@ -184,7 +184,7 @@ public class PlayerEventFacetTests
             await Assert.That(facts.Status(Path, PlayerEventFacet.DeathsKey)).IsEqualTo(FactStatus.Current);
             await Assert.That(row.Stamp(StampedFacts.StampId(PlayerEventFacet.RulesetId))?.State)
                 .IsEqualTo(DemoAnalysisState.Indexed);
-            await Assert.That(row.Stamp(StampedFacts.StampId(PlayerEventFacet.RulesetId))?.Fingerprint)
+            await Assert.That<string?>(row.Stamp(StampedFacts.StampId(PlayerEventFacet.RulesetId))?.Fingerprint)
                 .IsNotEqualTo(row.Stamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId))?.Fingerprint);
             await Assert.That(evaluator.Records(Path, PlayerEventFacet.RulesetId)).IsFalse();
             await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64)

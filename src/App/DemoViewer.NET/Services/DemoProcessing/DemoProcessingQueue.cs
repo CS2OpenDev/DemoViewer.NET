@@ -20,11 +20,11 @@ namespace DemoViewer.NET.Services.DemoProcessing;
 ///     The global demo-processing queue. The single source all background
 ///     demo parse/analyse work is pulled from, plus the awaitable highest-priority foreground open.
 ///     <para>
-///         <b>Two authorities, one live number.</b> This pump is the PRIMARY limiter: it starts
-///         up to <see cref="MaxConcurrency" /> background worker loops, owns priority ordering,
-///         coalescing, the size cap, and pause/disable. <see cref="HeavyJobGate" /> is the hard SAFETY
-///         BACKSTOP that cannot be exceeded even if the pump miscounts; both read the same live
-///         concurrency, so a pump bug can never OOM the machine.
+///         <b>Two authorities, one live number.</b> This pump is the PRIMARY limiter: it starts up to
+///         the <see cref="SetMaxConcurrency">concurrency limit</see> of background worker loops, owns
+///         priority ordering, coalescing, the size cap, and pause/disable. <see cref="HeavyJobGate" /> is
+///         the hard SAFETY BACKSTOP that cannot be exceeded even if the pump miscounts; both read the same
+///         live concurrency, so a pump bug can never OOM the machine.
 ///     </para>
 ///     <para>
 ///         <b>Foreground never depends on the pump.</b> <see cref="RequestForegroundAsync" />
@@ -312,8 +312,10 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     public event Action? Changed;
     public event Action? CapacityAvailable;
 
+    private IShellDemoLease? _shellDemo;
+
     /// <inheritdoc />
-    public IShellDemoLease? ShellDemo { get; set; }
+    public void SetShellDemo(IShellDemoLease? lease) => _shellDemo = lease;
 
     public bool IsPaused
     {
@@ -419,54 +421,34 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     }
 
     /// <summary>
-    ///     Max concurrent heavy parses (forwards to <see cref="HeavyJobGate" />). DEFAULT 1: the
+    ///     Sets the max concurrent heavy parses (forwards to <see cref="HeavyJobGate" />). DEFAULT 1: the
     ///     safe one-at-a-time invariant; &gt; 1 can exhaust RAM.
     /// </summary>
-    public int MaxConcurrency
+    public void SetMaxConcurrency(int value)
     {
-        get
+        _gate.MaxConcurrency = value; // clamps to [1, HardCap]
+        int applied = _gate.MaxConcurrency;
+        lock (_sync)
         {
-            lock (_sync)
-            {
-                return _maxConcurrency;
-            }
-        }
-        set
-        {
-            _gate.MaxConcurrency = value; // clamps to [1, HardCap]
-            int applied = _gate.MaxConcurrency;
-            lock (_sync)
-            {
-                _maxConcurrency = applied;
-                PumpLocked(); // grow → spawn more workers
-            }
+            _maxConcurrency = applied;
+            PumpLocked(); // grow → spawn more workers
         }
     }
 
-    /// <summary>Max background-tier items held at once (Foreground/UserRequested bypass it).</summary>
-    public int MaxQueueSize
+    /// <summary>Sets the max background-tier items held at once (Foreground/UserRequested bypass it).</summary>
+    public void SetMaxQueueSize(int value)
     {
-        get
+        bool grew;
+        lock (_sync)
         {
-            lock (_sync)
-            {
-                return _maxQueueSize;
-            }
+            int next = Math.Max(1, value);
+            grew = next > _maxQueueSize;
+            _maxQueueSize = next;
         }
-        set
-        {
-            bool grew;
-            lock (_sync)
-            {
-                int next = Math.Max(1, value);
-                grew = next > _maxQueueSize;
-                _maxQueueSize = next;
-            }
 
-            if (grew)
-            {
-                RaiseCapacityAvailable(); // more room → let feeders top up
-            }
+        if (grew)
+        {
+            RaiseCapacityAvailable(); // more room → let feeders top up
         }
     }
 
@@ -860,8 +842,8 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     ///     Submits background work, coalesced BY PATH across owners (one parse, every owner's
     ///     <see cref="DemoProcessingRequest.OnParsed" /> runs). Returns a handle whose
     ///     <see cref="IDemoQueueHandle.State" /> is <see cref="DemoQueueItemState.Rejected" /> ONLY when
-    ///     the background tier is at <see cref="MaxQueueSize" /> and this path is not already
-    ///     queued/running (Foreground/UserRequested never rejected).
+    ///     the background tier is at its <see cref="SetMaxQueueSize">size limit</see> and this path is not
+    ///     already queued/running (Foreground/UserRequested never rejected).
     /// </summary>
     public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request)
     {
@@ -1812,7 +1794,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
     private IHeldParse? TryHoldShellDemo(string path)
     {
-        if (ShellDemo is not { } shell || path.Length == 0)
+        if (_shellDemo is not { } shell || path.Length == 0)
         {
             return null;
         }
@@ -2724,7 +2706,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     {
         try
         {
-            return ShellDemo?.LoadedPath;
+            return _shellDemo?.LoadedPath;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

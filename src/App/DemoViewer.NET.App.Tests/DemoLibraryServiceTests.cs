@@ -438,7 +438,8 @@ public class DemoLibraryServiceTests
                     parsedNames.Add(Path.GetFileName(path));
                     release.Wait(3000); // occupy the single worker until the open lands
                     return SyntheticDemo();
-                }, parseBytes: _ => SyntheticDemo()) { MaxQueueSize = 1 };
+                }, parseBytes: _ => SyntheticDemo());
+            queue.SetMaxQueueSize(1);
 
             using DemoLibraryService svc = new(_inline, Path.Combine(dir, "library.json"));
             using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);
@@ -531,7 +532,8 @@ public class DemoLibraryServiceTests
                     }
 
                     return SyntheticDemo();
-                }) { MaxQueueSize = 1 };
+                });
+            queue.SetMaxQueueSize(1);
 
             using DemoLibraryService svc = new(_inline, dataPath);
             using DemoScheduler coord = new([svc], queue, svc.Tier2Backlog);

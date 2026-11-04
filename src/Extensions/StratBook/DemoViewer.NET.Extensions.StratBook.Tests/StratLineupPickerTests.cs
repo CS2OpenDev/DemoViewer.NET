@@ -102,7 +102,7 @@ public class StratLineupPickerTests
             remove { }
         }
 
-        public bool BackgroundEnabled { get; set; } = true;
+        public bool BackgroundEnabled { get; } = true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
         public int RunningCount => 0;

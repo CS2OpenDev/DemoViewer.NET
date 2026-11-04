@@ -52,7 +52,8 @@ public class Playback2DSettingsConsumptionTests
     ///     Keys knowingly missing a reader or a writer. The reason is the entry. Empty: every key in the
     ///     section is both read and written in production.
     /// </summary>
-    private static readonly Dictionary<string, string> _unconsumedByDesign = new(StringComparer.Ordinal);
+    private static readonly IReadOnlyDictionary<string, string> _unconsumedByDesign =
+        new Dictionary<string, string>(StringComparer.Ordinal);
 
     /// <summary>
     ///     Registry keys that the class does not carry. The reason is the entry.

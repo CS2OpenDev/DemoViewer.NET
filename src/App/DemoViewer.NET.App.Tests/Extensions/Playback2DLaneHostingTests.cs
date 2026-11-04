@@ -486,8 +486,6 @@ public class Playback2DLaneHostingTests
 
     private sealed class FakeLaneTrack(string id, params (int Start, int End)[] bands) : ITimelineTrack
     {
-        private Action? _changed;
-
         public int Subscribers { get; private set; }
 
         public string Id => id;
@@ -496,16 +494,8 @@ public class Playback2DLaneHostingTests
 
         public event Action? Changed
         {
-            add
-            {
-                _changed += value;
-                Subscribers++;
-            }
-            remove
-            {
-                _changed -= value;
-                Subscribers--;
-            }
+            add => Subscribers++;
+            remove => Subscribers--;
         }
 
         public bool IsAvailable(ITimelineData data) => bands.Length > 0;

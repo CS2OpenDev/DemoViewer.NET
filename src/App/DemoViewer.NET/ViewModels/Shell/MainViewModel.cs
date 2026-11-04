@@ -581,7 +581,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _scheduler = scheduler;
         if (processingQueue is not null)
         {
-            processingQueue.ShellDemo = new ShellDemoLease(this);
+            processingQueue.SetShellDemo(new ShellDemoLease(this));
         }
 
         // UI session-restore persistence: the Session section of the single config file. Null
@@ -3625,8 +3625,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (_ownedQueue is null)
         {
             _ownedGate = _heavyJobGate is null ? new HeavyJobGate() : null;
-            _ownedQueue =
-                new DemoProcessingQueue(_heavyJobGate ?? _ownedGate!) { ShellDemo = new ShellDemoLease(this) };
+            _ownedQueue = new DemoProcessingQueue(_heavyJobGate ?? _ownedGate!);
+            _ownedQueue.SetShellDemo(new ShellDemoLease(this));
         }
 
         return _ownedQueue;

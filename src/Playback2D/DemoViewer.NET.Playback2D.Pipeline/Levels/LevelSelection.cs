@@ -70,26 +70,31 @@ public sealed class LevelSelection
     /// </summary>
     /// <param name="time">The frame's injected clock.</param>
     /// <param name="frame">The frame being advanced to.</param>
-    /// <returns>True when the active level changed.</returns>
-    public bool Update(in SceneTime time, Scene2DFrame frame)
+    public void Update(in SceneTime time, Scene2DFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
 
         IReadOnlyList<MapLevel> levels = _space.Levels;
         if (levels.Count == 0)
         {
-            return false;
+            return;
         }
 
         if (Mode == LevelSelectionMode.Manual)
         {
             // A pinned level that a rebuild took away falls back like an unknown one would.
-            return _space.ById(_active) is null && Adopt(TopMost());
+            if (_space.ById(_active) is null)
+            {
+                Adopt(TopMost());
+            }
+
+            return;
         }
 
         if (FollowedSlot is not { } slot || slot < 0)
         {
-            return _active.IsNone && Adopt(TopMost());
+            AdoptTopMostIfNone();
+            return;
         }
 
         IReadOnlyList<PlayerMarker> markers = frame.Markers;
@@ -100,11 +105,12 @@ public sealed class LevelSelection
                 continue;
             }
 
-            return Adopt(Hysteresis.Update(in time, markers[i].WorldZ, _space));
+            Adopt(Hysteresis.Update(in time, markers[i].WorldZ, _space));
+            return;
         }
 
         // The followed marker is not in this frame. Hold; do NOT fall back to level 0.
-        return _active.IsNone && Adopt(TopMost());
+        AdoptTopMostIfNone();
     }
 
     /// <summary>Pins a level. Switches to <see cref="LevelSelectionMode.Manual" />.</summary>
@@ -155,15 +161,22 @@ public sealed class LevelSelection
         return levels.Count == 0 ? MapLevelId.None : levels[^1].Id;
     }
 
-    private bool Adopt(MapLevelId id)
+    private void AdoptTopMostIfNone()
+    {
+        if (_active.IsNone)
+        {
+            Adopt(TopMost());
+        }
+    }
+
+    private void Adopt(MapLevelId id)
     {
         if (id == _active)
         {
-            return false;
+            return;
         }
 
         _active = id;
         ActiveLevelChanged?.Invoke();
-        return true;
     }
 }

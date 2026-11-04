@@ -43,12 +43,11 @@ internal sealed class FakeEntity(string className, int serial = 1) : IReadOnlyEn
     /// <param name="x">Target world X.</param>
     /// <param name="y">Target world Y.</param>
     /// <param name="z">Target world Z.</param>
-    public FakeEntity AtWorld(float x, float y, float z)
+    public void AtWorld(float x, float y, float z)
     {
         SetAxis("X", x);
         SetAxis("Y", y);
         SetAxis("Z", z);
-        return this;
 
         void SetAxis(string axis, float world)
         {

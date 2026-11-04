@@ -102,7 +102,7 @@ public class ThemeEditorTests
                 vm.ConfirmCopyCommand.Execute(null);
                 await Assert.That(vm.Prompt).IsEqualTo(ThemeEditorPrompt.None);
                 await Assert.That(vm.Theme.Id).IsEqualTo("user-mine");
-                await Assert.That(vm.PreviewVariant).IsNotEqualTo(firstPreview)
+                await Assert.That<ThemeVariant?>(vm.PreviewVariant).IsNotEqualTo(firstPreview)
                     .Because("a new theme gets a new preview variant, so the pane re-resolves");
                 await Assert.That(vm.CanEdit).IsTrue();
                 await Assert.That(File.Exists(Path.Combine(folder.Themes, "user-mine.json"))).IsTrue();
@@ -230,7 +230,7 @@ public class ThemeEditorTests
                 await Assert.That(host.Used).IsEquivalentTo(["partial"]);
                 await Assert.That(Shell().Value.Color).IsEqualTo(Color.Parse("#010203"));
                 await Assert.That(vm.CurrentPalette().Colors["ShellBg"]).IsEqualTo(Color.Parse("#010203"));
-                await Assert.That(vm.PreviewVariant).IsNotEqualTo(edited)
+                await Assert.That<ThemeVariant?>(vm.PreviewVariant).IsNotEqualTo(edited)
                     .Because("the preview restarts from the saved colours");
                 await Assert.That(registry.PreviewVariant).IsEqualTo(vm.PreviewVariant);
                 await Assert.That(vm.IsDirty).IsFalse();

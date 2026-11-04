@@ -167,7 +167,7 @@ internal static class GraphRenderer
 
             EdgeStyle? perStyle = edge.Style;
             Color color = perStyle?.Color ?? es.ColorForEffect(edge.Effect);
-            double thickness = perStyle?.Thickness ?? es.StrokeThickness;
+            double thickness = es.StrokeThickness;
             bool dashed = perStyle?.IsDashed ?? EdgeStyleConfig.IsDashedByDefault(edge.Effect);
 
             IBrush brush = Brush(color);
@@ -270,7 +270,7 @@ internal static class GraphRenderer
 
             Color bgColor = active
                 ? perStyle?.ActiveBackground ?? (node.IsRoot ? ns.RootBackground : ns.ActiveBackground)
-                : perStyle?.InactiveBackground ?? ns.InactiveBackground;
+                : ns.InactiveBackground;
             Color borderColor = active
                 ? perStyle?.ActiveBorder ?? (node.IsRoot ? ns.RootBorder : ns.ActiveBorder)
                 : perStyle?.InactiveBorder ?? ns.InactiveBorder;
@@ -327,7 +327,7 @@ internal static class GraphRenderer
 
             Color fgColor = active
                 ? perStyle?.ActiveForeground ?? (node.IsRoot ? ns.RootForeground : ns.ActiveForeground)
-                : perStyle?.InactiveForeground ?? ns.InactiveForeground;
+                : ns.InactiveForeground;
             Color subColor = active ? ns.ActiveSubForeground : ns.InactiveSubForeground;
 
             IBrush fg = Brush(fgColor);

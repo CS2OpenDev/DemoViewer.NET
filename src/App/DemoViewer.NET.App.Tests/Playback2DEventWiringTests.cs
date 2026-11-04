@@ -344,6 +344,7 @@ internal sealed class EventGuardCanary
 ///     accessors that forward to another type's event of the same name, so no backing field and no raise of
 ///     its own. The scan must see through it rather than report it.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class EventGuardCanaryForwarder(EventGuardCanary inner)
 {
     public event Action? WiredCanary

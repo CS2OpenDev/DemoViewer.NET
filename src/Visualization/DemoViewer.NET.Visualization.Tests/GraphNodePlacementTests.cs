@@ -61,8 +61,8 @@ public class GraphNodePlacementTests
         foreach (IGraphNode node in nodes)
         {
             GraphNodePlacement at = graph.NodePlacements[node];
-            double w = node.Style?.Width ?? style.Width;
-            double h = node.Style?.Height ?? style.Height;
+            double w = style.Width;
+            double h = style.Height;
             boxes.Add((at.X - w / 2, at.Y - h / 2, at.X + w / 2, at.Y + h / 2));
         }
 

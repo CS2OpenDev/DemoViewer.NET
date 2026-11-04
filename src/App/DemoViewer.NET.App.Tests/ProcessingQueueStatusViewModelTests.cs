@@ -446,7 +446,7 @@ public class ProcessingQueueStatusViewModelTests
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; }
         public event Action? Changed;
         public event Action? CapacityAvailable;
-        public bool BackgroundEnabled { get; set; } = true;
+        public bool BackgroundEnabled { get; init; } = true;
         public bool IsPaused { get; private set; }
         public int QueuedCount => 0;
         public int RunningCount => 0;

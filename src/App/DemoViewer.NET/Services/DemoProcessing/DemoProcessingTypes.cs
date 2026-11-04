@@ -113,9 +113,9 @@ public enum DemoQueueItemState
     Cancelled,
 
     /// <summary>
-    ///     Not admitted: the background tier was at <see cref="DemoProcessingQueue.MaxQueueSize" />.
-    ///     The submitter keeps it in its durable backlog and re-submits on
-    ///     <see cref="IDemoProcessingQueue.CapacityAvailable" />.
+    ///     Not admitted: the background tier was at its
+    ///     <see cref="DemoProcessingQueue.SetMaxQueueSize">size limit</see>. The submitter keeps it in its
+    ///     durable backlog and re-submits on <see cref="IDemoProcessingQueue.CapacityAvailable" />.
     /// </summary>
     Rejected
 }
@@ -344,13 +344,12 @@ public interface IDemoProcessingQueue
     bool IsPaused { get; }
 
     /// <summary>
-    ///     The shell's loaded demo. When set, a visit of that demo runs its passes on the held parse and reads
-    ///     nothing. A stand-in queue ignores it.
+    ///     Lends the queue the shell's loaded demo. While lent, a visit of that demo runs its passes on the
+    ///     held parse and reads nothing. A stand-in queue ignores it.
     /// </summary>
-    IShellDemoLease? ShellDemo
+    /// <param name="lease">The shell's lease, or null to take it back.</param>
+    void SetShellDemo(IShellDemoLease? lease)
     {
-        get => null;
-        set { }
     }
 
     // ── Counts (status line) ──────────────────────────────────────────────────
@@ -409,8 +408,9 @@ public interface IDemoProcessingQueue
     event Action? Changed;
 
     /// <summary>
-    ///     Raised (posted) when the background tier drops below <see cref="DemoProcessingQueue.MaxQueueSize" />:
-    ///     feeders re-submit their pending backlog (idempotent via coalescing).
+    ///     Raised (posted) when the background tier drops below its
+    ///     <see cref="DemoProcessingQueue.SetMaxQueueSize">size limit</see>: feeders re-submit their pending
+    ///     backlog (idempotent via coalescing).
     /// </summary>
     event Action? CapacityAvailable;
 

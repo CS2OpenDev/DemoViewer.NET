@@ -385,7 +385,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         VisibilityEngineCache cache = new(loader: _ =>
         {
             Interlocked.Increment(ref entered);
-            gate.Wait();
+            gate.Wait(cancellationToken);
             return OneTriangle();
         });
 
@@ -424,7 +424,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         VisibilityEngineCache cache = new(loader: _ =>
         {
             Interlocked.Increment(ref entered);
-            gate.Wait();
+            gate.Wait(cancellationToken);
             return OneTriangle();
         });
 

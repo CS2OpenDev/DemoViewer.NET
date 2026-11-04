@@ -204,11 +204,12 @@ public class ForwardQueueTests
     private static ForwardDemoResult UntilCancelled(ManualResetEventSlim started, CancellationToken token)
     {
         started.Set();
-        while (true)
+        while (!token.IsCancellationRequested)
         {
-            token.ThrowIfCancellationRequested();
             Thread.Sleep(2);
         }
+
+        throw new OperationCanceledException(token);
     }
 
     [Test]
@@ -228,7 +229,7 @@ public class ForwardQueueTests
             using CancellationTokenRegistration _ = token.Register(() => Interlocked.Exchange(ref bStopped, 1));
             return UntilCancelled(bStarted, token);
         });
-        queue.MaxConcurrency = 2;
+        queue.SetMaxConcurrency(2);
 
         // a.dem first: the first running background item is what a lane-wide stop would pick.
         IDemoQueueHandle a = queue.SubmitBackground(Forward("a.dem", "library", ForwardNeeds.Rules));
@@ -382,11 +383,12 @@ public class ForwardQueueTests
         using DemoProcessingQueue queue = Queue((_, _, progress, token) =>
         {
             progress(0.1);
-            while (true)
+            while (!token.IsCancellationRequested)
             {
-                token.ThrowIfCancellationRequested();
                 Thread.Sleep(2);
             }
+
+            throw new OperationCanceledException(token);
         });
         int forwarded = 0, failed = 0;
         IDemoQueueHandle handle = queue.SubmitBackground(Forward("a.dem", "library", ForwardNeeds.Rules,
@@ -476,7 +478,7 @@ public class ForwardQueueTests
             return Pass();
         });
         queueRef = queue;
-        queue.MaxQueueSize = 3;
+        queue.SetMaxQueueSize(3);
         queue.Changed += () => maxQueued = Math.Max(maxQueued,
             queue.Snapshot().Count(s =>
                 s is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued or DemoQueueItemState.Running }));

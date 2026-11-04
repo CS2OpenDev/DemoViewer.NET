@@ -46,7 +46,8 @@ public class Playback2DCompositionTests
     ///     composition of <c>SceneExportRunner</c> names all three of <c>surfaces</c>,
     ///     <c>managedFfmpegDirectory</c> and <c>encoderProbe</c>.
     /// </summary>
-    private static readonly Dictionary<string, string> _omittedByDesign = new(StringComparer.Ordinal);
+    private static readonly IReadOnlyDictionary<string, string> _omittedByDesign =
+        new Dictionary<string, string>(StringComparer.Ordinal);
 
     [Test]
     public async Task EveryProductionCompositionSite_NamesEverySeamTheServiceOffers()

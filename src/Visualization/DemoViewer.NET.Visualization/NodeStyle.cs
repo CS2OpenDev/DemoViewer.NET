@@ -22,18 +22,7 @@ public sealed record NodeStyle
     /// <summary>Active foreground.</summary>
     public Color? ActiveForeground { get; init; }
 
-    /// <summary>Height.</summary>
-    public double? Height { get; init; }
-
-    /// <summary>Inactive background.</summary>
-    public Color? InactiveBackground { get; init; }
-
     /// <summary>Inactive border.</summary>
     public Color? InactiveBorder { get; init; }
 
-    /// <summary>Inactive foreground.</summary>
-    public Color? InactiveForeground { get; init; }
-
-    /// <summary>Width.</summary>
-    public double? Width { get; init; }
 }

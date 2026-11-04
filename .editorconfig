@@ -4889,9 +4889,10 @@ resharper_access_to_modified_closure_highlighting = hint
 resharper_compare_of_floats_by_equality_operator_highlighting = hint
 
 # Sources compiled into more than one project (Extensions.Testing via its .props, StratBookFixtures, the
-# app files AnalysisBench links, and the App.Tests helpers StratBook.Tests links). ReSharper judges usage from a single project, so these rules miss
-# the other consumer's calls and report live members as unused or narrowable.
-[{src/Testing/DemoViewer.NET.Extensions.Testing/**.cs,src/Testing/StratBookFixtures/**.cs,src/App/DemoViewer.NET/Services/CollisionSoup.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ForwardDemoPass.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorSet.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorObserver.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/ICollectorFaultReporter.cs,src/App/DemoViewer.NET/Modules/Library/LibraryTeamTables.cs,src/App/DemoViewer.NET/Modules/Library/LibraryFinalStateReplay.cs,src/App/DemoViewer.NET/Services/DemoProcessing/DecodeSites.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ServerRankCapture.cs,src/App/DemoViewer.NET.App.Tests/CompiledInPacks.cs,src/App/DemoViewer.NET.App.Tests/Extensions/FakeManifests.cs,src/App/DemoViewer.NET.App.Tests/FakeTimelineData.cs,src/App/DemoViewer.NET.App.Tests/GlobalUsings.cs,src/App/DemoViewer.NET.App.Tests/Playback2DActivation.cs,src/App/DemoViewer.NET.App.Tests/Playback2DTimelineHeadlessSupport.cs,src/App/DemoViewer.NET.App.Tests/QueuedPost.cs,src/App/DemoViewer.NET.App.Tests/SdkSceneHostsInstall.cs,src/App/DemoViewer.NET.App.Tests/SessionIsolation.cs,src/App/DemoViewer.NET.App.Tests/SingleWalkSession.cs,src/App/DemoViewer.NET.App.Tests/SyntheticParsedDemo.cs,src/App/DemoViewer.NET.App.Tests/TestAppBuilder.cs,src/App/DemoViewer.NET.App.Tests/TestLibraries.cs}]
+# app and SDK files AnalysisBench links, and the App.Tests helpers StratBook.Tests links). ReSharper judges
+# each file from a single project, so these rules miss the other consumer's calls and report live members as
+# unused or narrowable, and a using one project needs looks redundant under the other's global usings.
+[{src/Testing/DemoViewer.NET.Extensions.Testing/**.cs,src/Testing/StratBookFixtures/**.cs,src/App/DemoViewer.NET/Services/CollisionSoup.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ForwardDemoPass.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorSet.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorObserver.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/ICollectorFaultReporter.cs,src/App/DemoViewer.NET/Modules/Library/LibraryTeamTables.cs,src/App/DemoViewer.NET/Modules/Library/LibraryFinalStateReplay.cs,src/App/DemoViewer.NET/Services/DemoProcessing/DecodeSites.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ServerRankCapture.cs,src/App/DemoViewer.NET.App.Tests/CompiledInPacks.cs,src/App/DemoViewer.NET.App.Tests/Extensions/FakeManifests.cs,src/App/DemoViewer.NET.App.Tests/FakeTimelineData.cs,src/App/DemoViewer.NET.App.Tests/GlobalUsings.cs,src/App/DemoViewer.NET.App.Tests/Playback2DActivation.cs,src/App/DemoViewer.NET.App.Tests/Playback2DTimelineHeadlessSupport.cs,src/App/DemoViewer.NET.App.Tests/QueuedPost.cs,src/App/DemoViewer.NET.App.Tests/SdkSceneHostsInstall.cs,src/App/DemoViewer.NET.App.Tests/SessionIsolation.cs,src/App/DemoViewer.NET.App.Tests/SingleWalkSession.cs,src/App/DemoViewer.NET.App.Tests/SyntheticParsedDemo.cs,src/App/DemoViewer.NET.App.Tests/TestAppBuilder.cs,src/App/DemoViewer.NET.App.Tests/TestLibraries.cs,src/Sdk/DemoViewer.NET.Extensions.Sdk/Collectors.cs}]
 resharper_unused_member_global_highlighting = none
 resharper_member_can_be_private_global_highlighting = none
 resharper_property_can_be_made_init_only_global_highlighting = none
@@ -4902,6 +4903,9 @@ resharper_unused_type_global_highlighting = none
 resharper_class_never_instantiated_global_highlighting = none
 resharper_unused_method_return_value_global_highlighting = none
 resharper_redundant_using_directive_global_highlighting = none
+resharper_redundant_using_directive_highlighting = none
+resharper_collection_never_updated_global_highlighting = none
+resharper_unused_tuple_component_in_return_value_highlighting = none
 
 # The bench's report records are the JSON schema of its output; their positional properties are written,
 # not read back.
@@ -4910,11 +4914,16 @@ resharper_not_accessed_positional_property_global_highlighting = none
 resharper_not_accessed_positional_property_local_highlighting = none
 
 # Per-frame render code: foreach over IReadOnlyList<T> boxes an enumerator every frame, so the index
-# loops are deliberate.
-[{src/Playback2D/DemoViewer.NET.Playback2D.Scene/**.cs,src/Playback2D/DemoViewer.NET.Playback2D.Pipeline/**.cs}]
+# loops are deliberate. The app's scene host and ink hit-testing and the icon scale lookup are on the same paths.
+[{src/Playback2D/DemoViewer.NET.Playback2D.Scene/**.cs,src/Playback2D/DemoViewer.NET.Playback2D.Pipeline/**.cs,src/App/DemoViewer.NET/Modules/Playback2D/Scene2DHost.cs,src/App/DemoViewer.NET/Modules/Playback2D/Annotations/SceneHostToolServices.cs,src/GameIcons/DemoViewer.NET.GameIcons/IconCatalogue.cs}]
 resharper_for_can_be_converted_to_foreach_highlighting = none
 
 # UiCapture's variant registry is one partial class spread across feature folders; every part has to
 # share the Variants namespace, so the folder-derived namespace cannot apply.
 [src/App/DemoViewer.NET.UiCapture/**.cs]
+resharper_check_namespace_highlighting = none
+
+# The two contract types in Extensions.Sdk/Modules keep the namespace they were published under
+# (PublicAPI.Shipped.txt), which the folder no longer matches.
+[src/Sdk/DemoViewer.NET.Extensions.Sdk/Modules/*.cs]
 resharper_check_namespace_highlighting = none
