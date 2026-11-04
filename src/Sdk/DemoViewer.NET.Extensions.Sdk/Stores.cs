@@ -15,7 +15,7 @@ public enum StoreRoot
 /// <param name="Id">Unique within the extension.</param>
 /// <param name="Label">What the delete confirmation names.</param>
 /// <param name="Root">The root the paths are relative to.</param>
-/// <param name="Paths">Files or folders under the root.</param>
+/// <param name="Paths">Files or folders under the root. Null, or a null entry, throws <see cref="ArgumentNullException" />.</param>
 /// <param name="IsUserWork">True for what the user made and cannot rebuild; the confirmation names these.</param>
 [PublicAPI]
 public sealed record StoreDescriptor(
@@ -23,7 +23,23 @@ public sealed record StoreDescriptor(
     string Label,
     StoreRoot Root,
     IReadOnlyList<string> Paths,
-    bool IsUserWork);
+    bool IsUserWork)
+{
+    /// <summary>Files or folders under the root.</summary>
+    public IReadOnlyList<string> Paths { get; init => field = Checked(value); } = Checked(Paths);
+
+    // The host trusts every path it is handed to delete or open, so a store cannot exist without them.
+    private static IReadOnlyList<string> Checked(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        foreach (string path in paths)
+        {
+            ArgumentNullException.ThrowIfNull(path, nameof(paths));
+        }
+
+        return paths;
+    }
+}
 
 /// <summary>What a store holds on disk now.</summary>
 /// <param name="Descriptor">The store.</param>

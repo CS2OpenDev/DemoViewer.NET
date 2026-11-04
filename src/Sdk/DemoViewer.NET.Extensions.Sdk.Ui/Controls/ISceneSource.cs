@@ -23,8 +23,8 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 [PublicAPI]
 public interface ISceneSource
 {
-    /// <summary>The frame to show.</summary>
-    Scene2DFrame Frame { get; }
+    /// <summary>The frame to show, or null to draw an empty scene.</summary>
+    Scene2DFrame? Frame { get; }
 
     /// <summary>The map's bundle, from <see cref="MapAssets.Acquire" />, for its floors and radar art. Null draws the grid.</summary>
     IMapAsset? MapAsset { get; }

@@ -34,12 +34,12 @@ public class PlayerSearchTests
         store.Upsert(record);
     }
 
-    private static PlayerSearch Library(IVanityResolver? resolver = null)
+    private static PlayerSearch Library()
     {
         DemoCacheStore store = new(null);
         Add(store, "/d/a.dem", Player(3, "Officer", Grim), Player(4, "Rex", Other), Player(5, "rex", Third));
         Add(store, "/d/b.dem", Player(3, "Officer", Grim), Player(4, "Rex", Other));
-        return new PlayerSearch(new PlayerDirectory(store), resolver);
+        return new PlayerSearch(new PlayerDirectory(store));
     }
 
     [Test]
@@ -110,32 +110,6 @@ public class PlayerSearchTests
     }
 
     [Test]
-    public async Task AResolver_TurnsAVanityUrlIntoItsAccount()
-    {
-        PlayerSearchResult result =
-            await Library(new FixedResolver(Other)).SearchAsync("steamcommunity.com/id/anything");
-        using (Assert.Multiple())
-        {
-            await Assert.That(result.SteamId64).IsEqualTo(Other);
-            await Assert.That(result.Notice).IsNull();
-            await Assert.That(result.Candidates.Single().SteamId64).IsEqualTo(Other);
-        }
-    }
-
-    [Test]
-    public async Task NoResolver_LeavesTheVanityResultAlone()
-    {
-        PlayerSearchResult result = await Library().SearchAsync("steamcommunity.com/id/anything");
-        await Assert.That(result.Notice).IsEqualTo(PlayerSearch.VanityNotice);
-    }
-
-    [Test]
     public async Task BlankText_FindsNothing() =>
         await Assert.That(Library().Search("  ").Candidates.Count).IsEqualTo(0);
-
-    private sealed class FixedResolver(ulong id) : IVanityResolver
-    {
-        public Task<ulong?> ResolveAsync(string vanity, CancellationToken cancellationToken) =>
-            Task.FromResult<ulong?>(id);
-    }
 }

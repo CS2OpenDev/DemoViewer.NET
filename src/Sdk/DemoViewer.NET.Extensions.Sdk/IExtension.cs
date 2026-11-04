@@ -45,9 +45,10 @@ public interface IExtension
     ///     rest. For a third-party extension, each path's first segment must be the extension's id, the id and
     ///     ".json", or start with the id and '-'; a store that names anything else is dropped and logged against
     ///     the extension. The extensions the app ships are exempt from that naming; the folders the host keeps
-    ///     for itself, and the demo cache's own records under the cache root, refuse every extension alike.
+    ///     for itself, and the demo cache's own records under the cache root, refuse every extension alike. A null
+    ///     entry is dropped and logged the same way.
     /// </summary>
-    IEnumerable<StoreDescriptor> Stores => Array.Empty<StoreDescriptor>();
+    IEnumerable<StoreDescriptor?> Stores => Array.Empty<StoreDescriptor>();
 
     /// <summary>
     ///     Adds the extension's services. Runs whether the extension is on or off, so register factories

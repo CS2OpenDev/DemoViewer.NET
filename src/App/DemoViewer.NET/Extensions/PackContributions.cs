@@ -364,11 +364,11 @@ internal sealed class PackContributions(
     internal static IReadOnlyList<StoreDescriptor> AcceptedStores(IExtension pack, ExtensionGuard guard)
     {
         List<StoreDescriptor> accepted = [];
-        foreach (StoreDescriptor store in guard.Run("stores", () => pack.Stores.ToArray(), []))
+        foreach (StoreDescriptor? store in guard.Run("stores", () => pack.Stores.ToArray(), []))
         {
-            if (store is null || string.IsNullOrWhiteSpace(store.Id) || store.Paths is null)
+            if (store is null || string.IsNullOrWhiteSpace(store.Id))
             {
-                guard.Report("store", new ArgumentException("A store needs an id and its paths."));
+                guard.Report("store", new ArgumentException("A store needs an id."));
                 continue;
             }
 
@@ -395,7 +395,7 @@ internal sealed class PackContributions(
         bool shipped = packId.StartsWith(ExternalExtensions.ReservedIdPrefix, StringComparison.Ordinal);
         foreach (string raw in store.Paths)
         {
-            string path = (raw ?? "").Replace('\\', '/').Trim();
+            string path = raw.Replace('\\', '/').Trim();
             string first = path.Split('/')[0];
             if (first.Length == 0 || first is "." or ".." || first.Contains('*', StringComparison.Ordinal))
             {

@@ -119,7 +119,7 @@ public class PackThroughTheSdkTests
         // The other DI-free lists a host reads at the same moment, each keyed by an id it stores.
         string[] commands = [.. pack.Commands.Select(c => c.Id)];
         string[] jobKinds = [.. pack.JobKinds.Select(k => k.Id)];
-        string[] stores = [.. pack.Stores.Select(s => s.Id)];
+        string?[] stores = [.. pack.Stores.Select(s => s?.Id)];
         await Assert.That(commands.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(commands.Length);
         await Assert.That(jobKinds.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(jobKinds.Length);
         await Assert.That(stores.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(stores.Length);

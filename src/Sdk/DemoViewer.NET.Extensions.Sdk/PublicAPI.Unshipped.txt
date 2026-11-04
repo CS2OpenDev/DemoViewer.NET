@@ -13,3 +13,7 @@ DemoViewer.NET.Extensions.Sdk.IExtensionNotifications.Post(DemoViewer.NET.Extens
 DemoViewer.NET.Extensions.Sdk.IExtensionKeymap.GestureText(string? actionId) -> string!
 *REMOVED*DemoViewer.NET.Extensions.Sdk.Playback.IPlaybackSurface.GestureHint(string! actionId) -> string!
 DemoViewer.NET.Extensions.Sdk.Playback.IPlaybackSurface.GestureHint(string? actionId) -> string!
+*REMOVED*DemoViewer.NET.Extensions.Sdk.IStatusChipSource.Label.get -> string!
+*REMOVED*DemoViewer.NET.Extensions.Sdk.IExtension.Stores.get -> System.Collections.Generic.IEnumerable<DemoViewer.NET.Extensions.Sdk.StoreDescriptor!>!
+DemoViewer.NET.Extensions.Sdk.IStatusChipSource.Label.get -> string?
+DemoViewer.NET.Extensions.Sdk.IExtension.Stores.get -> System.Collections.Generic.IEnumerable<DemoViewer.NET.Extensions.Sdk.StoreDescriptor?>!

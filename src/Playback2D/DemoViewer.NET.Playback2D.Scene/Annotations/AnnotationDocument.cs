@@ -343,7 +343,7 @@ public sealed class AnnotationDocument
     private bool ApplyAdd(DocDelta.Add add, out DocDelta? inverse)
     {
         inverse = null;
-        if (add.Element is null || _index.ContainsKey(add.Element.Id))
+        if (_index.ContainsKey(add.Element.Id))
         {
             return false;
         }
@@ -374,7 +374,7 @@ public sealed class AnnotationDocument
     private bool ApplyReplace(DocDelta.Replace replace, out DocDelta? inverse)
     {
         inverse = null;
-        if (replace.Element is null || !_index.TryGetValue(replace.Id, out int at))
+        if (!_index.TryGetValue(replace.Id, out int at))
         {
             return false;
         }
@@ -396,7 +396,7 @@ public sealed class AnnotationDocument
     private bool ApplyBatch(DocDelta.Batch batch, out DocDelta? inverse)
     {
         inverse = null;
-        if (batch.Items is null || batch.Items.Count == 0)
+        if (batch.Items.Count == 0)
         {
             return false;
         }

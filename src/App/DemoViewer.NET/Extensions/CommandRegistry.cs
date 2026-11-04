@@ -242,7 +242,7 @@ public sealed class CommandRegistry
                     continue;
                 }
 
-                Playback2DBindingScope bindingScope = new(command.Scope ?? "");
+                Playback2DBindingScope bindingScope = new(command.Scope);
                 if (!bindingScope.IsCore
                     && !(scopeOwners.TryGetValue(bindingScope.Name, out string? owner) && owner == pack.Id))
                 {

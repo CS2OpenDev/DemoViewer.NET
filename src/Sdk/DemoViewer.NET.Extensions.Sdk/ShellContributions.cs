@@ -87,8 +87,8 @@ public interface IStatusChipSource : INotifyPropertyChanged
     /// <summary>True while the chip belongs on the status strip.</summary>
     bool IsShown { get; }
 
-    /// <summary>The chip text. It carries the state in words; the dot only repeats it.</summary>
-    string Label { get; }
+    /// <summary>The chip text, or null for none. It carries the state in words; the dot only repeats it.</summary>
+    string? Label { get; }
 
     /// <summary>The dot's meaning.</summary>
     StatusChipDotState DotState { get; }

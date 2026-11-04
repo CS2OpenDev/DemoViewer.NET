@@ -5,7 +5,7 @@ namespace DemoViewer.NET.Services.Players;
 /// <param name="SteamId64">The account the text names outright, even when no demo holds it; null for a name or a vanity URL.</param>
 /// <param name="Form">The SteamID spelling recognised, null for a name.</param>
 /// <param name="IsFlagged">True when the text was only a bare account id, which may be a name.</param>
-/// <param name="Vanity">The vanity name of a <c>/id/</c> URL that was not resolved.</param>
+/// <param name="Vanity">The vanity name of a <c>/id/</c> URL, which an offline search cannot resolve.</param>
 /// <param name="Notice">What the person should be told, null when nothing needs saying.</param>
 public sealed record PlayerSearchResult(
     IReadOnlyList<PlayerEntry> Candidates,
@@ -19,7 +19,7 @@ public sealed record PlayerSearchResult(
 }
 
 /// <summary>Finds players in the library by SteamID in any spelling or by name, offline.</summary>
-public sealed class PlayerSearch(PlayerDirectory directory, IVanityResolver? resolver = null)
+public sealed class PlayerSearch(PlayerDirectory directory)
 {
     public const string VanityNotice = "needs the Online Connectivity extension; matching by name instead";
 
@@ -59,27 +59,6 @@ public sealed class PlayerSearch(PlayerDirectory directory, IVanityResolver? res
         }
 
         return new PlayerSearchResult(candidates, id, parse.Form, parse.IsFlagged, null, null);
-    }
-
-    /// <summary>As <see cref="Search" />, asking the resolver about a vanity URL when there is one.</summary>
-    /// <param name="text">A SteamID in any spelling, a profile URL or part of a name.</param>
-    /// <param name="cancellationToken">Cancels the vanity lookup.</param>
-    public async Task<PlayerSearchResult> SearchAsync(string text, CancellationToken cancellationToken = default)
-    {
-        PlayerSearchResult result = Search(text);
-        if (resolver is null || result.Vanity is null)
-        {
-            return result;
-        }
-
-        ulong? id = await resolver.ResolveAsync(result.Vanity, cancellationToken).ConfigureAwait(false);
-        if (id is not { } resolved)
-        {
-            return result;
-        }
-
-        List<PlayerEntry> candidates = directory.Get(resolved) is { } known ? [known] : [];
-        return new PlayerSearchResult(candidates, resolved, result.Form, false, result.Vanity, null);
     }
 
     private List<PlayerEntry> ByName(string query, ulong? except) =>

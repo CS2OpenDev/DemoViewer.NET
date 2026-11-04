@@ -1,1 +1,3 @@
 #nullable enable
+*REMOVED*DemoViewer.NET.Extensions.Sdk.Ui.Controls.ISceneSource.Frame.get -> DemoViewer.NET.Playback2D.Scene2DFrame!
+DemoViewer.NET.Extensions.Sdk.Ui.Controls.ISceneSource.Frame.get -> DemoViewer.NET.Playback2D.Scene2DFrame?
