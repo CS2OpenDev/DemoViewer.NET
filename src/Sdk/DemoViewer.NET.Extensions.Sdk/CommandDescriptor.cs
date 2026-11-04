@@ -20,7 +20,8 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="Label">Human description, shown in the keybind settings list.</param>
 /// <param name="Scope">
 ///     <c>"playback2d"</c> (always), <c>"playback2d.tool"</c> (while a drawing tool is active), or the id of
-///     a <see cref="CommandScope" /> the same extension declares. Null throws <see cref="ArgumentNullException" />.
+///     a <see cref="CommandScope" /> the same extension declares. Null counts as an empty scope, which no extension
+///     declares, so the command is reported and left out.
 /// </param>
 /// <param name="DefaultChord">The shipped gesture, or null for a command with no default binding.</param>
 /// <param name="Run">Runs the command. True when it acted; false leaves the key unhandled.</param>
@@ -35,14 +36,11 @@ public sealed record CommandDescriptor(
     Func<CommandContext, bool>? CanRun = null)
 {
     /// <summary>The scope the command resolves in.</summary>
-    public string Scope { get; init => field = Checked(value); } = Checked(Scope);
+    public string Scope { get; init => field = Normalized(value); } = Normalized(Scope);
 
-    // The keymap matches every binding by scope, so a command cannot exist without one.
-    private static string Checked(string scope)
-    {
-        ArgumentNullException.ThrowIfNull(scope);
-        return scope;
-    }
+    // Extension code may hand over null whatever the annotation says. An empty scope is refused for this one
+    // command, where a throw here would cost the extension every command it lists.
+    private static string Normalized(string? scope) => scope ?? "";
 }
 
 /// <summary>What a command's <see cref="CommandDescriptor.Run" /> or <see cref="CommandDescriptor.CanRun" /> receives.</summary>

@@ -217,7 +217,7 @@ public class DemoOpenVisitTests
     {
         using Rig rig = new();
         Lease lease = new(Demo, rig.OpenParse);
-        rig.Queue.SetShellDemo(lease);
+        rig.Queue.ShellDemo = lease;
         List<ParsedDemo> seen = [];
         bool heldDuringRun = false;
         FakePass grenades = new("grenades")

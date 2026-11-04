@@ -67,6 +67,9 @@ public sealed record FfmpegSinkOptions(
 ///         source, which is what <c>CancellableThrough</c> watches; tripping it terminates the process,
 ///         and <see cref="DisposeAsync" /> then removes the partial output.
 ///     </para>
+///     <para>
+///         <b>Disposal waits up to 30 seconds</b> for ffmpeg to drain before giving up on it.
+///     </para>
 /// </summary>
 public sealed class FfmpegFrameSink : IFrameSink
 {

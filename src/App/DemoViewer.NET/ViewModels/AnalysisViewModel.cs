@@ -726,12 +726,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         // One live evaluation at a time: a new run (reload, second demo, re-run) cancels the
         // in-flight one. The canceled run unwinds through its own OperationCanceledException
         // handler below; its cleared-at-entry state is exactly the clean "not analyzed" state.
-        if (_runCts is not null)
-        {
-            await _runCts.CancelAsync();
-            _runCts.Dispose();
-        }
-
+        _runCts?.Cancel();
+        _runCts?.Dispose();
         _runCts = new CancellationTokenSource();
         CancellationToken runToken = _runCts.Token;
 

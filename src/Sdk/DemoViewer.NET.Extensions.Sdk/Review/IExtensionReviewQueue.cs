@@ -57,12 +57,12 @@ public interface IExtensionReviewQueue
     /// </summary>
     /// <param name="clips">The clips, in the order they should appear.</param>
     /// <param name="sectionTitle">A title card to open the batch with, or null to append bare.</param>
-    /// <param name="sectionSubtitle">The line under that title.</param>
+    /// <param name="sectionSubtitle">The line under that title; null or empty for none.</param>
     /// <returns>
     ///     How many clips were added. 0 means every one of them was already queued, which is the answer a
     ///     surface reports rather than claiming it sent them.
     /// </returns>
-    int Add(IEnumerable<ReviewClip> clips, string? sectionTitle = null, string sectionSubtitle = "");
+    int Add(IEnumerable<ReviewClip> clips, string? sectionTitle = null, string? sectionSubtitle = "");
 
     /// <summary>Puts a title card at the end of the queue.</summary>
     /// <param name="title">The card's title.</param>

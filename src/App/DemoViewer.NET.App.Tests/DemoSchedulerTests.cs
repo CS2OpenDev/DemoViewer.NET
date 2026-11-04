@@ -367,7 +367,7 @@ public class DemoSchedulerTests
             release.Wait(3000);
             return Synthetic();
         });
-        queue.SetMaxQueueSize(1);
+        queue.MaxQueueSize = 1;
         HashSet<string> done = new(StringComparer.Ordinal);
         Fake a = new("a", p =>
         {
@@ -408,7 +408,7 @@ public class DemoSchedulerTests
             release.Wait(5000);
             return Synthetic();
         });
-        queue.SetMaxQueueSize(1);
+        queue.MaxQueueSize = 1;
         int asks = 0;
         HashSet<string> done = new(StringComparer.Ordinal);
         Fake a = new("a", p =>
@@ -461,7 +461,7 @@ public class DemoSchedulerTests
             release.Wait(5000);
             return Synthetic();
         });
-        queue.SetMaxQueueSize(1);
+        queue.MaxQueueSize = 1;
         Fake a = new("a");
         using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
 

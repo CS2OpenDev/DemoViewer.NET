@@ -259,7 +259,7 @@ public class QueueJobTests
             Interlocked.Decrement(ref concurrent);
             return SyntheticDemo();
         });
-        queue.SetMaxConcurrency(1);
+        queue.MaxConcurrency = 1;
 
         List<IDemoQueueHandle> handles = [];
         for (int i = 0; i < 4; i++)
@@ -540,7 +540,7 @@ public class QueueJobTests
             Interlocked.Decrement(ref demos);
             return SyntheticDemo();
         });
-        queue.SetMaxConcurrency(concurrency);
+        queue.MaxConcurrency = concurrency;
 
         Func<IQueueJobContext, Task> Exclusive(bool handBack) => async ctx =>
         {
@@ -590,7 +590,7 @@ public class QueueJobTests
     {
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = NewQueue(gate);
-        queue.SetMaxConcurrency(concurrency);
+        queue.MaxConcurrency = concurrency;
         TaskCompletionSource running = new(TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -628,7 +628,7 @@ public class QueueJobTests
     {
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = NewQueue(gate);
-        queue.SetMaxConcurrency(3);
+        queue.MaxConcurrency = 3;
         TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         int runs = 0;

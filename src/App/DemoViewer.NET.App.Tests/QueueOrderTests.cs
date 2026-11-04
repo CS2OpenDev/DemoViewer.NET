@@ -103,7 +103,7 @@ public class QueueOrderTests
     {
         List<string> ran = [];
         using DemoProcessingQueue queue = Queue();
-        queue.SetShellDemo(new LoadedOnly("/d/loaded.dem"));
+        queue.ShellDemo = new LoadedOnly("/d/loaded.dem");
         queue.Pause();
         IDemoQueueHandle newer = Visit(queue, "/d/newer.dem", PassLevel.Backlog, ran, orderHint: 100);
         IDemoQueueHandle loaded = Visit(queue, "/d/loaded.dem", PassLevel.Backlog, ran, orderHint: 1);

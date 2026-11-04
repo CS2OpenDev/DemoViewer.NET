@@ -167,8 +167,8 @@ public class DemoProcessingQueueTests
         using DemoProcessingQueue q = NewQueue(parser, out HeavyJobGate gate);
         using (gate)
         {
-            q.SetMaxConcurrency(1);
-            q.SetMaxQueueSize(2);
+            q.MaxConcurrency = 1;
+            q.MaxQueueSize = 2;
 
             List<string> backlog =
             [
@@ -250,7 +250,7 @@ public class DemoProcessingQueueTests
         using DemoProcessingQueue q = NewQueue(parser, out HeavyJobGate gate);
         using (gate)
         {
-            q.SetMaxConcurrency(2);
+            q.MaxConcurrency = 2;
             for (int i = 0; i < 4; i++)
             {
                 q.SubmitBackground(Req($"/d/{i}.dem", "lib", DemoJobPriority.Background, i));
@@ -318,7 +318,7 @@ public class DemoProcessingQueueTests
         {
             q.Pause();
             q.BackgroundEnabled = false;
-            q.SetMaxQueueSize(2);
+            q.MaxQueueSize = 2;
             q.SubmitBackground(Req("/d/1.dem", "lib", DemoJobPriority.Background, 1));
             q.SubmitBackground(Req("/d/2.dem", "lib", DemoJobPriority.Background, 2));
             IDemoQueueHandle rejected = q.SubmitBackground(Req("/d/3.dem", "lib", DemoJobPriority.Background, 3));

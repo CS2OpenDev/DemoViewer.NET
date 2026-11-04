@@ -229,7 +229,7 @@ public class ForwardQueueTests
             using CancellationTokenRegistration _ = token.Register(() => Interlocked.Exchange(ref bStopped, 1));
             return UntilCancelled(bStarted, token);
         });
-        queue.SetMaxConcurrency(2);
+        queue.MaxConcurrency = 2;
 
         // a.dem first: the first running background item is what a lane-wide stop would pick.
         IDemoQueueHandle a = queue.SubmitBackground(Forward("a.dem", "library", ForwardNeeds.Rules));
@@ -478,7 +478,7 @@ public class ForwardQueueTests
             return Pass();
         });
         queueRef = queue;
-        queue.SetMaxQueueSize(3);
+        queue.MaxQueueSize = 3;
         queue.Changed += () => maxQueued = Math.Max(maxQueued,
             queue.Snapshot().Count(s =>
                 s is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued or DemoQueueItemState.Running }));

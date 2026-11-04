@@ -54,13 +54,19 @@ internal sealed class LayoutContext
     // Filled by ContainmentPass.
     internal double TotalWidth { get; set; }
 
+    /// <summary>Resolves a node's box height (per-node override or theme default).</summary>
+    private double NodeHeight(IGraphNode n) => n.Style?.Height ?? Style.Node.Height;
+
     /// <summary>Axis-aligned box for a placed node, in logical coordinates.</summary>
     internal Rect NodeRect(IGraphNode n)
     {
         NodePosition pos = NodePositions[n];
-        double w = Style.Node.Width, h = Style.Node.Height;
+        double w = NodeWidth(n), h = NodeHeight(n);
         return new Rect(pos.X - w / 2, pos.Y - h / 2, w, h);
     }
+
+    /// <summary>Resolves a node's box width (per-node override or theme default).</summary>
+    private double NodeWidth(IGraphNode n) => n.Style?.Width ?? Style.Node.Width;
 
     internal LayoutResult ToResult() => new(
         NodePositions, EdgeRoutes, SelfLoopRoutes, GroupBounds, TableLayouts,

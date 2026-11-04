@@ -1836,12 +1836,8 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (_visibilityCts is { } previous)
-        {
-            await previous.CancelAsync();
-            previous.Dispose();
-        }
-
+        _visibilityCts?.Cancel();
+        _visibilityCts?.Dispose();
         _visibilityCts = new CancellationTokenSource();
         CancellationToken token = _visibilityCts.Token;
 

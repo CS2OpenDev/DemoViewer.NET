@@ -198,7 +198,7 @@ public class DemoJobTests
     {
         using Rig rig = new();
         ParsedDemo held = SyntheticParsedDemo.Create();
-        rig.Queue.SetShellDemo(new Loaded(Demo, held));
+        rig.Queue.ShellDemo = new Loaded(Demo, held);
         ParsedDemo? seen = null;
         DemoJob job = DemoJob.Submit(rig.Queue, Request(input =>
         {

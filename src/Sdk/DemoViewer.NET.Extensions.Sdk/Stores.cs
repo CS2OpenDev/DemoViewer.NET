@@ -15,7 +15,10 @@ public enum StoreRoot
 /// <param name="Id">Unique within the extension.</param>
 /// <param name="Label">What the delete confirmation names.</param>
 /// <param name="Root">The root the paths are relative to.</param>
-/// <param name="Paths">Files or folders under the root. Null, or a null entry, throws <see cref="ArgumentNullException" />.</param>
+/// <param name="Paths">
+///     Files or folders under the root. The store keeps its own copy, so changing the list afterwards changes
+///     nothing. A null list counts as no paths and a null entry as an empty path; the host refuses both.
+/// </param>
 /// <param name="IsUserWork">True for what the user made and cannot rebuild; the confirmation names these.</param>
 [PublicAPI]
 public sealed record StoreDescriptor(
@@ -25,20 +28,14 @@ public sealed record StoreDescriptor(
     IReadOnlyList<string> Paths,
     bool IsUserWork)
 {
-    /// <summary>Files or folders under the root.</summary>
-    public IReadOnlyList<string> Paths { get; init => field = Checked(value); } = Checked(Paths);
+    /// <summary>Files or folders under the root, as copied when the store was made.</summary>
+    public IReadOnlyList<string> Paths { get; init => field = Snapshot(value); } = Snapshot(Paths);
 
-    // The host trusts every path it is handed to delete or open, so a store cannot exist without them.
-    private static IReadOnlyList<string> Checked(IReadOnlyList<string> paths)
-    {
-        ArgumentNullException.ThrowIfNull(paths);
-        foreach (string path in paths)
-        {
-            ArgumentNullException.ThrowIfNull(path, nameof(paths));
-        }
-
-        return paths;
-    }
+    // The host checks these paths once and then opens and deletes what they name, so it must not see them
+    // change. The argument comes from extension code, which may hand over null whatever the annotation says;
+    // turning that into something the host refuses keeps the fault on this one store.
+    private static string[] Snapshot(IReadOnlyList<string?>? paths) =>
+        paths is null ? [] : [.. paths.Select(p => p ?? "")];
 }
 
 /// <summary>What a store holds on disk now.</summary>

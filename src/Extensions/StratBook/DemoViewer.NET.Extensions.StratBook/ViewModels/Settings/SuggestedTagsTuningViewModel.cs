@@ -162,11 +162,7 @@ public sealed partial class SuggestedTagsTuningViewModel : ExtensionViewModel
             return;
         }
 
-        if (_previewCts is { } previous)
-        {
-            await previous.CancelAsync();
-        }
-
+        _previewCts?.Cancel();
         CancellationTokenSource cts = new();
         _previewCts = cts;
         IsBusy = true;

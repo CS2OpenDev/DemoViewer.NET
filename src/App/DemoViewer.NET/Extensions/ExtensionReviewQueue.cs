@@ -114,7 +114,7 @@ internal sealed class ExtensionReviewQueue : IExtensionReviewQueue
     }
 
     /// <inheritdoc />
-    public int Add(IEnumerable<ReviewClip> clips, string? sectionTitle = null, string sectionSubtitle = "")
+    public int Add(IEnumerable<ReviewClip> clips, string? sectionTitle = null, string? sectionSubtitle = "")
     {
         ArgumentNullException.ThrowIfNull(clips);
         Require(nameof(Add));
@@ -124,7 +124,7 @@ internal sealed class ExtensionReviewQueue : IExtensionReviewQueue
         // ref never matches one projected without it. The id is the key every mutation names, so a repeat
         // gets a fresh one rather than a second row nothing can address.
         HashSet<Guid> held = [.. _queue.Entries.Select(e => e.Id)];
-        return _queue.Add(clips.Select(clip => ToEntry(clip, held)), sectionTitle, sectionSubtitle);
+        return _queue.Add(clips.Select(clip => ToEntry(clip, held)), sectionTitle, sectionSubtitle ?? "");
     }
 
     /// <inheritdoc />

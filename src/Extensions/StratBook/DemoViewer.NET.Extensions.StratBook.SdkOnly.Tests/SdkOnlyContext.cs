@@ -341,7 +341,7 @@ internal sealed class EmptyReviewQueue : IExtensionReviewQueue
 
     public string? FileProblem => null;
 
-    public int Add(IEnumerable<ReviewClip> clips, string? sectionTitle = null, string sectionSubtitle = "") => 0;
+    public int Add(IEnumerable<ReviewClip> clips, string? sectionTitle = null, string? sectionSubtitle = "") => 0;
 
     public void AddSection(string title)
     {

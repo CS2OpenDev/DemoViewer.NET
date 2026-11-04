@@ -296,11 +296,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
         SeekCts = cts;
-        if (oldCts is not null)
-        {
-            await oldCts.CancelAsync();
-            oldCts.Dispose();
-        }
+        oldCts?.Cancel();
+        oldCts?.Dispose();
 
         try
         {
@@ -391,11 +388,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
         SeekCts = cts;
-        if (oldCts is not null)
-        {
-            await oldCts.CancelAsync();
-            oldCts.Dispose();
-        }
+        oldCts?.Cancel();
+        oldCts?.Dispose();
 
         try
         {
@@ -484,11 +478,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         CancellationTokenSource? oldCts = SeekCts;
         CancellationTokenSource cts = new();
         SeekCts = cts;
-        if (oldCts is not null)
-        {
-            await oldCts.CancelAsync();
-            oldCts.Dispose();
-        }
+        oldCts?.Cancel();
+        oldCts?.Dispose();
 
         try
         {

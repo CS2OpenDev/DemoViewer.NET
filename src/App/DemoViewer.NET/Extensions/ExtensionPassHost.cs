@@ -44,7 +44,7 @@ internal sealed class ExtensionPassHost : IDemoPass, IPassScheduling, ICollectin
     /// <param name="after">The pass ids it runs after, as registered.</param>
     /// <param name="guard">The extension's guard.</param>
     /// <param name="onUiThread">True on the UI thread; the dispatcher's check when null.</param>
-    /// <param name="budget">How long a run may take; <see cref="_defaultBudget" /> when null.</param>
+    /// <param name="budget">How long a run may take; five minutes when null.</param>
     /// <param name="maxOverruns">Overruns that switch the pass off for the session.</param>
     /// <param name="collectors">The collectors the extension registered for this pass.</param>
     /// <param name="tableRulesets">The qualified ids of the extension's rulesets whose tables this pass reads.</param>

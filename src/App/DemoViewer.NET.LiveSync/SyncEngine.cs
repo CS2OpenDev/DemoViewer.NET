@@ -13,7 +13,7 @@ namespace DemoViewer.NET.LiveSync;
 /// <param name="SeekConfirmGrace">
 ///     v1.0 provisional-confirm grace: the plugin pre-echoes the TARGET tick before actually
 ///     seeking, so an on-target tick only confirms after this window passes without a
-///     contradicting far tick.
+///     contradicting far tick (one more than 128 ticks from the target).
 /// </param>
 /// <param name="SeekTimeout">Unconfirmed-seek expiry → Degraded.</param>
 /// <param name="PlayPauseTimeout">Missing play/pause status echo → Degraded.</param>

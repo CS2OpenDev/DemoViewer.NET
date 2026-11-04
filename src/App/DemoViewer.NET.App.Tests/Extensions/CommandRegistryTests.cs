@@ -232,6 +232,23 @@ public class CommandRegistryTests
     }
 
     [Test]
+    public async Task Build_ANullScope_DropsOnlyThatThirdPartyCommand()
+    {
+        // An extension built without nullable checking can hand over null whatever the annotation says.
+        CommandDescriptor broken = new(Fake + "Broken", "broken", null!, null, _ => true);
+        CommandDescriptor fine = new(Fake + "Fine", "fine", "playback2d", null, _ => true);
+
+        CommandRegistry registry =
+            CommandRegistry.Build([new FakePack("pack.fake", [broken, fine])], isThirdParty: _thirdParty);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(registry.PackCommands.Select(c => c.Command.Id)).IsEquivalentTo([fine.Id]);
+            await Assert.That(registry.Conflicts.Single()).Contains("which it does not declare");
+        }
+    }
+
+    [Test]
     public void Build_AScopeWithoutTheExtensionPrefix_FailsACompiledInPack()
     {
         CommandScope bare = new("palette", "while tagging");

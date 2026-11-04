@@ -488,6 +488,28 @@ public class ExtensionStoresTests
         }
     }
 
+    [Test]
+    public async Task AStoreWithNullPaths_IsDroppedAlone_AndALaterChangeToAStoresListIsNotSeen()
+    {
+        // An extension built without nullable checking can hand over null whatever the annotation says.
+        List<string> live = [ExtensionId];
+        StoreDescriptor own = new("own", "Own", StoreRoot.Config, live, IsUserWork: true);
+        StoreDescriptor noPaths = new("none", "None", StoreRoot.Config, null!, IsUserWork: true);
+        StoreDescriptor nullEntry = new("hole", "Hole", StoreRoot.Config, [null!], IsUserWork: true);
+        live.Add(null!);
+        Pack pack = new(ExtensionId, [own, noPaths, nullEntry]);
+        ExtensionGuard guard = ExtensionGuard.Standalone(pack);
+
+        IReadOnlyList<StoreDescriptor> accepted = PackContributions.AcceptedStores(pack, guard);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(accepted).IsEquivalentTo([own], CollectionOrdering.Matching);
+            await Assert.That(own.Paths).IsEquivalentTo([ExtensionId], CollectionOrdering.Matching);
+            await Assert.That(guard.Faults.StateOf(pack.FeatureId).Count).IsEqualTo(2);
+        }
+    }
+
     private sealed class Pack(string id, IEnumerable<StoreDescriptor> stores) : IExtension
     {
         public string Id => id;

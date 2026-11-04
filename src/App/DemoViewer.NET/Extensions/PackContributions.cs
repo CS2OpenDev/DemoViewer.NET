@@ -366,9 +366,9 @@ internal sealed class PackContributions(
         List<StoreDescriptor> accepted = [];
         foreach (StoreDescriptor? store in guard.Run("stores", () => pack.Stores.ToArray(), []))
         {
-            if (store is null || string.IsNullOrWhiteSpace(store.Id))
+            if (store is null || string.IsNullOrWhiteSpace(store.Id) || store.Paths.Count == 0)
             {
-                guard.Report("store", new ArgumentException("A store needs an id."));
+                guard.Report("store", new ArgumentException("A store needs an id and its paths."));
                 continue;
             }
 
