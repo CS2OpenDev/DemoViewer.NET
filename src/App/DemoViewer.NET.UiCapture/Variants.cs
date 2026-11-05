@@ -1426,7 +1426,12 @@ public static partial class Variants
     // A capture-only installed build: Settings shows the update controls only when a service exists.
     private sealed class CaptureAppUpdateService : IUpdateService
     {
-        public string CurrentVersion => "0.8.2";
+        // The repo's own version (Nerdbank.GitVersioning), as an installed build would report it: three parts,
+        // no git height.
+        public string CurrentVersion { get; } = new Version(
+            typeof(CaptureAppUpdateService).Assembly
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyFileVersionAttribute), false)
+                .Cast<System.Reflection.AssemblyFileVersionAttribute>().Single().Version).ToString(3);
 
         public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) =>
             Task.FromResult(UpdateCheckResult.UpToDate());
