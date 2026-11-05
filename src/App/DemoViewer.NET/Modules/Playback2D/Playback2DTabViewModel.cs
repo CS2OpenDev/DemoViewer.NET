@@ -1035,7 +1035,12 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // Off the REQUEST, not off a field. This method runs on the export's pool thread, and it runs
         // AFTER the job has waited on the heavy-job gate; a tab-level field written at Start would by
         // then be whatever the most recent Start put there, which is not necessarily this run's.
-        request?.Ink);
+        request?.Ink)
+    {
+        // The live HUD reads _context.CurtimeSeconds(tick) = tick/rate − base; the export's source reads
+        // tick/rate and subtracts this, so both clocks agree. CurtimeSeconds(0) is exactly −base.
+        ClockBaseSeconds = _context is { } context ? -context.CurtimeSeconds(0) : 0
+    };
 
     // The exported HUD reads the SAME pre-built kill timeline the XAML feed windows, and the same
     // SceneGameInfo projection the panel binds, so the two HUDs cannot drift apart.

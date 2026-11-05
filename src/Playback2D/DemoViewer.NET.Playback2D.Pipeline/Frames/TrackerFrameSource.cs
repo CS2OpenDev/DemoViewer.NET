@@ -143,6 +143,15 @@ public sealed class TrackerFrameSource : ISceneFrameSource, IPreparableFrameSour
     public string? MapName { get; set; }
 
     /// <summary>
+    ///     The game clock's calibration, in seconds, subtracted from <c>ServerTick / tickRate</c> to give
+    ///     the curtime the round and bomb timers are measured against. The app settles it per demo (see
+    ///     <c>IModuleContext.CurtimeSeconds</c>); 0 is the naive reading, which is only right when the server
+    ///     tick and the game clock agree. A GOTV broadcast that joins a long-running server does not: there
+    ///     the naive reading put a round's clock twenty minutes out.
+    /// </summary>
+    public double ClockBaseSeconds { get; set; }
+
+    /// <summary>
     ///     The decoded radar art stamped onto every built frame, from a loaded map bundle. Set before the
     ///     first <see cref="FrameAt" />; leaving it null renders the synthetic grid instead of the map
     ///     image, which is what a demo-backed render looks like with no assets on disk.
@@ -249,7 +258,7 @@ public sealed class TrackerFrameSource : ISceneFrameSource, IPreparableFrameSour
             FrameIndex = demoIndex,
             Tick = _frames[demoIndex].ServerTick,
             TickRate = _tickRate,
-            CurtimeSeconds = _frames[demoIndex].ServerTick / (double)_tickRate,
+            CurtimeSeconds = _frames[demoIndex].ServerTick / (double)_tickRate - ClockBaseSeconds,
             LabelForSlot = _snapshot.LabelForSlot,
             SteamIdForSlot = _snapshot.SteamIdForSlot,
             MapName = MapName,
