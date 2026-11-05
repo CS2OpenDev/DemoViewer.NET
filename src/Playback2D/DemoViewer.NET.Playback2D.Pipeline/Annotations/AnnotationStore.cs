@@ -1,6 +1,7 @@
 #region
 
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using DemoViewer.NET.Playback2D.Annotations;
 
@@ -184,8 +185,10 @@ public sealed class AnnotationStore
         AnnotationDocumentDto? dto;
         try
         {
-            await using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-                1 << 16, true);
+            // ConfigureAwait on the dispose too, as in SaveAsync: a caller that blocks the UI thread on this
+            // task would otherwise wait on a continuation queued behind itself.
+            FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, true);
+            await using ConfiguredAsyncDisposable streamScope = stream.ConfigureAwait(false);
             dto = await JsonSerializer
                 .DeserializeAsync(stream, AnnotationJsonContext.Default.AnnotationDocumentDto, ct)
                 .ConfigureAwait(false);
@@ -325,8 +328,8 @@ public sealed class AnnotationStore
                 Directory.CreateDirectory(directory);
             }
 
-            await using (FileStream stream = new(temp, FileMode.Create, FileAccess.Write, FileShare.None,
-                             1 << 16, true))
+            FileStream stream = new(temp, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16, true);
+            await using (stream.ConfigureAwait(false))
             {
                 await JsonSerializer
                     .SerializeAsync(stream, dto, AnnotationJsonContext.Default.AnnotationDocumentDto, ct)
