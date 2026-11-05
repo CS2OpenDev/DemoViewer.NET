@@ -67,7 +67,7 @@ public class VisibilityFrameGateProbe
         Console.WriteLine($"[vgate] {Path.GetFileName(demoPath)} map={demo.MapName} frames={frames.Count}");
 
         // Sample a scatter of living-player feet across a mid-match window (bounded; brute-force caster).
-        List<Vector3> samples = new();
+        List<Vector3> samples = [];
         EntityTracker tracker = new();
         int start = Math.Min(frames.Count / 4, Math.Max(0, frames.Count - 1));
         int end = Math.Min(frames.Count - 1, start + 15000);

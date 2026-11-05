@@ -440,8 +440,8 @@ public sealed class MapSpace
         RadarBinding = quality;
         Version++;
 
-        LastChange = new LevelSetChange(true, _scratchAdded.ToArray(), _scratchRemoved.ToArray(),
-            _scratchRetained.ToArray()) { Remapped = remapped, LevelsAfter = next, LevelsBefore = before };
+        LastChange = new LevelSetChange(true, [.. _scratchAdded], [.. _scratchRemoved],
+            [.. _scratchRetained]) { Remapped = remapped, LevelsAfter = next, LevelsBefore = before };
         LevelSetChanged?.Invoke();
         return LastChange;
     }
@@ -481,7 +481,7 @@ public sealed class MapSpace
         _levels.Clear();
         _usedKeys.Clear();
         RadarBinding = RadarBindingQuality.None;
-        LastChange = new LevelSetChange(true, [], _scratchRemoved.ToArray(), []) { LevelsBefore = before };
+        LastChange = new LevelSetChange(true, [], [.. _scratchRemoved], []) { LevelsBefore = before };
         Version++;
         LevelSetChanged?.Invoke();
     }

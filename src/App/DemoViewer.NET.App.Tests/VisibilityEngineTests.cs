@@ -44,7 +44,7 @@ public class VisibilityEngineTests
         ParsedDemo demo = DemoParser.Parse(bytes.AsMemory());
         IReadOnlyList<DemoFrame> frames = demo.Frames;
 
-        List<Vector3> feet = new();
+        List<Vector3> feet = [];
         EntityTracker tracker = new();
         int start = Math.Min(frames.Count / 4, Math.Max(0, frames.Count - 1));
         int end = Math.Min(frames.Count - 1, start + 12000);
@@ -116,7 +116,7 @@ public class VisibilityEngineTests
         }
 
         // Build a diverse pair set (bounded so the brute-force oracle stays fast in Debug).
-        List<(Vector3 A, Vector3 B)> pairs = new();
+        List<(Vector3 A, Vector3 B)> pairs = [];
         List<Vector3> feet = fx.Feet;
         int n = feet.Count;
         for (int i = 0; i < n && pairs.Count < 500; i++)

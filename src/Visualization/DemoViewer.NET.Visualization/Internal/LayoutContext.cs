@@ -31,7 +31,7 @@ internal sealed class LayoutContext
     internal IReadOnlyList<IGraphEdge> Edges { get; }
 
     // Filled by GroupBoundsPass.
-    internal List<GroupBounds> GroupBounds { get; set; } = new();
+    internal List<GroupBounds> GroupBounds { get; set; } = [];
     internal IReadOnlyList<INodeGroup>? Groups { get; }
 
     // Filled by LabelPlacementPass.
@@ -47,7 +47,7 @@ internal sealed class LayoutContext
     internal GraphStyle Style { get; }
 
     // Filled by TablePlacementPass.
-    internal List<TableLayoutWithEdges> TableLayouts { get; set; } = new();
+    internal List<TableLayoutWithEdges> TableLayouts { get; set; } = [];
     internal IReadOnlyList<INodeTable>? Tables { get; }
     internal double TotalHeight { get; set; }
 
@@ -104,20 +104,24 @@ internal sealed class LayoutContext
 
         SelfLoopRoutes = movedLoops;
 
-        GroupBounds = GroupBounds
-            .Select(g => g with { X = g.X + dx, Y = g.Y + dy })
-            .ToList();
+        GroupBounds =
+        [
+            .. GroupBounds
+                .Select(g => g with { X = g.X + dx, Y = g.Y + dy })
+        ];
 
-        TableLayouts = TableLayouts
-            .Select(t => new TableLayoutWithEdges(
-                t.Layout with
-                {
-                    X = t.Layout.X + dx,
-                    Y = t.Layout.Y + dy,
-                    ColumnXCenters = t.Layout.ColumnXCenters.Select(c => c + dx).ToList()
-                },
-                t.ColumnEdgeRoutes?.Select(r => (IReadOnlyList<Point>)Shift(r, dx, dy)).ToList()))
-            .ToList();
+        TableLayouts =
+        [
+            .. TableLayouts
+                .Select(t => new TableLayoutWithEdges(
+                    t.Layout with
+                    {
+                        X = t.Layout.X + dx,
+                        Y = t.Layout.Y + dy,
+                        ColumnXCenters = [.. t.Layout.ColumnXCenters.Select(c => c + dx)]
+                    },
+                    t.ColumnEdgeRoutes?.Select(r => (IReadOnlyList<Point>)Shift(r, dx, dy)).ToList()))
+        ];
 
         if (LabelPositions.Count > 0)
         {

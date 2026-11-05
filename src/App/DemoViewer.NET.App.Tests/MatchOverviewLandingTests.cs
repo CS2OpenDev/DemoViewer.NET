@@ -205,7 +205,8 @@ public class MatchOverviewLandingTests
             "player_game",
             ["player_name", "team"],
             ["TotalK", "TotalD", "TotalA", "ADR", "HLTV", "CTW", "TW"],
-            rows.Select(r => new MetricRow(
+            [
+                .. rows.Select(r => new MetricRow(
                     new Dictionary<string, object?> { ["player_name"] = r.Name, ["team"] = r.Team },
                     new Dictionary<string, object?>
                     {
@@ -220,7 +221,7 @@ public class MatchOverviewLandingTests
                         ["CTW"] = 6,
                         ["TW"] = r.Team == 3 ? 7 : 3
                     }))
-                .ToList());
+            ]);
     }
 
     /// <summary>
@@ -1006,7 +1007,7 @@ public class MatchOverviewLandingTests
         // Derived, not pinned: the bundled sample's source match can change (it has: a matchmaking
         // demo with one 'DemoRecorder' became a tournament demo with two 'CSTV' proxies), and a
         // hardcoded total turns that into a failure that looks like a regression but is not one.
-        List<PlayerInfo> proxies = parsed.Players.Values.Where(p => p.IsHltv).ToList();
+        List<PlayerInfo> proxies = [.. parsed.Players.Values.Where(p => p.IsHltv)];
         await Assert.That(proxies).IsNotEmpty()
             .Because("the sample is a GOTV recording, so at least one proxy holds a userinfo slot");
         await Assert.That(parsed.Players.Count).IsEqualTo(10 + proxies.Count)
@@ -1018,7 +1019,7 @@ public class MatchOverviewLandingTests
             await Assert.That(vm.CounterTerrorists.Count).IsEqualTo(5);
             await Assert.That(vm.Terrorists.Count).IsEqualTo(5);
             // No proxy, whatever it is named, reaches a roster.
-            IReadOnlyList<string> rostered = vm.CounterTerrorists.Concat(vm.Terrorists).Select(p => p.Name).ToList();
+            IReadOnlyList<string> rostered = [.. vm.CounterTerrorists.Concat(vm.Terrorists).Select(p => p.Name)];
             foreach (PlayerInfo proxy in proxies)
             {
                 await Assert.That(rostered).DoesNotContain(proxy.Name);

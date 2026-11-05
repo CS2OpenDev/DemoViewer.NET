@@ -67,7 +67,7 @@ public sealed class TagPaletteStore
         ?? new TagPaletteDefinition { Id = DefaultId, Name = "Empty" };
 
     /// <summary>One line per file skipped or warned about at the last load, newest scan only.</summary>
-    public IReadOnlyList<string> Diagnostics => _diagnostics.ToList();
+    public IReadOnlyList<string> Diagnostics => [.. _diagnostics];
 
     /// <summary>Raised after <see cref="Reload" /> re-scans the directory.</summary>
     public event Action? Reloaded;

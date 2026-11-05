@@ -42,10 +42,12 @@ public class AimStatCatalogueTests
             .Select(stat => doc.Id + "." + stat.Id)
             .ToHashSet(StringComparer.Ordinal);
 
-        string[] missing = AimStatCatalogue.Stats
-            .Where(stat => !declared.Contains(stat.RuleId))
-            .Select(stat => $"{stat.Canonical} -> {stat.RuleId}")
-            .ToArray();
+        string[] missing =
+        [
+            .. AimStatCatalogue.Stats
+                .Where(stat => !declared.Contains(stat.RuleId))
+                .Select(stat => $"{stat.Canonical} -> {stat.RuleId}")
+        ];
 
         await Assert.That(missing).IsEmpty()
             .Because("LiveAimStats reads each of these as null and every consumer folds that to 0:\n"

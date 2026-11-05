@@ -55,7 +55,7 @@ public class ZonePlaceResolverSourceTests
         // The graph comes over by name, and an unknown place has no neighbours.
         ZonePlace linked = direct.Zones.Places.First(p => direct.Adjacent(p.Id).Count > 0);
         string[] expected = [.. direct.Adjacent(linked.Id).Select(id => direct.Zones.Places[id].Name)];
-        await Assert.That(zones.Adjacent(linked.Name).ToArray()).IsEquivalentTo(expected, CollectionOrdering.Matching);
+        await Assert.That([.. zones.Adjacent(linked.Name)]).IsEquivalentTo(expected, CollectionOrdering.Matching);
         await Assert.That(zones.Adjacent("NoSuchPlace").Count).IsEqualTo(0);
 
         using ToleranceSliderHarness slider = new(source);

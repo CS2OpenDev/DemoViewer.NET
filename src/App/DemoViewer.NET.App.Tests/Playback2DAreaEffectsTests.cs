@@ -115,7 +115,7 @@ public class Playback2DAreaEffectsTests
 
     private sealed class View : IReadOnlyEntityView
     {
-        private readonly List<IReadOnlyEntity> _ents = new();
+        private readonly List<IReadOnlyEntity> _ents = [];
         public IEnumerable<IReadOnlyEntity> All() => _ents;
         public IEnumerable<IReadOnlyEntity> OfClass(string className) => _ents.Where(e => e.ClassName == className);
         public IReadOnlyEntity? BySerial(int serial) => null;

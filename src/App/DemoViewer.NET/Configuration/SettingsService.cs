@@ -639,6 +639,6 @@ public sealed class SettingsService
         }
 
         // A copy of the current data: the basis for a memory-only (env-excluding) AppSettings bind.
-        public KeyValuePair<string, string?>[] Snapshot() => Data.ToArray();
+        public KeyValuePair<string, string?>[] Snapshot() => [.. Data];
     }
 }

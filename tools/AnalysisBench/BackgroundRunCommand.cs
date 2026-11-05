@@ -57,7 +57,7 @@ internal static class BackgroundRunCommand
 
     public static int Run(Dictionary<string, string> named, HashSet<string> flags)
     {
-        string[] demos = File.ReadAllLines(named["--list"]).Where(l => l.Length > 0).ToArray();
+        string[] demos = [.. File.ReadAllLines(named["--list"]).Where(l => l.Length > 0)];
         string read = named.GetValueOrDefault("--read", "mmap");
         string compact = named.GetValueOrDefault("--compact", "none");
         string? plan = named.GetValueOrDefault("--plan");

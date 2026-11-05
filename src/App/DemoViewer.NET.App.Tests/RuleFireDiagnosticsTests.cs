@@ -91,7 +91,7 @@ public class RuleFireDiagnosticsTests
 
             // The never-fired lint row, exactly one row for the probe rule (the absent-event
             // warning must NOT also fire: player_death is present in the demo).
-            List<RuleDiagnostic> probeRows = diags.Where(d => d.RuleId == "never_fires_probe").ToList();
+            List<RuleDiagnostic> probeRows = [.. diags.Where(d => d.RuleId == "never_fires_probe")];
             await Assert.That(probeRows.Count).IsEqualTo(1);
             await Assert.That(probeRows[0].Severity).IsEqualTo("warning");
             await Assert.That(probeRows[0].ChainId).IsEqualTo("dead_rule_probe");
@@ -210,7 +210,7 @@ public class RuleFireDiagnosticsTests
             Marshal.Copy(fb.Address, buffer, 0, buffer.Length);
         }
 
-        HashSet<int> colors = new();
+        HashSet<int> colors = [];
         for (int i = 0; i + 3 < buffer.Length; i += 4)
         {
             colors.Add(buffer[i] | buffer[i + 1] << 8 | buffer[i + 2] << 16);

@@ -216,7 +216,7 @@ public sealed class GraphBreakpointStore
         }
 
         Dictionary<string, List<PersistedGraphBreakpoint>> merged = Merge(
-            ReadAll(), demoKey, breakpoints.Select(PersistedGraphBreakpoint.From).ToList());
+            ReadAll(), demoKey, [.. breakpoints.Select(PersistedGraphBreakpoint.From)]);
 
         try
         {
@@ -251,7 +251,7 @@ public sealed class GraphBreakpointStore
 
         if (entries.Count > 0)
         {
-            result[demoKey] = entries.ToList();
+            result[demoKey] = [.. entries];
         }
 
         return result;

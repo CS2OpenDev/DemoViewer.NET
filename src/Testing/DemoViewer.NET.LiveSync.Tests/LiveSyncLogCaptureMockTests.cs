@@ -79,7 +79,7 @@ public class LiveSyncLogCaptureMockTests
             // ASP.NET request that logs at Information), then assert NO framework category surfaced.
             await session.StartWatchAsync(cancellationToken: cancellationToken);
             string demoPath = Path.Combine(Path.GetTempPath(), $"logcap-{Guid.NewGuid():N}.dem");
-            await File.WriteAllBytesAsync(demoPath, "PBDEMS2\0"u8.ToArray(),
+            await File.WriteAllBytesAsync(demoPath, [.. "PBDEMS2\0"u8],
                 cancellationToken);
             try
             {

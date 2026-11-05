@@ -72,7 +72,7 @@ public sealed partial class StratRoleViewPanelViewModel : ObservableObject
     }
 
     /// <summary>The slots the picker offers, always the five in order.</summary>
-    public static IReadOnlyList<string> Slots { get; } = StratVocabulary.Slots;
+    public static IReadOnlyList<string> Slots => StratVocabulary.Slots;
 
     public bool IsBrowser { get; }
 

@@ -195,7 +195,7 @@ public class Playback2DTrajectoryTests
         ctx.Push(new Snap(2, view));
 
         await Assert.That(vm.GrenadeTrails.Count).IsEqualTo(5);
-        GrenadeKind[] kinds = vm.GrenadeTrails.Select(t => t.Kind).OrderBy(k => k).ToArray();
+        GrenadeKind[] kinds = [.. vm.GrenadeTrails.Select(t => t.Kind).OrderBy(k => k)];
         await Assert.That(kinds)
             .IsEquivalentTo(
                 [GrenadeKind.He, GrenadeKind.Flash, GrenadeKind.Smoke, GrenadeKind.Molotov, GrenadeKind.Decoy],
@@ -255,7 +255,7 @@ public class Playback2DTrajectoryTests
 
     private sealed class View : IReadOnlyEntityView
     {
-        private readonly List<IReadOnlyEntity> _ents = new();
+        private readonly List<IReadOnlyEntity> _ents = [];
         public IEnumerable<IReadOnlyEntity> All() => _ents;
         public IEnumerable<IReadOnlyEntity> OfClass(string className) => _ents.Where(e => e.ClassName == className);
         public IReadOnlyEntity? BySerial(int serial) => null;

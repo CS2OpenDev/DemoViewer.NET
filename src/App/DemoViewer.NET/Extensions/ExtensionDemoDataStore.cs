@@ -494,10 +494,12 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
             return [];
         }
 
-        return Directory.EnumerateFiles(folder, key + "*" + Suffix)
-            .Where(f => Path.GetFileName(f) is var name
-                && (name == key + Suffix || name.StartsWith(key + ".", StringComparison.Ordinal)))
-            .ToList();
+        return
+        [
+            .. Directory.EnumerateFiles(folder, key + "*" + Suffix)
+                .Where(f => Path.GetFileName(f) is var name
+                    && (name == key + Suffix || name.StartsWith(key + ".", StringComparison.Ordinal)))
+        ];
     }
 
     // Outside the lock. The files of entries already gone from the index; one that will not delete is left
@@ -781,7 +783,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
 
     private static void WriteFile(string file, Header header, ReadOnlySpan<byte> payload)
     {
-        byte[] content = payload.ToArray();
+        byte[] content = [.. payload];
         AtomicFile.Write(file, stream =>
         {
             using GZipStream gzip = new(stream, CompressionLevel.Fastest, true);

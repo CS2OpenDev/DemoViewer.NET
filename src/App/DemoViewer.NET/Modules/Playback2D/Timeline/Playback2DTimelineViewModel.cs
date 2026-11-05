@@ -34,20 +34,20 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
 
     private const int MaxFoldedTooltipLines = 5;
 
-    private readonly List<TimelineBand> _builtBands = new();
-    private readonly List<TimelineBand> _builtLaneBands = new();
-    private readonly List<TimelineMarker> _builtMarkers = new();
-    private readonly List<TimelineTrackToggle> _toggles = new();
+    private readonly List<TimelineBand> _builtBands = [];
+    private readonly List<TimelineBand> _builtLaneBands = [];
+    private readonly List<TimelineMarker> _builtMarkers = [];
+    private readonly List<TimelineTrackToggle> _toggles = [];
 
     // Per-track content, so a track that says "re-query me" costs one track's build instead of every
     // track's. Kept parallel to _tracks/_toggles, and recombined in registration order. That is display
     // order, and the rounds band's binary search depends on it staying ascending.
-    private readonly List<List<TimelineBand>> _trackBands = new();
-    private readonly List<Action> _trackHandlers = new();
-    private readonly List<List<TimelineMarker>> _trackMarkers = new();
-    private readonly List<TimelineBandRow> _trackRows = new();
-    private readonly List<ITimelineTrack> _tracks = new();
-    private readonly List<TimelineLane> _lanes = new();
+    private readonly List<List<TimelineBand>> _trackBands = [];
+    private readonly List<Action> _trackHandlers = [];
+    private readonly List<List<TimelineMarker>> _trackMarkers = [];
+    private readonly List<TimelineBandRow> _trackRows = [];
+    private readonly List<ITimelineTrack> _tracks = [];
+    private readonly List<TimelineLane> _lanes = [];
 
     [ObservableProperty]
     private bool _hasLaneBands;
@@ -117,17 +117,17 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     private ITimelineData? Data { get; set; }
 
     /// <summary>The laid-out round bands. Rebuilt on <see cref="Rebuild" /> and on a width change.</summary>
-    public ObservableCollection<TimelineBandViewModel> Bands { get; } = new();
+    public ObservableCollection<TimelineBandViewModel> Bands { get; } = [];
 
     /// <summary>
     ///     The laid-out bands of the tracks registered on <see cref="TimelineBandRow.Lane" />, drawn in a row
     ///     of their own under the rounds. Kept apart from <see cref="Bands" /> because the rounds row's
     ///     label search needs one ascending, non-overlapping list, and a tag span overlaps a round.
     /// </summary>
-    public ObservableCollection<TimelineBandViewModel> LaneBands { get; } = new();
+    public ObservableCollection<TimelineBandViewModel> LaneBands { get; } = [];
 
     /// <summary>The laid-out point markers, after same-track coalescing.</summary>
-    public ObservableCollection<TimelineMarkerViewModel> Markers { get; } = new();
+    public ObservableCollection<TimelineMarkerViewModel> Markers { get; } = [];
 
     /// <summary>The playhead's left offset as a margin. The item layer positions by margin, not by Canvas.</summary>
     public Thickness PlayheadOffset => new(PlayheadX, 0, 0, 0);

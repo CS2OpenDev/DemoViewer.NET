@@ -94,8 +94,8 @@ public static class Zones
         string vpkPath, string mapName, IReadOnlyList<FloorBand> floors, string bundleMapVersion,
         string bakerVersion, string outPath)
     {
-        List<string> notes = new();
-        List<string> failures = new();
+        List<string> notes = [];
+        List<string> failures = [];
         Crc32 crc = new();
 
         using Package package = new();
@@ -118,12 +118,14 @@ public static class Zones
 
         // Sorted by name so the id a place gets is stable across re-bakes; consumers store the name,
         // never the id, but a stable id keeps the diff of a re-bake readable.
-        List<string> places = volumes
-            .Where(v => v is { Kind: "place", PlaceName: not null })
-            .Select(v => v.PlaceName!)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(p => p, StringComparer.Ordinal)
-            .ToList();
+        List<string> places =
+        [
+            .. volumes
+                .Where(v => v is { Kind: "place", PlaceName: not null })
+                .Select(v => v.PlaceName!)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(p => p, StringComparer.Ordinal)
+        ];
         Dictionary<string, int> placeIds = new(StringComparer.Ordinal);
         for (int i = 0; i < places.Count; i++)
         {
@@ -191,7 +193,7 @@ public static class Zones
         JsonElement root = doc.RootElement;
         string mapVersion = root.GetProperty("mapVersion").GetString()
             ?? throw new InvalidDataException($"{bundlePath}: mapVersion is null");
-        List<FloorBand> floors = new();
+        List<FloorBand> floors = [];
         foreach (JsonElement band in root.GetProperty("floors").EnumerateArray())
         {
             floors.Add(new FloorBand(band.GetProperty("minZ").GetDouble(), band.GetProperty("maxZ").GetDouble()));
@@ -212,7 +214,7 @@ public static class Zones
     /// </summary>
     public static IReadOnlyList<string> CheckAgainstBaseline(Coverage actual)
     {
-        List<string> failures = new();
+        List<string> failures = [];
         if (!ExpectedCoverage.TryGetValue(actual.Map, out Coverage? expected))
         {
             return failures;
@@ -267,7 +269,7 @@ public static class Zones
         Package package, string mapName, Crc32 crc, List<string> notes, List<string> failures,
         out double? bombRadius)
     {
-        List<Volume> volumes = new();
+        List<Volume> volumes = [];
         bombRadius = null;
         int hullsChecked = 0, unexpectedSign = 0;
 
@@ -393,7 +395,7 @@ public static class Zones
                 foreach (Part part in phys.Parts)
                 {
                     meshes += part.Shape.Meshes?.Length ?? 0;
-                    foreach (HullDescriptor hd in part.Shape.Hulls ?? Array.Empty<HullDescriptor>())
+                    foreach (HullDescriptor hd in part.Shape.Hulls ?? [])
                     {
                         hullsChecked++;
                         HullPlanes? hull = ToWorldHull(hd.Shape, origin, angles, out bool signAsExpected);
@@ -523,9 +525,9 @@ public static class Zones
     // flood never reaches are isolated islands and get no place.
     private static Assignment AssignAreas(NavMeshFile nav, List<Volume> volumes, Dictionary<string, int> placeIds)
     {
-        List<Volume> places = volumes.Where(v => v is { Kind: "place", PlaceName: not null }).ToList();
+        List<Volume> places = [.. volumes.Where(v => v is { Kind: "place", PlaceName: not null })];
         Dictionary<uint, int> place = new();
-        HashSet<uint> seeds = new();
+        HashSet<uint> seeds = [];
         int multi = 0;
 
         foreach (uint id in nav.Areas.Keys.OrderBy(k => k))
@@ -538,7 +540,7 @@ public static class Zones
 
             Vector3 centroid = Centroid(area.Corners);
             int first = -1;
-            HashSet<int> hits = new();
+            HashSet<int> hits = [];
             foreach (Volume v in places)
             {
                 bool hit = false;
@@ -606,7 +608,7 @@ public static class Zones
     // Every connection between two areas of different places adds one undirected pair.
     private static List<(int A, int B)> BuildAdjacency(NavMeshFile nav, Assignment assignment)
     {
-        HashSet<(int, int)> pairs = new();
+        HashSet<(int, int)> pairs = [];
         foreach ((uint id, NavMeshArea area) in nav.Areas)
         {
             if (!assignment.Place.TryGetValue(id, out int a))
@@ -626,14 +628,14 @@ public static class Zones
             }
         }
 
-        return pairs.OrderBy(p => p.Item1).ThenBy(p => p.Item2).ToList();
+        return [.. pairs.OrderBy(p => p.Item1).ThenBy(p => p.Item2)];
     }
 
     // Undirected nav connections, deduplicated: the outline layer needs them to find the edges with no
     // same-place partner, and a finer tolerance can walk them instead of the place graph.
     private static List<(uint A, uint B)> BuildAreaLinks(NavMeshFile nav)
     {
-        HashSet<(uint, uint)> links = new();
+        HashSet<(uint, uint)> links = [];
         foreach ((uint id, NavMeshArea area) in nav.Areas)
         {
             foreach (NavMeshConnection[] side in area.Connections)
@@ -648,7 +650,7 @@ public static class Zones
             }
         }
 
-        return links.OrderBy(l => l.Item1).ThenBy(l => l.Item2).ToList();
+        return [.. links.OrderBy(l => l.Item1).ThenBy(l => l.Item2)];
     }
 
     private static Vector3 Centroid(Vector3[] corners)
@@ -775,7 +777,7 @@ public static class Zones
     private static string PairLines(IEnumerable<string> pairs)
     {
         const int PerLine = 16;
-        List<string> lines = new();
+        List<string> lines = [];
         foreach (string[] chunk in pairs.Chunk(PerLine))
         {
             lines.Add("    " + string.Join(", ", chunk));
@@ -864,7 +866,7 @@ public static class Zones
         public bool Rotated { get; set; }
         public Vector3 Min = new(float.MaxValue);
         public Vector3 Max = new(float.MinValue);
-        public List<HullPlanes> Hulls { get; } = new();
+        public List<HullPlanes> Hulls { get; } = [];
 
         public bool Contains(Vector3 p)
         {

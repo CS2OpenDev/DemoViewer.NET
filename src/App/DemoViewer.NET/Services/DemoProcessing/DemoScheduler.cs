@@ -84,7 +84,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
     private static Func<IReadOnlyList<IDemoPass>> Snapshot(IReadOnlyList<IDemoEvaluator> evaluators)
     {
         ArgumentNullException.ThrowIfNull(evaluators);
-        IReadOnlyList<IDemoPass> passes = evaluators.Select(e => (IDemoPass)new EvaluatorPassAdapter(e, [])).ToList();
+        IReadOnlyList<IDemoPass> passes = [.. evaluators.Select(e => (IDemoPass)new EvaluatorPassAdapter(e, []))];
         return () => passes;
     }
 

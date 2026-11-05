@@ -197,7 +197,7 @@ public class PackOffCompositionTests
             string[] packKinds =
                 ["StratMining", "StratPreview", "LineupClips", "SuggestionsInbox", "SectionCompute", "TeamsCommand"];
 
-            List<DemoQueueItem> queuedItems = queue.Items.ToList();
+            List<DemoQueueItem> queuedItems = [.. queue.Items];
             foreach (DemoQueueItem item in queuedItems)
             {
                 string kindString = item.Kind.ToString();

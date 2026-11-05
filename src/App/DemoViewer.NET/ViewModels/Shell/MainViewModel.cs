@@ -271,7 +271,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     Drained once after parse into the grouped Output rows + the per-frame census, far
     ///     cheaper than the old per-occurrence UI dispatch (tens of thousands of posts per demo).
     /// </summary>
-    private readonly ConcurrentBag<UnknownMessageInfo> _unknownAccumulator = new();
+    private readonly ConcurrentBag<UnknownMessageInfo> _unknownAccumulator = [];
 
     /// <summary>
     ///     Window-spawning abstraction. Desktop opens a real
@@ -2537,7 +2537,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _moduleRegistry.Register(new BuiltInTabsModule(this, Diagnostics, LibraryTab, StatsTab, MatchOverviewTab,
             PlayerOverviewTab));
 
-        List<WorkspaceTabDescriptor> descriptors = new();
+        List<WorkspaceTabDescriptor> descriptors = [];
         foreach (IWorkspaceModule module in _moduleRegistry.Modules)
         {
             IEnumerable<string> caps = HostCapabilities();
@@ -2748,11 +2748,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         ReconcileSections();
 
         // Desired = every cached descriptor the gate now enables, in the strip's sort order.
-        List<WorkspaceTabDescriptor> desired = _allTabDescriptors
-            .Where(IsTabEnabled)
-            .OrderBy(d => d.Placement)
-            .ThenBy(d => d.Order)
-            .ToList();
+        List<WorkspaceTabDescriptor> desired =
+        [
+            .. _allTabDescriptors
+                .Where(IsTabEnabled)
+                .OrderBy(d => d.Placement)
+                .ThenBy(d => d.Order)
+        ];
         HashSet<string> desiredIds = new(desired.Select(d => d.TabId), StringComparer.Ordinal);
 
         // (1) Remove tabs that are now disabled. Snapshot first (mutating Tabs during the walk).
@@ -2801,7 +2803,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         foreach (SectionHostEntry host in _hosts)
         {
-            host.Sections.Reconcile(host.AllSections.Where(IsTabEnabled).OrderBy(d => d.Order).ToList());
+            host.Sections.Reconcile([.. host.AllSections.Where(IsTabEnabled).OrderBy(d => d.Order)]);
         }
     }
 
@@ -2976,7 +2978,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             }
 
             HasFile = Frames.Count > 0;
-            _allFrames = Frames.ToList();
+            _allFrames = [.. Frames];
             // Register the demo with the controller (frame list + tick rate for the play loop).
             Playback.LoadDemo(_allFrames, parsed.TickRate);
             // Hand the module context the stable identity roster (slot / steamID / name; no
@@ -3080,7 +3082,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             if (!census.TryGetValue(info.FrameNumber, out List<UnknownMessageInfo>? list))
             {
-                census[info.FrameNumber] = list = new List<UnknownMessageInfo>();
+                census[info.FrameNumber] = list = [];
             }
 
             list.Add(info);
@@ -4266,7 +4268,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             SelectTabById("builtin.matchoverview");
         }
 
-        List<DemoFrame> allFrames = new();
+        List<DemoFrame> allFrames = [];
         bool superseded = false;
 
         try
@@ -4494,11 +4496,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         IReadOnlyList<IStorageFolder> folders = await _storageProvider.OpenFolderPickerAsync(
             new FolderPickerOpenOptions { Title = "Add demo folder", AllowMultiple = true });
 
-        return folders
-            .Select(f => f.TryGetLocalPath())
-            .Where(p => !string.IsNullOrEmpty(p))
-            .Cast<string>()
-            .ToList();
+        return
+        [
+            .. folders
+                .Select(f => f.TryGetLocalPath())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Cast<string>()
+        ];
     }
 
     /// <summary>
@@ -4667,8 +4671,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private List<string>? SelectedSpecialFilter()
     {
-        List<string> enabled = GameEventFilters
-            .Where(f => f.IsEnabled).Select(f => f.EventName).ToList();
+        List<string> enabled =
+        [
+            .. GameEventFilters
+                .Where(f => f.IsEnabled).Select(f => f.EventName)
+        ];
         return enabled.Count > 0 ? enabled : null;
     }
 
@@ -4770,7 +4777,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void RefreshFrameBreakpointMarkers()
     {
         // Snapshot the set of frame numbers with FrameNumber breakpoints active.
-        HashSet<int> setFrames = new();
+        HashSet<int> setFrames = [];
         foreach (Breakpoint bp in Debugger.Breakpoints)
         {
             if (bp.Kind == BreakpointKind.FrameNumber)

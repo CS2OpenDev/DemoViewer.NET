@@ -38,14 +38,14 @@ public sealed class BombTrack : ITimelineTrack
     /// <inheritdoc />
     public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data)
     {
-        List<TimelineMarker> markers = new();
+        List<TimelineMarker> markers = [];
         Collect(data, PlantedEvent, TimelineMarkerKind.BombPlant, PlantGlyph, "Bomb planted", markers);
         Collect(data, DefusedEvent, TimelineMarkerKind.BombDefuse, DefuseGlyph, "Bomb defused", markers);
         Collect(data, ExplodedEvent, TimelineMarkerKind.BombExplode, ExplodeGlyph, "Bomb exploded", markers);
 
         if (markers.Count == 0)
         {
-            return Array.Empty<TimelineMarker>();
+            return [];
         }
 
         markers.Sort(static (a, b) => a.FrameIndex.CompareTo(b.FrameIndex));
@@ -53,7 +53,7 @@ public sealed class BombTrack : ITimelineTrack
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => Array.Empty<TimelineBand>();
+    public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => [];
 
     /// <inheritdoc />
     // Never raised; see RoundTrack.Changed.

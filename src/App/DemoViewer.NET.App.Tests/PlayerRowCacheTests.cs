@@ -255,7 +255,7 @@ public class PlayerRowCacheTests
             await Assert.That((inLibrary.HasFacet, inLibrary.Stats))
                 .IsEqualTo((false, (IReadOnlyDictionary<string, double>?)null));
             await Assert.That(library.Accounts[Grim].Count(d => d.Stats is not null)).IsEqualTo(4);
-            await Assert.That(reads.Order(StringComparer.Ordinal).ToArray())
+            await Assert.That([.. reads.Order(StringComparer.Ordinal)])
                 .IsEquivalentTo(["/lib/0.dem", "/lib/3.dem"], CollectionOrdering.Matching)
                 .Because("the failed demo is read again, the rest are held");
             await Assert.That(after.Aggregate().WithStats).IsEqualTo(5);

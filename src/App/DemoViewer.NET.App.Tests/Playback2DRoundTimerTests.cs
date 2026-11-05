@@ -101,7 +101,7 @@ public class Playback2DRoundTimerTests
 
     private static List<int> FreezeEndFrames(IReadOnlyList<DemoFrame> frames)
     {
-        List<int> result = new();
+        List<int> result = [];
         for (int i = 0; i < frames.Count; i++)
         {
             if (frames[i].InnerMessages.Any(m => m is GameEventMessage gem &&

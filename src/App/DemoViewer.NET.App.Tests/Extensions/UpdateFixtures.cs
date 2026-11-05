@@ -138,7 +138,7 @@ internal static class UpdateFixtures
         public List<QueueJobRequest> Requests { get; } = [];
 
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
-        public bool BackgroundEnabled { get; } = true;
+        public bool BackgroundEnabled => true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
         public int RunningCount => 0;

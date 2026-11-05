@@ -163,7 +163,7 @@ public sealed partial class ReplayTabViewModel : ObservableObject
             return;
         }
 
-        List<TickGroup> groups = new();
+        List<TickGroup> groups = [];
         int start = 0;
         while (start < allFrames.Count)
         {
@@ -186,7 +186,7 @@ public sealed partial class ReplayTabViewModel : ObservableObject
                 GameTick = serverTick,
                 StartFrameIndex = start,
                 EndFrameIndex = end,
-                Frames = allFrames.Skip(start).Take(end - start + 1).ToList()
+                Frames = [.. allFrames.Skip(start).Take(end - start + 1)]
             };
             groups.Add(group);
 
@@ -249,7 +249,7 @@ public sealed partial class ReplayTabViewModel : ObservableObject
 
         List<HarvestCardViewModel> cards = await Task.Run(() =>
         {
-            List<HarvestCardViewModel> result = new();
+            List<HarvestCardViewModel> result = [];
             foreach (DemoFrame frame in group.Frames)
             {
                 if (ct.IsCancellationRequested)

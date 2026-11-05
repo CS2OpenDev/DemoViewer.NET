@@ -106,7 +106,7 @@ public sealed class BitStreamWriterTests
         await Assert.That(survivors[0].Bytes).IsEquivalentTo(new byte[] { 1, 2, 3 }, CollectionOrdering.Matching);
         await Assert.That(survivors[1].TypeId).IsEqualTo(55u);
         await Assert.That(survivors[1].Bytes)
-            .IsEquivalentTo(Enumerable.Repeat((byte)0xAB, 300).ToArray(), CollectionOrdering.Matching);
+            .IsEquivalentTo([.. Enumerable.Repeat((byte)0xAB, 300)], CollectionOrdering.Matching);
     }
 
     private static (uint TypeId, byte[] Payload)[] SampleMessages() =>

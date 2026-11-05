@@ -65,12 +65,14 @@ public class Playback2DCompositionTests
             .Because("production constructs this type somewhere the argument reader could not parse — a "
                 + "target-typed `new(...)`, or a call list this parser needs to grow for");
 
-        List<string> gaps = sites
-            .SelectMany(s => s.Omitted.Select(p => (Site: s, Parameter: p)))
-            .Where(g => !_omittedByDesign.ContainsKey($"{g.Site.Type}.{g.Parameter}"))
-            .Select(g => $"{g.Site.Type}.{g.Parameter} omitted at {g.Site.Site}")
-            .OrderBy(s => s, StringComparer.Ordinal)
-            .ToList();
+        List<string> gaps =
+        [
+            .. sites
+                .SelectMany(s => s.Omitted.Select(p => (Site: s, Parameter: p)))
+                .Where(g => !_omittedByDesign.ContainsKey($"{g.Site.Type}.{g.Parameter}"))
+                .Select(g => $"{g.Site.Type}.{g.Parameter} omitted at {g.Site.Site}")
+                .OrderBy(s => s, StringComparer.Ordinal)
+        ];
 
         await Assert.That(string.Join("; ", gaps)).IsEqualTo("")
             .Because("an optional seam the shipped composition never mentions is a feature only the "
@@ -173,11 +175,13 @@ public class Playback2DCompositionTests
     {
         // The App head's own module services and view-models. The scene contract and Pipeline are
         // excluded deliberately; see the class doc.
-        Type[] candidates = typeof(AppSettings).Assembly.GetTypes()
-            .Where(t => Playback2DWholeGraph.IsModuleNamespace(t.Namespace))
-            .Where(t => Seams(t).Length > 0)
-            .OrderBy(t => t.Name, StringComparer.Ordinal)
-            .ToArray();
+        Type[] candidates =
+        [
+            .. typeof(AppSettings).Assembly.GetTypes()
+                .Where(t => Playback2DWholeGraph.IsModuleNamespace(t.Namespace))
+                .Where(t => Seams(t).Length > 0)
+                .OrderBy(t => t.Name, StringComparer.Ordinal)
+        ];
 
         // Which of them production actually builds. IL, because it cannot be spelled around.
         HashSet<string> constructed = Playback2DWholeGraph
@@ -281,9 +285,11 @@ public class Playback2DCompositionTests
             return [];
         }
 
-        return ctors[0].GetParameters()
-            .Where(p => p is { IsOptional: true, HasDefaultValue: true, DefaultValue: null })
-            .ToArray();
+        return
+        [
+            .. ctors[0].GetParameters()
+                .Where(p => p is { IsOptional: true, HasDefaultValue: true, DefaultValue: null })
+        ];
     }
 
     private static (int Positional, HashSet<string> Named)? Read(string text) =>

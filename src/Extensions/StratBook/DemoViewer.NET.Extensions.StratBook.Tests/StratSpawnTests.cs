@@ -100,7 +100,7 @@ public class StratSpawnTests
     private static List<FloorSlice> Floors(string map)
     {
         string dir = MapAssetBundleReader.FindBundleDirectory(map)!;
-        return MapAssetBundleReader.TryRead(dir)!.Floors.Select(f => new FloorSlice(f.MinZ, f.MaxZ)).ToList();
+        return [.. MapAssetBundleReader.TryRead(dir)!.Floors.Select(f => new FloorSlice(f.MinZ, f.MaxZ))];
     }
 
     [Test]

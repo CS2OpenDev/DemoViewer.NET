@@ -241,7 +241,7 @@ public static class PayloadNodeBuilder
                             slice, span, out int pStart, out int pLen) && pLen > 0)
                     {
                         AnnotateRecursively(child.Children,
-                            slice.AsSpan(pStart, pLen).ToArray(),
+                            [.. slice.AsSpan(pStart, pLen)],
                             absoluteBase + pStart);
                     }
                 }
@@ -255,7 +255,7 @@ public static class PayloadNodeBuilder
                         slice, span, out int pStart, out int pLen) && pLen > 0)
                 {
                     AnnotateRecursively(node.Children,
-                        slice.AsSpan(pStart, pLen).ToArray(),
+                        [.. slice.AsSpan(pStart, pLen)],
                         absoluteBase + pStart);
                 }
             }
@@ -266,7 +266,7 @@ public static class PayloadNodeBuilder
 
     private static List<PayloadNode> BuildFields(IMessage message, int depth = 0)
     {
-        List<PayloadNode> nodes = new();
+        List<PayloadNode> nodes = [];
         foreach (FieldDescriptor? field in message.Descriptor.Fields.InFieldNumberOrder())
         {
             // Skip default/empty values
@@ -370,7 +370,7 @@ public static class PayloadNodeBuilder
             case 2: // length-delimited
                 if (DownstreamUtilities.TryGetPayloadRange(bytes, span, out int pStart, out int pLen))
                 {
-                    byte[] payload = bytes.AsSpan(pStart, pLen).ToArray();
+                    byte[] payload = [.. bytes.AsSpan(pStart, pLen)];
 
                     // Try as UTF-8 text.
                     if (IsLikelyString(payload))
@@ -439,7 +439,7 @@ public static class PayloadNodeBuilder
         if (field.IsRepeated)
         {
             IList list = (IList)rawValue;
-            List<PayloadNode> children = new();
+            List<PayloadNode> children = [];
             for (int i = 0; i < list.Count; i++)
             {
                 children.Add(BuildItem($"[{i}]", field, list[i]!, depth + 1));
@@ -630,7 +630,7 @@ public static class PayloadNodeBuilder
 
         Dictionary<int, int> fieldIdx = new();
 
-        List<PayloadNode> children = new();
+        List<PayloadNode> children = [];
         foreach (DownstreamUtilities.FieldSpan span in spans)
         {
             int fn = span.FieldNumber;

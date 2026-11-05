@@ -91,7 +91,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // The WHOLE demo's kills, pre-built ONCE at load from IModuleContext.GetEventTimeline("player_death")
     // (decoupling display from the push cadence, no kill lost to a render-skipped frame). Rebuilt if the
     // roster arrives after activation (names depend on it). _killWindow is reusable render scratch.
-    private readonly List<KillFeedRow> _allKills = new();
+    private readonly List<KillFeedRow> _allKills = [];
 
     private readonly AnnotationSessionController _annotationController;
     private readonly AnnotationTrack _annotationTrack;
@@ -408,13 +408,13 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     public VisibilityEngine? VisionEngine { get; private set; }
 
     /// <summary>Per-player current-state rows for the attributes panel.</summary>
-    public ObservableCollection<PlayerAttributes> Attributes { get; } = new();
+    public ObservableCollection<PlayerAttributes> Attributes { get; } = [];
 
     /// <summary>
     ///     The kill-feed rows currently in the display window (ordered oldest→newest). A tick-window
     ///     filter over the pre-built timeline, refreshed each push, NOT an accumulator.
     /// </summary>
-    public ObservableCollection<KillFeedRow> KillFeed { get; } = new();
+    public ObservableCollection<KillFeedRow> KillFeed { get; } = [];
 
     /// <summary>Round-level game-info panel state.</summary>
     public GameInfo GameInfo { get; } = new();
@@ -536,11 +536,12 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     ///     the live roster. Spectators / coaches / GOTV (non-T/CT) are excluded.
     /// </summary>
     public IReadOnlyList<FollowablePlayer> FollowablePlayers =>
-        Attributes.Where(a => a.InMatch)
+    [
+        .. Attributes.Where(a => a.InMatch)
             .OrderBy(a => a.Team)
             .ThenBy(a => a.Slot)
             .Select(a => new FollowablePlayer(a.Slot, a.Name, a.Team) { PlayerOverview = a.PlayerOverview })
-            .ToList();
+    ];
 
     /// <summary>Number of <c>Advanced</c> pushes received while active (read by tests).</summary>
     public int PushCount { get; private set; }

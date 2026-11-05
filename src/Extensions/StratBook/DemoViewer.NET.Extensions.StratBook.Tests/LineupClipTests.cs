@@ -941,8 +941,8 @@ public class LineupClipTests
         processing.Resume();
         await service.WorkerTask.WaitAsync(TimeSpan.FromSeconds(10));
 
-        List<DemoQueueItemSnapshot> items = processing.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing)
-            .ToList();
+        List<DemoQueueItemSnapshot> items =
+            [.. processing.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing)];
         await Assert.That(items.Count).IsEqualTo(2);
         await Assert.That(string.Join(",", items.Select(i => i.State))).IsEqualTo("Completed,Completed")
             .Because("every batch ends on its own");

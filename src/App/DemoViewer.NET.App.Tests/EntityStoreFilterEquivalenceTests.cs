@@ -33,7 +33,7 @@ public class EntityStoreFilterEquivalenceTests
     [Test]
     public async Task CcsTeamOnlyFilter_ProducesIdenticalScore_ToFullReplay()
     {
-        string[] present = _demoNames.Select(DemoTestHelper.FindDemoPath).OfType<string>().ToArray();
+        string[] present = [.. _demoNames.Select(DemoTestHelper.FindDemoPath).OfType<string>()];
         if (present.Length == 0)
         {
             throw new SkipTestException("no equivalence demo present");

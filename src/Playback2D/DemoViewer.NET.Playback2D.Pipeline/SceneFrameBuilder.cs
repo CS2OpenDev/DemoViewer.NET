@@ -559,7 +559,7 @@ public sealed class SceneFrameBuilder
         }
 
         // Two or more boundaries describe a real multi-floor map; fewer ⇒ leave null.
-        _sectionHeights = kept.Count >= 2 ? kept.ToArray() : null;
+        _sectionHeights = kept.Count >= 2 ? [.. kept] : null;
 
         // Only latch "read" once the field actually resolved (≥1 value seen); otherwise the array has not
         // been networked yet this frame and we retry next frame.

@@ -303,7 +303,7 @@ public static class WorkbenchCompletionSource
         }
 
         IEnumerable<WorkbenchCompletion> candidates = Narrow(byKey.Values, context);
-        return candidates.OrderByDescending(c => c.Priority).ThenBy(c => c.Text, StringComparer.Ordinal).ToList();
+        return [.. candidates.OrderByDescending(c => c.Priority).ThenBy(c => c.Text, StringComparer.Ordinal)];
     }
 
     /// <summary>Filters the full vocabulary to the categories that fit the cursor <paramref name="context" />.</summary>

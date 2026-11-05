@@ -69,11 +69,13 @@ public class Playback2DEventWiringTests
             .Because("an event with custom add/remove accessors is invisible to this scan — extend the "
                 + "guard in the same commit that adds one");
 
-        List<string> dead = contracts
-            .Where(c => !c.IsWired)
-            .Select(c => c.Describe())
-            .OrderBy(s => s, StringComparer.Ordinal)
-            .ToList();
+        List<string> dead =
+        [
+            .. contracts
+                .Where(c => !c.IsWired)
+                .Select(c => c.Describe())
+                .OrderBy(s => s, StringComparer.Ordinal)
+        ];
 
         await Assert.That(string.Join("; ", dead)).IsEqualTo("")
             .Because("an event with no production subscriber is a feature that computes its answer and "

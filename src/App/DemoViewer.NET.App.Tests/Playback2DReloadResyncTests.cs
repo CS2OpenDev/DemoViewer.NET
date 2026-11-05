@@ -47,7 +47,7 @@ public class Playback2DReloadResyncTests
         // (CurrentPlayers empty), exactly as after a real reload.
         ctx.MapName = "de_mirage";
         ctx.Roster = [new() { Slot = 0, Name = "Bob", SteamId = 2 }];
-        ctx.SetCurrentPlayers(Array.Empty<IPlayerState>());
+        ctx.SetCurrentPlayers([]);
         ctx.RaiseDemoReset();
 
         // The map image + roster labels now reflect demo B: full restoration, no manual seek required...
@@ -134,8 +134,8 @@ public class Playback2DReloadResyncTests
 
     private sealed class View : IReadOnlyEntityView
     {
-        public IEnumerable<IReadOnlyEntity> All() => Array.Empty<IReadOnlyEntity>();
-        public IEnumerable<IReadOnlyEntity> OfClass(string className) => Array.Empty<IReadOnlyEntity>();
+        public IEnumerable<IReadOnlyEntity> All() => [];
+        public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
         public IReadOnlyEntity? BySerial(int serial) => null;
         public IReadOnlyEntity? ByIndex(int entityIndex) => null;
         public IReadOnlyEntity? ResolveHandle(ulong handle) => null;

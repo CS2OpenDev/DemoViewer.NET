@@ -84,11 +84,13 @@ public class Playback2DSettingsConsumptionTests
         await Assert.That(keys.Count).IsGreaterThan(30)
             .Because("the section carries the registry's full key set, not a stub");
 
-        List<string> unconsumed = keys
-            .Where(k => !k.IsConsumed && !_unconsumedByDesign.ContainsKey(k.Name))
-            .Select(k => k.Describe())
-            .OrderBy(s => s, StringComparer.Ordinal)
-            .ToList();
+        List<string> unconsumed =
+        [
+            .. keys
+                .Where(k => !k.IsConsumed && !_unconsumedByDesign.ContainsKey(k.Name))
+                .Select(k => k.Describe())
+                .OrderBy(s => s, StringComparer.Ordinal)
+        ];
 
         await Assert.That(string.Join("; ", unconsumed)).IsEqualTo("")
             .Because("a key with no writer is a preference the user cannot express, and one with no "
@@ -116,9 +118,11 @@ public class Playback2DSettingsConsumptionTests
             .Because("a parse that found a handful of keys has found the wrong block, and would pass "
                 + "whatever the class contains");
 
-        List<string> missing = registry
-            .Where(k => !declared.Contains(k) && !_registryKeysNotYetBuilt.ContainsKey(k))
-            .ToList();
+        List<string> missing =
+        [
+            .. registry
+                .Where(k => !declared.Contains(k) && !_registryKeysNotYetBuilt.ContainsKey(k))
+        ];
 
         await Assert.That(string.Join(", ", missing)).IsEqualTo("")
             .Because("the registry is the persisted-key contract; a key it pins and the class lacks is a "
@@ -191,10 +195,12 @@ public class Playback2DSettingsConsumptionTests
     private static List<SettingConsumption> Analyse(
         Type settings, IEnumerable<SysAssembly> scope, Func<string, bool> isPlumbing)
     {
-        PropertyInfo[] properties = settings
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(p => p is { CanRead: true, CanWrite: true })
-            .ToArray();
+        PropertyInfo[] properties =
+        [
+            .. settings
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(p => p is { CanRead: true, CanWrite: true })
+        ];
 
         HashSet<string> accessors = properties
             .SelectMany(p => new[] { "get_" + p.Name, "set_" + p.Name })

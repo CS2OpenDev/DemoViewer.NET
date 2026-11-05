@@ -106,9 +106,11 @@ public class TimelineLayoutTests
         {
             Events =
             {
-                ["player_death"] = Enumerable.Range(0, 10)
-                    .Select(i => TimelineTrackTests.Record(1000 + i, 40000 + i))
-                    .ToArray()
+                ["player_death"] =
+                [
+                    .. Enumerable.Range(0, 10)
+                        .Select(i => TimelineTrackTests.Record(1000 + i, 40000 + i))
+                ]
             }
         };
         vm.Rebuild(data);
@@ -338,7 +340,7 @@ public class TimelineLayoutTests
         vm.RegisterTrack(new BombTrack());
         vm.RegisterTrack(new AnnotationTrack(new AnnotationDocument()));
 
-        await Assert.That(vm.Tracks.Select(t => t.Id).ToArray())
+        await Assert.That([.. vm.Tracks.Select(t => t.Id)])
             .IsEquivalentTo(_registeredTrackIds, CollectionOrdering.Matching);
 
         // And a restore against those ids actually lands, rather than being swallowed as unknown.

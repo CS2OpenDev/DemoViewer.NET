@@ -642,7 +642,7 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
             // disagree about which firings are moments.
             record.Highlights =
             [
-                .. HighlightSurfacing.Surface(events.Where(e => _harvester.IsHighlightRuleset(e.RulesetId)).ToList())
+                .. HighlightSurfacing.Surface([.. events.Where(e => _harvester.IsHighlightRuleset(e.RulesetId))])
                     .Select(e => new CachedHighlightEvent
                     {
                         RulesetId = e.RulesetId,

@@ -81,10 +81,10 @@ internal sealed class Playback2DFakeContext : IModuleContext
     }
 
     public IReadOnlyList<int> EventFrames(string? eventName) =>
-        eventName is not null && Frames.TryGetValue(eventName, out int[]? frames) ? frames : Array.Empty<int>();
+        eventName is not null && Frames.TryGetValue(eventName, out int[]? frames) ? frames : [];
 
     public IReadOnlyCollection<string> AvailableEventNames =>
-        Timelines.Keys.Concat(Frames.Keys).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        [.. Timelines.Keys.Concat(Frames.Keys).Distinct(StringComparer.OrdinalIgnoreCase)];
 
     public IReadOnlyList<GameEventView> GetEventTimeline(string eventName) =>
         Timelines.TryGetValue(eventName, out List<GameEventView>? views)
@@ -322,8 +322,8 @@ internal sealed class Playback2DFakeContext : IModuleContext
 
     private sealed class EmptyEntityView : IReadOnlyEntityView
     {
-        public IEnumerable<IReadOnlyEntity> All() => Array.Empty<IReadOnlyEntity>();
-        public IEnumerable<IReadOnlyEntity> OfClass(string className) => Array.Empty<IReadOnlyEntity>();
+        public IEnumerable<IReadOnlyEntity> All() => [];
+        public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
         public IReadOnlyEntity? BySerial(int serial) => null;
         public IReadOnlyEntity? ByIndex(int entityIndex) => null;
         public IReadOnlyEntity? ResolveHandle(ulong handle) => null;

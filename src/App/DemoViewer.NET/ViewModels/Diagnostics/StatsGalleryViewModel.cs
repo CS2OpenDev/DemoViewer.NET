@@ -154,10 +154,12 @@ public sealed partial class StatsGalleryViewModel : ObservableObject
             double best = Polarity == StatPolarity.LowerIsBetter
                 ? _columnValues.Min()
                 : _columnValues.Max();
-            return _columnValues
-                .Select(v => new GalleryCell(v, scale,
-                    Polarity != StatPolarity.Neutral && Math.Abs(v - best) < 1e-9, BarAlignment))
-                .ToList();
+            return
+            [
+                .. _columnValues
+                    .Select(v => new GalleryCell(v, scale,
+                        Polarity != StatPolarity.Neutral && Math.Abs(v - best) < 1e-9, BarAlignment))
+            ];
         }
     }
 
@@ -231,7 +233,7 @@ public sealed partial class StatsGalleryViewModel : ObservableObject
     {
         Series = Sample(16, 0, 5);
         DamageSeries = Sample(16, 0, 160);
-        KastSeries = Sample(16, 0, 2).Select(v => v > 0.5 ? 1d : 0d).ToList();
+        KastSeries = [.. Sample(16, 0, 2).Select(v => v > 0.5 ? 1d : 0d)];
     }
 
     private static List<double> Sample(int count, double min, double max)

@@ -578,7 +578,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     ///     suggestion list). Populated by <see cref="UpdateConditionSuggestions" /> from the token the
     ///     code-behind extracts at the caret.
     /// </summary>
-    public ObservableCollection<string> ConditionSuggestions { get; } = new();
+    public ObservableCollection<string> ConditionSuggestions { get; } = [];
 
     /// <summary>Cancels any in-flight evaluation / entity replay and releases their token sources.</summary>
     public void Dispose()
@@ -954,17 +954,19 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
             // ── Set graph on visualization library (triggers MSAGL layout) ──
             // Initial render is the full graph (no chain selected yet).
-            List<IGraphNode> vizNodes = nodeVms.Cast<IGraphNode>().ToList();
-            List<IGraphEdge> vizEdges = edgeVms.Cast<IGraphEdge>().ToList();
+            List<IGraphNode> vizNodes = [.. nodeVms.Cast<IGraphNode>()];
+            List<IGraphEdge> vizEdges = [.. edgeVms.Cast<IGraphEdge>()];
             await _graphViewModel.SetGraphAsync(vizNodes, vizEdges,
                 null,
                 PlayerTables.Count > 0 ? PlayerTables.Cast<INodeTable>().ToList() : null);
 
             // ── Chain summaries ───────────────────────────────────────────────
-            List<AnalysisChainSummaryViewModel> summaries = result.Timeline.Events
-                .Select(ev => ev.ChainName).Distinct().Order()
-                .Select(name => new AnalysisChainSummaryViewModel(name, result.Timeline.CountFor(name)))
-                .ToList();
+            List<AnalysisChainSummaryViewModel> summaries =
+            [
+                .. result.Timeline.Events
+                    .Select(ev => ev.ChainName).Distinct().Order()
+                    .Select(name => new AnalysisChainSummaryViewModel(name, result.Timeline.CountFor(name)))
+            ];
 
             GraphNodes = nodeVms;
             TotalMessages = result.Messages.Count;
@@ -1059,9 +1061,11 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         {
             // Shipped-tier rule errors hard-fail the run: surface every collected
             // error in the diagnostics panel instead of one truncated status line.
-            RuleDiagnostics = rce.Errors
-                .Select(RuleDiagnostic.FromError)
-                .ToList();
+            RuleDiagnostics =
+            [
+                .. rce.Errors
+                    .Select(RuleDiagnostic.FromError)
+            ];
             IsDiagnosticsOpen = true;
             StatusText = $"Analysis failed: {rce.Errors.Count} rule-config error(s) — see the ⚠ panel.";
         }
@@ -1155,8 +1159,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     internal static (List<RuleDiagnostic> Diagnostics, List<RuleFireStat> FireStats)
         ComputeRuleDiagnostics(RuleConfigLoadResult loadedRules, BuildResult build, EvaluationResult result)
     {
-        List<RuleDiagnostic> diags = new();
-        List<RuleFireStat> fireStats = new();
+        List<RuleDiagnostic> diags = [];
+        List<RuleFireStat> fireStats = [];
         Dictionary<StateNode, int> fireCountByNode = BuildFireCountByNode(build, result);
 
         foreach (RuleConfigError err in loadedRules.Errors)
@@ -1567,7 +1571,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         List<GraphEdgeViewModel> edgeVms = new(build.Edges.Count);
         int droppedEdges = 0;
 
-        HashSet<(StateNode, StateNode, string)> drawnPairs = new();
+        HashSet<(StateNode, StateNode, string)> drawnPairs = [];
         foreach (GraphEdgeDescriptor e in EnumerateGraphEdges(build, renderedPlayer))
         {
             if (!nodeVmByNode.TryGetValue(e.Source, out GraphNodeViewModel? srcVm)
@@ -1861,17 +1865,21 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         // (a non-chain logic name would join to nothing and render an inert chip) and matches the
         // _chain_{id} join-key discipline. Label = the key; the human RuleChainDef.Name isn't
         // threaded to the timeline (cosmetic, noted as a known item).
-        List<(string Key, string Label, int Count)> chips = summaries
-            .Where(s => s.ChainName.StartsWith("_chain_", StringComparison.Ordinal))
-            .Select(s => (Key: s.ChainName, Label: s.ChainName, s.Count))
-            .ToList();
+        List<(string Key, string Label, int Count)> chips =
+        [
+            .. summaries
+                .Where(s => s.ChainName.StartsWith("_chain_", StringComparison.Ordinal))
+                .Select(s => (Key: s.ChainName, Label: s.ChainName, s.Count))
+        ];
 
         // Players: distinct by slot across all materializations.
-        List<(int Slot, string Name)> players = result.MaterializedPlayers
-            .GroupBy(p => p.PlayerSlot)
-            .Select(g => (Slot: g.Key, Name: g.First().PlayerName))
-            .OrderBy(p => p.Slot)
-            .ToList();
+        List<(int Slot, string Name)> players =
+        [
+            .. result.MaterializedPlayers
+                .GroupBy(p => p.PlayerSlot)
+                .Select(g => (Slot: g.Key, Name: g.First().PlayerName))
+                .OrderBy(p => p.Slot)
+        ];
 
         Filter.Populate(chips, players);
     }
@@ -1893,7 +1901,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         // graph nodes that actually render. Membership test by reference identity.
         HashSet<StateNode> lifecycleNodes = new(lifecycleNodeList, ReferenceEqualityComparer.Instance);
 
-        List<PlayerTableViewModel> tables = new();
+        List<PlayerTableViewModel> tables = [];
         IOrderedEnumerable<IGrouping<int, PerPlayerNodeTemplate.MaterializedPlayer>> byTemplate = result
             .MaterializedPlayers
             .GroupBy(p => p.TemplateIndex)
@@ -1901,7 +1909,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
         foreach (IGrouping<int, PerPlayerNodeTemplate.MaterializedPlayer> templateGroup in byTemplate)
         {
-            List<PerPlayerNodeTemplate.MaterializedPlayer> players = templateGroup.ToList();
+            List<PerPlayerNodeTemplate.MaterializedPlayer> players = [.. templateGroup];
             if (players.Count == 0 || players[0].ColumnAssignments.Count == 0)
             {
                 continue;
@@ -1914,29 +1922,33 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
 
             foreach (string colGroup in columnGroups)
             {
-                List<PerPlayerColumnAssignment> groupAssignments = players[0].ColumnAssignments
-                    .Where(a => (a.GroupName ?? "") == colGroup)
-                    .ToList();
+                List<PerPlayerColumnAssignment> groupAssignments =
+                [
+                    .. players[0].ColumnAssignments
+                        .Where(a => (a.GroupName ?? "") == colGroup)
+                ];
 
                 if (groupAssignments.Count == 0)
                 {
                     continue;
                 }
 
-                List<string> columnNames = groupAssignments.Select(a => a.ColumnName).ToList();
+                List<string> columnNames = [.. groupAssignments.Select(a => a.ColumnName)];
                 // Column → owning chain key, aligned 1:1 with columnNames. Set for EVERY column
                 // (incl. computed ones with no lifecycle edge): this is what sub-graph column
                 // projection selects on.
-                List<string?> columnChainIds = groupAssignments.Select(a => a.ChainId).ToList();
+                List<string?> columnChainIds = [.. groupAssignments.Select(a => a.ChainId)];
 
-                List<TableRowViewModel> rows = new();
+                List<TableRowViewModel> rows = [];
                 foreach (PerPlayerNodeTemplate.MaterializedPlayer player in players)
                 {
-                    List<PerPlayerColumnAssignment> playerGroupAssignments = player.ColumnAssignments
-                        .Where(a => (a.GroupName ?? "") == colGroup)
-                        .ToList();
+                    List<PerPlayerColumnAssignment> playerGroupAssignments =
+                    [
+                        .. player.ColumnAssignments
+                            .Where(a => (a.GroupName ?? "") == colGroup)
+                    ];
 
-                    List<TableCellViewModel> cells = new();
+                    List<TableCellViewModel> cells = [];
                     foreach (PerPlayerColumnAssignment assignment in playerGroupAssignments)
                     {
                         // The same map the node builder uses. This was a linear ReferenceEquals scan
@@ -1955,7 +1967,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 // Built here so ColumnIndex is LOCAL to THIS group's column list. Each descriptor
                 // whose Destination is one of this group's column nodes yields a connector; the
                 // per-group restriction falls out for free (non-group destinations just don't match).
-                List<TableColumnEdgeViewModel> colEdges = new();
+                List<TableColumnEdgeViewModel> colEdges = [];
                 foreach (GraphEdgeDescriptor desc in players[0].EdgeDescriptors)
                 {
                     if (!lifecycleNodes.Contains(desc.Source))
@@ -2302,7 +2314,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             return baseHint;
         }
 
-        List<string> events = inputs.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
+        List<string> events = [.. inputs.Keys.OrderBy(k => k, StringComparer.Ordinal)];
         string ev0 = events[0];
         // Advertise the field and bare-player shapes (autocomplete fills the concrete fields). `player`
         // resolves to the filter's selected slot; entity reads (health/armor/…) are authored via the rows
@@ -2329,7 +2341,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             // the documented instant (ServerTick/GameTick/FrameNumber resolve too, tick is the vocabulary).
             _activeConditionIdentifiers = meta.ParameterType is null
                 ? ids
-                : ids.Append("event.tick").OrderBy(s => s, StringComparer.Ordinal).ToList();
+                : [.. ids.Append("event.tick").OrderBy(s => s, StringComparer.Ordinal)];
             EditingValueHint =
                 "event.<field>  ·  player (pick one in the filter)  —  e.g.  event.Attacker == player"
                 + "   ·   entity checks: use the rows below";
@@ -2438,10 +2450,12 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         (Type EventType, Type? ParameterType, IReadOnlyDictionary<string, EventFieldAccessor> Fields)? edgeMeta,
         string? existingCondition)
     {
-        _editProviderOptions = _perPlayerProviders.All
-            .Select(p =>
-                new EntityCheckRowViewModel.Choice(ProviderLabel(p.Name), p.Name, p.ValueType == typeof(string)))
-            .ToList();
+        _editProviderOptions =
+        [
+            .. _perPlayerProviders.All
+                .Select(p =>
+                    new EntityCheckRowViewModel.Choice(ProviderLabel(p.Name), p.Name, p.ValueType == typeof(string)))
+        ];
 
         if (edgeMeta is { } edge)
         {
@@ -2476,11 +2490,14 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // Subject options: each trigger-event *Slot field (friendly label) plus the selected player.
     private static List<EntityCheckRowViewModel.Choice> BuildSubjectOptions(IEnumerable<string> slotFields)
     {
-        List<EntityCheckRowViewModel.Choice> options = slotFields
-            .OrderBy(f => f, StringComparer.Ordinal)
-            .Select(f => new EntityCheckRowViewModel.Choice(SubjectLabel(f), f))
-            .ToList();
-        options.Add(new EntityCheckRowViewModel.Choice("selected player", "player"));
+        List<EntityCheckRowViewModel.Choice> options =
+        [
+            .. slotFields
+                .OrderBy(f => f, StringComparer.Ordinal)
+                .Select(f => new EntityCheckRowViewModel.Choice(SubjectLabel(f), f)),
+
+            new EntityCheckRowViewModel.Choice("selected player", "player")
+        ];
         return options;
     }
 
@@ -2504,7 +2521,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     // Picks the trigger event: the one the saved condition references via input.<event>., else the first.
     private static string PickTriggerEvent(IEnumerable<string> events, string? existing)
     {
-        List<string> ordered = events.OrderBy(e => e, StringComparer.Ordinal).ToList();
+        List<string> ordered = [.. events.OrderBy(e => e, StringComparer.Ordinal)];
         if (!string.IsNullOrWhiteSpace(existing))
         {
             Match m = Regex.Match(existing, @"input\.([A-Za-z0-9_]+)\.");
@@ -2586,7 +2603,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             return EditingConditionText ?? "";
         }
 
-        List<EntityCheckRow> rows = EditingEntityRows.Select(r => r.ToRow()).OfType<EntityCheckRow>().ToList();
+        List<EntityCheckRow> rows = [.. EditingEntityRows.Select(r => r.ToRow()).OfType<EntityCheckRow>()];
         return StructuredCondition.Compose(EditingConditionText ?? "", rows, _editSlotPrefix, _perPlayerProviders);
     }
 
@@ -2831,7 +2848,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         }
 
         IsComputingEntityCache = true;
-        int[] unionFrames = union.OrderBy(f => f).ToArray();
+        int[] unionFrames = [.. union.OrderBy(f => f)];
         _entityRecomputeTail = RunEntityRecomputeAsync(_entityRecomputeTail, token,
             unionFrames, pending, _entityBuildCts!.Token);
     }
@@ -3083,7 +3100,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             if (!acc.TryGetValue(e.Label,
                     out (Type, Type?, IReadOnlyDictionary<string, EventFieldAccessor>, List<int>) entry))
             {
-                entry = (meta.EventType, meta.ParameterType, meta.Fields, new List<int>());
+                entry = (meta.EventType, meta.ParameterType, meta.Fields, []);
                 acc[e.Label] = entry;
             }
 
@@ -3096,7 +3113,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         return acc.ToDictionary(
             kv => kv.Key,
             kv => new NodeBreakpointConditions.InputEventInfo(
-                kv.Value.Item1, kv.Value.Item3, kv.Value.Item4.Distinct().OrderBy(x => x).ToList(),
+                kv.Value.Item1, kv.Value.Item3, [.. kv.Value.Item4.Distinct().OrderBy(x => x)],
                 kv.Value.Item2),
             StringComparer.OrdinalIgnoreCase);
     }
@@ -3339,8 +3356,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 [],
                 node => node is GraphNodeViewModel vm && include.Contains(vm));
 
-            renderNodes = sub.Nodes.Cast<GraphNodeViewModel>().ToList();
-            renderEdges = sub.Edges.Cast<GraphEdgeViewModel>().ToList();
+            renderNodes = [.. sub.Nodes.Cast<GraphNodeViewModel>()];
+            renderEdges = [.. sub.Edges.Cast<GraphEdgeViewModel>()];
             renderGroups = null;
 
             // Per-player tables: keep only those contributing a column to a SELECTED chain,
@@ -3362,8 +3379,8 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         PlayerTables = renderTables;
 
         await _graphViewModel.SetGraphAsync(
-            renderNodes.Cast<IGraphNode>().ToList(),
-            renderEdges.Cast<IGraphEdge>().ToList(),
+            [.. renderNodes.Cast<IGraphNode>()],
+            [.. renderEdges.Cast<IGraphEdge>()],
             renderGroups,
             renderTables.Count > 0 ? renderTables.Cast<INodeTable>().ToList() : null);
 
@@ -3384,7 +3401,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     private HashSet<GraphNodeViewModel> BuildSubGraphNodeSet(HashSet<string> selectedChains)
     {
         HashSet<GraphNodeViewModel> include = new(ReferenceEqualityComparer.Instance);
-        List<GraphNodeViewModel> members = new();
+        List<GraphNodeViewModel> members = [];
 
         // There is no game-scope seed. Nodes used to be seeded by chain membership, but that read
         // BuildResult.NodeChains, which was always null and is gone in 0.13, so the set was always
@@ -3437,12 +3454,12 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         HashSet<string> perPlayerKeys,
         HashSet<GraphNodeViewModel> includedNodes)
     {
-        List<PlayerTableViewModel> result = new();
+        List<PlayerTableViewModel> result = [];
 
         foreach (PlayerTableViewModel table in tables)
         {
             // Surviving column indices: the COLUMN's own chain key is selected. Edge-independent.
-            List<int> ordered = new();
+            List<int> ordered = [];
             for (int c = 0; c < table.ColumnNames.Count; c++)
             {
                 string? chainId = c < table.ColumnChainIds.Count ? table.ColumnChainIds[c] : null;
@@ -3464,18 +3481,22 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 remap[ordered[newIdx]] = newIdx;
             }
 
-            List<string> columnNames = ordered.Select(c => table.ColumnNames[c]).ToList();
-            List<string?> columnChainIds = ordered
-                .Select(c => c < table.ColumnChainIds.Count ? table.ColumnChainIds[c] : null)
-                .ToList();
+            List<string> columnNames = [.. ordered.Select(c => table.ColumnNames[c])];
+            List<string?> columnChainIds =
+            [
+                .. ordered
+                    .Select(c => c < table.ColumnChainIds.Count ? table.ColumnChainIds[c] : null)
+            ];
 
-            List<TableRowViewModel> rows = new();
+            List<TableRowViewModel> rows = [];
             foreach (TableRowViewModel row in table.Rows)
             {
-                List<TableCellViewModel> cells = ordered
-                    .Where(c => c < row.Cells.Count)
-                    .Select(c => row.Cells[c])
-                    .ToList();
+                List<TableCellViewModel> cells =
+                [
+                    .. ordered
+                        .Where(c => c < row.Cells.Count)
+                        .Select(c => row.Cells[c])
+                ];
                 rows.Add(new TableRowViewModel(row.PlayerName, row.PlayerSlot, row.FilterAnnotation, cells));
             }
 
@@ -3484,10 +3505,12 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
                 // Connector edges only for surviving columns whose source graph node is actually
                 // rendered. Edge presence is now cosmetic (it draws the connector); it never decides
                 // whether the column exists.
-                ColumnEdges = table.ColumnEdges
-                    .Where(ce => remap.ContainsKey(ce.ColumnIndex) && includedNodes.Contains(ce.SourceNode))
-                    .Select(ce => ce with { ColumnIndex = remap[ce.ColumnIndex] })
-                    .ToList()
+                ColumnEdges =
+                [
+                    .. table.ColumnEdges
+                        .Where(ce => remap.ContainsKey(ce.ColumnIndex) && includedNodes.Contains(ce.SourceNode))
+                        .Select(ce => ce with { ColumnIndex = remap[ce.ColumnIndex] })
+                ]
             };
             result.Add(projected);
         }
@@ -3505,11 +3528,11 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
     private static List<PlayerTableViewModel> FilterTableRows(
         IReadOnlyList<PlayerTableViewModel> tables, int slot)
     {
-        List<PlayerTableViewModel> result = new();
+        List<PlayerTableViewModel> result = [];
 
         foreach (PlayerTableViewModel table in tables)
         {
-            List<TableRowViewModel> rows = table.Rows.Where(r => r.PlayerSlot == slot).ToList();
+            List<TableRowViewModel> rows = [.. table.Rows.Where(r => r.PlayerSlot == slot)];
             if (rows.Count == 0)
             {
                 continue;
@@ -3533,7 +3556,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         {
             if (!map.TryGetValue(e.Destination, out List<GraphNodeViewModel>? sources))
             {
-                map[e.Destination] = sources = new List<GraphNodeViewModel>();
+                map[e.Destination] = sources = [];
             }
 
             sources.Add(e.Source);

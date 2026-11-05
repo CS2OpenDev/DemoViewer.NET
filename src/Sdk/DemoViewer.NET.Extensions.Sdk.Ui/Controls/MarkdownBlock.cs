@@ -126,7 +126,7 @@ public sealed partial class MarkdownBlock : ContentControl
     // recursively so bold/paragraph rules apply inside the quote too.
     private static Border RenderQuote(string[] lines, ref int i)
     {
-        List<string> inner = new();
+        List<string> inner = [];
         while (i < lines.Length && lines[i].TrimStart().StartsWith('>'))
         {
             string stripped = lines[i].TrimStart().TrimStart('>');
@@ -191,7 +191,7 @@ public sealed partial class MarkdownBlock : ContentControl
     private static Expander ParseDetails(string[] lines, ref int i)
     {
         int depth = 0;
-        List<string> body = new();
+        List<string> body = [];
         do
         {
             string line = lines[i];

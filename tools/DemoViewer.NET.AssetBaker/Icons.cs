@@ -366,7 +366,7 @@ public static class Icons
         pak.Read(pakPath);
         Dictionary<string, PackageEntry> wanted = Select(pak);
 
-        string[] unknown = keys.Where(k => !wanted.ContainsKey(k)).ToArray();
+        string[] unknown = [.. keys.Where(k => !wanted.ContainsKey(k))];
         if (unknown.Length > 0)
         {
             throw new InvalidOperationException("no such icon key: " + string.Join(", ", unknown));

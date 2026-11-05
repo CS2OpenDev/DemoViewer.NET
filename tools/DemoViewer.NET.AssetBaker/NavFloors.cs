@@ -136,7 +136,7 @@ public static class NavFloors
         int n = counts.Length;
         double minPeak = MinPeakFraction * total;
 
-        List<int> peaks = new();
+        List<int> peaks = [];
         for (int b = 0; b < n; b++)
         {
             if (counts[b] < minPeak)
@@ -154,7 +154,7 @@ public static class NavFloors
             }
         }
 
-        List<double> boundaries = new();
+        List<double> boundaries = [];
         if (peaks.Count <= 1)
         {
             return boundaries;
@@ -207,7 +207,7 @@ public static class NavFloors
         }
 
         StringBuilder sb = new();
-        List<double> kept = new();
+        List<double> kept = [];
         for (int i = 0; i < candidates.Count; i++)
         {
             double b = candidates[i];
@@ -234,8 +234,8 @@ public static class NavFloors
     private static double FootprintOverlap(
         List<AreaSample> samples, double lowEdge, double boundary, double highEdge)
     {
-        HashSet<(int, int)> below = new();
-        HashSet<(int, int)> above = new();
+        HashSet<(int, int)> below = [];
+        HashSet<(int, int)> above = [];
         foreach (AreaSample s in samples)
         {
             HashSet<(int, int)>? set =
@@ -277,7 +277,7 @@ public static class NavFloors
 
     private static List<FloorBand> BandsFromBoundaries(List<double> boundaries)
     {
-        List<FloorBand> floors = new();
+        List<FloorBand> floors = [];
         double lower = -OuterEdge;
         foreach (double b in boundaries)
         {

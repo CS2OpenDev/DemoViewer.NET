@@ -776,7 +776,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
             return Row("frame.duration_ms", "—");
         }
 
-        double[] sorted = durations.OrderBy(d => d).ToArray();
+        double[] sorted = [.. durations.OrderBy(d => d)];
         double mean = sorted.Average();
         double p95 = sorted[Math.Min(sorted.Length - 1, (int)(sorted.Length * 0.95))];
         return Row("frame.duration_ms", $"n={sorted.Length:N0} · mean {mean:F3} · p95 {p95:F3} ms");

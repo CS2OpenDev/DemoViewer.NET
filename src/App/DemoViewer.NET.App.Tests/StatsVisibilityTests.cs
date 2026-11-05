@@ -56,7 +56,7 @@ public class StatsVisibilityTests
         }
 
         PerPlayerNodeTemplate.MaterializedPlayer alice = new(0, "Alice", nodes, [], assignments, []);
-        NodeSnapshot[][] snapshots = [vector.ToArray()];
+        NodeSnapshot[][] snapshots = [[.. vector]];
         return new EvaluationResult(new RuleChainTimeline([]), snapshots, [], tracked, [alice], []);
     }
 

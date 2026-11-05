@@ -39,7 +39,7 @@ public class ZLibraryRenderTests
         Modified = new DateTime(2026, 7, 1, 12, 0, 0),
         MapName = map,
         ServerName = "BLAST.tv Premier CS2 Server",
-        Players = players.Split(',').ToList(),
+        Players = [.. players.Split(',')],
         DurationSeconds = 3375,
         CtScore = 13,
         TScore = 11,

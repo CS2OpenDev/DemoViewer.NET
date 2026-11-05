@@ -153,7 +153,7 @@ public class Playback2DTrajectoryRealDemoTests
         }
 
         // Persistent smokes = present across (almost) the whole window, the landed cloud(s).
-        List<int> persistent = seen.Where(kv => kv.Value >= steps - 2).Select(kv => kv.Key).ToList();
+        List<int> persistent = [.. seen.Where(kv => kv.Value >= steps - 2).Select(kv => kv.Key)];
         if (persistent.Count == 0)
         {
             throw new SkipTestException("no smoke persisted the full post-detonation window");

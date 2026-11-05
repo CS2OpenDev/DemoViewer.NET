@@ -13,7 +13,7 @@ namespace DemoViewer.NET.Modules;
 /// </summary>
 public sealed class ModuleRegistry
 {
-    private readonly List<IWorkspaceModule> _modules = new();
+    private readonly List<IWorkspaceModule> _modules = [];
 
     /// <summary>The registered modules, in registration order.</summary>
     public IReadOnlyList<IWorkspaceModule> Modules => _modules;

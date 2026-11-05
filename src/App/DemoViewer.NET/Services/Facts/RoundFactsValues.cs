@@ -96,14 +96,17 @@ internal static class RoundFactsValues
             case string text:
                 return text.Length == 0
                     ? []
-                    : text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                        .Select(ToInt).OfType<int>().ToArray();
+                    :
+                    [
+                        .. text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Select(ToInt).OfType<int>()
+                    ];
             case JsonElement element:
                 return element.ValueKind == JsonValueKind.Array
-                    ? element.EnumerateArray().Select(e => ToInt(e)).OfType<int>().ToArray()
+                    ? [.. element.EnumerateArray().Select(e => ToInt(e)).OfType<int>()]
                     : null;
             case IEnumerable items:
-                return items.Cast<object?>().Select(ToInt).OfType<int>().ToArray();
+                return [.. items.Cast<object?>().Select(ToInt).OfType<int>()];
             default:
                 return null;
         }

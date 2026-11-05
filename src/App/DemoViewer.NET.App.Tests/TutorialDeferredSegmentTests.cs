@@ -84,7 +84,7 @@ public class TutorialDeferredSegmentTests
                 // vanishes) and strand the coach-mark's spotlight over stale coordinates for the whole
                 // multi-second parse. Both the gated and ungated paths END on Stats, so only the mid-load
                 // trail discriminates: an end-state assert would pass either way.
-                List<string> tabTrail = new();
+                List<string> tabTrail = [];
                 PropertyChangedEventHandler onTabChanged = (_, e) =>
                 {
                     if (e.PropertyName == nameof(MainViewModel.SelectedTab) && vm.SelectedTab is { } t)

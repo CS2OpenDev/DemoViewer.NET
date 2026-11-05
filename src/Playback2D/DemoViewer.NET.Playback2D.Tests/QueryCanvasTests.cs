@@ -41,7 +41,7 @@ public class QueryCanvasTests
             await Assert.That(document.Get(QuerySide.Ct, 0)!.Value.WorldX).IsEqualTo(10f);
             await Assert.That(document.IsPlaced(QuerySide.T, 4)).IsTrue();
             await Assert.That(document.IsPlaced(QuerySide.T, 0)).IsFalse();
-            await Assert.That(document.Placed.Select(t => (t.Side, t.Slot)).ToArray())
+            await Assert.That([.. document.Placed.Select(t => (t.Side, t.Slot))])
                 .IsEquivalentTo([(QuerySide.Ct, 0), (QuerySide.T, 4)], CollectionOrdering.Matching);
             await Assert.That(changes).IsEqualTo(3);
             await Assert.That(document.Version).IsEqualTo(3);

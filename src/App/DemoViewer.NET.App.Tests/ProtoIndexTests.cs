@@ -82,7 +82,7 @@ public class ProtoIndexTests
     [Test]
     public async Task Search_PutsPrefixMatchesFirst()
     {
-        List<ProtoResult> hits = _idx.Search("C").ToList();
+        List<ProtoResult> hits = [.. _idx.Search("C")];
 
         await Assert.That(hits.Count).IsGreaterThan(1);
         await Assert.That(hits[0].Rank).IsEqualTo(0);

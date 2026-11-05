@@ -1286,11 +1286,13 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     internal void AddFolders(IReadOnlyList<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        string[] updated = LibraryFolders
-            .Concat(paths)
-            .Where(p => !string.IsNullOrEmpty(p))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+        string[] updated =
+        [
+            .. LibraryFolders
+                .Concat(paths)
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Distinct(StringComparer.Ordinal)
+        ];
         if (updated.Length == LibraryFolders.Count)
         {
             return; // nothing new
@@ -1798,11 +1800,13 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
             new FolderPickerOpenOptions { Title = "Add demo folder", AllowMultiple = true });
 
-        List<string> paths = picked
-            .Select(f => f.TryGetLocalPath())
-            .Where(p => !string.IsNullOrEmpty(p))
-            .Cast<string>()
-            .ToList();
+        List<string> paths =
+        [
+            .. picked
+                .Select(f => f.TryGetLocalPath())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Cast<string>()
+        ];
         if (paths.Count == 0)
         {
             return;
@@ -1815,9 +1819,11 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void RemoveFolder(string path)
     {
-        string[] updated = LibraryFolders
-            .Where(f => !string.Equals(f, path, StringComparison.Ordinal))
-            .ToArray();
+        string[] updated =
+        [
+            .. LibraryFolders
+                .Where(f => !string.Equals(f, path, StringComparison.Ordinal))
+        ];
         if (updated.Length == LibraryFolders.Count)
         {
             return; // not present

@@ -21,7 +21,7 @@ internal static class TablePlacementPass
 {
     internal static void Run(LayoutContext ctx)
     {
-        List<TableLayoutWithEdges> tableLayouts = new();
+        List<TableLayoutWithEdges> tableLayouts = [];
         if (ctx.Tables is null || ctx.Tables.Count == 0)
         {
             ctx.TableLayouts = tableLayouts;

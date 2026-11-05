@@ -287,7 +287,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
     private void RebuildClipRows(ReelJobStatus status, int total, string? clipLabel)
     {
         Clips.Clear();
-        HashSet<int> failed = new(status.FailedClipIndices);
+        HashSet<int> failed = [.. status.FailedClipIndices];
         for (int i = 0; i < total; i++)
         {
             ReelClipRowState state;

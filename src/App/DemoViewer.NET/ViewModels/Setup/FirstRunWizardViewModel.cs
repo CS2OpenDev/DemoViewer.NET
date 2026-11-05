@@ -387,7 +387,7 @@ public sealed partial class FirstRunWizardViewModel : ViewModelBase
         _settings.Write(s =>
         {
             s.UserCategory = SelectedCategoryOption.Value;
-            s.Library.Folders = Folders.ToArray();
+            s.Library.Folders = [.. Folders];
             if (_includeExtensionsStep)
             {
                 // Written explicitly either way, the same as the two lines above: an accepted default

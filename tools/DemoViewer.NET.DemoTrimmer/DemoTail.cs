@@ -70,7 +70,7 @@ internal sealed record DemoTail(RawFrame? Stop, RawFrame? SpawnGroups, RawFrame?
     public static byte[] Payload(byte[] raw, RawFrame frame) =>
         frame.Compressed
             ? Snappy.DecompressToArray(raw.AsSpan(frame.PayloadStart, frame.PayloadLength))
-            : raw.AsSpan(frame.PayloadStart, frame.PayloadLength).ToArray();
+            : [.. raw.AsSpan(frame.PayloadStart, frame.PayloadLength)];
 
     private static RawFrame? ReadAt(byte[] raw, int offset, string expectedCommand) =>
         TryRead(raw, offset, out RawFrame frame)

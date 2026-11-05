@@ -157,8 +157,8 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         SeedFolders(legacyFolders);
 
         // Keep the worker-readable snapshot in step with Folders, updated on the mutating thread.
-        _folderSnapshot = Folders.ToArray();
-        Folders.CollectionChanged += (_, _) => _folderSnapshot = Folders.ToArray();
+        _folderSnapshot = [.. Folders];
+        Folders.CollectionChanged += (_, _) => _folderSnapshot = [.. Folders];
 
         // This singleton is built with the shell, before the first-run wizard can answer, so a seed alone
         // never sees the wizard's folders, nor the Settings screen's. Subscribed after the seed so the
@@ -394,7 +394,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
                 }
             }
 
-            SettingsBacking.Write(s => s.Library.Folders = Folders.ToArray());
+            SettingsBacking.Write(s => s.Library.Folders = [.. Folders]);
         }
         else
         {
@@ -413,7 +413,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     // saved to library.json. Without settings this is exactly the legacy Save() (folders + cache to disk).
     private void PersistFolders()
     {
-        SettingsBacking?.Write(s => s.Library.Folders = Folders.ToArray());
+        SettingsBacking?.Write(s => s.Library.Folders = [.. Folders]);
         Save();
     }
 
@@ -1849,11 +1849,13 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
             if (list.Count > 1)
             {
-                List<string> folders = list.Skip(1)
-                    .Select(s => Path.GetDirectoryName(s.Path) ?? "")
-                    .Where(d => d.Length > 0)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                List<string> folders =
+                [
+                    .. list.Skip(1)
+                        .Select(s => Path.GetDirectoryName(s.Path) ?? "")
+                        .Where(d => d.Length > 0)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                ];
                 if (folders.Count > 0)
                 {
                     shadowFolders[primary.Path] = folders;
@@ -2119,7 +2121,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
 
         Dictionary<string, DemoEntry> byPath = Entries.ToDictionary(e => e.FilePath, StringComparer.OrdinalIgnoreCase);
 
-        List<DemoEntry> added = new();
+        List<DemoEntry> added = [];
         foreach ((string path, (long size, DateTime modified)) in wanted)
         {
             IReadOnlyList<string> dupFolders = shadowFolders.TryGetValue(path, out IReadOnlyList<string>? f) ? f : [];
@@ -2369,14 +2371,16 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         HashSet<int>? coachSlots = null;
         try
         {
-            players = parsed.Players
-                // IsHltv as well as IsBot: the GOTV proxy holds a userinfo slot with a name, and
-                // before the CS2-path fakeplayer/ishltv read it landed on library cards and in the
-                // player filter as if it were someone who played.
-                .Where(p => p is { IsBot: false, IsHltv: false } && !string.IsNullOrWhiteSpace(p.Name))
-                .Select(p => p.Name)
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
+            players =
+            [
+                .. parsed.Players
+                    // IsHltv as well as IsBot: the GOTV proxy holds a userinfo slot with a name, and
+                    // before the CS2-path fakeplayer/ishltv read it landed on library cards and in the
+                    // player filter as if it were someone who played.
+                    .Where(p => p is { IsBot: false, IsHltv: false } && !string.IsNullOrWhiteSpace(p.Name))
+                    .Select(p => p.Name)
+                    .Distinct(StringComparer.Ordinal)
+            ];
             duration = parsed.DurationSeconds;
             map = parsed.MapName;
 

@@ -344,7 +344,7 @@ public sealed class RoundSignatureBuilder
         List<IReadOnlyList<MinedPawn>> anchors =
         [
             .. StratMiner.ExecuteAnchors.Select(o => anchor + o * c.Rate)
-                .Select(tick => tick < earliest ? new List<MinedPawn>() : c.PawnsAt(tick))
+                .Select(tick => tick < earliest ? [] : c.PawnsAt(tick))
         ];
         if (anchors.All(a => a.Count == 0))
         {

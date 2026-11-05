@@ -10,7 +10,7 @@ namespace DemoViewer.NET.AppTests;
 internal static class StratTestKeymap
 {
     /// <summary>The shipped keymap with no override rows.</summary>
-    public static IExtensionKeymap Shipped { get; } = HostKeymap.Instance;
+    public static IExtensionKeymap Shipped => HostKeymap.Instance;
 
     /// <summary>The shipped keymap with <paramref name="rows" /> as the user's override rows.</summary>
     public static IExtensionKeymap WithOverrides(params string[] rows) =>

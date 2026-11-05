@@ -100,7 +100,7 @@ public class SemanticNavigatorRealDemoTests
         // start). Seed a frame that is inside a tick group but is NOT itself a boundary, then assert
         // the landed frame's ServerTick is strictly less than where we started. This is the case the
         // boundary→next→prev round-trip above cannot exercise. ──
-        int[] tickBoundaries = navigator.TickBoundaryFrames.ToArray();
+        int[] tickBoundaries = [.. navigator.TickBoundaryFrames];
         int midGroupFrame = -1;
         for (int b = 0; b < tickBoundaries.Length - 1; b++)
         {

@@ -73,12 +73,12 @@ public class ZoneOverlayLoadTests
 
             await Assert.That(resolver).IsNotNull();
             await Assert.That(resolver!.Zones.HasOverlay).IsFalse();
-            await Assert.That(vm.MapAsset!.ZoneLoad.Diagnostics.Select(d => d.Code).ToArray())
+            await Assert.That([.. vm.MapAsset!.ZoneLoad.Diagnostics.Select(d => d.Code)])
                 .Contains("zones.overlay.malformed");
 
             // Published to the hub on the first read, and from there onto the Workbench's rows.
             await Assert.That(ZoneOverlayDiagnostics.OverlayPath).IsEqualTo(overlay);
-            await Assert.That(ZoneOverlayDiagnostics.Current.Select(d => d.Code).ToArray())
+            await Assert.That([.. ZoneOverlayDiagnostics.Current.Select(d => d.Code)])
                 .Contains("zones.overlay.malformed");
 
             Dispatcher.UIThread.RunJobs();

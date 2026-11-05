@@ -19,7 +19,7 @@ public static class ExtensionFeedSource
     private const string IdPlaceholder = "{id}";
 
     /// <summary>The default template, over this repository's releases.</summary>
-    private static string DefaultTemplate { get; } =
+    private static string DefaultTemplate =>
         $"https://github.com/{GitHubReleaseNotesService.Repo}/releases/download/extensions-{IdPlaceholder}/{ExtensionFeed.FileName}";
 
     /// <summary>

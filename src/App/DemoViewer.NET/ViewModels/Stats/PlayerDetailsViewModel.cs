@@ -366,10 +366,11 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
     }
 
     private List<MetricRow> RoundRowsForSlot(MetricTable roundTable) =>
-        roundTable.Rows
+    [
+        .. roundTable.Rows
             .Where(r => StatsTabViewModel.RowSlot(r) == PlayerSlot)
             .OrderBy(RoundOf)
-            .ToList();
+    ];
 
     private void RebuildAchievements()
     {
@@ -457,10 +458,12 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
         }
 
         int max = Math.Max(1, present.Count == 0 ? 0 : present.Max(b => b.Count));
-        MultiKillBars = present
-            .Select(b => new HistBarItem(b.Label, b.Count,
-                Math.Max(1, (double)b.Count / max * MaxBarHeight), b.Positive))
-            .ToList();
+        MultiKillBars =
+        [
+            .. present
+                .Select(b => new HistBarItem(b.Label, b.Count,
+                    Math.Max(1, (double)b.Count / max * MaxBarHeight), b.Positive))
+        ];
         OnPropertyChanged(nameof(ClutchItems));
         OnPropertyChanged(nameof(MultiKillBars));
     }
@@ -501,9 +504,11 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
         }
 
         bool hasOpn = roundTable.ValueColumns.Contains("FK") || roundTable.ValueColumns.Contains("FD");
-        List<string> keys = _roundDetailKeys
-            .Where(k => k == "__opn__" ? hasOpn : roundTable.ValueColumns.Contains(k))
-            .ToList();
+        List<string> keys =
+        [
+            .. _roundDetailKeys
+                .Where(k => k == "__opn__" ? hasOpn : roundTable.ValueColumns.Contains(k))
+        ];
 
         List<DetailRoundColumn> columns = new(keys.Count);
         foreach (string key in keys)
@@ -804,21 +809,25 @@ public sealed partial class WeaponBreakdownViewModel : ObservableObject
         }
 
         string valueColumn = active.ValueColumns[0];
-        List<(string Weapon, double Value)> rows = active.Rows
-            .Where(r => StatsTabViewModel.RowSlot(r) == _slot)
-            .Select(r => (
-                Weapon: r.Dimensions.GetValueOrDefault("key")?.ToString() ?? "?",
-                Value: PlayerDetailsViewModel.AsDouble(r.Values.GetValueOrDefault(valueColumn))))
-            .OrderByDescending(x => x.Value)
-            .ThenBy(x => x.Weapon, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        List<(string Weapon, double Value)> rows =
+        [
+            .. active.Rows
+                .Where(r => StatsTabViewModel.RowSlot(r) == _slot)
+                .Select(r => (
+                    Weapon: r.Dimensions.GetValueOrDefault("key")?.ToString() ?? "?",
+                    Value: PlayerDetailsViewModel.AsDouble(r.Values.GetValueOrDefault(valueColumn))))
+                .OrderByDescending(x => x.Value)
+                .ThenBy(x => x.Weapon, StringComparer.OrdinalIgnoreCase)
+        ];
 
         double max = Math.Max(1, rows.Count == 0 ? 0 : rows.Max(x => x.Value));
-        Bars = rows
-            .Select(x => new BarRowItem(x.Weapon, x.Value, max,
-                x.Value.ToString("0.##", CultureInfo.InvariantCulture),
-                $"{x.Weapon}: {x.Value.ToString("0.##", CultureInfo.InvariantCulture)} {(ShowDamage ? "damage" : "kills")}"))
-            .ToList();
+        Bars =
+        [
+            .. rows
+                .Select(x => new BarRowItem(x.Weapon, x.Value, max,
+                    x.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                    $"{x.Weapon}: {x.Value.ToString("0.##", CultureInfo.InvariantCulture)} {(ShowDamage ? "damage" : "kills")}"))
+        ];
         EmptyMessage = Bars.Count == 0
             ? $"No weapon {(ShowDamage ? "damage" : "kills")} recorded."
             : "";
@@ -948,11 +957,13 @@ public sealed class VisionViewModel : ObservableObject
             }
         }
 
-        return byOpponent.Values
-            .OrderByDescending(o => o.Saw)
-            .ThenBy(o => o.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(o => new OpponentVisionRow(o.Name, FormatSeconds(o.Saw), FormatSeconds(o.Exposed)))
-            .ToList();
+        return
+        [
+            .. byOpponent.Values
+                .OrderByDescending(o => o.Saw)
+                .ThenBy(o => o.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(o => new OpponentVisionRow(o.Name, FormatSeconds(o.Saw), FormatSeconds(o.Exposed)))
+        ];
     }
 
     private static int DimInt(MetricRow row, string key) =>

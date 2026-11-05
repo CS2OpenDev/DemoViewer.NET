@@ -354,13 +354,19 @@ public partial class TestTierContractTests
     private static IEnumerable<(MethodInfo Method, ImmutableArray<string> Categories)> DiscoverTests()
     {
         SysAssembly assembly = typeof(TestTierContractTests).Assembly;
-        string[] assemblyCategories = assembly.GetCustomAttributes<CategoryAttribute>()
-            .Select(a => a.Category).ToArray();
+        string[] assemblyCategories =
+        [
+            .. assembly.GetCustomAttributes<CategoryAttribute>()
+                .Select(a => a.Category)
+        ];
 
         foreach (Type type in assembly.GetTypes())
         {
-            string[] typeCategories = type.GetCustomAttributes<CategoryAttribute>(true)
-                .Select(a => a.Category).ToArray();
+            string[] typeCategories =
+            [
+                .. type.GetCustomAttributes<CategoryAttribute>(true)
+                    .Select(a => a.Category)
+            ];
 
             foreach (MethodInfo method in type.GetMethods(
                          BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static

@@ -57,7 +57,7 @@ public class ReelJobServiceMockTests
         }
 
         string demoPath = Path.Combine(Path.GetTempPath(), $"reel-dryrun-{Guid.NewGuid():N}.dem");
-        await File.WriteAllBytesAsync(demoPath, "PBDEMS2\0"u8.ToArray(),
+        await File.WriteAllBytesAsync(demoPath, [.. "PBDEMS2\0"u8],
             cancellationToken);
         string missingDemo = Path.Combine(Path.GetTempPath(), $"reel-missing-{Guid.NewGuid():N}.dem");
 

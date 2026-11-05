@@ -72,7 +72,7 @@ public class VisionLayerSourceTests
         // The fan is copied verbatim into the flat ray buffer the renderer walks: x,y per point, in
         // order, because the polygon is filled in fan order and a transposition would draw a bow tie.
         ConePolygon cone = layer.Solution.Cones[0];
-        float[] rays = cone.RayEndsXY.ToArray();
+        float[] rays = [.. cone.RayEndsXY];
         await Assert.That(cone.RayCount).IsEqualTo(2);
         await Assert.That(rays.Length).IsEqualTo(4);
         await Assert.That(rays[0]).IsEqualTo(-1700f);

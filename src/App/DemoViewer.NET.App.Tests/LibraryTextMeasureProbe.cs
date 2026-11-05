@@ -104,7 +104,7 @@ public class LibraryTextMeasureProbe
         }
 
         string[] strings = await File.ReadAllLinesAsync(path);
-        List<string> failures = new();
+        List<string> failures = [];
         int measured = 0;
 
         await HeadlessSession.RunOnUi(() =>

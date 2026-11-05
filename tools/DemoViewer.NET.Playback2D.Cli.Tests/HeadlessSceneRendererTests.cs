@@ -104,8 +104,8 @@ public class HeadlessSceneRendererTests
         using SceneCompositor scene = SceneLayerCatalog.CreateSceneStack();
 
         string[] expected = [.. SceneLayerCatalog.SceneStackIds.Where(id => !SceneLayerIds.OptIn.Contains(id))];
-        await Assert.That(scene.Layers.Select(l => l.Id).Order().ToArray())
-            .IsEquivalentTo(expected.Order().ToArray(), CollectionOrdering.Matching);
+        await Assert.That([.. scene.Layers.Select(l => l.Id).Order()])
+            .IsEquivalentTo([.. expected.Order()], CollectionOrdering.Matching);
         await Assert.That(expected.Length).IsEqualTo(7);
     }
 
@@ -120,7 +120,7 @@ public class HeadlessSceneRendererTests
         using SceneCompositor starved = SceneLayerCatalog.CreateSceneStack(
             [SceneLayerIds.Markers, SceneLayerIds.HudClock, SceneLayerIds.Annotations]);
 
-        await Assert.That(starved.Layers.Select(l => l.Id).ToArray())
+        await Assert.That([.. starved.Layers.Select(l => l.Id)])
             .IsEquivalentTo([SceneLayerIds.Markers], CollectionOrdering.Matching);
     }
 

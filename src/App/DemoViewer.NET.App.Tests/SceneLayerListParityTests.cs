@@ -61,7 +61,7 @@ public class SceneLayerListParityTests
             // drawing into. An export gets a frozen copy instead, so the catalog leaves the id opt-in
             // rather than making it one of the seven.
             string[] scene = [.. mounted.Where(id => !SceneLayerIds.OptIn.Contains(id))];
-            await Assert.That(scene).IsEquivalentTo(SceneIds.Order().ToArray(), CollectionOrdering.Matching);
+            await Assert.That(scene).IsEquivalentTo([.. SceneIds.Order()], CollectionOrdering.Matching);
 
             // Not a restatement: an equivalence check would still pass against an accidentally short
             // catalog, so the count is pinned independently.
@@ -139,7 +139,7 @@ public class SceneLayerListParityTests
             "playback2d.overlay"
         ];
 
-        await Assert.That(SceneLayerCatalog.SceneStackIds.ToArray())
+        await Assert.That([.. SceneLayerCatalog.SceneStackIds])
             .IsEquivalentTo(expected, CollectionOrdering.Matching);
 
         // KnownLayerIds is an alias, not a second table, so a rename only has one place to happen.

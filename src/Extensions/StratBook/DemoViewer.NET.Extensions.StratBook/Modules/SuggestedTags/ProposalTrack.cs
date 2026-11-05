@@ -103,7 +103,7 @@ public sealed class ProposalTrack : ITimelineTrack
         _proposals.Any(p => data.FrameIndexAtTick(p.FromTick) >= 0);
 
     /// <inheritdoc />
-    public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => Array.Empty<TimelineMarker>();
+    public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
 
     /// <inheritdoc />
     public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data)
@@ -157,7 +157,7 @@ public sealed class ProposalTrack : ITimelineTrack
             }
         }
 
-        return Array.Empty<string>();
+        return [];
     }
 
     private uint ColourOf(ConfidenceStep step) =>

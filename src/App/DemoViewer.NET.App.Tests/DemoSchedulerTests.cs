@@ -209,7 +209,7 @@ public class DemoSchedulerTests
         scheduler.RecheckAll();
         await Task.Delay(120);
 
-        await Assert.That(reported.ToArray())
+        await Assert.That([.. reported])
             .IsEquivalentTo([("thrower", (string?)"/x/demo.dem")], CollectionOrdering.Matching);
     }
 
@@ -288,7 +288,7 @@ public class DemoSchedulerTests
     public async Task RecheckAll_AfterProcessing_DoesNotReparse()
     {
         int parses = 0;
-        HashSet<string> evaluatedOnce = new();
+        HashSet<string> evaluatedOnce = [];
         using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline,
             _ =>
             {
@@ -799,7 +799,7 @@ public class DemoSchedulerTests
         public CancellationToken Token { get; set; }
 
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
-        public bool BackgroundEnabled { get; } = true;
+        public bool BackgroundEnabled => true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
         public int RunningCount => 0;

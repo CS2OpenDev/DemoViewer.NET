@@ -65,12 +65,14 @@ public static class LiveAimStats
             return [];
         }
 
-        return Directory.EnumerateDirectories(fixtures)
-            .Where(dir => File.Exists(Path.Combine(dir, "expected.golden.json")))
-            .Select(Path.GetFileName)
-            .OfType<string>()
-            .OrderBy(id => id, StringComparer.Ordinal)
-            .ToList();
+        return
+        [
+            .. Directory.EnumerateDirectories(fixtures)
+                .Where(dir => File.Exists(Path.Combine(dir, "expected.golden.json")))
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .OrderBy(id => id, StringComparer.Ordinal)
+        ];
     }
 
     /// <summary>

@@ -384,7 +384,7 @@ public class TutorialControllerTests
             await Assert.That(steps[0].NextLabelOverride).IsEqualTo("Get started");
             await Assert.That(steps[^1].NextLabelOverride).IsEqualTo("Finish");
 
-            TutorialStep[] gateways = steps.Where(s => s.WaitsForDemo).ToArray();
+            TutorialStep[] gateways = [.. steps.Where(s => s.WaitsForDemo)];
             await Assert.That(gateways.Length).IsEqualTo(1).Because("exactly one step gates on an open demo");
             await Assert.That(gateways[0].Target).IsEqualTo(TutorialTarget.OpenDemo);
             await Assert.That(gateways[0].WaitingHint).IsNotNull();

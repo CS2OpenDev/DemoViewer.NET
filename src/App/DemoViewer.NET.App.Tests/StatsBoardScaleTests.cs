@@ -266,9 +266,11 @@ public class StatsBoardScaleTests
     {
         // Sorted on both sides, so an ordered comparison holds, and a partition has no order of
         // its own to assert.
-        await Assert.That(_accuracyColumns.Concat(_aimQualityColumns).Concat(_denominatorColumns)
-                .OrderBy(c => c, StringComparer.Ordinal).ToArray())
-            .IsEquivalentTo(_aimColumns.OrderBy(c => c, StringComparer.Ordinal).ToArray(), CollectionOrdering.Matching)
+        await Assert.That([
+                .. _accuracyColumns.Concat(_aimQualityColumns).Concat(_denominatorColumns)
+                    .OrderBy(c => c, StringComparer.Ordinal)
+            ])
+            .IsEquivalentTo([.. _aimColumns.OrderBy(c => c, StringComparer.Ordinal)], CollectionOrdering.Matching)
             .Because("the two chips and the denominators must partition the ruleset");
 
         foreach (string column in _accuracyColumns)
@@ -328,7 +330,7 @@ public class StatsBoardScaleTests
     public async Task CategoryRail_CarriesBothAimChips_BetweenCombatAndDamage()
     {
         StatsTabViewModel vm = BuildVm();
-        List<CategoryChip> chips = vm.Categories.ToList();
+        List<CategoryChip> chips = [.. vm.Categories];
 
         await Assert.That(chips.Single(c => c.Group == StatGroup.Accuracy).Label).IsEqualTo("Accuracy");
         await Assert.That(chips.Single(c => c.Group == StatGroup.AimQuality).Label).IsEqualTo("Aim Quality");
@@ -1076,7 +1078,7 @@ public class StatsBoardScaleTests
     public async Task Podium_DoesNotFollowTheTableSort()
     {
         StatsTabViewModel vm = BuildVm();
-        string[] before = vm.Podium.Select(e => e.Name).ToArray();
+        string[] before = [.. vm.Podium.Select(e => e.Name)];
 
         vm.SortByColumnCommand.Execute(vm.Columns.Single(c => c.Label == "TotalD"));
 
@@ -1275,8 +1277,11 @@ public class StatsBoardScaleTests
         await Assert.That(vm.IsBoardLayout).IsTrue();
         await Assert.That(vm.IsCompositionBoard).IsTrue();
 
-        CompositionRow[] rows = vm.BoardSections
-            .SelectMany(s => s.Rows).Cast<CompositionRow>().ToArray();
+        CompositionRow[] rows =
+        [
+            .. vm.BoardSections
+                .SelectMany(s => s.Rows).Cast<CompositionRow>()
+        ];
         await Assert.That(rows.Length).IsEqualTo(10);
 
         double max = rows.Max(r => r.Total);
@@ -1316,7 +1321,7 @@ public class StatsBoardScaleTests
             }
 
             // Distinct slots within a row, or two categories would share a colour on one bar.
-            int[] slots = row.Segments.Select(seg => seg.Slot).ToArray();
+            int[] slots = [.. row.Segments.Select(seg => seg.Slot)];
             await Assert.That(slots.Distinct().Count()).IsEqualTo(slots.Length);
         }
     }
@@ -1334,7 +1339,7 @@ public class StatsBoardScaleTests
 
         await Assert.That(vm.IsDuelBoard).IsTrue();
 
-        DuelRow[] rows = vm.BoardSections.SelectMany(s => s.Rows).Cast<DuelRow>().ToArray();
+        DuelRow[] rows = [.. vm.BoardSections.SelectMany(s => s.Rows).Cast<DuelRow>()];
         await Assert.That(rows.Length).IsEqualTo(10);
 
         double extent = rows[0].Extent;
@@ -1357,7 +1362,7 @@ public class StatsBoardScaleTests
 
         await Assert.That(vm.IsPipBoard).IsTrue();
 
-        PipsRow[] rows = vm.BoardSections.SelectMany(s => s.Rows).Cast<PipsRow>().ToArray();
+        PipsRow[] rows = [.. vm.BoardSections.SelectMany(s => s.Rows).Cast<PipsRow>()];
         await Assert.That(rows[0].PlayerName).IsEqualTo("Alice");
         await Assert.That(rows[0].Groups.Single(g => g.Label == "ACE").Count).IsEqualTo(1);
         await Assert.That(rows[0].Groups.Single(g => g.Label == "ACE").IsRare).IsTrue();
@@ -1845,10 +1850,12 @@ public class StatsBoardScaleTests
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
 
-            TextBlock[] shown = view.GetVisualDescendants().OfType<TextBlock>()
-                .Where(t => t is { IsVisible: true, Text: { } text } && text.Contains("Time to Shoot",
-                    StringComparison.Ordinal))
-                .ToArray();
+            TextBlock[] shown =
+            [
+                .. view.GetVisualDescendants().OfType<TextBlock>()
+                    .Where(t => t is { IsVisible: true, Text: { } text } && text.Contains("Time to Shoot",
+                        StringComparison.Ordinal))
+            ];
             await Assert.That(shown).IsNotEmpty()
                 .Because("the board notice explaining the blank columns has to be on screen");
             await Assert.That(shown[0].Text).Contains("de_test");

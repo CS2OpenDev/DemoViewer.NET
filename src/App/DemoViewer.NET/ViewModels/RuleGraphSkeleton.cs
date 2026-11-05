@@ -44,8 +44,8 @@ public static class RuleGraphSkeleton
         }
 
         return new Skeleton(
-            nodeVms.Cast<IGraphNode>().ToList(),
-            edgeVms.Cast<IGraphEdge>().ToList(),
+            [.. nodeVms.Cast<IGraphNode>()],
+            [.. edgeVms.Cast<IGraphEdge>()],
             null);
     }
 
@@ -82,8 +82,8 @@ public static class RuleGraphSkeleton
         // produced an empty list (CS2DemoKit#50). The 0.13 clustering source is
         // RuleGraphNode.Ruleset on RuleGraph.FromBuild.
         return new Skeleton(
-            nodeVms.Cast<IGraphNode>().ToList(),
-            edgeVms.Cast<IGraphEdge>().ToList(),
+            [.. nodeVms.Cast<IGraphNode>()],
+            [.. edgeVms.Cast<IGraphEdge>()],
             null);
     }
 

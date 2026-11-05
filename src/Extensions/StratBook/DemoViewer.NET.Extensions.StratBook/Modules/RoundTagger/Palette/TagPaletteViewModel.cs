@@ -641,7 +641,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        List<TagPalettePanel> panels = Palette.Panels.Where(p => p.IsLabels).ToList();
+        List<TagPalettePanel> panels = [.. Palette.Panels.Where(p => p.IsLabels)];
         if (panels.Count == 0)
         {
             return false;

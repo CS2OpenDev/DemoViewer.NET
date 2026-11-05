@@ -37,10 +37,12 @@ public sealed partial class ClassBrowserViewModel : ObservableObject
 
         _allItems = tracker is null
             ? []
-            : tracker.ClassIdMap
-                .Select(kv => new ClassBrowserItem { ClassId = kv.Key, ClassName = kv.Value })
-                .OrderBy(c => c.ClassName, StringComparer.Ordinal)
-                .ToList();
+            :
+            [
+                .. tracker.ClassIdMap
+                    .Select(kv => new ClassBrowserItem { ClassId = kv.Key, ClassName = kv.Value })
+                    .OrderBy(c => c.ClassName, StringComparer.Ordinal)
+            ];
 
         ApplyFilter();
 

@@ -607,9 +607,11 @@ public class StatsComponentRenderTests
             PlayerDetailsView view = new();
             _ = CaptureControl(view, "player-details-overview-cells");
 
-            Grid[] boards = view.GetVisualDescendants().OfType<Grid>()
-                .Where(g => g.Children.OfType<Border>().Count(IsCard) > 1)
-                .ToArray();
+            Grid[] boards =
+            [
+                .. view.GetVisualDescendants().OfType<Grid>()
+                    .Where(g => g.Children.OfType<Border>().Count(IsCard) > 1)
+            ];
             await Assert.That(boards.Length).IsEqualTo(1);
 
             Grid board = boards[0];

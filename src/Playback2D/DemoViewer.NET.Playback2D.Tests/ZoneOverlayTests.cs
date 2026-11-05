@@ -73,7 +73,7 @@ public class ZoneOverlayTests
 
         await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
         await Assert.That(resolver.PlaceId("Hut")).IsNull();
-        await Assert.That(result.Effective.Places.Select(p => p.Name).ToArray())
+        await Assert.That([.. result.Effective.Places.Select(p => p.Name)])
             .IsEquivalentTo(Names("Ramp", "Outside", "Tunnels"), CollectionOrdering.Matching);
 
         // Area 3 was Hut's; its only neighbour is Ramp's area 2, so it is Ramp now, and the Hut volume
@@ -97,7 +97,7 @@ public class ZoneOverlayTests
         PlaceResolver resolver = new(result.Effective);
 
         await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
-        await Assert.That(result.Effective.Places.Select(p => p.Name).ToArray())
+        await Assert.That([.. result.Effective.Places.Select(p => p.Name)])
             .IsEquivalentTo(Names("Outside", "Tunnels", "Site"), CollectionOrdering.Matching);
 
         int site = resolver.PlaceId("Site")!.Value;
@@ -170,7 +170,7 @@ public class ZoneOverlayTests
         // Only the last zone was well-formed, and it applied.
         PlaceResolver resolver = new(result.Effective);
         await Assert.That(resolver.Resolve(new Vector3(250, 50, -400)).Name).IsEqualTo("E-box");
-        await Assert.That(result.Effective.Places.Select(p => p.Name).ToArray())
+        await Assert.That([.. result.Effective.Places.Select(p => p.Name)])
             .IsEquivalentTo(Names("Ramp", "Hut", "Outside", "Tunnels", "E-box"), CollectionOrdering.Matching);
     }
 
@@ -267,7 +267,7 @@ public class ZoneOverlayTests
         await Assert.That(doc.Zones[1].MinZ).IsNull();
         await Assert.That(doc.Merges[0].Into).IsEqualTo("Site");
         await Assert.That(doc.Merges[0].From.Count).IsEqualTo(3);
-        await Assert.That(doc.Hidden.ToArray()).IsEquivalentTo(Names("Scaffolding"), CollectionOrdering.Matching);
+        await Assert.That([.. doc.Hidden]).IsEquivalentTo(Names("Scaffolding"), CollectionOrdering.Matching);
     }
 
     // Through a call rather than an inline array so the analyzer's constant-array rule stays quiet.

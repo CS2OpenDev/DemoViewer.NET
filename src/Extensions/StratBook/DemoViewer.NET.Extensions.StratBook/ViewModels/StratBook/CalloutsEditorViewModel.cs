@@ -190,8 +190,11 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
             return true;
         }
 
-        List<StratIssue> refusals = StratValidator.ValidateCallouts(table, _canonical)
-            .Where(i => i.Severity == StratIssueSeverity.Refusal).ToList();
+        List<StratIssue> refusals =
+        [
+            .. StratValidator.ValidateCallouts(table, _canonical)
+                .Where(i => i.Severity == StratIssueSeverity.Refusal)
+        ];
         IssueLine = refusals.Count > 0
             ? string.Join("; ", refusals.Select(i => i.Message))
             : "the alias table could not be saved";

@@ -78,7 +78,7 @@ public class MatchOverviewScoreSourceTests
     public async Task FinalScore_IsAConsistentCompletedResult_OnEveryAvailableDemo()
     {
         string repoRoot = DemoTestHelper.RequireRepoRoot();
-        List<string> demos = _candidates.Select(c => Path.Combine(repoRoot, c)).Where(File.Exists).ToList();
+        List<string> demos = [.. _candidates.Select(c => Path.Combine(repoRoot, c)).Where(File.Exists)];
 
         if (demos.Count == 0)
         {

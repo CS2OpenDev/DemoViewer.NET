@@ -132,7 +132,7 @@ public class DemoCacheTier2Tests
         using (Assert.Multiple())
         {
             await Assert.That(rounds.Select(r => r.Number)).IsEquivalentTo(
-                    Enumerable.Range(1, rounds.Count).ToList(), CollectionOrdering.Matching)
+                    [.. Enumerable.Range(1, rounds.Count)], CollectionOrdering.Matching)
                 .Because("rounds are numbered sequentially from 1");
             await Assert.That(rounds.Zip(rounds.Skip(1)).All(p => p.Second.StartTickFrameClock
                     >= p.First.StartTickFrameClock)).IsTrue()

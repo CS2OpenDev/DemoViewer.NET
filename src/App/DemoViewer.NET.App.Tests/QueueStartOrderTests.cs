@@ -131,11 +131,14 @@ public class QueueStartOrderTests
         public Guid Id(string name) => Queue.Snapshot().Single(s => s.DisplayName == name).Id;
 
         // The queued heavy-lane items by the rank the queue reports.
-        public List<string> Ranked() => Queue.Snapshot()
-            .Where(s => s is { State: DemoQueueItemState.Queued, Light: false, Kind: not QueueJobKind.HeapCompaction })
-            .OrderBy(s => s.StartRank)
-            .Select(s => s.DisplayName!)
-            .ToList();
+        public List<string> Ranked() =>
+        [
+            .. Queue.Snapshot()
+                .Where(s => s is
+                    { State: DemoQueueItemState.Queued, Light: false, Kind: not QueueJobKind.HeapCompaction })
+                .OrderBy(s => s.StartRank)
+                .Select(s => s.DisplayName!)
+        ];
 
         public DemoQueueItemSnapshot Item(string name) => Queue.Snapshot().Single(s => s.DisplayName == name);
     }

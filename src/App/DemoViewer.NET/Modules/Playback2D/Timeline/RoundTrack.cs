@@ -66,7 +66,7 @@ public sealed class RoundTrack : ITimelineTrack
         IReadOnlyList<int> freeze = data.FramesForEvent(FreezeEndEvent);
         if (total <= 0 || freeze.Count == 0)
         {
-            return Array.Empty<TimelineBand>();
+            return [];
         }
 
         List<TimelineBand> bands = new(freeze.Count + 1);
@@ -100,7 +100,7 @@ public sealed class RoundTrack : ITimelineTrack
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => Array.Empty<TimelineMarker>();
+    public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
 
     /// <inheritdoc />
     // Raised only by RefreshTints: the band LAYOUT is fixed after parse, but the tint can arrive later,

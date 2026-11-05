@@ -39,7 +39,7 @@ public sealed class YamlDocumentText
     {
         ArgumentNullException.ThrowIfNull(text);
 
-        YamlStream stream = new();
+        YamlStream stream = [];
         stream.Load(new StringReader(text));
         YamlMappingNode? root = stream.Documents.Count > 0
             ? stream.Documents[0].RootNode as YamlMappingNode

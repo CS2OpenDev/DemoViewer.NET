@@ -47,11 +47,11 @@ public static class ShippedScaleGraph
     public static (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges,
         IReadOnlyList<INodeGroup> Groups) Build()
     {
-        List<string> labels = new();
-        List<string> conditions = new();
-        List<SampleNode> nodes = new();
-        List<bool> isPerPlayer = new();
-        List<IGraphEdge> edges = new();
+        List<string> labels = [];
+        List<string> conditions = [];
+        List<SampleNode> nodes = [];
+        List<bool> isPerPlayer = [];
+        List<IGraphEdge> edges = [];
 
         int lineNumber = 0;
         foreach (string line in ReadLines())
@@ -136,8 +136,8 @@ public static class ShippedScaleGraph
             }
         }
 
-        List<IGraphNode> gameScope = new();
-        List<IGraphNode> playerScope = new();
+        List<IGraphNode> gameScope = [];
+        List<IGraphNode> playerScope = [];
         for (int i = 0; i < nodes.Count; i++)
         {
             (isPerPlayer[i] ? playerScope : gameScope).Add(nodes[i]);

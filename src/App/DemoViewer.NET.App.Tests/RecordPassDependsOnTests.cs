@@ -275,7 +275,7 @@ public class RecordPassDependsOnTests
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
         await Assert.That(reader.Seen).IsEmpty();
-        await Assert.That(faults.ToArray()).IsEquivalentTo(_unknownOwnerRefusal, CollectionOrdering.Matching);
+        await Assert.That([.. faults]).IsEquivalentTo(_unknownOwnerRefusal, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -303,7 +303,7 @@ public class RecordPassDependsOnTests
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
         await Assert.That(reader.Seen).IsEmpty();
-        await Assert.That(faults.ToArray())
+        await Assert.That([.. faults])
             .IsEquivalentTo(["test.library.reader: depends on test.owner:bad/facet, which the library does not write."],
                 CollectionOrdering.Matching);
     }

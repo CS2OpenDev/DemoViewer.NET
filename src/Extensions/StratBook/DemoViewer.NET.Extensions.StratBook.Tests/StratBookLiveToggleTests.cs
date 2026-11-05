@@ -668,8 +668,11 @@ public class StratBookLiveToggleTests
         {
             string path = $"/d/{d}.dem";
             string sha = Convert.ToHexString(BitConverter.GetBytes(d)) + new string('0', 56);
-            RoundFacts[] facts = Enumerable.Range(1, roundsPerDemo)
-                .Select(r => RoundIndexTestData.Round(r, r * 1000, r * 1000 + 600)).ToArray();
+            RoundFacts[] facts =
+            [
+                .. Enumerable.Range(1, roundsPerDemo)
+                    .Select(r => RoundIndexTestData.Round(r, r * 1000, r * 1000 + 600))
+            ];
             if (!indexRounds)
             {
                 cache.Upsert(RoundIndexTestData.ParsedRecord(path, "de_nuke", sha, RoundIndexTestData.Facts(facts),
@@ -677,13 +680,19 @@ public class StratBookLiveToggleTests
                 continue;
             }
 
-            (int r, int, int, RoundIndexRun[] runs)[] rounds = Enumerable.Range(1, roundsPerDemo).Select(r =>
-            {
-                RoundIndexRun[] runs = Enumerable.Range(0, 6).Select(k => new RoundIndexRun(k * 10, k * 10 + 9,
-                    $"{ctPlaces[(k + d) % ctPlaces.Length]}:{1 + (k + r) % 5}",
-                    $"{tPlaces[(k + r) % tPlaces.Length]}:{1 + (k + d) % 5}")).ToArray();
-                return (r, r * 1000, r * 1000 + 600, runs);
-            }).ToArray();
+            (int r, int, int, RoundIndexRun[] runs)[] rounds =
+            [
+                .. Enumerable.Range(1, roundsPerDemo).Select(r =>
+                {
+                    RoundIndexRun[] runs =
+                    [
+                        .. Enumerable.Range(0, 6).Select(k => new RoundIndexRun(k * 10, k * 10 + 9,
+                            $"{ctPlaces[(k + d) % ctPlaces.Length]}:{1 + (k + r) % 5}",
+                            $"{tPlaces[(k + r) % tPlaces.Length]}:{1 + (k + d) % 5}"))
+                    ];
+                    return (r, r * 1000, r * 1000 + 600, runs);
+                })
+            ];
             RoundIndexDocument document = RoundIndexTestData.Document("de_nuke", fingerprint, rounds);
             RoundIndexTestData.Indexed(cache, sidecars, path, document, computedAt: 100 + d, modifiedTicks: 20 + d,
                 sha: sha);
@@ -748,7 +757,7 @@ public class StratBookLiveToggleTests
         public bool HoldSaves { get; set; }
 
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
-        public bool BackgroundEnabled { get; } = true;
+        public bool BackgroundEnabled => true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
         public int RunningCount => 0;

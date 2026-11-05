@@ -127,7 +127,7 @@ public sealed partial class StratEditorViewModel : ObservableObject
 
     public static IReadOnlyList<string> Sides { get; } = [StratVocabulary.SideT, StratVocabulary.SideCt];
 
-    public static IReadOnlyList<string> Types { get; } = StratVocabulary.Types;
+    public static IReadOnlyList<string> Types => StratVocabulary.Types;
 
     public static IReadOnlyList<string> TargetSites { get; } = [None, .. StratVocabulary.TargetSites];
 
@@ -137,7 +137,7 @@ public sealed partial class StratEditorViewModel : ObservableObject
 
     public static IReadOnlyList<string> Statuses { get; } = Enum.GetNames<StratStatus>();
 
-    public static IReadOnlyList<string> Verbs { get; } = StratVocabulary.Verbs;
+    public static IReadOnlyList<string> Verbs => StratVocabulary.Verbs;
 
     public static IReadOnlyList<string> UtilityKinds { get; } = [None, .. StratVocabulary.UtilityKinds];
 

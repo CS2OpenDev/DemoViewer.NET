@@ -35,7 +35,7 @@ public class ZoneOutlineLayerTests
         PlaceResolver resolver = new(ZoneFixtures.Build());
 
         IReadOnlyList<PlaceOutline> upper = resolver.OutlinesFor(ZoneFixtures.Upper);
-        await Assert.That(upper.Select(o => o.Name).ToArray())
+        await Assert.That([.. upper.Select(o => o.Name)])
             .IsEquivalentTo(Names("Ramp", "Hut", "Outside"), CollectionOrdering.Matching);
         await Assert.That(ReferenceEquals(upper, resolver.OutlinesFor(ZoneFixtures.Upper))).IsTrue();
 
@@ -76,7 +76,7 @@ public class ZoneOutlineLayerTests
         }
 
         // The lower floor holds one place and the island holds none.
-        await Assert.That(resolver.OutlinesFor(ZoneFixtures.Lower).Select(o => o.Name).ToArray())
+        await Assert.That([.. resolver.OutlinesFor(ZoneFixtures.Lower).Select(o => o.Name)])
             .IsEquivalentTo(Names("Tunnels"), CollectionOrdering.Matching);
         await Assert.That(resolver.OutlinesFor(4096).Count).IsEqualTo(0);
     }
@@ -179,7 +179,7 @@ public class ZoneOutlineLayerTests
         layer.Render(surface.Canvas, ctx);
         using SKImage image = surface.Snapshot();
         using SKPixmap pixels = image.PeekPixels();
-        return pixels.GetPixelSpan().ToArray();
+        return [.. pixels.GetPixelSpan()];
     }
 
     private static int Ink(byte[] rgba)

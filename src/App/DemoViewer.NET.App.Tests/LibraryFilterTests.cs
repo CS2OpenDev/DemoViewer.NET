@@ -34,7 +34,7 @@ public class LibraryFilterTests
         Modified = new DateTime(2026, 7, 1, 12, 0, 0),
         MapName = map,
         ServerName = "srv",
-        Players = players.Split(',').ToList(),
+        Players = [.. players.Split(',')],
         DurationSeconds = 3000,
         State = DemoIndexState.Indexed
     };

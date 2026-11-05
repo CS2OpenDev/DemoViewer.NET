@@ -344,7 +344,7 @@ public class ExtensionUpdateServiceTests
                 Zip(("inner/" + ExtensionManifest.FileName, FakeFeeds.Manifest(Id, new FakeFeeds.Entry("1.0.1"))),
                     ("inner/Fake.dll", "x"));
             byte[] noAssembly = Zip((ExtensionManifest.FileName, FakeFeeds.Manifest(Id, new FakeFeeds.Entry("1.0.1"))));
-            byte[] notAZip = "not a zip"u8.ToArray();
+            byte[] notAZip = [.. "not a zip"u8];
 
             (byte[] Zip, string Reason)[] cases =
             [

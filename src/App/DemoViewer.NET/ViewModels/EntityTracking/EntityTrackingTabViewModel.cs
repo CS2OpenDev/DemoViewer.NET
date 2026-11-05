@@ -624,8 +624,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         EntityTracker tracker,
         Dictionary<int, Dictionary<string, object?>> prevSnapshot)
     {
-        HashSet<int> changedSlots = new();
-        HashSet<int> displayChangedSlots = new();
+        HashSet<int> changedSlots = [];
+        HashSet<int> displayChangedSlots = [];
         foreach ((int idx, EntityState entity) in LiveEntitiesIndexed(tracker))
         {
             if (!prevSnapshot.TryGetValue(idx, out Dictionary<string, object?>? prevFields))
@@ -660,7 +660,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                      .GroupBy(t => Categorise(t.Entity.ClassName))
                      .OrderBy(grp => grp.Key))
         {
-            List<(int Index, EntityState Entity)> entities = g.OrderBy(t => t.Entity.ClassName).ToList();
+            List<(int Index, EntityState Entity)> entities = [.. g.OrderBy(t => t.Entity.ClassName)];
             foreach ((int Index, EntityState Entity) t in entities)
             {
                 if (displayChangedSlots.Contains(t.Index))
@@ -696,8 +696,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         EntityTracker tracker,
         Dictionary<int, Dictionary<string, object?>>? prevSnapshot)
     {
-        List<EntityListItem> changed = new();
-        List<EntityListItem> unchanged = new();
+        List<EntityListItem> changed = [];
+        List<EntityListItem> unchanged = [];
 
         foreach ((int idx, EntityState entity) in LiveEntitiesIndexed(tracker)
                      .OrderBy(t => t.Entity.ClassName))
@@ -942,9 +942,11 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             })
         ];
 
-        EntityFieldRows = AllEntityFieldNodes
-            .Select(n => new KvpRow(n.Name, n.Value, n.IsDelta, n.PreviousValue))
-            .ToList();
+        EntityFieldRows =
+        [
+            .. AllEntityFieldNodes
+                .Select(n => new KvpRow(n.Name, n.Value, n.IsDelta, n.PreviousValue))
+        ];
 
         EntityDeltaFieldCount = AllEntityFieldNodes.Count(n => n.IsDelta);
         EntityHeaderText = EntityDeltaFieldCount > 0
@@ -954,10 +956,12 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
         // Feed the delta log (changed fields prev → curr) and surface the
         // selected entity's serializer schema in the bottom strip.
-        List<(string Field, string Prev, string Curr)> changes = AllEntityFieldNodes
-            .Where(n => n.IsDelta)
-            .Select(n => (n.Name, n.PreviousValue ?? "", n.Value))
-            .ToList();
+        List<(string Field, string Prev, string Curr)> changes =
+        [
+            .. AllEntityFieldNodes
+                .Where(n => n.IsDelta)
+                .Select(n => (n.Name, n.PreviousValue ?? "", n.Value))
+        ];
         DeltaLog.Show(CurrentTrackerInternal?.CurrentTick ?? 0,
             $"{entity.ClassName} (serial {entity.Serial})", changes);
         SerializerSchema.Show(CurrentTrackerInternal, entity.ClassName);

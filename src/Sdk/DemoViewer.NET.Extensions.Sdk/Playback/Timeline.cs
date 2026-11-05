@@ -16,7 +16,7 @@ public interface ILaneBehaviour
     }
 
     /// <summary>Entries for a band's right-click menu, before the other contributors'.</summary>
-    IEnumerable<MenuEntry> MenuFor(PlaybackBand band) => Array.Empty<MenuEntry>();
+    IEnumerable<MenuEntry> MenuFor(PlaybackBand band) => [];
 
     /// <summary>An empty part of an editable lane was pressed at <paramref name="frame" />.</summary>
     void OnLabelRequested(int frame)

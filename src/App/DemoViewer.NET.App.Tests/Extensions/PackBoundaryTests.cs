@@ -36,10 +36,12 @@ public class PackBoundaryTests
                 "repo root not found (no DemoViewer.NET.slnx above the test binary)");
 
         XDocument csproj = XDocument.Load(Path.Combine(repoRoot, AppProject, "DemoViewer.NET.csproj"));
-        List<string> extensionReferences = csproj.Descendants("ProjectReference")
-            .Select(r => (string?)r.Attribute("Include") ?? "")
-            .Where(include => include.Replace('\\', '/').Contains("/Extensions/", StringComparison.Ordinal))
-            .ToList();
+        List<string> extensionReferences =
+        [
+            .. csproj.Descendants("ProjectReference")
+                .Select(r => (string?)r.Attribute("Include") ?? "")
+                .Where(include => include.Replace('\\', '/').Contains("/Extensions/", StringComparison.Ordinal))
+        ];
 
         await Assert.That(extensionReferences).IsEmpty()
             .Because("the app assembly must not reference an extension; the heads compose both");
@@ -60,10 +62,12 @@ public class PackBoundaryTests
                 "repo root not found (no DemoViewer.NET.slnx above the test binary)");
 
         XDocument csproj = XDocument.Load(Path.Combine(repoRoot, projectDir, csprojName));
-        List<string> extensionReferences = csproj.Descendants("ProjectReference")
-            .Select(r => (string?)r.Attribute("Include") ?? "")
-            .Where(include => include.Replace('\\', '/').Contains("/Extensions/", StringComparison.Ordinal))
-            .ToList();
+        List<string> extensionReferences =
+        [
+            .. csproj.Descendants("ProjectReference")
+                .Select(r => (string?)r.Attribute("Include") ?? "")
+                .Where(include => include.Replace('\\', '/').Contains("/Extensions/", StringComparison.Ordinal))
+        ];
 
         await Assert.That(extensionReferences).IsEmpty()
             .Because(
@@ -111,7 +115,7 @@ public class PackBoundaryTests
         HashSet<string> allowedSet =
             new(_allowedEdges.Select(e => $"{e.FilePath}|{e.Namespace}"), StringComparer.Ordinal);
 
-        List<(string FilePath, string Namespace)> violations = new();
+        List<(string FilePath, string Namespace)> violations = [];
         foreach (string file in SourceFiles(appRoot))
         {
             string content = await File.ReadAllTextAsync(file);

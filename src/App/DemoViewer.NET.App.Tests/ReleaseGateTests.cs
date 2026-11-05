@@ -105,11 +105,13 @@ public class ReleaseGateTests
             // to end users; it now lives at docs/tour-sample-demo.md. Asserted over the whole
             // published assets/ tree, not just tour/, because the next one won't be in tour/.
             string publishedAssets = Path.Combine(publishDir, "assets");
-            string[] strayDocs = Directory
-                .EnumerateFiles(publishedAssets, "*.md", SearchOption.AllDirectories)
-                .Concat(Directory.EnumerateFiles(publishedAssets, "*.txt", SearchOption.AllDirectories))
-                .Select(p => Path.GetRelativePath(publishedAssets, p))
-                .ToArray();
+            string[] strayDocs =
+            [
+                .. Directory
+                    .EnumerateFiles(publishedAssets, "*.md", SearchOption.AllDirectories)
+                    .Concat(Directory.EnumerateFiles(publishedAssets, "*.txt", SearchOption.AllDirectories))
+                    .Select(p => Path.GetRelativePath(publishedAssets, p))
+            ];
             await Assert.That(strayDocs).IsEmpty()
                 .Because($"maintainer docs must not ship inside assets/ — found: {string.Join(", ", strayDocs)}");
         }
@@ -222,7 +224,7 @@ public class ReleaseGateTests
             // exercising the category rail as part of the journey.
             await Assert.That(vm.Categories.Select(c => c.Group)).Contains(StatGroup.Other);
             vm.SelectedCategory = StatGroup.Other;
-            IReadOnlyList<string> labels = vm.Columns.Select(c => c.Label).ToList();
+            IReadOnlyList<string> labels = [.. vm.Columns.Select(c => c.Label)];
             await Assert.That(labels).Contains("JourneyCheck");
             await Assert.That(labels).Contains("JourneyNew");
 
@@ -236,7 +238,7 @@ public class ReleaseGateTests
 
             // Table picker: the declared output and the shipped keyed tables are selectable, and
             // the generic renderer produces aligned rows for the declared output.
-            IReadOnlyList<string> extraNames = vm.ExtraTables.Select(t => t.Name).ToList();
+            IReadOnlyList<string> extraNames = [.. vm.ExtraTables.Select(t => t.Name)];
             await Assert.That(extraNames).Contains("journey_output");
             await Assert.That(extraNames).Contains("player_kills_by_weapon");
             vm.SelectedExtraTable = vm.ExtraTables.Single(t => t.Name == "journey_output");

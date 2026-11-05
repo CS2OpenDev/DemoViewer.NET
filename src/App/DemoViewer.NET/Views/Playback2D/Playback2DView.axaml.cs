@@ -540,7 +540,7 @@ public partial class Playback2DView : UserControl
             return;
         }
 
-        List<MenuItem> items = new();
+        List<MenuItem> items = [];
         foreach (FollowablePlayer p in vm.FollowablePlayers)
         {
             MenuItem item = new() { Header = p.Display };
@@ -568,7 +568,7 @@ public partial class Playback2DView : UserControl
         }
 
         bool offers = false;
-        List<MenuItem> items = new();
+        List<MenuItem> items = [];
         foreach (FollowablePlayer p in vm.FollowablePlayers)
         {
             PlayerOverviewEntry entry = p.PlayerOverview;

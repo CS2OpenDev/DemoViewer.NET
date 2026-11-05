@@ -265,7 +265,7 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
 
         _scene = scene ?? ExportDialogScene.Demo;
 
-        Ranges = new ObservableCollection<ExportRangeOption>(ranges);
+        Ranges = [.. ranges];
         _job = job;
         _captureLiveCamera = captureLiveCamera ?? DefaultCamera;
         _outputFrameCount = outputFrameCount ?? (static (start, end, _, _) => Math.Max(1, end - start + 1));

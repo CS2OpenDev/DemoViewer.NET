@@ -891,8 +891,8 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     {
         VisitedDemo demo = new(path);
         // Asked once, outside the lock: the answer fixes how this pass may join and what the visit reads.
-        List<(IDemoPass Pass, PassNeeds Needs)> joining = passes.Select(p => (p, SafeNeeds(p, demo))).ToList();
-        List<string> owners = passes.Select(p => p.Id).Distinct(StringComparer.Ordinal).ToList();
+        List<(IDemoPass Pass, PassNeeds Needs)> joining = [.. passes.Select(p => (p, SafeNeeds(p, demo)))];
+        List<string> owners = [.. passes.Select(p => p.Id).Distinct(StringComparer.Ordinal)];
 
         Handle handle;
         CancellationTokenSource? supersededCancel = null;
@@ -1386,20 +1386,23 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         lock (_sync)
         {
             Dictionary<Entry, int> ranks = StartRanksLocked();
-            return _entries.Select(e =>
-            {
-                DemoQueueItemSnapshot s = ToSnapshot(e) with
+            return
+            [
+                .. _entries.Select(e =>
                 {
-                    StartRank = ranks.TryGetValue(e, out int rank) ? rank : null,
-                    Light = IsLight(e),
-                    Hold = e.State == DemoQueueItemState.Queued ? HoldLocked(e) : DemoQueueHold.None
-                };
-                return e is { Kind: QueueJobKind.DemoOpen, WaitingForSlot: true }
-                    ? s with { Detail = OpenWaitDetailLocked(e) }
-                    : ParkedLocked(e)
-                        ? s with { Detail = "Runs on the open of this demo" }
-                        : s;
-            }).ToList();
+                    DemoQueueItemSnapshot s = ToSnapshot(e) with
+                    {
+                        StartRank = ranks.TryGetValue(e, out int rank) ? rank : null,
+                        Light = IsLight(e),
+                        Hold = e.State == DemoQueueItemState.Queued ? HoldLocked(e) : DemoQueueHold.None
+                    };
+                    return e is { Kind: QueueJobKind.DemoOpen, WaitingForSlot: true }
+                        ? s with { Detail = OpenWaitDetailLocked(e) }
+                        : ParkedLocked(e)
+                            ? s with { Detail = "Runs on the open of this demo" }
+                            : s;
+                })
+            ];
         }
     }
 
@@ -1427,10 +1430,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
     private void RankLaneLocked(bool light, int first, string? resident, Dictionary<Entry, int> ranks)
     {
-        List<(Entry Entry, bool Ready)> pending = _entries
-            .Where(e => e.State == DemoQueueItemState.Queued && e.Kind != QueueJobKind.DemoOpen && IsLight(e) == light)
-            .Select(e => (e, HoldLocked(e) == DemoQueueHold.None))
-            .ToList();
+        List<(Entry Entry, bool Ready)> pending =
+        [
+            .. _entries
+                .Where(e => e.State == DemoQueueItemState.Queued && e.Kind != QueueJobKind.DemoOpen
+                    && IsLight(e) == light)
+                .Select(e => (e, HoldLocked(e) == DemoQueueHold.None))
+        ];
         pending.Sort((a, b) => a.Ready != b.Ready ? (a.Ready ? -1 : 1)
             : CompareTier(a.Entry, b.Entry, resident) is var tier and not 0 ? tier
             : CompareWithinGroup(a.Entry, b.Entry));
@@ -1884,9 +1890,11 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             cancelled = ct.IsCancellationRequested || !IsActive(open);
             visits = cancelled
                 ? []
-                : _entries.Where(e => e is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued }
+                :
+                [
+                    .. _entries.Where(e => e is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued }
                         && ReferenceEquals(e.ParkedBehind, open))
-                    .ToList();
+                ];
             foreach (Entry visit in visits)
             {
                 visit.State = DemoQueueItemState.Running;
@@ -2534,7 +2542,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     // Keep the mirror bounded: drop the entries that ended longest ago beyond the history cap.
     private void PruneTerminalHistoryLocked()
     {
-        List<Entry> terminal = _entries.Where(e => !IsActive(e)).OrderBy(e => e.EndedSeq).ToList();
+        List<Entry> terminal = [.. _entries.Where(e => !IsActive(e)).OrderBy(e => e.EndedSeq)];
         int excess = terminal.Count - TerminalHistoryCap;
         for (int i = 0; i < excess; i++)
         {

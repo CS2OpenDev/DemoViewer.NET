@@ -25,7 +25,7 @@ internal sealed class DemoVisit(VisitedDemo demo, PassLevel level)
 
     /// <summary>The pass ids, each once, in arrival order.</summary>
     public IReadOnlyList<string> OwnerIds =>
-        _passes.Select(p => p.Pass.Id).Distinct(StringComparer.Ordinal).ToList();
+        [.. _passes.Select(p => p.Pass.Id).Distinct(StringComparer.Ordinal)];
 
     /// <summary>Adds a pass with the needs it declared for this demo; the same instance is not added twice.</summary>
     public bool Add(IDemoPass pass, PassNeeds needs, Action<IDemoPass, PassOutcome, Exception?>? ended,
@@ -148,7 +148,7 @@ internal sealed class DemoVisit(VisitedDemo demo, PassLevel level)
     /// </summary>
     public IReadOnlyList<VisitPass> Ordered()
     {
-        List<VisitPass> pending = _passes.OrderBy(p => p.Arrival).ToList();
+        List<VisitPass> pending = [.. _passes.OrderBy(p => p.Arrival)];
         HashSet<string> present = new(pending.Select(p => p.Pass.Id), StringComparer.Ordinal);
         HashSet<string> emitted = new(StringComparer.Ordinal);
         List<VisitPass> ordered = new(pending.Count);
@@ -261,7 +261,7 @@ internal static class VisitPlanner
 
         riders = new HashSet<string>(passes.Where(p => chosen.Contains(p.Id) && answers[p] == PassInterest.IfRulesRun)
             .Select(p => p.Id), StringComparer.Ordinal);
-        return passes.Where(p => chosen.Contains(p.Id)).ToList();
+        return [.. passes.Where(p => chosen.Contains(p.Id))];
     }
 
     private static bool NeedsRules(IDemoPass pass, VisitedDemo demo, Action<IDemoPass, Exception>? faulted)

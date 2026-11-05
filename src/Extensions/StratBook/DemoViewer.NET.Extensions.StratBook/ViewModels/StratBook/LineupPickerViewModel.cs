@@ -71,7 +71,7 @@ public sealed partial class LineupPickerViewModel : ObservableObject, IDisposabl
     /// <summary>The Utility Book view model the map host draws.</summary>
     public UtilityBookTabViewModel Map { get; }
 
-    public static IReadOnlyList<string> Kinds { get; } = StratVocabulary.UtilityKinds;
+    public static IReadOnlyList<string> Kinds => StratVocabulary.UtilityKinds;
 
     public string Title => "Pick a lineup on " + Map.MapName;
 

@@ -79,9 +79,9 @@ public class InjectionChannelMockTests
 
             string demoPath = Path.Combine(Path.GetTempPath(), $"livesync-inject-{Guid.NewGuid():N}.dem");
             string otherDemoPath = Path.Combine(Path.GetTempPath(), $"livesync-inject-other-{Guid.NewGuid():N}.dem");
-            await File.WriteAllBytesAsync(demoPath, "PBDEMS2\0"u8.ToArray(),
+            await File.WriteAllBytesAsync(demoPath, [.. "PBDEMS2\0"u8],
                 cancellationToken);
-            await File.WriteAllBytesAsync(otherDemoPath, "PBDEMS2\0"u8.ToArray(),
+            await File.WriteAllBytesAsync(otherDemoPath, [.. "PBDEMS2\0"u8],
                 cancellationToken);
             try
             {

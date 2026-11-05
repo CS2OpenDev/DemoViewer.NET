@@ -692,7 +692,7 @@ public class RuleWorkbenchModuleTests
         WorkbenchTraceReport report = WorkbenchTraceModel.Build(result, docs, demo);
 
         WorkbenchTraceTarget[] firedStats =
-            report.Targets.Where(t => t is { Kind: "stat", FireCount: > 0 }).ToArray();
+            [.. report.Targets.Where(t => t is { Kind: "stat", FireCount: > 0 })];
         await Assert.That(firedStats.Length).IsGreaterThan(0)
             .Because("count/sum stats fire through the applied-edge source, not the timeline");
 

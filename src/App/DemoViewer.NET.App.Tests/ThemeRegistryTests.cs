@@ -72,7 +72,7 @@ public class ThemeRegistryTests
             }
         }
 
-        return found.ToArray();
+        return [.. found];
     }
 
     [Test]
@@ -137,13 +137,13 @@ public class ThemeRegistryTests
         {
             foreach ((string family, string[] keys) in _statFamilies)
             {
-                string[] present = keys.Where(tokens.ContainsKey).ToArray();
+                string[] present = [.. keys.Where(tokens.ContainsKey)];
                 if (present.Length == 0)
                 {
                     continue;
                 }
 
-                string[] missing = keys.Except(present, StringComparer.Ordinal).ToArray();
+                string[] missing = [.. keys.Except(present, StringComparer.Ordinal)];
                 await Assert.That(missing).IsEmpty()
                     .Because($"{name} retints {present.Length} of the {keys.Length} tokens in {family}; "
                         + $"missing: {string.Join(", ", missing)}");
@@ -179,7 +179,7 @@ public class ThemeRegistryTests
         await HeadlessSession.RunOnUi(async () =>
         {
             ThemeRegistry registry = new();
-            List<string> ids = registry.Themes.Select(t => t.Id).ToList();
+            List<string> ids = [.. registry.Themes.Select(t => t.Id)];
 
             await Assert.That(ids).Contains("dark");
             await Assert.That(ids).Contains("light");

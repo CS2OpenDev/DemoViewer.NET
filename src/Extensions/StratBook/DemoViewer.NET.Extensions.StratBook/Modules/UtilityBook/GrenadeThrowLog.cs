@@ -20,7 +20,7 @@ public static class GrenadeThrowLog
     public const string Suffix = ".grenades.log.gz";
 
     private const int Version = 1;
-    private static readonly byte[] _magic = "DVGL"u8.ToArray();
+    private static readonly byte[] _magic = [.. "DVGL"u8];
 
     [Flags]
     private enum Has : uint

@@ -23,12 +23,12 @@ internal sealed class FakeTimelineData(int totalFrames) : ITimelineData
     public int FrameIndexAtTick(int tick) => Ticks.TryGetValue(tick, out int frame) ? frame : tick / 2;
 
     public IReadOnlyList<int> FramesForEvent(string eventName) =>
-        EventFrames.TryGetValue(eventName, out int[]? frames) ? frames : Array.Empty<int>();
+        EventFrames.TryGetValue(eventName, out int[]? frames) ? frames : [];
 
     public IReadOnlyList<TimelineEventRecord> EventsOfType(string eventName) =>
         Events.TryGetValue(eventName, out TimelineEventRecord[]? records)
             ? records
-            : Array.Empty<TimelineEventRecord>();
+            : [];
 
     public bool HasEvent(string eventName) =>
         EventFrames.ContainsKey(eventName) || Events.ContainsKey(eventName);

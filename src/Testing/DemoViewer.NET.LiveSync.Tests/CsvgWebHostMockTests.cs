@@ -56,7 +56,7 @@ public class CsvgWebHostMockTests
 
             // v1.1 load validation requires an existing file (A-P4) — mock included.
             string demoPath = Path.Combine(Path.GetTempPath(), $"livesync-webhost-{Guid.NewGuid():N}.dem");
-            await File.WriteAllBytesAsync(demoPath, "PBDEMS2\0"u8.ToArray(),
+            await File.WriteAllBytesAsync(demoPath, [.. "PBDEMS2\0"u8],
                 cancellationToken);
             try
             {

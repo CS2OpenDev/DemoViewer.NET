@@ -31,18 +31,20 @@ public class Playback2DFeatureWiringTests
         // features it contributes. Their test and capture projects are not production and do not count.
         string extensionsRoot = Path.Combine(DemoTestHelper.RequireRepoRoot(), "src", "Extensions");
 
-        string[] sources = Directory
-            .EnumerateFiles(appRoot, "*.*", SearchOption.AllDirectories)
-            .Concat(Directory.Exists(extensionsRoot)
-                ? Directory.EnumerateFiles(extensionsRoot, "*.*", SearchOption.AllDirectories)
-                    .Where(IsExtensionProductionSource)
-                : [])
-            .Where(p => p.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
-                || p.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase))
-            .Where(p => !string.Equals(p, catalogPath, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
+        string[] sources =
+        [
+            .. Directory
+                .EnumerateFiles(appRoot, "*.*", SearchOption.AllDirectories)
+                .Concat(Directory.Exists(extensionsRoot)
+                    ? Directory.EnumerateFiles(extensionsRoot, "*.*", SearchOption.AllDirectories)
+                        .Where(IsExtensionProductionSource)
+                    : [])
+                .Where(p => p.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+                    || p.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase))
+                .Where(p => !string.Equals(p, catalogPath, StringComparison.OrdinalIgnoreCase))
+        ];
 
-        List<string> unconsumed = new();
+        List<string> unconsumed = [];
         foreach (string id in Playback2DFeatureCatalogTests.Ids)
         {
             bool found = sources.Any(p =>
@@ -109,7 +111,7 @@ public class Playback2DFeatureWiringTests
             "playback2d.timeline", "playback2d.levels.auto", "playback2d.follow", "playback2d.export"
         ];
 
-        List<string> hits = new();
+        List<string> hits = [];
         foreach (string root in roots)
         {
             await Assert.That(Directory.Exists(root)).IsTrue().Because($"{root} should exist");

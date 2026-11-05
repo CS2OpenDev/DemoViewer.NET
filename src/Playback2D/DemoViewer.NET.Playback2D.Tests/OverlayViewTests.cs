@@ -179,7 +179,7 @@ public class OverlayViewTests
         await Assert.That(tolerant.Points[1]).IsEqualTo(new OverlayPoint(7, 8, 9, QuerySide.T));
 
         using MemoryStream empty =
-            new("""{"schemaVersion":"dvoverlay/1","map":"de_nuke","states":0}"""u8.ToArray());
+            new([.. """{"schemaVersion":"dvoverlay/1","map":"de_nuke","states":0}"""u8]);
         await Assert.That(OverlayFixtureStore.Read(empty).IsEmpty).IsTrue();
     }
 

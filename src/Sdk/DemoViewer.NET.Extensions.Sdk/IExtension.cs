@@ -30,13 +30,13 @@ public interface IExtension
     IEnumerable<ExtensionFeature> Features { get; }
 
     /// <summary>Commands with default key gestures. Read without DI, so the keybind settings can list them.</summary>
-    IEnumerable<CommandDescriptor> Commands => Array.Empty<CommandDescriptor>();
+    IEnumerable<CommandDescriptor> Commands => [];
 
     /// <summary>The focus scopes <see cref="Commands" /> name beyond the tab's own two. Read without DI.</summary>
-    IEnumerable<CommandScope> CommandScopes => Array.Empty<CommandScope>();
+    IEnumerable<CommandScope> CommandScopes => [];
 
     /// <summary>The processing-queue job kinds the extension submits work under. Read without DI.</summary>
-    IEnumerable<ExtensionJobKind> JobKinds => Array.Empty<ExtensionJobKind>();
+    IEnumerable<ExtensionJobKind> JobKinds => [];
 
     /// <summary>
     ///     Folders and files the extension owns outside its own folders: where it keeps data a user is meant to
@@ -48,7 +48,7 @@ public interface IExtension
     ///     for itself, and the demo cache's own records under the cache root, refuse every extension alike. A null
     ///     entry is dropped and logged the same way.
     /// </summary>
-    IEnumerable<StoreDescriptor?> Stores => Array.Empty<StoreDescriptor>();
+    IEnumerable<StoreDescriptor?> Stores => [];
 
     /// <summary>
     ///     Adds the extension's services. Runs whether the extension is on or off, so register factories

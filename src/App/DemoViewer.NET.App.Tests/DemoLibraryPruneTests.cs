@@ -104,7 +104,7 @@ public sealed class DemoLibraryPruneTests : IDisposable
             // Distinct bytes: identical files collapse into one card by content hash.
             for (int i = 0; i < files.Length; i++)
             {
-                await File.WriteAllBytesAsync(files[i], Enumerable.Repeat((byte)(i + 1), 16).ToArray());
+                await File.WriteAllBytesAsync(files[i], [.. Enumerable.Repeat((byte)(i + 1), 16)]);
             }
 
             using DemoLibraryService svc = Library(SeedCache(dir, [demos]));
@@ -150,7 +150,7 @@ public sealed class DemoLibraryPruneTests : IDisposable
             string[] files = [.. Enumerable.Range(1, 5).Select(i => Path.Combine(demos, $"d{i}.dem"))];
             for (int i = 0; i < files.Length; i++)
             {
-                await File.WriteAllBytesAsync(files[i], Enumerable.Repeat((byte)(i + 1), 16).ToArray());
+                await File.WriteAllBytesAsync(files[i], [.. Enumerable.Repeat((byte)(i + 1), 16)]);
             }
 
             using DemoLibraryService svc = Library(SeedCache(dir, [demos]));

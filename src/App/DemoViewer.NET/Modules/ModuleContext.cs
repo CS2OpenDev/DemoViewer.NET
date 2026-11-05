@@ -77,7 +77,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
     // the projected GameEventView timeline. A module pre-builds its own windowed view from a timeline; the
     // host materializes a given name's views ONCE on first request (so high-volume names it never asks for,
     // e.g. weapon_fire, are never built). Reset on unload.
-    private IReadOnlyList<GameEvent> _allGameEvents = Array.Empty<GameEvent>();
+    private IReadOnlyList<GameEvent> _allGameEvents = [];
 
     // Shared game-clock calibration, handed over per load by the shell (mirroring SetRoster) and settled by
     // the open's rules run. When not calibrated CurtimeSeconds returns the naive reading (clockBase 0).
@@ -95,7 +95,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
     // The map's logical name, set once at load (mirrors SetRoster). Null until a demo is loaded.
 
     // Stable identity roster (slot / steamID / name, NO team).
-    private List<PlayerRosterEntry> _roster = new();
+    private List<PlayerRosterEntry> _roster = [];
 
     // The host's speed-lock predicate (a Live Sync session without the plugin's timescale capability).
     // Wired once by the shell via SetSpeedLock, exactly like SetLiveSyncHud. Null → never locked.
@@ -194,7 +194,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
         _navigator is not null && eventName is not null
         && _navigator.EventBoundaryFramesByName.TryGetValue(eventName, out int[]? frames)
             ? frames
-            : Array.Empty<int>();
+            : [];
 
     public bool IsSpeedLocked => _speedLocked?.Invoke() ?? false;
 
@@ -257,7 +257,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
             return cached;
         }
 
-        List<GameEventView> views = new();
+        List<GameEventView> views = [];
         foreach (GameEvent e in _allGameEvents)
         {
             if (e.Name == eventName)
@@ -308,7 +308,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
     ///     Sets the stable identity roster on demo load. Identity only: team is volatile and
     ///     comes from the per-tick join. Reset to empty on unload.
     /// </summary>
-    public void SetRoster(IEnumerable<PlayerRosterEntry> roster) => _roster = roster.ToList();
+    public void SetRoster(IEnumerable<PlayerRosterEntry> roster) => _roster = [.. roster];
 
     /// <summary>
     ///     Sets the map's logical name on demo load (mirrors <see cref="SetRoster" />): the host reads it

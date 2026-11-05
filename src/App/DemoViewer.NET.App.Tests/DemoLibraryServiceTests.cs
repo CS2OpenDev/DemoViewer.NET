@@ -428,7 +428,7 @@ public class DemoLibraryServiceTests
         await File.WriteAllBytesAsync(Path.Combine(dir, "two.dem"), [4, 5, 6]);
         try
         {
-            ConcurrentBag<string> parsedNames = new();
+            ConcurrentBag<string> parsedNames = [];
             using ManualResetEventSlim release = new(false);
             // One background slot → whichever demo submits first occupies the worker (blocked on release);
             // the other is REJECTED and stays dirty on the scheduler. All file parses block, so exactly one runs.
@@ -515,7 +515,7 @@ public class DemoLibraryServiceTests
         string realName = Path.GetFileName(demo);
         try
         {
-            ConcurrentBag<string> parsedNames = new();
+            ConcurrentBag<string> parsedNames = [];
             using ManualResetEventSlim release = new(false);
             // A just-created sacrifice file: its mtime is newer than the (older) real demo, so it is planned
             // first and occupies the single background slot; the real demo is then REJECTED and stays dirty.
@@ -959,8 +959,8 @@ public class DemoLibraryServiceTests
     [Test]
     public async Task BulkAddRange_RaisesSingleResetEvent()
     {
-        BulkObservableCollection<int> col = new();
-        List<NotifyCollectionChangedAction> events = new();
+        BulkObservableCollection<int> col = [];
+        List<NotifyCollectionChangedAction> events = [];
         col.CollectionChanged += (_, e) => events.Add(e.Action);
 
         col.AddRange(Enumerable.Range(0, 250));

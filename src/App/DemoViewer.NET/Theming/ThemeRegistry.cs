@@ -67,10 +67,10 @@ public sealed class ThemeRegistry
     }
 
     /// <summary>All registered themes, in registration order (built-ins first, then user drop-ins).</summary>
-    public IReadOnlyList<Theme> Themes => _ordered.ToList();
+    public IReadOnlyList<Theme> Themes => [.. _ordered];
 
     /// <summary>Theme files the last <see cref="Reload" /> skipped, with the reason.</summary>
-    public IReadOnlyList<ThemeLoadProblem> LoadProblems => _problems.ToList();
+    public IReadOnlyList<ThemeLoadProblem> LoadProblems => [.. _problems];
 
     /// <summary>Fires after <see cref="Reload" /> re-scans the drop-in directory, so the app can refresh + repaint.</summary>
     public event EventHandler? Reloaded;

@@ -86,9 +86,12 @@ internal static class Program
     {
         string path = args[1];
         string outDir = StringOption(args, "--out") ?? Fail<string>("--out <dir> is required.");
-        IReadOnlyList<int> roundCounts = (StringOption(args, "--rounds") ?? "1,3")
+        IReadOnlyList<int> roundCounts =
+        [
+            .. (StringOption(args, "--rounds") ?? "1,3")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(s => int.Parse(s, CultureInfo.InvariantCulture)).ToList();
+            .Select(s => int.Parse(s, CultureInfo.InvariantCulture))
+        ];
         IReadOnlyList<TrimVariant> variants = StringOption(args, "--variants") is { } spec
             ? TrimVariant.Parse(spec)
             : TrimVariant.All;

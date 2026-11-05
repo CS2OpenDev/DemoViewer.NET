@@ -51,7 +51,7 @@ public class PlayerAttributesTests
     public async Task TeamChanged_RaisesDerivedPropertyNotifications()
     {
         PlayerAttributes a = new(0);
-        List<string> raised = new();
+        List<string> raised = [];
         a.PropertyChanged += (_, e) => raised.Add(e.PropertyName ?? "");
 
         a.Team = 3;

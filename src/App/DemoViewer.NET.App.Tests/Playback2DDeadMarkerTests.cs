@@ -167,8 +167,8 @@ public class Playback2DDeadMarkerTests
 
     private sealed class View : IReadOnlyEntityView
     {
-        public IEnumerable<IReadOnlyEntity> All() => Array.Empty<IReadOnlyEntity>();
-        public IEnumerable<IReadOnlyEntity> OfClass(string className) => Array.Empty<IReadOnlyEntity>();
+        public IEnumerable<IReadOnlyEntity> All() => [];
+        public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
         public IReadOnlyEntity? BySerial(int serial) => null;
         public IReadOnlyEntity? ByIndex(int entityIndex) => null;
         public IReadOnlyEntity? ResolveHandle(ulong handle) => null;

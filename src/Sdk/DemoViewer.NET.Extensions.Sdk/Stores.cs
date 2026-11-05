@@ -54,7 +54,7 @@ public sealed record StoreInventoryItem(StoreDescriptor Descriptor, int FileCoun
 public sealed record ExtensionDataInventory(IReadOnlyList<StoreInventoryItem> Items)
 {
     /// <summary>Nothing on disk.</summary>
-    public static readonly ExtensionDataInventory Empty = new(Array.Empty<StoreInventoryItem>());
+    public static readonly ExtensionDataInventory Empty = new([]);
 
     /// <summary>Total bytes.</summary>
     public long TotalBytes => Items.Sum(i => i.Bytes);
@@ -64,7 +64,7 @@ public sealed record ExtensionDataInventory(IReadOnlyList<StoreInventoryItem> It
 }
 
 /// <summary>What a delete removed.</summary>
-/// <param name="Ran">False when it did not run, such as when the user cancelled.</param>
+/// <param name="Ran">False when it did not run, such as when the user canceled.</param>
 /// <param name="Removed">What was deleted.</param>
 /// <param name="RecordsUpdated">Shared records (such as cache entries) the delete rewrote.</param>
 /// <param name="Skipped">Files it could not delete.</param>

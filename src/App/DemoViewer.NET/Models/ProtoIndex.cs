@@ -37,7 +37,7 @@ public sealed class ProtoIndex
     public static ProtoIndex Build()
     {
         List<FileDescriptor> files = ProtoFileDescriptors();
-        ProtoIndex idx = new() { ProtoFiles = files.Select(f => f.Name).ToList() };
+        ProtoIndex idx = new() { ProtoFiles = [.. files.Select(f => f.Name)] };
 
         foreach (FileDescriptor file in files)
         {
@@ -72,7 +72,7 @@ public sealed class ProtoIndex
             yield break;
         }
 
-        List<ProtoResult> hits = new();
+        List<ProtoResult> hits = [];
         foreach (KeyValuePair<string, string> kv in _types)
         {
             int idx = kv.Key.IndexOf(query, StringComparison.OrdinalIgnoreCase);

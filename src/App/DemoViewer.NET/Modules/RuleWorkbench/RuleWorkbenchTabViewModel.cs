@@ -447,7 +447,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         List<WorkbenchScoreRow> rows = new(table.Rows.Count);
         foreach (MetricRow row in table.Rows)
         {
-            List<string> cells = table.ValueColumns.Select(c => Fmt(row.Values.GetValueOrDefault(c))).ToList();
+            List<string> cells = [.. table.ValueColumns.Select(c => Fmt(row.Values.GetValueOrDefault(c)))];
             rows.Add(new WorkbenchScoreRow(RowLabel(row), cells));
         }
 
@@ -564,7 +564,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         string? openPath = OpenFilePath();
         if (openPath is null || !byPath.TryGetValue(openPath, out RulesetDoc? open))
         {
-            return byPath.Values.ToList(); // nothing open → fall back to everything
+            return [.. byPath.Values]; // nothing open → fall back to everything
         }
 
         List<RulesetDoc> docs = [open];
@@ -765,9 +765,12 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
                 }
             }
 
-            return paths
-                .GroupBy(p => p.Path, StringComparer.Ordinal).Select(g => g.First())
-                .OrderBy(p => p.Path, StringComparer.Ordinal).ToList();
+            return
+            [
+                .. paths
+                    .GroupBy(p => p.Path, StringComparer.Ordinal).Select(g => g.First())
+                    .OrderBy(p => p.Path, StringComparer.Ordinal)
+            ];
         }
         catch
         {

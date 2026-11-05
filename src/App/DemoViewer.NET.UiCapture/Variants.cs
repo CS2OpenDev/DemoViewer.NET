@@ -1183,7 +1183,7 @@ public static partial class Variants
         Modified = DateTime.Now.AddDays(-3),
         MapName = map,
         ServerName = "BLAST.tv Premier CS2 Server",
-        Players = players.Split(',').Select(p => p.Trim()).ToList(),
+        Players = [.. players.Split(',').Select(p => p.Trim())],
         DurationSeconds = 3375,
         CtScore = 13,
         TScore = 11,
@@ -3753,7 +3753,8 @@ public static partial class Variants
             "player_game",
             ["player_name", "team"],
             ["TotalK", "TotalD", "TotalA", "ADR", "HLTV", "CTW", "TW"],
-            rows.Select(r => new MetricRow(
+            [
+                .. rows.Select(r => new MetricRow(
                     new Dictionary<string, object?> { ["player_name"] = r.Name, ["team"] = r.Team },
                     new Dictionary<string, object?>
                     {
@@ -3768,7 +3769,7 @@ public static partial class Variants
                         ["CTW"] = 6,
                         ["TW"] = r.Team == 3 ? 7 : 3
                     }))
-                .ToList());
+            ]);
     }
 
     // The real Player Overview tab over an in-memory library of three demos, one with its player stats.

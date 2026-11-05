@@ -23,8 +23,10 @@ public sealed class SchemaSettingsPageViewModel : IDisposable
         ArgumentNullException.ThrowIfNull(schema);
         ArgumentNullException.ThrowIfNull(settings);
         _settings = settings;
-        Rows = new ObservableCollection<SchemaSettingRow>(
-            schema.Settings.Select(d => SchemaSettingRow.For(d, settings)));
+        Rows =
+        [
+            .. schema.Settings.Select(d => SchemaSettingRow.For(d, settings))
+        ];
         _settings.Changed += OnChanged;
     }
 

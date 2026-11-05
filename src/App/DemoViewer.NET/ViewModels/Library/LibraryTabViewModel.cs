@@ -916,13 +916,15 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
     // changes (so toggling a chip doesn't churn the list). Unsubscribes old items to avoid handler leaks.
     private void RefreshMapFilters()
     {
-        List<(string Display, string MapKey)> groups = _library.Entries
-            .Where(e => e.MapDisplay is { Length: > 0 } && e.MapDisplay != "Unknown")
-            .GroupBy(e => e.MapDisplay, StringComparer.OrdinalIgnoreCase)
-            .Select(g => (Display: g.Key,
-                MapKey: g.Select(e => e.MapName).FirstOrDefault(m => m is { Length: > 0 }) ?? g.Key))
-            .OrderBy(x => x.Display, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        List<(string Display, string MapKey)> groups =
+        [
+            .. _library.Entries
+                .Where(e => e.MapDisplay is { Length: > 0 } && e.MapDisplay != "Unknown")
+                .GroupBy(e => e.MapDisplay, StringComparer.OrdinalIgnoreCase)
+                .Select(g => (Display: g.Key,
+                    MapKey: g.Select(e => e.MapName).FirstOrDefault(m => m is { Length: > 0 }) ?? g.Key))
+                .OrderBy(x => x.Display, StringComparer.OrdinalIgnoreCase)
+        ];
 
         // No change to the map set → keep the current chips (and their checked state) untouched.
         if (groups.Count == MapFilters.Count &&
@@ -957,12 +959,14 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
     // current selection stable when it still exists; otherwise falls back to "All players".
     private void RefreshAvailablePlayers()
     {
-        List<string> players = _library.Entries
-            .SelectMany(e => e.Players)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        List<string> players =
+        [
+            .. _library.Entries
+                .SelectMany(e => e.Players)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+        ];
 
         // Unchanged set (excluding the "All players" sentinel) → leave the ComboBox alone.
         if (players.Count == AvailablePlayers.Count - 1 && players.All(AvailablePlayers.Contains))
@@ -1081,7 +1085,7 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
             _ => q
         };
 
-        List<DemoEntry> ordered = q.ToList();
+        List<DemoEntry> ordered = [.. q];
 
         // Same membership + order → skip the wholesale rebuild. The Clear+Add storm regenerates
         // every item container (the panels are not virtualized), and the indexer nudges Changed

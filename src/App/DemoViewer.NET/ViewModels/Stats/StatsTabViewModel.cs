@@ -585,15 +585,17 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         List<string> fullOrder = IsRoundView ? _roundColumnOrder : _gameColumnOrder;
         // Hidden columns carry a group but never a chip: a group whose every column is a denominator
         // would otherwise be a chip that opens on an empty table.
-        List<CategoryChip> chips = fullOrder
-            .Select(ColumnCatalogue.Resolve)
-            .Where(m => !m.Hidden)
-            .Select(m => m.Group)
-            .Where(ColumnCatalogue.IsPlayerFacing)
-            .Distinct()
-            .OrderBy(g => g == StatGroup.Core ? -1 : (int)g)
-            .Select(g => new CategoryChip(g, CategoryChip.LabelFor(g), g == SelectedCategory))
-            .ToList();
+        List<CategoryChip> chips =
+        [
+            .. fullOrder
+                .Select(ColumnCatalogue.Resolve)
+                .Where(m => !m.Hidden)
+                .Select(m => m.Group)
+                .Where(ColumnCatalogue.IsPlayerFacing)
+                .Distinct()
+                .OrderBy(g => g == StatGroup.Core ? -1 : (int)g)
+                .Select(g => new CategoryChip(g, CategoryChip.LabelFor(g), g == SelectedCategory))
+        ];
         if (chips.Count == 0 || chips[0].Group != StatGroup.Core)
         {
             chips.Insert(0, new CategoryChip(StatGroup.Core, CategoryChip.LabelFor(StatGroup.Core),
@@ -615,9 +617,10 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     </para>
     /// </summary>
     private List<string> VisibleColumns(List<string> fullOrder) =>
-        fullOrder
+    [
+        .. fullOrder
             .Where(c => ColumnCatalogue.ShowsUnder(c, SelectedCategory))
-            .ToList();
+    ];
 
     /// <summary>Steps the round browser to the previous live round.</summary>
     [RelayCommand]
@@ -755,14 +758,16 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         RoundTable = new PlayerRoundStatsProjector { MatchId = matchId }.Project(result, demo).Single();
         EventsTable = new RuleChainEventProjector { MatchId = matchId }.Project(result, demo).Single();
 
-        Highlights = EventsTable.Rows
-            .Select(r => new HighlightRow(
-                Convert.ToInt32(r.Dimensions.GetValueOrDefault("round_number") ?? 0, CultureInfo.InvariantCulture),
-                Convert.ToInt32(r.Dimensions.GetValueOrDefault("tick") ?? 0, CultureInfo.InvariantCulture),
-                r.Dimensions.GetValueOrDefault("chain")?.ToString() ?? "?",
-                r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "") { PlayerOverview = EntryFor(r) })
-            .OrderBy(h => h.Tick)
-            .ToList();
+        Highlights =
+        [
+            .. EventsTable.Rows
+                .Select(r => new HighlightRow(
+                    Convert.ToInt32(r.Dimensions.GetValueOrDefault("round_number") ?? 0, CultureInfo.InvariantCulture),
+                    Convert.ToInt32(r.Dimensions.GetValueOrDefault("tick") ?? 0, CultureInfo.InvariantCulture),
+                    r.Dimensions.GetValueOrDefault("chain")?.ToString() ?? "?",
+                    r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "") { PlayerOverview = EntryFor(r) })
+                .OrderBy(h => h.Tick)
+        ];
         OnPropertyChanged(nameof(Highlights));
 
         // Column display order comes from the catalogue (canonical analyst order: Core first,
@@ -794,11 +799,13 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         (_sortKey, _sortDescending) = DefaultSort(_gameColumnOrder);
         RebuildGameRows();
 
-        Rounds = RoundTable.Rows
-            .Select(r => Convert.ToInt32(r.Dimensions["round_number"], CultureInfo.InvariantCulture))
-            .Distinct()
-            .Order()
-            .ToList();
+        Rounds =
+        [
+            .. RoundTable.Rows
+                .Select(r => Convert.ToInt32(r.Dimensions["round_number"], CultureInfo.InvariantCulture))
+                .Distinct()
+                .Order()
+        ];
         OnPropertyChanged(nameof(Rounds));
         SelectedRound = Rounds.Count > 0 ? Rounds[0] : 0;
         RebuildRoundRows();
@@ -882,13 +889,14 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     catalogue order, unknown columns last.
     /// </summary>
     private static List<string> OrderColumns(IReadOnlyList<string> valueColumns) =>
-        valueColumns
+    [
+        .. valueColumns
             .Select((name, i) => (Name: name, Meta: ColumnCatalogue.Resolve(name), Original: i))
             .OrderBy(c => c.Meta.Group == StatGroup.Core ? 0 : 1)
             .ThenBy(c => c.Meta.Order)
             .ThenBy(c => c.Original)
             .Select(c => c.Name)
-            .ToList();
+    ];
 
     /// <summary>
     ///     Builds the header list for one visible column set, stamping the sort indicator on the
@@ -942,9 +950,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         Dictionary<string, ColumnScale> scales =
             BuildColumnScales(GameTable.Rows, _visibleGameColumnOrder);
 
-        List<StatsRow> rows = GameTable.Rows
-            .Select(r => WithAccount(BuildRow(r, _visibleGameColumnOrder, scales, SightUnavailable)))
-            .ToList();
+        List<StatsRow> rows =
+        [
+            .. GameTable.Rows
+                .Select(r => WithAccount(BuildRow(r, _visibleGameColumnOrder, scales, SightUnavailable)))
+        ];
 
         rows.Sort((a, b) =>
         {
@@ -1037,9 +1047,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         List<TeamSection> sections = new(2);
         foreach (IGrouping<int, StatsRow> group in sortedRows.GroupBy(r => r.TeamSort).OrderBy(g => g.Key))
         {
-            List<StatsRow> members = group
-                .Select((r, i) => r with { IsAlt = i % 2 == 1 })
-                .ToList();
+            List<StatsRow> members =
+            [
+                .. group
+                    .Select((r, i) => r with { IsAlt = i % 2 == 1 })
+            ];
             bool isCt = group.Key == 0;
             string side = members[0].TeamLabel is { Length: > 0 } label ? label : "—";
             int? score = scoreBySort.GetValueOrDefault(group.Key);
@@ -1141,11 +1153,13 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         for (int i = 0; i < order.Count; i++)
         {
             ColumnMeta meta = ColumnCatalogue.Resolve(order[i]);
-            List<double> values = members
-                .Select(r => r.Cells[i].Raw)
-                .Where(v => v is int or long or double or float)
-                .Select(v => Convert.ToDouble(v, CultureInfo.InvariantCulture))
-                .ToList();
+            List<double> values =
+            [
+                .. members
+                    .Select(r => r.Cells[i].Raw)
+                    .Where(v => v is int or long or double or float)
+                    .Select(v => Convert.ToDouble(v, CultureInfo.InvariantCulture))
+            ];
 
             object? total = meta.Aggregate switch
             {
@@ -1166,11 +1180,13 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             double? over = null;
             if (meta.Denominator is not null)
             {
-                List<(double Rate, double Count)> samples = members
-                    .Select(r => r.Cells[i])
-                    .Where(c => c.Numeric is not null && c.Denominator is not null)
-                    .Select(c => (Rate: c.Numeric!.Value, Count: c.Denominator!.Value))
-                    .ToList();
+                List<(double Rate, double Count)> samples =
+                [
+                    .. members
+                        .Select(r => r.Cells[i])
+                        .Where(c => c.Numeric is not null && c.Denominator is not null)
+                        .Select(c => (Rate: c.Numeric!.Value, Count: c.Denominator!.Value))
+                ];
                 if (samples.Count > 0)
                 {
                     double pooled = samples.Sum(s => s.Count);
@@ -1278,18 +1294,22 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
         // Materialized before projection on purpose: the peer group for a round is the players IN that
         // round, and a fused Where/Select never lets the column be seen as a whole.
-        List<MetricRow> roundRows = RoundTable.Rows
-            .Where(r => Convert.ToInt32(r.Dimensions["round_number"], CultureInfo.InvariantCulture) == round)
-            .ToList();
+        List<MetricRow> roundRows =
+        [
+            .. RoundTable.Rows
+                .Where(r => Convert.ToInt32(r.Dimensions["round_number"], CultureInfo.InvariantCulture) == round)
+        ];
         Dictionary<string, ColumnScale> roundScales =
             BuildColumnScales(roundRows, _visibleRoundColumnOrder);
 
-        RoundRows = roundRows
-            .Select(r => WithAccount(BuildRow(r, _visibleRoundColumnOrder, roundScales, SightUnavailable)))
-            .OrderBy(r => r.TeamSort)
-            .ThenBy(r => r.PlayerName, StringComparer.OrdinalIgnoreCase)
-            .Select((r, i) => r with { IsAlt = i % 2 == 1 })
-            .ToList();
+        RoundRows =
+        [
+            .. roundRows
+                .Select(r => WithAccount(BuildRow(r, _visibleRoundColumnOrder, roundScales, SightUnavailable)))
+                .OrderBy(r => r.TeamSort)
+                .ThenBy(r => r.PlayerName, StringComparer.OrdinalIgnoreCase)
+                .Select((r, i) => r with { IsAlt = i % 2 == 1 })
+        ];
         OnPropertyChanged(nameof(RoundRows));
         OnPropertyChanged(nameof(CurrentRows));
     }
@@ -1311,10 +1331,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     {
         const string RatingColumn = "HLTV";
         StatScale? scale = ColumnCatalogue.Resolve(RatingColumn).Scale?.Resolve(
-            rows.Select(r => new StatCell(r.Values.GetValueOrDefault(RatingColumn)).Numeric)
+        [
+            .. rows.Select(r => new StatCell(r.Values.GetValueOrDefault(RatingColumn)).Numeric)
                 .Where(v => v is not null)
                 .Select(v => v!.Value)
-                .ToList());
+        ]);
 
         List<PodiumEntry> podium = [];
         int rank = 1;
@@ -1732,7 +1753,8 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     }
 
     private List<PlayerRef> BuildDetailPlayers(MetricTable gameTable) =>
-        gameTable.Rows
+    [
+        .. gameTable.Rows
             .Select(r => new PlayerRef(
                 RowSlot(r),
                 r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "?",
@@ -1746,7 +1768,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             .Where(p => p.Slot >= 0)
             .OrderBy(p => p.TeamSort)
             .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+    ];
 
     partial void OnIsVisibilityViewChanged(bool value)
     {
@@ -1908,17 +1930,19 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
     private static List<VisibilityRow> BuildVisibilityRows(MetricTable playersTable)
     {
-        return playersTable.Rows
-            .Select(r => new VisibilityRow(
-                r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "?",
-                Convert.ToInt32(r.Dimensions.GetValueOrDefault("team") ?? 0, CultureInfo.InvariantCulture),
-                AsDouble(r.Values.GetValueOrDefault("ExposedToEnemiesSec")),
-                AsDouble(r.Values.GetValueOrDefault("CouldSeeEnemySec")),
-                AsDouble(r.Values.GetValueOrDefault("ExposedShare")),
-                AsDouble(r.Values.GetValueOrDefault("VisionShare"))))
-            .OrderBy(r => r.TeamSort)
-            .ThenBy(r => r.PlayerName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        return
+        [
+            .. playersTable.Rows
+                .Select(r => new VisibilityRow(
+                    r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "?",
+                    Convert.ToInt32(r.Dimensions.GetValueOrDefault("team") ?? 0, CultureInfo.InvariantCulture),
+                    AsDouble(r.Values.GetValueOrDefault("ExposedToEnemiesSec")),
+                    AsDouble(r.Values.GetValueOrDefault("CouldSeeEnemySec")),
+                    AsDouble(r.Values.GetValueOrDefault("ExposedShare")),
+                    AsDouble(r.Values.GetValueOrDefault("VisionShare"))))
+                .OrderBy(r => r.TeamSort)
+                .ThenBy(r => r.PlayerName, StringComparer.OrdinalIgnoreCase)
+        ];
 
         static double AsDouble(object? v)
         {

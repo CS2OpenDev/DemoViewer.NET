@@ -58,7 +58,7 @@ public class Playback2DContractVersionTests
         Playback2DModule module = new();
         await Assert.That(module.Id).IsEqualTo("net.demoviewer.playback2d");
 
-        WorkspaceTabDescriptor[] tabs = module.CreateTabs(new NoCapabilityHost()).ToArray();
+        WorkspaceTabDescriptor[] tabs = [.. module.CreateTabs(new NoCapabilityHost())];
         await Assert.That(tabs.Length).IsEqualTo(1);
         await Assert.That(tabs[0].TabId).IsEqualTo("playback2d.viewport");
 

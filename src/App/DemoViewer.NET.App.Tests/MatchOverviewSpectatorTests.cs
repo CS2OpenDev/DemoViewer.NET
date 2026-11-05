@@ -57,7 +57,7 @@ public class MatchOverviewSpectatorTests
             .IsEqualTo((vm.Terrorists.Count + vm.CounterTerrorists.Count).ToString(CultureInfo.InvariantCulture));
 
         // The proxy is neither a player nor a spectator. It is infrastructure.
-        IReadOnlyList<string> named = vm.Terrorists.Concat(vm.CounterTerrorists).Select(p => p.Name).ToList();
+        IReadOnlyList<string> named = [.. vm.Terrorists.Concat(vm.CounterTerrorists).Select(p => p.Name)];
         await Assert.That(named).DoesNotContain("CSTV");
     }
 

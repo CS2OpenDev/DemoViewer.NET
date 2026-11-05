@@ -348,7 +348,7 @@ internal static class DemoTrimWriter
 
         if (trimmed.GameInfo?.Cs is { } cs)
         {
-            List<int> retained = cs.RoundStartTicks.Where(t => t <= window.EndTick).ToList();
+            List<int> retained = [.. cs.RoundStartTicks.Where(t => t <= window.EndTick)];
             cs.RoundStartTicks.Clear();
             cs.RoundStartTicks.AddRange(retained);
         }

@@ -30,7 +30,7 @@ public class ModuleFrameworkPhase3Tests
             MainViewModel vm = new(library: TestLibraries.Empty());
 
             // The four built-in tabs are present as descriptors.
-            string[] ids = vm.Tabs.Select(t => t.TabId).ToArray();
+            string[] ids = [.. vm.Tabs.Select(t => t.TabId)];
             await Assert.That(ids).Contains("builtin.parser");
             await Assert.That(ids).Contains("builtin.entity");
             await Assert.That(ids).Contains("builtin.analysis");

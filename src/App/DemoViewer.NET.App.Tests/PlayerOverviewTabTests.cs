@@ -688,7 +688,7 @@ public class PlayerOverviewTabTests
         using IdentityService identity = Identity(Me);
         using PlayerOverviewTabViewModel vm = Shown(TwinLibrary(), identity);
         vm.SearchText = "twin";
-        await Assert.That(vm.Candidates.Select(c => c.SteamId64).ToArray())
+        await Assert.That([.. vm.Candidates.Select(c => c.SteamId64)])
             .IsEquivalentTo([Other, Alt], CollectionOrdering.Matching);
         await Assert.That(vm.Candidates[0].Demos).IsEqualTo("3 demos");
         vm.SubmitSearchCommand.Execute(null);

@@ -108,7 +108,7 @@ if (args.Contains("--collision"))
             + "or the game/csgo/maps directory>.");
 
     string soupRoot = Path.Combine(FindRepoRoot(), "assets");
-    string[] soupMaps = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+    string[] soupMaps = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
     if (soupMaps.Length == 0)
     {
         // Discovered, NOT the hardcoded list the full bake defaults to further down. The two resolve
@@ -122,12 +122,14 @@ if (args.Contains("--collision"))
         //
         // A bundle.json is what makes a directory a baked map rather than a stray folder.
         soupMaps = Directory.Exists(soupRoot)
-            ? Directory.GetDirectories(soupRoot)
-                .Where(d => File.Exists(Path.Combine(d, "bundle.json")))
-                .Select(Path.GetFileName)
-                .OfType<string>()
-                .OrderBy(m => m, StringComparer.Ordinal)
-                .ToArray()
+            ?
+            [
+                .. Directory.GetDirectories(soupRoot)
+                    .Where(d => File.Exists(Path.Combine(d, "bundle.json")))
+                    .Select(Path.GetFileName)
+                    .OfType<string>()
+                    .OrderBy(m => m, StringComparer.Ordinal)
+            ]
             : [];
     }
 
@@ -190,16 +192,18 @@ if (args.Contains("--zones"))
             + "or the game/csgo/maps directory>.");
 
     string zonesRoot = Path.Combine(FindRepoRoot(), "assets");
-    string[] zoneMaps = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+    string[] zoneMaps = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
     if (zoneMaps.Length == 0)
     {
         zoneMaps = Directory.Exists(zonesRoot)
-            ? Directory.GetDirectories(zonesRoot)
-                .Where(d => File.Exists(Path.Combine(d, "bundle.json")))
-                .Select(Path.GetFileName)
-                .OfType<string>()
-                .OrderBy(m => m, StringComparer.Ordinal)
-                .ToArray()
+            ?
+            [
+                .. Directory.GetDirectories(zonesRoot)
+                    .Where(d => File.Exists(Path.Combine(d, "bundle.json")))
+                    .Select(Path.GetFileName)
+                    .OfType<string>()
+                    .OrderBy(m => m, StringComparer.Ordinal)
+            ]
             : [];
     }
 
@@ -207,8 +211,8 @@ if (args.Contains("--zones"))
     Console.WriteLine($"zones ->   {zonesRoot}");
     Console.WriteLine($"baking zones for {zoneMaps.Length} map(s): {string.Join(", ", zoneMaps)}\n");
 
-    List<Zones.Coverage> coverage = new();
-    List<string> zoneFailures = new();
+    List<Zones.Coverage> coverage = [];
+    List<string> zoneFailures = [];
     foreach (string map in zoneMaps)
     {
         string mapVpk = Path.Combine(zonesMapsSource, map + ".vpk");
@@ -277,7 +281,7 @@ if (args.Contains("--zones"))
     return;
 }
 
-string[] maps = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+string[] maps = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
 if (maps.Length == 0)
 {
     // A map earns a place here by being bakeable AND demoed. Bakeable is a hard filter, not a
@@ -336,7 +340,7 @@ void BakeMap(string map)
     Console.WriteLine($"  transform: pos=({t.PosX},{t.PosY}) scale={t.Scale} rotate={t.Rotate} zoom={t.Zoom}");
 
     // 2. radar vtex_c → PNG (default + optional _lower), and remember source bytes for the version hash.
-    List<string> radarImages = new();
+    List<string> radarImages = [];
     Crc32 crc = new();
 
     (string vtex, string png)? def = ResolveRadar(map, false);
@@ -486,7 +490,7 @@ void BakeMap(string map)
 
 List<RadarLayer> BuildRadarLayers(string map, OverviewTxt.Parsed ov, List<string> images)
 {
-    List<RadarLayer> layers = new();
+    List<RadarLayer> layers = [];
     if (ov.VerticalSections.Count == 0)
     {
         // Single-image map: one layer covering all Z with the default image (if any).

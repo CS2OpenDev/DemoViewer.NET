@@ -379,7 +379,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
             return null;
         }
 
-        return decompressedPayload.AsSpan(start, len).ToArray();
+        return [.. decompressedPayload.AsSpan(start, len)];
     }
 
     private static int GetNetMessageTypeId(string typeName)
@@ -511,7 +511,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         IReadOnlyDictionary<string, FieldSemantic>? semanticMap = null)
     {
         List<HarvestPropertyViewModel> children = node.HasChildren
-            ? node.Children.Select(c => AdaptNode(c, card, semanticMap)).ToList()
+            ? [.. node.Children.Select(c => AdaptNode(c, card, semanticMap))]
             : [];
 
         // EnrichedHint resolution lives on the shell (it owns the player-name lookups).
@@ -551,7 +551,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         Add(ParseChainEntry.Linked("BuildFields()",
             localPath: pbBuilderPath, localLine: 107, indent: indent + 1));
 
-        List<PayloadNode> path = new();
+        List<PayloadNode> path = [];
         TryFindPath(PayloadNodes, node, path);
 
         string? currentMsg = parentMsgName;
@@ -618,9 +618,11 @@ public sealed partial class ParserTabViewModel : ObservableObject
         if (!frame.IsCompressed && !IsNormalizedView && decompSpans is { Count: > 0 })
         {
             int rawBase = frame.PayloadStart;
-            List<HexSpan> rawSpans = decompSpans
-                .Select(s => s with { Start = rawBase + s.Start })
-                .ToList();
+            List<HexSpan> rawSpans =
+            [
+                .. decompSpans
+                    .Select(s => s with { Start = rawBase + s.Start })
+            ];
             HexViewRaw.SetSpans(rawSpans);
         }
         else
@@ -806,8 +808,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
 
         // EntityFieldNodes lives on EntityTab; the entity selection already drove
         // its rebuild before this method runs (callback ordering wired in ctor).
-        IEnumerable<PayloadNode> fieldNodes = EntityFieldNodesSource?.Invoke() ?? Array.Empty<PayloadNode>();
-        List<PayloadNode> fieldList = fieldNodes.SelectMany(n => n.Children).Take(20).ToList();
+        IEnumerable<PayloadNode> fieldNodes = EntityFieldNodesSource?.Invoke() ?? [];
+        List<PayloadNode> fieldList = [.. fieldNodes.SelectMany(n => n.Children).Take(20)];
         if (fieldList.Count > 0)
         {
             foreach (PayloadNode fieldNode in fieldList)
@@ -913,12 +915,14 @@ public sealed partial class ParserTabViewModel : ObservableObject
             return new PayloadNode { Name = label, Value = "(leaving PVS)", Depth = depth };
         }
 
-        List<PayloadNode> fieldNodes = update.Fields
-            .Select(kv => new PayloadNode
-            {
-                Name = kv.Key, Value = MainViewModel.FormatValue(kv.Value), Depth = depth + 1
-            })
-            .ToList();
+        List<PayloadNode> fieldNodes =
+        [
+            .. update.Fields
+                .Select(kv => new PayloadNode
+                {
+                    Name = kv.Key, Value = MainViewModel.FormatValue(kv.Value), Depth = depth + 1
+                })
+        ];
 
         return new PayloadNode
         {
@@ -1181,8 +1185,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
             if (nodes[i].Name == "entity_data")
             {
                 PayloadNode original = nodes[i];
-                List<PayloadNode> children = updates.Select(u => BuildEntityUpdateNode(u, original.Depth + 1))
-                    .ToList();
+                List<PayloadNode> children = [.. updates.Select(u => BuildEntityUpdateNode(u, original.Depth + 1))];
 
                 nodes[i] = new PayloadNode
                 {
@@ -1352,12 +1355,12 @@ public sealed partial class ParserTabViewModel : ObservableObject
             ?? 0;
 
         // Walk the ancestor chain (root → selected node).
-        List<PayloadNode> path = new();
+        List<PayloadNode> path = [];
         TryFindPath(PayloadNodes, value, path);
 
         // Level 0 = selected (most prominent), Level 1 = parent, Level 2 = grandparent, etc.
         // path is root→selected, so path[last] is the selected node → level 0.
-        List<HexSpan> spans = new();
+        List<HexSpan> spans = [];
         for (int i = 0; i < path.Count; i++)
         {
             PayloadNode node = path[i];
@@ -1394,10 +1397,10 @@ public sealed partial class ParserTabViewModel : ObservableObject
             return;
         }
 
-        List<PayloadNode> path = new();
+        List<PayloadNode> path = [];
         TryFindPath(PayloadNodes, value, path);
 
-        List<HexSpan> spans = new();
+        List<HexSpan> spans = [];
         for (int i = 0; i < path.Count; i++)
         {
             PayloadNode node = path[i];

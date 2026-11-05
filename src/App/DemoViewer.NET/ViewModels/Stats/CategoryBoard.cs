@@ -187,10 +187,12 @@ public static class CategoryBoard
 
         HashSet<string> have = new(availableColumns, StringComparer.Ordinal);
         (string Column, string Label, int Slot)[] parts = group == StatGroup.Utility ? _utility : _weapons;
-        return parts
-            .Where(p => have.Contains(p.Column))
-            .Select(p => new StatSegment(1, null, p.Label, p.Slot))
-            .ToList();
+        return
+        [
+            .. parts
+                .Where(p => have.Contains(p.Column))
+                .Select(p => new StatSegment(1, null, p.Label, p.Slot))
+        ];
     }
 
     /// <summary>
@@ -255,7 +257,7 @@ public static class CategoryBoard
             string score = scoreBySort.GetValueOrDefault(group.Key) is { } s
                 ? s.ToString(CultureInfo.InvariantCulture)
                 : "";
-            sections.Add(new BoardSection(label, team, outcomeFor(group.Key), score, group.ToList()));
+            sections.Add(new BoardSection(label, team, outcomeFor(group.Key), score, [.. group]));
         }
 
         return sections;
@@ -267,7 +269,7 @@ public static class CategoryBoard
         (string Column, string Label, int Slot)[] parts,
         bool isUtility)
     {
-        (string Column, string Label, int Slot)[] present = parts.Where(p => have.Contains(p.Column)).ToArray();
+        (string Column, string Label, int Slot)[] present = [.. parts.Where(p => have.Contains(p.Column))];
         if (present.Length == 0)
         {
             return [];
@@ -295,7 +297,7 @@ public static class CategoryBoard
                 isUtility ? UtilityDetail(row, have) : WeaponDetail(present, row)));
         }
 
-        return built.OrderByDescending(r => ((CompositionRow)r).Total).ToList();
+        return [.. built.OrderByDescending(r => ((CompositionRow)r).Total)];
     }
 
     private static string UtilityDetail(MetricRow row, HashSet<string> have)
@@ -359,7 +361,7 @@ public static class CategoryBoard
                 attempts < DuelVolumeGate));
         }
 
-        return built.OrderByDescending(r => ((DuelRow)r).Won - ((DuelRow)r).Lost).ToList();
+        return [.. built.OrderByDescending(r => ((DuelRow)r).Won - ((DuelRow)r).Lost)];
     }
 
     private static List<IBoardRow> Pips(
@@ -368,7 +370,7 @@ public static class CategoryBoard
         (string Column, string Label, string Accent)[] parts)
     {
         (string Column, string Label, string Accent)[] present =
-            parts.Where(p => have.Contains(p.Column)).ToArray();
+            [.. parts.Where(p => have.Contains(p.Column))];
         if (present.Length == 0)
         {
             return [];
@@ -377,14 +379,16 @@ public static class CategoryBoard
         List<IBoardRow> built = [];
         foreach (MetricRow row in rows)
         {
-            List<PipGroup> groups = present
-                .Select(p => new PipGroup(p.Label, (int)Math.Round(Num(row, p.Column)), p.Accent))
-                .ToList();
+            List<PipGroup> groups =
+            [
+                .. present
+                    .Select(p => new PipGroup(p.Label, (int)Math.Round(Num(row, p.Column)), p.Accent))
+            ];
             built.Add(new PipsRow(Name(row), TeamOf(row), groups));
         }
 
         // Busiest first: a page of pips is only worth reading top-down if the top has the most marks.
-        return built.OrderByDescending(r => ((PipsRow)r).Groups.Sum(g => g.Count)).ToList();
+        return [.. built.OrderByDescending(r => ((PipsRow)r).Groups.Sum(g => g.Count))];
     }
 
     private static string Name(MetricRow row) =>

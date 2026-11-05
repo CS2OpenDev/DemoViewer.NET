@@ -255,7 +255,7 @@ internal sealed class ExtensionFolder : IExtensionFolder
     }
 
     public void WriteAtomic(string relativePath, ReadOnlySpan<byte> content) =>
-        AtomicFile.WriteAllBytes(ResolveFile(relativePath), content.ToArray());
+        AtomicFile.WriteAllBytes(ResolveFile(relativePath), [.. content]);
 
     public void WriteAtomic(string relativePath, Action<Stream> write)
     {
@@ -351,7 +351,7 @@ internal sealed class ExtensionFile : IExtensionFile
     public Stream? OpenRead() =>
         File.Exists(Path) ? new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read) : null;
 
-    public void WriteAtomic(ReadOnlySpan<byte> content) => AtomicFile.WriteAllBytes(Path, content.ToArray());
+    public void WriteAtomic(ReadOnlySpan<byte> content) => AtomicFile.WriteAllBytes(Path, [.. content]);
 
     public void WriteAtomic(Action<Stream> write)
     {

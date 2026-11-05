@@ -99,16 +99,18 @@ public class VisibilityAnalyzerTests
         IReadOnlyList<DemoFrame> frames = demo.Frames;
         // Pair each fire with its payload: the filter needs Penetrated/Attacker off the payload
         // and FrameNumber off the envelope.
-        List<(GameEvent Fire, PlayerDeathEvent Death)> kills = demo.AllGameEvents
-            .Where(e => e.Payload is PlayerDeathEvent)
-            .Select(e => (Fire: e, Death: (PlayerDeathEvent)e.Payload!))
-            .Where(x => x.Death.Penetrated == 0 && x.Death.Attacker >= 0
-                && x.Death.Attacker != x.Death.UserId
-                && x.Fire.FrameNumber >= KillLookbackFrames
-                && x.Fire.FrameNumber < frames.Count)
-            .OrderBy(x => x.Fire.FrameNumber)
-            .Take(150)
-            .ToList();
+        List<(GameEvent Fire, PlayerDeathEvent Death)> kills =
+        [
+            .. demo.AllGameEvents
+                .Where(e => e.Payload is PlayerDeathEvent)
+                .Select(e => (Fire: e, Death: (PlayerDeathEvent)e.Payload!))
+                .Where(x => x.Death.Penetrated == 0 && x.Death.Attacker >= 0
+                    && x.Death.Attacker != x.Death.UserId
+                    && x.Fire.FrameNumber >= KillLookbackFrames
+                    && x.Fire.FrameNumber < frames.Count)
+                .OrderBy(x => x.Fire.FrameNumber)
+                .Take(150)
+        ];
 
         if (kills.Count < 20)
         {
@@ -197,16 +199,18 @@ public class VisibilityAnalyzerTests
         IReadOnlyList<DemoFrame> frames = demo.Frames;
         // Pair each fire with its payload: the filter needs Penetrated/Attacker off the payload
         // and FrameNumber off the envelope.
-        List<(GameEvent Fire, PlayerDeathEvent Death)> kills = demo.AllGameEvents
-            .Where(e => e.Payload is PlayerDeathEvent)
-            .Select(e => (Fire: e, Death: (PlayerDeathEvent)e.Payload!))
-            .Where(x => x.Death.Penetrated == 0 && x.Death.Attacker >= 0
-                && x.Death.Attacker != x.Death.UserId
-                && x.Fire.FrameNumber >= KillLookbackFrames
-                && x.Fire.FrameNumber < frames.Count)
-            .OrderBy(x => x.Fire.FrameNumber)
-            .Take(300)
-            .ToList();
+        List<(GameEvent Fire, PlayerDeathEvent Death)> kills =
+        [
+            .. demo.AllGameEvents
+                .Where(e => e.Payload is PlayerDeathEvent)
+                .Select(e => (Fire: e, Death: (PlayerDeathEvent)e.Payload!))
+                .Where(x => x.Death.Penetrated == 0 && x.Death.Attacker >= 0
+                    && x.Death.Attacker != x.Death.UserId
+                    && x.Fire.FrameNumber >= KillLookbackFrames
+                    && x.Fire.FrameNumber < frames.Count)
+                .OrderBy(x => x.Fire.FrameNumber)
+                .Take(300)
+        ];
 
         if (kills.Count < 20)
         {

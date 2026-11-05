@@ -59,13 +59,13 @@ public class PlayerDetailsTests
             : [("TotalK", false), ("ADR", false), ("Kills", true), ("Damage", true)];
         HashSet<string> boolColumns = withRoundBools ? ["HasKAST", "FK", "FD"] : [];
 
-        List<PerPlayerNodeTemplate.MaterializedPlayer> materialized = new();
-        List<List<int>> colIdx = new();
+        List<PerPlayerNodeTemplate.MaterializedPlayer> materialized = [];
+        List<List<int>> colIdx = [];
         foreach ((int slot, string name) in players)
         {
-            List<PerPlayerColumnAssignment> assignments = new();
-            List<int> indices = new();
-            List<StateNode> nodes = new();
+            List<PerPlayerColumnAssignment> assignments = [];
+            List<int> indices = [];
+            List<StateNode> nodes = [];
             foreach ((string column, bool roundScoped) in columns)
             {
                 StateNode node = boolColumns.Contains(column)
@@ -394,7 +394,7 @@ public class PlayerDetailsTests
             Marshal.Copy(fb.Address, buffer, 0, buffer.Length);
         }
 
-        HashSet<int> colors = new();
+        HashSet<int> colors = [];
         for (int i = 0; i + 3 < buffer.Length; i += 4)
         {
             colors.Add(buffer[i] | buffer[i + 1] << 8 | buffer[i + 2] << 16);

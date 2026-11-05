@@ -55,7 +55,7 @@ public sealed partial class EventFilterFlyoutViewModel : ObservableObject
     {
         get
         {
-            List<string> active = Filters.Where(f => f.IsEnabled).Select(f => f.EventName).ToList();
+            List<string> active = [.. Filters.Where(f => f.IsEnabled).Select(f => f.EventName)];
             return active.Count switch
             {
                 0 => "Jump to next/prev game event: any type (none selected = match any)",
@@ -79,7 +79,7 @@ public sealed partial class EventFilterFlyoutViewModel : ObservableObject
         get
         {
             int total = Filters.Count;
-            List<GameEventFilterItem> enabled = Filters.Where(f => f.IsEnabled).ToList();
+            List<GameEventFilterItem> enabled = [.. Filters.Where(f => f.IsEnabled)];
 
             // None or all enabled both mean "match any event type" (the navigator unions everything).
             if (enabled.Count == 0 || enabled.Count == total)
@@ -88,7 +88,7 @@ public sealed partial class EventFilterFlyoutViewModel : ObservableObject
             }
 
             // Round preset: exactly the round_* set is on: reproduces the removed round buttons' label.
-            List<GameEventFilterItem> round = Filters.Where(IsRoundEvent).ToList();
+            List<GameEventFilterItem> round = [.. Filters.Where(IsRoundEvent)];
             if (round.Count > 0 && enabled.Count == round.Count && enabled.All(IsRoundEvent))
             {
                 return "Round";

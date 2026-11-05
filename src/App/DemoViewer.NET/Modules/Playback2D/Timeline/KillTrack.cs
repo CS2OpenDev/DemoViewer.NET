@@ -46,7 +46,7 @@ public sealed class KillTrack : ITimelineTrack
         IReadOnlyList<TimelineEventRecord> records = data.EventsOfType(DeathEvent);
         if (records.Count == 0)
         {
-            return Array.Empty<TimelineMarker>();
+            return [];
         }
 
         List<TimelineMarker> markers = new(records.Count);
@@ -66,7 +66,7 @@ public sealed class KillTrack : ITimelineTrack
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => Array.Empty<TimelineBand>();
+    public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => [];
 
     /// <inheritdoc />
     // Never raised; see RoundTrack.Changed.

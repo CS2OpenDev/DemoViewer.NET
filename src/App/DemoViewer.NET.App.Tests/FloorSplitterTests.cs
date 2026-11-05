@@ -203,7 +203,7 @@ public class FloorSplitterTests
         s.SetSectionHeights(null);
         await Assert.That(s.HasSectionHeights).IsFalse();
 
-        s.SetSectionHeights(Array.Empty<double>());
+        s.SetSectionHeights([]);
         await Assert.That(s.HasSectionHeights).IsFalse();
     }
 

@@ -120,7 +120,7 @@ internal static class MsaglTranslator
     private static List<AvPoint> CurveToWaypoints(ICurve curve,
         Func<double, double> adjustX, Func<double, double> flipY)
     {
-        List<AvPoint> points = new();
+        List<AvPoint> points = [];
 
         if (curve is Curve composite)
         {

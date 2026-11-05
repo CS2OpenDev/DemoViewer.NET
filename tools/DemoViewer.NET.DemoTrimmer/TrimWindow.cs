@@ -55,9 +55,11 @@ internal static class WindowSelector
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(rounds, 1);
 
-        List<GameEvent> boundaries = demo.AllGameEvents
-            .Where(e => string.Equals(e.Name, boundaryEvent, StringComparison.Ordinal))
-            .ToList();
+        List<GameEvent> boundaries =
+        [
+            .. demo.AllGameEvents
+                .Where(e => string.Equals(e.Name, boundaryEvent, StringComparison.Ordinal))
+        ];
 
         int firstIdx = skipBoundaries;
         int cutIdx = skipBoundaries + rounds;

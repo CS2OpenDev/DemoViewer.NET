@@ -91,7 +91,7 @@ public class VerificationRunnerMockTests
             await session.StartWatchAsync(cancellationToken: cancellationToken);
 
             string demoPath = Path.Combine(Path.GetTempPath(), $"livesync-verify-{Guid.NewGuid():N}.dem");
-            await File.WriteAllBytesAsync(demoPath, "PBDEMS2\0"u8.ToArray(),
+            await File.WriteAllBytesAsync(demoPath, [.. "PBDEMS2\0"u8],
                 cancellationToken);
             try
             {

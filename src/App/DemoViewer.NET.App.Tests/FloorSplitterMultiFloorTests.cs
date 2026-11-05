@@ -73,7 +73,7 @@ public class FloorSplitterMultiFloorTests
 
         FloorSplitter splitter = new();
         EntityTracker tracker = new();
-        List<int> counts = new();
+        List<int> counts = [];
 
         for (int f = 0; f < cap; f++)
         {

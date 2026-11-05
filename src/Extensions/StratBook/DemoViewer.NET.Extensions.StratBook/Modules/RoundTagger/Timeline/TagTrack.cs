@@ -127,10 +127,10 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
         List<Span> spans = Spans(data);
         if (spans.Count == 0)
         {
-            return Array.Empty<TimelineBand>();
+            return [];
         }
 
-        List<TimelineBand> bands = new();
+        List<TimelineBand> bands = [];
         int first = 0;
         int end = spans[0].End;
         for (int i = 1; i <= spans.Count; i++)
@@ -160,7 +160,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
         List<Span> spans = Spans(data);
         if (spans.Count == 0)
         {
-            return Array.Empty<TimelineMarker>();
+            return [];
         }
 
         List<TimelineMarker> marks = new(spans.Count);
@@ -185,7 +185,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
         List<Span> spans = Spans(data);
         if (spans.Count == 0)
         {
-            return Array.Empty<Guid>();
+            return [];
         }
 
         // The merge of BuildBands, so a run here is exactly a band there.
@@ -211,7 +211,7 @@ public sealed class TagTrack : ITimelineTrack, IDisposable
             }
         }
 
-        return Array.Empty<Guid>();
+        return [];
     }
 
     /// <summary>The stand-in colour for a code: stable across processes, one of eight hues.</summary>

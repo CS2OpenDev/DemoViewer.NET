@@ -511,7 +511,7 @@ public class Scene2DHostFrameHostTests
                 .. SceneLayerCatalog.SceneStackIds.Where(id => !SceneLayerIds.OptIn.Contains(id)),
                 SceneLayerIds.Annotations
             ];
-            await Assert.That(mounted).IsEquivalentTo(expected.Order().ToArray(), CollectionOrdering.Matching);
+            await Assert.That(mounted).IsEquivalentTo([.. expected.Order()], CollectionOrdering.Matching);
             await Assert.That(LayerEnabled(host, SceneLayerIds.Annotations)).IsTrue();
 
             window.Close();
@@ -696,11 +696,11 @@ public class Scene2DHostFrameHostTests
         public VisibilityEngine? VisionEngine => null;
         public AnnotationSession? AnnotationSession { get; init; }
         public bool IsAnnotationsEnabled => AnnotationSession is not null;
-        public bool ShowRadar { get; } = true;
+        public bool ShowRadar => true;
         public bool ShowTrails { get; set; } = true;
-        public bool ShowAreaEffects { get; } = true;
+        public bool ShowAreaEffects => true;
         public bool ShowVision => false;
-        public bool ShowBombRing { get; } = true;
+        public bool ShowBombRing => true;
         public bool ShowZones => false;
         public PlaceResolver? Zones => null;
 

@@ -61,7 +61,7 @@ public class AnnotationSchemaSnapshotTests
 
         // One element per kind: a shape is two points, text is one point and a
         // string, and each loads back as the kind it was written as.
-        await Assert.That(loaded.Elements.Select(e => e.Kind).ToArray()).IsEquivalentTo([
+        await Assert.That([.. loaded.Elements.Select(e => e.Kind)]).IsEquivalentTo([
             AnnotationKind.Freehand, AnnotationKind.Freehand, AnnotationKind.Line, AnnotationKind.Arrow,
             AnnotationKind.Rect, AnnotationKind.Ellipse, AnnotationKind.Text
         ], CollectionOrdering.Matching);

@@ -33,7 +33,7 @@ public class ZoneSetReaderTests
         await Assert.That(actual.BakerVersion).IsEqualTo("0.4+test");
         await Assert.That(actual.HasOverlay).IsFalse();
         await Assert.That(actual.Floors.Count).IsEqualTo(2);
-        await Assert.That(actual.Places.Select(p => p.Name).ToArray())
+        await Assert.That([.. actual.Places.Select(p => p.Name)])
             .IsEquivalentTo(ZoneFixtures.PlaceNames, CollectionOrdering.Matching);
         await Assert.That(actual.Places.All(p => p.Origin == PlaceOrigin.Baked)).IsTrue();
         await Assert.That(actual.Volumes.Count).IsEqualTo(expected.Volumes.Count);

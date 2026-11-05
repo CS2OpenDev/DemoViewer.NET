@@ -94,7 +94,7 @@ public sealed record SettingDescriptor(string Key, string Label, SettingKind Kin
     public double Step { get; init; } = 1;
 
     /// <summary>What a <see cref="SettingKind.Choice" /> row offers.</summary>
-    public IReadOnlyList<SettingChoice> Choices { get; init; } = Array.Empty<SettingChoice>();
+    public IReadOnlyList<SettingChoice> Choices { get; init; } = [];
 
     /// <summary>An on-off setting.</summary>
     /// <param name="key">The settings key.</param>

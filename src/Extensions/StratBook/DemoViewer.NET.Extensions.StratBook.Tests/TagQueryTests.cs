@@ -265,7 +265,7 @@ public class TagQueryTests
         using (Assert.Multiple())
         {
             await Assert.That(found[0]).IsEqualTo(new TagInstanceRef(_shaA, first.Id, "A execute", 1000, 1600, 1));
-            await Assert.That(found.Select(r => r.Sha256).ToArray())
+            await Assert.That([.. found.Select(r => r.Sha256)])
                 .IsEquivalentTo([_shaA, _shaA, _shaA, _shaB, _shaB, _shaC, _shaC], CollectionOrdering.Matching);
             await Assert.That(found[^1].Round).IsNull();
         }

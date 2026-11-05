@@ -59,11 +59,13 @@ public class Playback2DCommandBindingTests
         await Assert.That(commands.Count).IsGreaterThanOrEqualTo(15)
             .Because("the module's view-models carry the D-track command set, not a stub");
 
-        List<string> unbound = commands
-            .Where(c => !c.IsReachable)
-            .Select(c => c.Describe())
-            .OrderBy(s => s, StringComparer.Ordinal)
-            .ToList();
+        List<string> unbound =
+        [
+            .. commands
+                .Where(c => !c.IsReachable)
+                .Select(c => c.Describe())
+                .OrderBy(s => s, StringComparer.Ordinal)
+        ];
 
         await Assert.That(string.Join("; ", unbound)).IsEqualTo("")
             .Because("a command bound nowhere is either dead surface or — the AUTO toggle's case — a "
@@ -133,10 +135,12 @@ public class Playback2DCommandBindingTests
                     continue;
                 }
 
-                List<string> sites = Playback2DWholeGraph.ProductionSources
-                    .Where(f => Mentions(property.Name, f.Text))
-                    .Select(f => f.Path)
-                    .ToList();
+                List<string> sites =
+                [
+                    .. Playback2DWholeGraph.ProductionSources
+                        .Where(f => Mentions(property.Name, f.Text))
+                        .Select(f => f.Path)
+                ];
 
                 commands.Add(new CommandBinding(Short(type), property.Name, sites));
             }

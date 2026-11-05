@@ -22,7 +22,7 @@ public class StoredFileTests
                 Path.Combine(root, "cache"), []);
             IExtensionFolder folder = stores.Own(StoreRoot.Config)!;
             int legacyReads = 0;
-            byte[] legacy = "{\"Dismissed\":[\"k\"]}"u8.ToArray();
+            byte[] legacy = [.. "{\"Dismissed\":[\"k\"]}"u8];
             StoredFile file = StoredFile.In(folder, StratMiningFiles.StatePath, () =>
             {
                 legacyReads++;
@@ -31,7 +31,7 @@ public class StoredFileTests
 
             byte[]? first = file.Read();
             byte[]? copied = folder.Read(StratMiningFiles.StatePath);
-            file.Write("{}"u8.ToArray());
+            file.Write([.. "{}"u8]);
             byte[]? afterWrite = file.Read();
             using (Assert.Multiple())
             {
@@ -62,7 +62,7 @@ public class StoredFileTests
             StoredFile file = StoredFile.In(new ExtensionFile(Path.Combine(root, "teams.json")))!;
 
             byte[]? before = file.Read();
-            file.Write("{}"u8.ToArray());
+            file.Write([.. "{}"u8]);
             using (Assert.Multiple())
             {
                 await Assert.That(before).IsNull();

@@ -538,7 +538,7 @@ public sealed class AnnotationDocument
                     DocDelta item = RemapDelta(batch.Items[i], zMinMap);
                     if (!ReferenceEquals(item, batch.Items[i]) && rebuilt is null)
                     {
-                        rebuilt = new List<DocDelta>(batch.Items);
+                        rebuilt = [.. batch.Items];
                     }
 
                     if (rebuilt is not null)

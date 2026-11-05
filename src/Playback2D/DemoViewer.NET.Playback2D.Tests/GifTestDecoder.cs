@@ -28,7 +28,7 @@ internal static class GifTestDecoder
         if ((screenFlags & 0x80) != 0)
         {
             int size = 3 << ((screenFlags & 7) + 1);
-            globalTable = data.AsSpan(pos, size).ToArray();
+            globalTable = [.. data.AsSpan(pos, size)];
             pos += size;
         }
 
@@ -109,7 +109,7 @@ internal static class GifTestDecoder
             if ((imageFlags & 0x80) != 0)
             {
                 int size = 3 << ((imageFlags & 7) + 1);
-                table = data.AsSpan(pos, size).ToArray();
+                table = [.. data.AsSpan(pos, size)];
                 pos += size;
             }
 

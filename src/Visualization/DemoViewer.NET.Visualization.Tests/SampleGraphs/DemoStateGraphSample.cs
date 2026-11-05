@@ -67,10 +67,10 @@ public static class DemoStateGraphSample
             "KKS", "Bazooki", "Little Michael Jackson", "renaissance", "bad Light"
         ];
 
-        List<ITableRow> tableRows = new();
+        List<ITableRow> tableRows = [];
         for (int p = 0; p < playerNames.Length; p++)
         {
-            List<ITableCell> cells = new();
+            List<ITableCell> cells = [];
             for (int c = 0; c < columnNames.Length; c++)
             {
                 bool isActive = c < 4; // First 4 columns active for demo

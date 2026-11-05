@@ -66,7 +66,7 @@ public static class CollisionMesh
                 "is invalid for this map; per-part transform must be applied before shipping.");
         }
 
-        List<(Vector3 A, Vector3 B, Vector3 C)> tris = new();
+        List<(Vector3 A, Vector3 B, Vector3 C)> tris = [];
         Vector3 min = new(float.MaxValue);
         Vector3 max = new(float.MinValue);
         int hullCount = 0, meshCount = 0;
@@ -82,7 +82,7 @@ public static class CollisionMesh
         {
             Shape shape = part.Shape;
 
-            foreach (MeshDescriptor md in shape.Meshes ?? Array.Empty<MeshDescriptor>())
+            foreach (MeshDescriptor md in shape.Meshes ?? [])
             {
                 meshCount++;
                 ReadOnlySpan<Vector3> verts = md.Shape.GetVertices();
@@ -93,7 +93,7 @@ public static class CollisionMesh
                 }
             }
 
-            foreach (HullDescriptor hd in shape.Hulls ?? Array.Empty<HullDescriptor>())
+            foreach (HullDescriptor hd in shape.Hulls ?? [])
             {
                 hullCount++;
                 ReadOnlySpan<Vector3> vp = hd.Shape.GetVertexPositions();

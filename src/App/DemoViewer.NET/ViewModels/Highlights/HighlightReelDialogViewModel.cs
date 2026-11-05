@@ -409,8 +409,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     public bool ShowFfmpegStrip => IsFfmpegMissing;
 
     /// <summary>The strip's explanation copy.</summary>
-    public string FfmpegMissingMessage { get; } =
-        "Reel rendering needs ffmpeg, which wasn't found on this machine.";
+    public string FfmpegMissingMessage { get; } = "Reel rendering needs ffmpeg, which wasn't found on this machine.";
 
     /// <summary>
     ///     The self-install instructions. The app-managed folder option exists so a user who cannot
@@ -698,20 +697,24 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
 
             foreach (ClipWindows.Clip clip in demoPlayer.OrderBy(c => c.StartTick))
             {
-                List<CandidateSource> contributingSources = byGroup
-                    .GetValueOrDefault(
-                        (clip.DemoPath.ToUpperInvariant(), clip.SteamId64, clip.RoundNumber), [])
-                    .Where(s => s.Candidate.StartTick <= clip.EndTick && s.Candidate.EndTick >= clip.StartTick)
-                    .ToList();
+                List<CandidateSource> contributingSources =
+                [
+                    .. byGroup
+                        .GetValueOrDefault(
+                            (clip.DemoPath.ToUpperInvariant(), clip.SteamId64, clip.RoundNumber), [])
+                        .Where(s => s.Candidate.StartTick <= clip.EndTick && s.Candidate.EndTick >= clip.StartTick)
+                ];
 
-                List<ReelClipContributorViewModel> contributors = contributingSources
-                    .Select(s => new ReelClipContributorViewModel(
-                        DisplayText.Sanitize(s.Candidate.Title),
-                        DurationText(s.Candidate.StartTick, s.Candidate.EndTick, facts.TickRate),
-                        $"r{s.Candidate.RoundNumber.ToString(CultureInfo.InvariantCulture)}",
-                        $"tick {s.SourceTick.ToString("N0", CultureInfo.InvariantCulture)}",
-                        s.Key, () => Tray))
-                    .ToList();
+                List<ReelClipContributorViewModel> contributors =
+                [
+                    .. contributingSources
+                        .Select(s => new ReelClipContributorViewModel(
+                            DisplayText.Sanitize(s.Candidate.Title),
+                            DurationText(s.Candidate.StartTick, s.Candidate.EndTick, facts.TickRate),
+                            $"r{s.Candidate.RoundNumber.ToString(CultureInfo.InvariantCulture)}",
+                            $"tick {s.SourceTick.ToString("N0", CultureInfo.InvariantCulture)}",
+                            s.Key, () => Tray))
+                ];
 
                 double mergedSeconds = DurationSeconds(clip.StartTick, clip.EndTick, facts.TickRate);
                 bool moved = !facts.Exists;

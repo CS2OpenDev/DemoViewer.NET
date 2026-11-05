@@ -42,8 +42,8 @@ public class PositionUtilGateTests
 
         int offCenter = 0;
         float maxAbsXy = 0;
-        List<Vector3> positions = new();
-        List<string> samples = new();
+        List<Vector3> positions = [];
+        List<string> samples = [];
 
         PawnLookup.ForEachLivePawn(tracker, (slot, pawn) =>
         {

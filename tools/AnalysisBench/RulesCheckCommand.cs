@@ -230,7 +230,7 @@ internal static class RulesCheckCommand
     private static Dictionary<StateNode, int> BuildFireCountByNode(BuildResult build, EvaluationResult result)
     {
         Dictionary<StateNode, int> fireCountByNode = new(ReferenceEqualityComparer.Instance);
-        foreach (StateEdge edge in build.EdgeBacking?.Values ?? Enumerable.Empty<StateEdge>())
+        foreach (StateEdge edge in build.EdgeBacking?.Values ?? [])
         {
             if (edge.WrittenNode is { } node)
             {

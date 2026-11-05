@@ -232,16 +232,22 @@ internal static class TrimVerifier
         ParsedDemo source, TrimResult result, ParsedDemo trimmed, VerificationReport report)
     {
         HashSet<int> retained = [.. result.EmittedSourceFrames];
-        List<string> expected = source.AllGameEvents
-            .Where(e => retained.Contains(e.FrameNumber))
-            .Select(Signature).ToList();
+        List<string> expected =
+        [
+            .. source.AllGameEvents
+                .Where(e => retained.Contains(e.FrameNumber))
+                .Select(Signature)
+        ];
         // The synthesized player_team seatings are additive by design and have no source-frame
         // counterpart. Exclude them here so this check keeps pinning the RETAINED stream
         // one-to-one (VerifyTeams owns the synthesized events).
-        List<string> actual = trimmed.AllGameEvents
-            .Where(e => !(result.SynthesizedTeams.Count > 0
-                && e is { Payload: PlayerTeamEvent { OldTeam: 0, Silent: true }, Name: "player_team" }))
-            .Select(Signature).ToList();
+        List<string> actual =
+        [
+            .. trimmed.AllGameEvents
+                .Where(e => !(result.SynthesizedTeams.Count > 0
+                    && e is { Payload: PlayerTeamEvent { OldTeam: 0, Silent: true }, Name: "player_team" }))
+                .Select(Signature)
+        ];
 
         if (expected.Count != actual.Count)
         {

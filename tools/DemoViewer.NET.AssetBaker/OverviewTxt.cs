@@ -28,7 +28,7 @@ public static class OverviewTxt
         double rotate = map.GetDoubleOrDefault("rotate", 0); // absent ⇒ 0 (no rotation). [UNCERTAIN] — stored raw.
         double zoom = map.GetDoubleOrDefault("zoom", 1); // absent ⇒ 1. [UNCERTAIN] — stored raw.
 
-        List<(string, double, double)> sections = new();
+        List<(string, double, double)> sections = [];
         if (map.Children.TryGetValue("verticalsections", out object? vsObj) && vsObj is KvNode vs)
         {
             foreach ((string name, object child) in vs.Ordered)
@@ -178,7 +178,7 @@ public static class OverviewTxt
         public readonly Dictionary<string, object> Children = new(StringComparer.OrdinalIgnoreCase);
 
         // Preserves insertion order (verticalsections order matters) AND allows keyed lookup.
-        public readonly List<(string Key, object Value)> Ordered = new();
+        public readonly List<(string Key, object Value)> Ordered = [];
 
         public void Add(string key, object value)
         {

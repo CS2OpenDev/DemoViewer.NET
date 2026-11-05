@@ -178,8 +178,8 @@ public class DemoProcessingQueueTests
                 "/d/4.dem",
                 "/d/5.dem"
             ];
-            HashSet<string> done = new();
-            HashSet<string> pending = new(backlog);
+            HashSet<string> done = [];
+            HashSet<string> pending = [.. backlog];
             object pendingLock = new();
 
             void Feed()
@@ -187,7 +187,7 @@ public class DemoProcessingQueueTests
                 string[] toSubmit;
                 lock (pendingLock)
                 {
-                    toSubmit = pending.ToArray();
+                    toSubmit = [.. pending];
                 }
 
                 foreach (string p in toSubmit)
@@ -995,7 +995,7 @@ public class DemoProcessingQueueTests
             lock (_lock)
             {
                 _now += by;
-                due = _timers.Where(t => !t.Disposed && t.Due <= _now).ToList();
+                due = [.. _timers.Where(t => !t.Disposed && t.Due <= _now)];
                 _timers.RemoveAll(t => t.Disposed || t.Due <= _now);
             }
 

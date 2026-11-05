@@ -51,7 +51,7 @@ public static class SidecarJson
             document.WriteTo(writer);
         }
 
-        return buffer.WrittenSpan.ToArray();
+        return [.. buffer.WrittenSpan];
     }
 
     /// <summary>

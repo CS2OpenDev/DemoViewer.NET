@@ -37,13 +37,13 @@ Dictionary<string, string> namedArgs = args
     .Where(a => a.StartsWith("--", StringComparison.Ordinal) && a.Contains('='))
     .Select(a => a.Split('=', 2))
     .ToDictionary(p => p[0], p => p[1], StringComparer.OrdinalIgnoreCase);
-string[] positional = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+string[] positional = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
 
 // `rules check <dir> [--demo=<path>]` — the standalone rule-config checker verb;
 // dispatches before every bench path. See RulesCheckCommand.
 if (positional is ["rules", "check", ..])
 {
-    return RulesCheckCommand.Run(positional.Skip(2).ToArray(), namedArgs);
+    return RulesCheckCommand.Run([.. positional.Skip(2)], namedArgs);
 }
 
 // `bg-run --list=<file>`: sequential background parses under the process's own GC environment.
@@ -333,7 +333,7 @@ static int RunBench(string demoPath, string rulesDir, string? reportPath,
     // ── Player tables ──────────────────────────────────────────────────────
     // Materialisation order is arrival order on both paths, so the tables and the goldens are
     // sorted by slot rather than left to it.
-    List<PlayerReport> playerReports = new();
+    List<PlayerReport> playerReports = [];
     foreach (PerPlayerNodeTemplate.MaterializedPlayer mp in run.MaterializedPlayers
                  .OrderBy(p => p.TemplateIndex).ThenBy(p => p.PlayerSlot))
     {
@@ -653,13 +653,15 @@ static void WriteGoldenStatsFiles(
     Directory.CreateDirectory(fixturesRoot);
 
     // ── ours.golden.json ───────────────────────────────────────────────────
-    List<PlayerStatsInput> oursInputs = playerReports
-        .Select(p => new PlayerStatsInput(
-            p.Name,
-            p.Team,
-            p.Slot,
-            p.Stats))
-        .ToList();
+    List<PlayerStatsInput> oursInputs =
+    [
+        .. playerReports
+            .Select(p => new PlayerStatsInput(
+                p.Name,
+                p.Team,
+                p.Slot,
+                p.Stats))
+    ];
 
     // The converter reads the match facts off a ParsedDemo; the descriptor carries the same two on
     // both paths, so they are set here and the converter gets none.
@@ -741,17 +743,20 @@ static void PrintPlayerTables(List<PlayerReport> playerReports)
     {
         Console.WriteLine();
         Console.WriteLine($"─── Template {tpl.Key} ──────────────────────────────────────");
-        List<PlayerReport> players = tpl.ToList();
+        List<PlayerReport> players = [.. tpl];
         if (players.Count == 0 || players[0].Stats.Count == 0)
         {
             continue;
         }
 
-        List<string> colNames = players[0].Stats.Keys.ToList();
+        List<string> colNames = [.. players[0].Stats.Keys];
         int nameWidth = Math.Max(6, players.Max(p => p.Name.Length) + 1);
-        List<int> colWidths = colNames.Select(c =>
-            Math.Max(c.Length + 1, players.Max(p => FormatStat(p.Stats[c]).Length) + 1)
-        ).ToList();
+        List<int> colWidths =
+        [
+            .. colNames.Select(c =>
+                Math.Max(c.Length + 1, players.Max(p => FormatStat(p.Stats[c]).Length) + 1)
+            )
+        ];
 
         Console.Write($"  {"Player".PadRight(nameWidth)}");
         for (int i = 0; i < colNames.Count; i++)
@@ -916,8 +921,11 @@ static void RunRoundDebug(ParsedDemo demo)
 
 static void RunShotsDebug(ParsedDemo demo, string playerName)
 {
-    List<KeyValuePair<int, PlayerInfo>> matches = demo.Players
-        .Where(kv => kv.Value.Name.Contains(playerName, StringComparison.OrdinalIgnoreCase)).ToList();
+    List<KeyValuePair<int, PlayerInfo>> matches =
+    [
+        .. demo.Players
+            .Where(kv => kv.Value.Name.Contains(playerName, StringComparison.OrdinalIgnoreCase))
+    ];
     if (matches.Count == 0)
     {
         Console.WriteLine($"  No players found matching '{playerName}'.");
@@ -1159,14 +1167,16 @@ static TestCase[] DiscoverTestSuite(string benchDir)
         return [];
     }
 
-    return Directory.GetFiles(benchDir, "*.dem")
-        .Order(StringComparer.OrdinalIgnoreCase)
-        .Select(demoPath =>
-        {
-            string id = Path.GetFileNameWithoutExtension(demoPath);
-            return new TestCase(id, demoPath);
-        })
-        .ToArray();
+    return
+    [
+        .. Directory.GetFiles(benchDir, "*.dem")
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(demoPath =>
+            {
+                string id = Path.GetFileNameWithoutExtension(demoPath);
+                return new TestCase(id, demoPath);
+            })
+    ];
 }
 
 // Shared resolution (env override → packaged rules/ → repo-walk); the bench deliberately loads

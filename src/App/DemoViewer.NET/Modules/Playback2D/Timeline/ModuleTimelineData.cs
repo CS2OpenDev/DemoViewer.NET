@@ -60,7 +60,7 @@ public sealed class ModuleTimelineData : ITimelineData
 
     /// <inheritdoc />
     public IReadOnlyList<int> FramesForEvent(string eventName) =>
-        string.IsNullOrEmpty(eventName) ? Array.Empty<int>() : _context.EventFrames(eventName);
+        string.IsNullOrEmpty(eventName) ? [] : _context.EventFrames(eventName);
 
     /// <inheritdoc />
     public bool HasEvent(string eventName)
@@ -86,7 +86,7 @@ public sealed class ModuleTimelineData : ITimelineData
     {
         if (string.IsNullOrEmpty(eventName))
         {
-            return Array.Empty<TimelineEventRecord>();
+            return [];
         }
 
         if (_cache.TryGetValue(eventName, out TimelineEventRecord[]? cached))
@@ -126,7 +126,7 @@ public sealed class ModuleTimelineData : ITimelineData
         IReadOnlyList<GameEventView> views = _context.GetEventTimeline(eventName);
         if (views.Count == 0)
         {
-            return Array.Empty<TimelineEventRecord>();
+            return [];
         }
 
         List<TimelineEventRecord> records = new(views.Count);
@@ -144,7 +144,7 @@ public sealed class ModuleTimelineData : ITimelineData
             records.Add(new TimelineEventRecord(view.Tick, frameIndex, Flatten(view)));
         }
 
-        return records.ToArray();
+        return [.. records];
     }
 
     // Flattens the boxed field values to invariant strings, then overwrites the normalized TimelineEventKeys

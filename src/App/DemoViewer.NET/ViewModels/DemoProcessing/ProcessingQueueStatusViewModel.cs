@@ -411,19 +411,22 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
             DropRow(id);
         }
 
-        Arrange(Rows, live
-            .OrderBy(x => x.Row.IsRunning ? 0 : 1)
-            .ThenBy(x => x.Row.Item.Light)
-            .ThenBy(x => x.Row.Item.StartRank ?? int.MaxValue)
-            .ThenBy(x => x.Index)
-            .Select(x => x.Row)
-            .ToList());
+        Arrange(Rows, [
+            .. live
+                .OrderBy(x => x.Row.IsRunning ? 0 : 1)
+                .ThenBy(x => x.Row.Item.Light)
+                .ThenBy(x => x.Row.Item.StartRank ?? int.MaxValue)
+                .ThenBy(x => x.Index)
+                .Select(x => x.Row)
+        ]);
 
-        List<DemoQueueRowViewModel> recent = _finishedAt.Keys
-            .Select(id => _rowsById[id])
-            .OrderByDescending(r => r.Item.EndedSeq)
-            .ThenByDescending(r => _finishedAt[r.Id])
-            .ToList();
+        List<DemoQueueRowViewModel> recent =
+        [
+            .. _finishedAt.Keys
+                .Select(id => _rowsById[id])
+                .OrderByDescending(r => r.Item.EndedSeq)
+                .ThenByDescending(r => _finishedAt[r.Id])
+        ];
         _evicted.RemoveWhere(id => !present.Contains(id));
         foreach (DemoQueueRowViewModel old in recent.Skip(RecentCap))
         {
@@ -434,7 +437,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
             }
         }
 
-        Arrange(RecentRows, recent.Take(RecentCap).ToList());
+        Arrange(RecentRows, [.. recent.Take(RecentCap)]);
 
         IsEmpty = Rows.Count == 0;
         IsRecentEmpty = RecentRows.Count == 0;

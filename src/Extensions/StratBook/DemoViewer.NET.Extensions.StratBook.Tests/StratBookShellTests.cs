@@ -100,8 +100,8 @@ public class StratBookShellTests
             MainViewModel vm = NewShell(null, null, module);
             try
             {
-                string[] strip = vm.Tabs.Select(t => t.TabId).ToArray();
-                string[] rail = vm.StratBookHub().Sections.Sections.Select(s => s.TabId).ToArray();
+                string[] strip = [.. vm.Tabs.Select(t => t.TabId)];
+                string[] rail = [.. vm.StratBookHub().Sections.Sections.Select(s => s.TabId)];
 
                 using (Assert.Multiple())
                 {

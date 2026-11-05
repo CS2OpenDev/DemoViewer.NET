@@ -109,7 +109,7 @@ public class StratFrameSourceTests
 
         // A before its first keyframe is not drawn; B is, and so is the opponent.
         Scene2DFrame first = source.FrameAt(0);
-        await Assert.That(first.Markers.Select(m => m.Label).ToArray())
+        await Assert.That([.. first.Markers.Select(m => m.Label)])
             .IsEquivalentTo(["BB", "O1"], CollectionOrdering.Matching);
         await Assert.That(first.Markers.Single(m => m.Label == "BB").Team).IsEqualTo(2);
         await Assert.That(first.Markers.Single(m => m.Label == "O1").Team).IsEqualTo(3);

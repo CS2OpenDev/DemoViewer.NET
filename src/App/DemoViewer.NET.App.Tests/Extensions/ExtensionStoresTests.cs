@@ -115,7 +115,7 @@ public class ExtensionStoresTests
                 await Assert.That(before).IsFalse();
                 await Assert.That(file.Exists).IsTrue();
                 await Assert.That(file.LastWriteTimeUtc).IsNotNull();
-                await Assert.That(file.Read()).IsEquivalentTo("{\"v\":2}"u8.ToArray(), CollectionOrdering.Matching);
+                await Assert.That(file.Read()).IsEquivalentTo([.. "{\"v\":2}"u8], CollectionOrdering.Matching);
                 await Assert.That(Directory.GetFiles(root).Select(f => Path.GetFileName(f))
                         .Order(StringComparer.Ordinal))
                     .IsEquivalentTo([ExtensionId + ".json", "settings.json"], CollectionOrdering.Matching)

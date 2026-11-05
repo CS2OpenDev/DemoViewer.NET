@@ -744,7 +744,7 @@ public class DemoCorpusTests
         DemoCorpus corpus = new(manifest, [], Path.Combine(TempRoot(), "cache"), []);
 
         // Ordinal puts "B" before "a"; a culture-aware sort would not. Callers index by position.
-        await Assert.That(corpus.SetMembers("s").Select(d => d.File).ToArray())
+        await Assert.That([.. corpus.SetMembers("s").Select(d => d.File)])
             .IsEquivalentTo(_ordinalTriple, CollectionOrdering.Matching);
     }
 
@@ -780,7 +780,7 @@ public class DemoCorpusTests
             string[] paths = corpus.RequireSet("s");
             using (Assert.Multiple())
             {
-                await Assert.That(paths.Select(p => Path.GetFileName(p)).ToArray())
+                await Assert.That([.. paths.Select(p => Path.GetFileName(p))])
                     .IsEquivalentTo(_aThenB, CollectionOrdering.Matching);
                 await Assert.That(await File.ReadAllBytesAsync(paths[0]))
                     .IsEquivalentTo(one, CollectionOrdering.Matching);

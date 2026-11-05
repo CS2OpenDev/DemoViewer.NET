@@ -512,8 +512,8 @@ public class TutorialWalkthroughTests
 
                 // Sample both animations across the same span of render ticks. Several samples so we don't alias
                 // the sine's turning points.
-                List<double> pulse = new();
-                List<double> dotOpacity = new();
+                List<double> pulse = [];
+                List<double> dotOpacity = [];
                 for (int i = 0; i < 200; i++)
                 {
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();

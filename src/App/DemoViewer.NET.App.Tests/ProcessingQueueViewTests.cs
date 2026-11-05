@@ -116,8 +116,11 @@ public class ProcessingQueueViewTests
                 new PngBitmapEncoderOptions());
 
             // Running first, then queued in the order the queue reports it will start them.
-            List<string> ranked = queue.Snapshot().Where(s => s.State == DemoQueueItemState.Queued)
-                .OrderBy(s => s.Light).ThenBy(s => s.StartRank).Select(s => s.DisplayName!).ToList();
+            List<string> ranked =
+            [
+                .. queue.Snapshot().Where(s => s.State == DemoQueueItemState.Queued)
+                    .OrderBy(s => s.Light).ThenBy(s => s.StartRank).Select(s => s.DisplayName!)
+            ];
             DemoQueueRowViewModel mine = vm.Rows.Single(r => r.KindLabel == "mining");
             using (Assert.Multiple())
             {
@@ -146,7 +149,7 @@ public class ProcessingQueueViewTests
             Playback2DTimelineHarness.Pump();
             window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "queue-flyout-menu.png"),
                 new PngBitmapEncoderOptions());
-            MenuItem[] entries = menu.Items.OfType<MenuItem>().ToArray();
+            MenuItem[] entries = [.. menu.Items.OfType<MenuItem>()];
             using (Assert.Multiple())
             {
                 await Assert.That(entries.Select(m => (string)m.Header!)).IsEquivalentTo(

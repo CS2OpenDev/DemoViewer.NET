@@ -607,7 +607,7 @@ public sealed class TagSession : IDisposable
             restored.Round = current.Round;
         }
 
-        restored.Facts = current.Facts.Select(Copy).ToList();
+        restored.Facts = [.. current.Facts.Select(Copy)];
         restored.FactsStamp = current.FactsStamp;
 
         List<TagPosition> currentPoints =

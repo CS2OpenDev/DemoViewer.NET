@@ -35,7 +35,7 @@ public static class ExtensionSignature
 
     // Domain-separates the signature from any other 32-byte message this key might ever be asked
     // to sign. The signed message is this tag followed by the digest, never the bare digest.
-    private static readonly byte[] _domainTag = "DemoViewer.NET extension signature v1"u8.ToArray();
+    private static readonly byte[] _domainTag = [.. "DemoViewer.NET extension signature v1"u8];
 
     private static readonly JsonSerializerOptions _jsonOptions =
         new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
